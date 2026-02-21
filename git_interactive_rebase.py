@@ -59,10 +59,11 @@ class DiffHighlighter(QSyntaxHighlighter):
 
 class DiffViewerDialog(QDialog):
     """Base dialog for viewing diffs with centered buttons."""
-    def __init__(self, title, sha, diff_text, parent=None):
+    def __init__(self, title, sha, diff_text, font_size=10, parent=None):
         super().__init__(parent)
         self.setWindowTitle(title)
         self.setMinimumSize(800, 600)
+        self.font_size = font_size
         
         self.layout = QVBoxLayout(self)
         
@@ -72,7 +73,7 @@ class DiffViewerDialog(QDialog):
         # Diff View
         self.diff_view = QTextEdit()
         self.diff_view.setReadOnly(True)
-        self.diff_view.setFont(QFont("Courier New", 10))
+        self.diff_view.setFont(QFont("Courier New", self.font_size))
         self.diff_view.setPlainText(diff_text)
         self.highlighter = DiffHighlighter(self.diff_view.document())
         
@@ -99,8 +100,8 @@ class DiffViewerDialog(QDialog):
         pass # To be overridden
 
 class ViewCommitDialog(DiffViewerDialog):
-    def __init__(self, sha, diff_text, parent=None):
-        super().__init__(f"View Commit: {sha}", sha, diff_text, parent)
+    def __init__(self, sha, diff_text, font_size=10, parent=None):
+        super().__init__(f"View Commit: {sha}", sha, diff_text, font_size, parent)
 
     def setup_header(self, sha):
         label = QLabel(f"Showing changes for commit: <b>{sha}</b>")
@@ -113,8 +114,8 @@ class ViewCommitDialog(DiffViewerDialog):
         self.btn_layout.addWidget(ok_btn)
 
 class DropDialog(DiffViewerDialog):
-    def __init__(self, sha, diff_text, parent=None):
-        super().__init__("Confirm Drop Commit", sha, diff_text, parent)
+    def __init__(self, sha, diff_text, font_size=10, parent=None):
+        super().__init__("Confirm Drop Commit", sha, diff_text, font_size, parent)
 
     def setup_header(self, sha):
         label = QLabel(f"Are you sure you want to drop the commit: <b>{sha}</b>?")
@@ -296,7 +297,7 @@ class GitHistoryApp(QMainWindow):
         sha = item.text().split()[0]
         try:
             diff_text = get_commit_diff(self.repo_path, sha)
-            dialog = ViewCommitDialog(sha, diff_text, self)
+            dialog = ViewCommitDialog(sha, diff_text, self.current_font_size, self)
             dialog.exec()
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))
@@ -328,7 +329,7 @@ class GitHistoryApp(QMainWindow):
         sha = item.text().split()[0]
         try:
             diff_text = get_commit_diff(self.repo_path, sha)
-            dialog = DropDialog(sha, diff_text, self)
+            dialog = DropDialog(sha, diff_text, self.current_font_size, self)
             if dialog.exec() == QDialog.Accepted:
                 self.perform_drop(sha)
         except Exception as e:
