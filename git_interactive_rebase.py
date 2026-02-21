@@ -336,19 +336,35 @@ class GitHistoryApp(QMainWindow):
             QMessageBox.critical(self, "Error", str(e))
 
     def perform_drop(self, sha):
+        """Drops a commit using our unified rebase logic."""
         try:
-            cmd = ["git", "rebase", "--onto", f"{sha}^", sha, "HEAD"]
-            subprocess.run(cmd, cwd=self.repo_path, check=True, capture_output=True, text=True)
-            QMessageBox.information(self, "Success", f"Commit {sha} dropped successfully.")
+            # Current list of SHAs in UI
+            current_shas = []
+            for i in range(self.list_widget.count()):
+                current_shas.append(self.list_widget.item(i).text().split()[0])
+            
+            # New list without the dropped SHA
+            new_shas = [s for s in current_shas if s != sha]
+            
+            if self.run_interactive_rebase(new_shas):
+                QMessageBox.information(self, "Success", f"Commit {sha} dropped successfully.")
+            
             self.load_history()
-        except subprocess.CalledProcessError as e:
-            subprocess.run(["git", "rebase", "--abort"], cwd=self.repo_path)
-            QMessageBox.critical(self, "Rebase Failed", f"Could not drop commit.\n\nError: {e.stderr}")
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"An error occurred while dropping: {str(e)}")
+            self.load_history()
 
     def perform_move(self, new_shas):
+        """Performs commit reordering using our unified rebase logic."""
+        if self.run_interactive_rebase(new_shas):
+            QMessageBox.information(self, "Success", "Commits reordered successfully!")
+        self.load_history()
+
+    def run_interactive_rebase(self, new_shas):
         """
-        Performs the actual commit reordering using git rebase -i.
-        new_shas: SHAs in the NEW order (latest to oldest as seen in UI).
+        Unified handler for history rewriting using git rebase -i.
+        new_shas: SHAs in the desired final order (latest to oldest as seen in UI).
+        Returns True if successful, False otherwise.
         """
         try:
             # For rebase todo, we need oldest-first
@@ -356,19 +372,22 @@ class GitHistoryApp(QMainWindow):
             
             # The base commit is the parent of the oldest commit in our range.
             # Our range is history from self.commit_sha to HEAD.
-            # So the oldest is self.commit_sha.
-            base_commit = f"{self.commit_sha}^"
             
+            # Check if self.commit_sha has a parent
+            has_parent = False
+            try:
+                subprocess.run(["git", "rev-parse", f"{self.commit_sha}^"], 
+                               cwd=self.repo_path, check=True, capture_output=True)
+                has_parent = True
+            except subprocess.CalledProcessError:
+                has_parent = False
+
             # Create a temporary sequence editor script
-            # It will receive the todo file path as the first argument
             with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.py') as f:
                 f.write(f"#!/usr/bin/env python3\n")
                 f.write("import sys\n")
                 f.write(f"new_order = {rebase_shas}\n")
                 f.write("todo_path = sys.argv[1]\n")
-                f.write("with open(todo_path, 'r') as f:\n")
-                f.write("    lines = f.readlines()\n")
-                # Filter out existing pick lines for our SHAs to replace them
                 f.write("with open(todo_path, 'w') as f:\n")
                 f.write("    for sha in new_order:\n")
                 f.write("        f.write(f'pick {sha}\\n')\n")
@@ -380,8 +399,11 @@ class GitHistoryApp(QMainWindow):
             # Run rebase
             env = os.environ.copy()
             env["GIT_SEQUENCE_EDITOR"] = editor_script
-            # We use --autosquash just in case, though not strictly needed here
-            cmd = ["git", "rebase", "-i", "--autosquash", base_commit]
+            
+            if has_parent:
+                cmd = ["git", "rebase", "-i", "--autosquash", f"{self.commit_sha}^"]
+            else:
+                cmd = ["git", "rebase", "-i", "--autosquash", "--root"]
             
             result = subprocess.run(cmd, cwd=self.repo_path, env=env, capture_output=True, text=True)
             
@@ -389,19 +411,19 @@ class GitHistoryApp(QMainWindow):
             os.unlink(editor_script)
             
             if result.returncode == 0:
-                QMessageBox.information(self, "Success", "Commits reordered successfully!")
+                return True
             else:
                 # Rebase failed (likely conflicts)
-                subprocess.run(["git", "rebase", "--abort"], cwd=self.repo_path)
+                # Only abort if there's actually a rebase in progress
+                subprocess.run(["git", "rebase", "--abort"], cwd=self.repo_path, capture_output=True)
                 QMessageBox.critical(self, "Rebase Failed", 
-                    f"Reordering failed (likely due to merge conflicts).\n"
+                    f"Action failed (likely due to merge conflicts).\n"
                     f"The rebase has been aborted.\n\nError: {result.stderr}")
-            
-            self.load_history()
+                return False
                 
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"An error occurred during move: {str(e)}")
-            self.load_history()
+            QMessageBox.critical(self, "Error", f"An error occurred during rebase: {str(e)}")
+            return False
 
     def load_history(self):
         self.list_widget.clear()
