@@ -28,6 +28,24 @@ def get_git_history(repo_path, commit_sha):
     except subprocess.CalledProcessError as e:
         raise Exception(f"Failed to fetch git history: {e.stderr}")
 
+def get_current_branch(repo_path):
+    """Fetches current branch name."""
+    try:
+        cmd = ["git", "branch", "--show-current"]
+        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True)
+        return result.stdout.strip() or "DETACHED"
+    except:
+        return "Unknown"
+
+def get_head_sha(repo_path):
+    """Fetches current HEAD SHA (short)."""
+    try:
+        cmd = ["git", "rev-parse", "--short", "HEAD"]
+        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True)
+        return result.stdout.strip()
+    except:
+        return "Unknown"
+
 def get_commit_diff(repo_path, commit_sha):
     """Fetches the diff for a specific commit."""
     try:
@@ -187,6 +205,13 @@ class GitHistoryApp(QMainWindow):
 
         self.setup_ui()
         self.load_history()
+
+    def update_window_title(self):
+        """Updates window title with branch, HEAD, and path."""
+        branch = get_current_branch(self.repo_path)
+        head_sha = get_head_sha(self.repo_path)
+        title = f"git_interactive_rebase.py : branch={branch}, HEAD={head_sha}, path={self.repo_path}"
+        self.setWindowTitle(title)
 
     def setup_ui(self):
         central_widget = QWidget()
@@ -426,6 +451,7 @@ class GitHistoryApp(QMainWindow):
             return False
 
     def load_history(self):
+        self.update_window_title()
         self.list_widget.clear()
         try:
             history = get_git_history(self.repo_path, self.commit_sha)
