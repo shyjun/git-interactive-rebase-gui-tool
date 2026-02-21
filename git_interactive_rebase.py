@@ -3,6 +3,8 @@ import argparse
 import subprocess
 import sys
 import os
+import tempfile
+import stat
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QListWidget, QVBoxLayout, 
     QWidget, QMessageBox, QListWidgetItem, QMenu, QDialog,
@@ -134,23 +136,18 @@ class DropDialog(DiffViewerDialog):
 
 class CommitListWidget(QListWidget):
     """Subclassed QListWidget to handle Drag & Drop move confirmation."""
-    def __init__(self, parent=None):
-        super().__init__(parent)
+    def __init__(self, main_window):
+        super().__init__(main_window)
+        self.main_window = main_window
         self.setSelectionMode(QListWidget.SingleSelection)
         self.setDragEnabled(True)
         self.setAcceptDrops(True)
         self.setDropIndicatorShown(True)
         self.setDragDropMode(QListWidget.InternalMove)
-        
-        self.dragging_item = None
 
     def dropEvent(self, event):
-        # Determine the old and new positions
         old_row = self.currentRow()
-        
-        # Execute the default drop behavior first to update the list
         super().dropEvent(event)
-        
         new_row = self.currentRow()
         
         if old_row != new_row:
@@ -161,18 +158,21 @@ class CommitListWidget(QListWidget):
             reply = QMessageBox.question(
                 self, 
                 "Confirm Move",
-                f"Do you want to move commit <b>{sha}</b> to a new position?",
+                f"Do you want to move commit <b>{sha}</b> to this new position?",
                 QMessageBox.Yes | QMessageBox.No, 
                 QMessageBox.No
             )
             
             if reply == QMessageBox.Yes:
-                print(f"MOVE PROTOTYPE: User said YES to moving {sha} from index {old_row} to {new_row}")
-                QMessageBox.information(self, "Move", f"Moving {sha}... (Functionality not implemented yet)")
+                # Capture all SHAs in current list order
+                shas = []
+                for i in range(self.count()):
+                    shas.append(self.item(i).text().split()[0])
+                # Call real move functionality
+                self.main_window.perform_move(shas)
             else:
-                print(f"MOVE PROTOTYPE: User said NO to moving {sha}")
-                # Revert move visually (optional, for prototype we might just refresh history later)
-                # For now, let's keep it in the new position as it's a visual prototype
+                # If No, reload the original history to undo the visual move
+                self.main_window.load_history()
 
 class GitHistoryApp(QMainWindow):
     def __init__(self, repo_path, commit_sha):
@@ -193,7 +193,7 @@ class GitHistoryApp(QMainWindow):
         layout = QVBoxLayout(central_widget)
         
         # Use our custom list widget
-        self.list_widget = CommitListWidget()
+        self.list_widget = CommitListWidget(self)
         self.update_font()
         self.list_widget.setContextMenuPolicy(Qt.CustomContextMenu)
         self.list_widget.customContextMenuRequested.connect(self.show_context_menu)
@@ -343,6 +343,64 @@ class GitHistoryApp(QMainWindow):
         except subprocess.CalledProcessError as e:
             subprocess.run(["git", "rebase", "--abort"], cwd=self.repo_path)
             QMessageBox.critical(self, "Rebase Failed", f"Could not drop commit.\n\nError: {e.stderr}")
+
+    def perform_move(self, new_shas):
+        """
+        Performs the actual commit reordering using git rebase -i.
+        new_shas: SHAs in the NEW order (latest to oldest as seen in UI).
+        """
+        try:
+            # For rebase todo, we need oldest-first
+            rebase_shas = list(reversed(new_shas))
+            
+            # The base commit is the parent of the oldest commit in our range.
+            # Our range is history from self.commit_sha to HEAD.
+            # So the oldest is self.commit_sha.
+            base_commit = f"{self.commit_sha}^"
+            
+            # Create a temporary sequence editor script
+            # It will receive the todo file path as the first argument
+            with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.py') as f:
+                f.write(f"#!/usr/bin/env python3\n")
+                f.write("import sys\n")
+                f.write(f"new_order = {rebase_shas}\n")
+                f.write("todo_path = sys.argv[1]\n")
+                f.write("with open(todo_path, 'r') as f:\n")
+                f.write("    lines = f.readlines()\n")
+                # Filter out existing pick lines for our SHAs to replace them
+                f.write("with open(todo_path, 'w') as f:\n")
+                f.write("    for sha in new_order:\n")
+                f.write("        f.write(f'pick {sha}\\n')\n")
+                editor_script = f.name
+            
+            # Make the script executable
+            os.chmod(editor_script, os.stat(editor_script).st_mode | stat.S_IEXEC)
+            
+            # Run rebase
+            env = os.environ.copy()
+            env["GIT_SEQUENCE_EDITOR"] = editor_script
+            # We use --autosquash just in case, though not strictly needed here
+            cmd = ["git", "rebase", "-i", "--autosquash", base_commit]
+            
+            result = subprocess.run(cmd, cwd=self.repo_path, env=env, capture_output=True, text=True)
+            
+            # Clean up
+            os.unlink(editor_script)
+            
+            if result.returncode == 0:
+                QMessageBox.information(self, "Success", "Commits reordered successfully!")
+            else:
+                # Rebase failed (likely conflicts)
+                subprocess.run(["git", "rebase", "--abort"], cwd=self.repo_path)
+                QMessageBox.critical(self, "Rebase Failed", 
+                    f"Reordering failed (likely due to merge conflicts).\n"
+                    f"The rebase has been aborted.\n\nError: {result.stderr}")
+            
+            self.load_history()
+                
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"An error occurred during move: {str(e)}")
+            self.load_history()
 
     def load_history(self):
         self.list_widget.clear()
