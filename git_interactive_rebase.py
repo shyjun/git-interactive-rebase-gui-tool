@@ -315,6 +315,7 @@ class GitHistoryApp(QMainWindow):
         """)
         
         layout.addWidget(self.list_widget)
+        self.list_widget.itemDoubleClicked.connect(self.view_commit)
 
         # Bottom Control Bar
         controls_layout = QHBoxLayout()
@@ -385,7 +386,7 @@ class GitHistoryApp(QMainWindow):
         drop_action = QAction("Drop", self)
         rephrase_action = QAction("Rephrase", self)
         
-        view_action.triggered.connect(lambda: self.handle_view(item))
+        view_action.triggered.connect(lambda: self.view_commit(item))
         # Move action is primarily via drag and drop, but we can make it focus the item
         move_action.triggered.connect(lambda: self.list_widget.setCurrentItem(item))
         reset_action.triggered.connect(lambda: self.handle_reset(item))
@@ -400,15 +401,6 @@ class GitHistoryApp(QMainWindow):
         menu.addAction(drop_action)
         menu.addAction(rephrase_action)
         menu.exec(self.list_widget.mapToGlobal(position))
-
-    def handle_view(self, item):
-        sha = item.text().split()[0]
-        try:
-            diff_text = get_commit_diff(self.repo_path, sha)
-            dialog = ViewCommitDialog(sha, diff_text, self.current_font_size, self)
-            dialog.exec()
-        except Exception as e:
-            QMessageBox.critical(self, "Error", str(e))
 
     def handle_rephrase(self, item):
         """Handles the rephrase action."""
@@ -438,6 +430,19 @@ class GitHistoryApp(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "Error", f"An error occurred while rephrasing: {str(e)}")
             self.load_history()
+
+    def view_commit(self, item):
+        """Helper to open the diff viewer for a commit item."""
+        if not item:
+            return
+        sha = item.text().split()[0]
+        dialog = DiffViewerDialog(
+            repo_path=self.repo_path,
+            commit_sha=sha,
+            font_size=self.current_font_size,
+            parent=self
+        )
+        dialog.exec()
 
     def handle_reset(self, item):
         sha = item.text().split()[0]
