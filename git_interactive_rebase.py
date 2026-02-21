@@ -10,7 +10,7 @@ from PySide6.QtWidgets import (
     QWidget, QMessageBox, QListWidgetItem, QMenu, QDialog,
     QTextEdit, QPushButton, QHBoxLayout, QLabel
 )
-from PySide6.QtCore import Qt, QSize
+from PySide6.QtCore import Qt, QSize, QSettings
 from PySide6.QtGui import QFont, QSyntaxHighlighter, QTextCharFormat, QColor, QAction
 
 def get_git_history(repo_path, commit_sha):
@@ -273,9 +273,12 @@ class GitHistoryApp(QMainWindow):
         super().__init__()
         self.repo_path = repo_path
         self.commit_sha = commit_sha
-        self.current_font_size = 10
         
-        self.setWindowTitle(f"Git History Explorer - {os.path.basename(repo_path)}")
+        # Persistence
+        self.settings = QSettings("shyjun", "GitInteractiveRebase")
+        self.current_font_size = int(self.settings.value("font_size", 10))
+        
+        self.setWindowTitle(f"git_interactive_rebase.py : branch=..., HEAD=..., path={self.repo_path}") # Temporary name until load_history updates it
         self.resize(1000, 800)
 
         self.setup_ui()
@@ -362,6 +365,8 @@ class GitHistoryApp(QMainWindow):
     def update_font(self):
         font = QFont("Monospace", self.current_font_size)
         self.list_widget.setFont(font)
+        # Save persistence
+        self.settings.setValue("font_size", self.current_font_size)
 
     def show_context_menu(self, position):
         item = self.list_widget.itemAt(position)
