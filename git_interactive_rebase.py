@@ -55,6 +55,15 @@ def get_commit_diff(repo_path, commit_sha):
     except subprocess.CalledProcessError as e:
         raise Exception(f"Failed to fetch diff: {e.stderr}")
 
+def get_full_commit_message(repo_path, commit_sha):
+    """Fetches the full (multi-line) commit message."""
+    try:
+        cmd = ["git", "log", "-1", "--format=%B", commit_sha]
+        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True)
+        return result.stdout.strip()
+    except subprocess.CalledProcessError as e:
+        raise Exception(f"Failed to fetch commit message: {e.stderr}")
+
 class DiffHighlighter(QSyntaxHighlighter):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -152,6 +161,63 @@ class DropDialog(DiffViewerDialog):
         
         self.btn_layout.addWidget(self.yes_btn)
         self.btn_layout.addWidget(self.no_btn)
+
+class RephraseDialog(QDialog):
+    """Dialog for editing commit message."""
+    def __init__(self, sha, current_message, font_size=10, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(f"Rephrase Commit: {sha}")
+        self.setMinimumSize(600, 400)
+        self.font_size = font_size
+        
+        layout = QVBoxLayout(self)
+        
+        label = QLabel(f"Edit commit message for: <b>{sha}</b>")
+        layout.addWidget(label)
+        
+        self.message_edit = QTextEdit()
+        self.message_edit.setFont(QFont("Courier New", self.font_size))
+        self.message_edit.setPlainText(current_message)
+        self.message_edit.setStyleSheet("""
+            QTextEdit {
+                background-color: #1e1e1e;
+                color: #dcdcdc;
+                border: 1px solid #3c3f41;
+            }
+        """)
+        layout.addWidget(self.message_edit)
+        
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+        
+        self.apply_btn = QPushButton("Apply")
+        self.discard_btn = QPushButton("Discard")
+        
+        for btn in [self.apply_btn, self.discard_btn]:
+            btn.setMinimumWidth(120)
+            btn.setMinimumHeight(40)
+            btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #3c3f41;
+                    color: #dcdcdc;
+                    border: 1px solid #555555;
+                    border-radius: 4px;
+                    font-weight: bold;
+                }
+                QPushButton:hover { background-color: #4b6eaf; }
+            """)
+            
+        self.apply_btn.clicked.connect(self.accept)
+        self.discard_btn.clicked.connect(self.reject)
+        
+        btn_layout.addWidget(self.apply_btn)
+        btn_layout.addWidget(self.discard_btn)
+        btn_layout.addStretch()
+        
+        layout.addLayout(btn_layout)
+
+    def get_message(self):
+        return self.message_edit.toPlainText().strip()
 
 class CommitListWidget(QListWidget):
     """Subclassed QListWidget to handle Drag & Drop move confirmation."""
@@ -300,14 +366,14 @@ class GitHistoryApp(QMainWindow):
         move_action = QAction("Move (Drag item to reorder)", self)
         reset_action = QAction(f"Reset Hard to {sha}", self)
         drop_action = QAction("Drop", self)
-        rephrase_action = QAction("Rephrase (Not implemented)", self)
-        rephrase_action.setEnabled(False)
+        rephrase_action = QAction("Rephrase", self)
         
         view_action.triggered.connect(lambda: self.handle_view(item))
         # Move action is primarily via drag and drop, but we can make it focus the item
         move_action.triggered.connect(lambda: self.list_widget.setCurrentItem(item))
         reset_action.triggered.connect(lambda: self.handle_reset(item))
         drop_action.triggered.connect(lambda: self.handle_drop(item))
+        rephrase_action.triggered.connect(lambda: self.handle_rephrase(item))
         
         menu.addAction(view_action)
         menu.addAction(move_action)
@@ -326,6 +392,35 @@ class GitHistoryApp(QMainWindow):
             dialog.exec()
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))
+
+    def handle_rephrase(self, item):
+        """Handles the rephrase action."""
+        sha = item.text().split()[0]
+        try:
+            current_message = get_full_commit_message(self.repo_path, sha)
+            dialog = RephraseDialog(sha, current_message, self.current_font_size, self)
+            if dialog.exec() == QDialog.Accepted:
+                new_message = dialog.get_message()
+                if new_message != current_message:
+                    self.perform_rephrase(sha, new_message)
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Could not fetch commit message: {str(e)}")
+
+    def perform_rephrase(self, sha, new_message):
+        """Executes the rephrase using unified rebase logic."""
+        try:
+            # Current list of SHAs in UI
+            current_shas = []
+            for i in range(self.list_widget.count()):
+                current_shas.append(self.list_widget.item(i).text().split()[0])
+            
+            if self.run_interactive_rebase(current_shas, rephrase_map={sha: new_message}):
+                QMessageBox.information(self, "Success", f"Commit {sha} rephrased successfully.")
+            
+            self.load_history()
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"An error occurred while rephrasing: {str(e)}")
+            self.load_history()
 
     def handle_reset(self, item):
         sha = item.text().split()[0]
@@ -385,18 +480,16 @@ class GitHistoryApp(QMainWindow):
             QMessageBox.information(self, "Success", "Commits reordered successfully!")
         self.load_history()
 
-    def run_interactive_rebase(self, new_shas):
+    def run_interactive_rebase(self, new_shas, rephrase_map=None):
         """
         Unified handler for history rewriting using git rebase -i.
         new_shas: SHAs in the desired final order (latest to oldest as seen in UI).
+        rephrase_map: Optional dict mapping SHA -> new commit message string.
         Returns True if successful, False otherwise.
         """
         try:
             # For rebase todo, we need oldest-first
             rebase_shas = list(reversed(new_shas))
-            
-            # The base commit is the parent of the oldest commit in our range.
-            # Our range is history from self.commit_sha to HEAD.
             
             # Check if self.commit_sha has a parent
             has_parent = False
@@ -410,12 +503,17 @@ class GitHistoryApp(QMainWindow):
             # Create a temporary sequence editor script
             with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.py') as f:
                 f.write(f"#!/usr/bin/env python3\n")
-                f.write("import sys\n")
+                f.write("import sys, shlex\n")
                 f.write(f"new_order = {rebase_shas}\n")
+                f.write(f"rephrase_map = {rephrase_map or {}}\n")
                 f.write("todo_path = sys.argv[1]\n")
                 f.write("with open(todo_path, 'w') as f:\n")
                 f.write("    for sha in new_order:\n")
                 f.write("        f.write(f'pick {sha}\\n')\n")
+                f.write("        if sha in rephrase_map:\n")
+                # Using --amend -m avoids spawning another editor
+                f.write("            msg = shlex.quote(rephrase_map[sha])\n")
+                f.write("            f.write(f'exec git commit --amend -m {msg}\\n')\n")
                 editor_script = f.name
             
             # Make the script executable
