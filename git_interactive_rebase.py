@@ -179,6 +179,7 @@ class GitHistoryApp(QMainWindow):
         super().__init__()
         self.repo_path = repo_path
         self.commit_sha = commit_sha
+        self.current_font_size = 10
         
         self.setWindowTitle(f"Git History Explorer - {os.path.basename(repo_path)}")
         self.resize(1000, 800)
@@ -193,7 +194,7 @@ class GitHistoryApp(QMainWindow):
         
         # Use our custom list widget
         self.list_widget = CommitListWidget()
-        self.list_widget.setFont(QFont("Monospace", 10))
+        self.update_font()
         self.list_widget.setContextMenuPolicy(Qt.CustomContextMenu)
         self.list_widget.customContextMenuRequested.connect(self.show_context_menu)
         
@@ -210,6 +211,56 @@ class GitHistoryApp(QMainWindow):
         """)
         
         layout.addWidget(self.list_widget)
+
+        # Bottom Control Bar
+        controls_layout = QHBoxLayout()
+        
+        self.zoom_in_btn = QPushButton("Zoom In (+)")
+        self.zoom_out_btn = QPushButton("Zoom Out (-)")
+        self.refresh_btn = QPushButton("Refresh")
+        
+        for btn in [self.zoom_in_btn, self.zoom_out_btn, self.refresh_btn]:
+            btn.setMinimumHeight(40)
+            btn.setMinimumWidth(120)
+            btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #3c3f41;
+                    color: #dcdcdc;
+                    border: 1px solid #555555;
+                    border-radius: 4px;
+                    font-weight: bold;
+                }
+                QPushButton:hover {
+                    background-color: #4b6eaf;
+                }
+                QPushButton:pressed {
+                    background-color: #2d4470;
+                }
+            """)
+
+        self.zoom_in_btn.clicked.connect(self.handle_zoom_in)
+        self.zoom_out_btn.clicked.connect(self.handle_zoom_out)
+        self.refresh_btn.clicked.connect(self.load_history)
+
+        controls_layout.addWidget(self.zoom_in_btn)
+        controls_layout.addWidget(self.zoom_out_btn)
+        controls_layout.addStretch() # Space between zoom and refresh
+        controls_layout.addWidget(self.refresh_btn)
+        
+        layout.addLayout(controls_layout)
+
+    def handle_zoom_in(self):
+        self.current_font_size += 1
+        self.update_font()
+
+    def handle_zoom_out(self):
+        if self.current_font_size > 6:
+            self.current_font_size -= 1
+            self.update_font()
+
+    def update_font(self):
+        font = QFont("Monospace", self.current_font_size)
+        self.list_widget.setFont(font)
 
     def show_context_menu(self, position):
         item = self.list_widget.itemAt(position)
