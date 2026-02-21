@@ -177,14 +177,17 @@ class GitHistoryApp(QMainWindow):
         menu = QMenu()
         
         view_action = QAction(f"Show / View commit {sha}", self)
+        reset_action = QAction(f"Reset Hard to {sha}", self)
         drop_action = QAction("Drop", self)
         rephrase_action = QAction("Rephrase (Not implemented)", self)
         rephrase_action.setEnabled(False)
         
         view_action.triggered.connect(lambda: self.handle_view(item))
+        reset_action.triggered.connect(lambda: self.handle_reset(item))
         drop_action.triggered.connect(lambda: self.handle_drop(item))
         
         menu.addAction(view_action)
+        menu.addAction(reset_action)
         menu.addSeparator()
         menu.addAction(drop_action)
         menu.addAction(rephrase_action)
@@ -198,6 +201,29 @@ class GitHistoryApp(QMainWindow):
             dialog.exec()
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))
+
+    def handle_reset(self, item):
+        sha = item.text().split()[0]
+        reply = QMessageBox.question(
+            self, 
+            "Confirm Reset Hard",
+            f"Are you sure you want to <b>reset --hard</b> to commit <b>{sha}</b>?<br><br>"
+            "This will discard all uncommitted changes and move your branch to this state.",
+            QMessageBox.Yes | QMessageBox.No, 
+            QMessageBox.No
+        )
+        
+        if reply == QMessageBox.Yes:
+            self.perform_reset(sha)
+
+    def perform_reset(self, sha):
+        try:
+            cmd = ["git", "reset", "--hard", sha]
+            subprocess.run(cmd, cwd=self.repo_path, check=True, capture_output=True, text=True)
+            QMessageBox.information(self, "Success", f"Successfully reset --hard to {sha}.")
+            self.load_history()
+        except subprocess.CalledProcessError as e:
+            QMessageBox.critical(self, "Reset Failed", f"Could not perform reset.\n\nError: {e.stderr}")
 
     def handle_drop(self, item):
         sha = item.text().split()[0]
