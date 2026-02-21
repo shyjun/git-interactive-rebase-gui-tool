@@ -132,6 +132,48 @@ class DropDialog(DiffViewerDialog):
         self.btn_layout.addWidget(self.yes_btn)
         self.btn_layout.addWidget(self.no_btn)
 
+class CommitListWidget(QListWidget):
+    """Subclassed QListWidget to handle Drag & Drop move confirmation."""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setSelectionMode(QListWidget.SingleSelection)
+        self.setDragEnabled(True)
+        self.setAcceptDrops(True)
+        self.setDropIndicatorShown(True)
+        self.setDragDropMode(QListWidget.InternalMove)
+        
+        self.dragging_item = None
+
+    def dropEvent(self, event):
+        # Determine the old and new positions
+        old_row = self.currentRow()
+        
+        # Execute the default drop behavior first to update the list
+        super().dropEvent(event)
+        
+        new_row = self.currentRow()
+        
+        if old_row != new_row:
+            item = self.item(new_row)
+            sha = item.text().split()[0]
+            
+            # Ask for confirmation
+            reply = QMessageBox.question(
+                self, 
+                "Confirm Move",
+                f"Do you want to move commit <b>{sha}</b> to a new position?",
+                QMessageBox.Yes | QMessageBox.No, 
+                QMessageBox.No
+            )
+            
+            if reply == QMessageBox.Yes:
+                print(f"MOVE PROTOTYPE: User said YES to moving {sha} from index {old_row} to {new_row}")
+                QMessageBox.information(self, "Move", f"Moving {sha}... (Functionality not implemented yet)")
+            else:
+                print(f"MOVE PROTOTYPE: User said NO to moving {sha}")
+                # Revert move visually (optional, for prototype we might just refresh history later)
+                # For now, let's keep it in the new position as it's a visual prototype
+
 class GitHistoryApp(QMainWindow):
     def __init__(self, repo_path, commit_sha):
         super().__init__()
@@ -149,7 +191,8 @@ class GitHistoryApp(QMainWindow):
         self.setCentralWidget(central_widget)
         layout = QVBoxLayout(central_widget)
         
-        self.list_widget = QListWidget()
+        # Use our custom list widget
+        self.list_widget = CommitListWidget()
         self.list_widget.setFont(QFont("Monospace", 10))
         self.list_widget.setContextMenuPolicy(Qt.CustomContextMenu)
         self.list_widget.customContextMenuRequested.connect(self.show_context_menu)
@@ -177,16 +220,21 @@ class GitHistoryApp(QMainWindow):
         menu = QMenu()
         
         view_action = QAction(f"Show / View commit {sha}", self)
+        move_action = QAction("Move (Drag item to reorder)", self)
         reset_action = QAction(f"Reset Hard to {sha}", self)
         drop_action = QAction("Drop", self)
         rephrase_action = QAction("Rephrase (Not implemented)", self)
         rephrase_action.setEnabled(False)
         
         view_action.triggered.connect(lambda: self.handle_view(item))
+        # Move action is primarily via drag and drop, but we can make it focus the item
+        move_action.triggered.connect(lambda: self.list_widget.setCurrentItem(item))
         reset_action.triggered.connect(lambda: self.handle_reset(item))
         drop_action.triggered.connect(lambda: self.handle_drop(item))
         
         menu.addAction(view_action)
+        menu.addAction(move_action)
+        menu.addSeparator()
         menu.addAction(reset_action)
         menu.addSeparator()
         menu.addAction(drop_action)
