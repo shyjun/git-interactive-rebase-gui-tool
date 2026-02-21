@@ -322,8 +322,9 @@ class GitHistoryApp(QMainWindow):
         self.zoom_in_btn = QPushButton("Zoom In (+)")
         self.zoom_out_btn = QPushButton("Zoom Out (-)")
         self.refresh_btn = QPushButton("Refresh")
+        self.exit_btn = QPushButton("Exit")
         
-        for btn in [self.zoom_in_btn, self.zoom_out_btn, self.refresh_btn]:
+        for btn in [self.zoom_in_btn, self.zoom_out_btn, self.refresh_btn, self.exit_btn]:
             btn.setMinimumHeight(40)
             btn.setMinimumWidth(120)
             btn.setStyleSheet("""
@@ -345,11 +346,13 @@ class GitHistoryApp(QMainWindow):
         self.zoom_in_btn.clicked.connect(self.handle_zoom_in)
         self.zoom_out_btn.clicked.connect(self.handle_zoom_out)
         self.refresh_btn.clicked.connect(self.load_history)
+        self.exit_btn.clicked.connect(self.close)
 
         controls_layout.addWidget(self.zoom_in_btn)
         controls_layout.addWidget(self.zoom_out_btn)
         controls_layout.addStretch() # Space between zoom and refresh
         controls_layout.addWidget(self.refresh_btn)
+        controls_layout.addWidget(self.exit_btn)
         
         layout.addLayout(controls_layout)
 
