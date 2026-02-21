@@ -14,17 +14,26 @@ from PySide6.QtCore import Qt, QSize
 from PySide6.QtGui import QFont, QSyntaxHighlighter, QTextCharFormat, QColor, QAction
 
 def get_git_history(repo_path, commit_sha):
-    """Fetches git history from HEAD to commit_sha."""
+    """Fetches git history from HEAD down to commit_sha inclusive."""
     try:
-        cmd = ["git", "log", f"{commit_sha}..HEAD", "--oneline"]
+        # Check if commit_sha has a parent
+        has_parent = False
+        try:
+            subprocess.run(["git", "rev-parse", f"{commit_sha}^"], 
+                           cwd=repo_path, check=True, capture_output=True)
+            has_parent = True
+        except:
+            has_parent = False
+
+        if has_parent:
+            # Inclusive range: parent..HEAD shows commit_sha and its descendants
+            cmd = ["git", "log", f"{commit_sha}^..HEAD", "--oneline"]
+        else:
+            # Root commit case: show everything reachable from HEAD
+            cmd = ["git", "log", "HEAD", "--oneline"]
+        
         result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True)
-        history = result.stdout.strip().split('\n')
-        
-        cmd_sha = ["git", "log", "-1", commit_sha, "--oneline"]
-        result_sha = subprocess.run(cmd_sha, cwd=repo_path, capture_output=True, text=True, check=True)
-        history.append(result_sha.stdout.strip())
-        
-        return [line for line in history if line.strip()]
+        return [line for line in result.stdout.strip().split('\n') if line.strip()]
     except subprocess.CalledProcessError as e:
         raise Exception(f"Failed to fetch git history: {e.stderr}")
 
@@ -534,6 +543,15 @@ class GitHistoryApp(QMainWindow):
             os.unlink(editor_script)
             
             if result.returncode == 0:
+                # IMPORTANT: Update self.commit_sha to the NEW SHA of the bottom-most commit.
+                # Interactive rebase of a range of length N results in N new SHAs at the top of history.
+                # The oldest one in our range is now at HEAD~{N-1}.
+                num_commits = len(new_shas)
+                if num_commits > 0:
+                    cmd_new_bottom = ["git", "rev-parse", f"HEAD~{num_commits - 1}"]
+                    res = subprocess.run(cmd_new_bottom, cwd=self.repo_path, capture_output=True, text=True)
+                    if res.returncode == 0:
+                        self.commit_sha = res.stdout.strip()
                 return True
             else:
                 # Rebase failed (likely conflicts)
