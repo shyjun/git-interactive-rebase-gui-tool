@@ -949,7 +949,19 @@ class GitHistoryApp(QMainWindow):
             if common_count > 0:
                 upstream = old_order[common_count - 1]
                 todo_shas = proposed_order[common_count:]
-            else:
+                
+                # SQUASH FIX: If the first commit to reprocess is a squash,
+                # we MUST include at least one commit before it (the pick target)
+                if todo_shas and squash_shas and todo_shas[0] in squash_shas:
+                    if common_count > 1:
+                        common_count -= 1
+                        upstream = old_order[common_count - 1]
+                        todo_shas = proposed_order[common_count:]
+                    else:
+                        # We are squashing into the very first commit of our visible range
+                        common_count = 0 # Fall back to full rebase logic below
+            
+            if common_count == 0:
                 # Check root status
                 has_parent = False
                 try:
