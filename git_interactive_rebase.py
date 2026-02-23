@@ -386,6 +386,10 @@ class GitHistoryApp(QMainWindow):
         drop_action = QAction("Drop", self)
         rephrase_action = QAction("Rephrase", self)
         
+        # Clipboard items
+        copy_sha_action = QAction("Copy SHA to clipboard", self)
+        copy_msg_action = QAction("Copy commit msg to clipboard", self)
+        
         # Squash items
         index = self.list_widget.row(item)
         count = self.list_widget.count()
@@ -423,6 +427,8 @@ class GitHistoryApp(QMainWindow):
         reset_action.triggered.connect(lambda: self.handle_reset(item))
         drop_action.triggered.connect(lambda: self.handle_drop(item))
         rephrase_action.triggered.connect(lambda: self.handle_rephrase(item))
+        copy_sha_action.triggered.connect(lambda: self.handle_copy_sha(item))
+        copy_msg_action.triggered.connect(lambda: self.handle_copy_message(item))
         
         menu.addAction(view_action)
         menu.addAction(move_action)
@@ -431,6 +437,9 @@ class GitHistoryApp(QMainWindow):
         menu.addSeparator()
         menu.addAction(drop_action)
         menu.addAction(rephrase_action)
+        menu.addSeparator()
+        menu.addAction(copy_sha_action)
+        menu.addAction(copy_msg_action)
         menu.addSeparator()
         menu.addAction(squash_above_action)
         menu.addAction(squash_below_action)
@@ -466,6 +475,20 @@ class GitHistoryApp(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "Error", f"An error occurred while rephrasing: {str(e)}")
             self.load_history()
+
+    def handle_copy_sha(self, item):
+        sha = item.text().split()[0]
+        print(f"Copying SHA {sha} to clipboard...")
+        QApplication.clipboard().setText(sha)
+
+    def handle_copy_message(self, item):
+        sha = item.text().split()[0]
+        print(f"Copying message of {sha} to clipboard...")
+        try:
+            msg = get_full_commit_message(self.repo_path, sha)
+            QApplication.clipboard().setText(msg)
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Could not fetch message: {str(e)}")
 
     def view_commit(self, item):
         """Helper to open the diff viewer for a commit item."""
