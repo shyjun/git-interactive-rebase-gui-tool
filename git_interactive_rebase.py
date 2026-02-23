@@ -227,7 +227,7 @@ class RephraseDialog(QDialog):
         layout.addLayout(btn_layout)
 
     def get_message(self):
-        return self.editor.toPlainText().strip()
+        return self.message_edit.toPlainText().strip()
 
 class SquashDialog(QDialog):
     """Dialog for choosing and editing commit message during squash."""
