@@ -380,17 +380,7 @@ class GitHistoryApp(QMainWindow):
         self.list_widget.setContextMenuPolicy(Qt.CustomContextMenu)
         self.list_widget.customContextMenuRequested.connect(self.show_context_menu)
         
-        self.list_widget.setStyleSheet("""
-            QListWidget {
-                background-color: #2b2b2b;
-                color: #dcdcdc;
-                border: 1px solid #3c3f41;
-                border-radius: 4px;
-                padding: 2px;
-            }
-            QListWidget::item { padding: 8px; border-bottom: 1px solid #3c3f41; }
-            QListWidget::item:selected { background-color: #4b6eaf; }
-        """)
+        layout.addWidget(self.list_widget)
         
         layout.addWidget(self.list_widget)
         self.list_widget.itemDoubleClicked.connect(self.view_commit)
@@ -417,21 +407,6 @@ class GitHistoryApp(QMainWindow):
         for btn in [self.zoom_in_btn, self.zoom_out_btn, self.refresh_btn, self.exit_btn]:
             btn.setMinimumHeight(40)
             btn.setMinimumWidth(120)
-            btn.setStyleSheet("""
-                QPushButton {
-                    background-color: #3c3f41;
-                    color: #dcdcdc;
-                    border: 1px solid #555555;
-                    border-radius: 4px;
-                    font-weight: bold;
-                }
-                QPushButton:hover {
-                    background-color: #4b6eaf;
-                }
-                QPushButton:pressed {
-                    background-color: #2d4470;
-                }
-            """)
 
         self.zoom_in_btn.clicked.connect(self.handle_zoom_in)
         self.zoom_out_btn.clicked.connect(self.handle_zoom_out)
@@ -483,6 +458,10 @@ class GitHistoryApp(QMainWindow):
                     padding: 5px;
                     color: #e0e0e0;
                 }
+                QListWidget::item { 
+                    padding: 8px; 
+                    border-bottom: 1px solid #333; 
+                }
                 QListWidget::item:selected {
                     background-color: #3d5afe;
                     color: white;
@@ -497,6 +476,9 @@ class GitHistoryApp(QMainWindow):
                 }
                 QPushButton:hover {
                     background-color: #444;
+                }
+                QPushButton:pressed {
+                    background-color: #2d4470;
                 }
                 QPushButton.dialog-btn {
                     background-color: #3c3f41;
@@ -552,6 +534,10 @@ class GitHistoryApp(QMainWindow):
                     padding: 5px;
                     color: #333;
                 }
+                QListWidget::item { 
+                    padding: 8px; 
+                    border-bottom: 1px solid #eee; 
+                }
                 QListWidget::item:selected {
                     background-color: #007aff;
                     color: white;
@@ -566,6 +552,9 @@ class GitHistoryApp(QMainWindow):
                 }
                 QPushButton:hover {
                     background-color: #f0f0f0;
+                }
+                QPushButton:pressed {
+                    background-color: #d0d0d0;
                 }
                 QPushButton.dialog-btn {
                     background-color: #e1e1e1;
