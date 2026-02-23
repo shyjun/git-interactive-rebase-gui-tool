@@ -921,30 +921,50 @@ class GitHistoryApp(QMainWindow):
     def run_interactive_rebase(self, new_shas, rephrase_map=None, squash_shas=None):
         """
         Unified handler for history rewriting using git rebase -i.
-        new_shas: SHAs in the desired final order (latest to oldest as seen in UI).
-        rephrase_map: Optional dict mapping SHA -> new commit message string.
-        squash_shas: Optional list of SHAs to mark as 'squash' in the todo.
-        Returns True if successful, False otherwise.
+        Automatically optimizes the rebase range to improve performance.
         """
-        print("Executing rebase...")
+        print("Executing optimized rebase...")
         try:
-            # For rebase todo, we need oldest-first
-            rebase_shas = list(reversed(new_shas))
+            # 1. Determine common prefix to minimize work
+            visible_shas = [self.list_widget.item(i).text().split()[0] for i in range(self.list_widget.count())]
+            old_order = list(reversed(visible_shas))
+            proposed_order = list(reversed(new_shas))
             
-            # Check if self.commit_sha has a parent
-            has_parent = False
-            try:
-                subprocess.run(["git", "rev-parse", f"{self.commit_sha}^"], 
-                               cwd=self.repo_path, check=True, capture_output=True)
-                has_parent = True
-            except subprocess.CalledProcessError:
+            common_count = 0
+            for old, new in zip(old_order, proposed_order):
+                if old == new:
+                    common_count += 1
+                else:
+                    break
+            
+            # Determine upstream and suffix to re-process
+            if common_count > 0:
+                upstream = old_order[common_count - 1]
+                todo_shas = proposed_order[common_count:]
+            else:
+                # Check root status
                 has_parent = False
+                try:
+                    subprocess.run(["git", "rev-parse", f"{self.commit_sha}^"], 
+                                   cwd=self.repo_path, check=True, capture_output=True)
+                    has_parent = True
+                except:
+                    has_parent = False
+                upstream = f"{self.commit_sha}^" if has_parent else "--root"
+                todo_shas = proposed_order
 
+            # Feature: Fast-track top-drops (reset --hard)
+            if not todo_shas and common_count > 0:
+                print(f"Fast-tracking drop via reset --hard to {upstream}")
+                subprocess.run(["git", "reset", "--hard", upstream], cwd=self.repo_path, check=True)
+                return True
+
+            # 2. Proceed with rebase for non-trivial changes
             # Create a temporary sequence editor script
             with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.py') as f:
                 f.write(f"#!/usr/bin/env python3\n")
                 f.write("import sys, shlex\n")
-                f.write(f"new_order = {rebase_shas}\n")
+                f.write(f"new_order = {todo_shas}\n")
                 f.write(f"rephrase_map = {rephrase_map or {}}\n")
                 f.write(f"squash_shas = {squash_shas or []}\n")
                 f.write("todo_path = sys.argv[1]\n")
@@ -953,44 +973,30 @@ class GitHistoryApp(QMainWindow):
                 f.write("        op = 'squash' if sha in squash_shas else 'pick'\n")
                 f.write("        f.write(f'{op} {sha}\\n')\n")
                 f.write("        if sha in rephrase_map:\n")
-                # Using --amend -m avoids spawning another editor
                 f.write("            msg = shlex.quote(rephrase_map[sha])\n")
                 f.write("            f.write(f'exec git commit --amend -m {msg}\\n')\n")
                 editor_script = f.name
             
-            # Make the script executable
             os.chmod(editor_script, os.stat(editor_script).st_mode | stat.S_IEXEC)
             
-            # Run rebase
             env = os.environ.copy()
             env["GIT_SEQUENCE_EDITOR"] = editor_script
-            # Use a headless editor for commit messages during squash to avoid hanging
             env["GIT_EDITOR"] = "true"
             
-            if has_parent:
-                cmd = ["git", "rebase", "-i", "--autosquash", f"{self.commit_sha}^"]
-            else:
+            if upstream == "--root":
                 cmd = ["git", "rebase", "-i", "--autosquash", "--root"]
+            else:
+                cmd = ["git", "rebase", "-i", "--autosquash", upstream]
             
             result = subprocess.run(cmd, cwd=self.repo_path, env=env, capture_output=True, text=True)
-            
-            # Clean up
             os.unlink(editor_script)
             
             if result.returncode == 0:
-                # IMPORTANT: Update self.commit_sha to the NEW SHA of the bottom-most commit.
-                # Interactive rebase of a range of length N results in N new SHAs at the top of history.
-                # The oldest one in our range is now at HEAD~{N-1}.
-                num_commits = len(new_shas)
-                if num_commits > 0:
-                    cmd_new_bottom = ["git", "rev-parse", f"HEAD~{num_commits - 1}"]
-                    res = subprocess.run(cmd_new_bottom, cwd=self.repo_path, capture_output=True, text=True)
-                    if res.returncode == 0:
-                        self.commit_sha = res.stdout.strip()
+                # Update bottom anchor SHA
+                if new_shas:
+                    self.commit_sha = new_shas[-1]
                 return True
             else:
-                # Rebase failed (likely conflicts)
-                # Only abort if there's actually a rebase in progress
                 subprocess.run(["git", "rebase", "--abort"], cwd=self.repo_path, capture_output=True)
                 QMessageBox.critical(self, "Rebase Failed", 
                     f"Action failed (likely due to merge conflicts).\n"
