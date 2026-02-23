@@ -48,12 +48,16 @@ A premium, user-friendly GUI for Git interactive rebasing. Built with **PySide6*
 Navigate to the project directory and run:
 
 ```bash
+# Start from the root commit (entire history)
+python git_interactive_rebase.py
+
+# Or start from a specific commit
 python git_interactive_rebase.py <commit-sha>
 ```
 
-Optional: Specify a different location:
+Optional: Specify a different repository location:
 ```bash
-python git_interactive_rebase.py <commit-sha> -C /path/to/repo
+python git_interactive_rebase.py -C /path/to/repo
 ```
 
 ---

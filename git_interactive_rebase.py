@@ -63,6 +63,15 @@ def get_head_sha(repo_path):
     except:
         return "Unknown"
 
+def get_root_commit(repo_path):
+    """Fetches the very first commit SHA in the repository."""
+    try:
+        cmd = ["git", "rev-list", "--max-parents=0", "HEAD"]
+        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True)
+        return result.stdout.strip().split('\n')[0]
+    except Exception as e:
+        raise Exception(f"Failed to find root commit: {e}")
+
 def get_commit_diff(repo_path, commit_sha):
     """Fetches the diff for a specific commit."""
     try:
@@ -1049,13 +1058,22 @@ class GitHistoryApp(QMainWindow):
 def main():
     parser = argparse.ArgumentParser(description="Git Interactive Rebase Helper.")
     parser.add_argument("-C", "--location", type=str, default=os.getcwd())
-    parser.add_argument("commit_sha", type=str)
+    parser.add_argument("commit_sha", type=str, nargs="?", help="Starting commit SHA (optional, defaults to root)")
     args = parser.parse_args()
 
     repo_path = os.path.abspath(os.path.expanduser(args.location))
     
+    commit_sha = args.commit_sha
+    if not commit_sha:
+        try:
+            commit_sha = get_root_commit(repo_path)
+            print(f"No SHA provided. Starting from root commit: {commit_sha}")
+        except Exception as e:
+            print(f"Error: {e}")
+            sys.exit(1)
+    
     app = QApplication(sys.argv)
-    window = GitHistoryApp(repo_path, args.commit_sha)
+    window = GitHistoryApp(repo_path, commit_sha)
     window.show()
     sys.exit(app.exec())
 
