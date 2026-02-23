@@ -939,7 +939,8 @@ class GitHistoryApp(QMainWindow):
             
             common_count = 0
             for old, new in zip(old_order, proposed_order):
-                if old == new:
+                # A commit is only "common" if it's the same SHA AND not being modified
+                if old == new and (not rephrase_map or old not in rephrase_map) and (not squash_shas or old not in squash_shas):
                     common_count += 1
                 else:
                     break
