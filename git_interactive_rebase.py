@@ -8,7 +8,7 @@ import stat
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QListWidget, QVBoxLayout, 
     QWidget, QMessageBox, QListWidgetItem, QMenu, QDialog,
-    QTextEdit, QPushButton, QHBoxLayout, QLabel
+    QTextEdit, QPushButton, QHBoxLayout, QLabel, QRadioButton
 )
 from PySide6.QtCore import Qt, QSize, QSettings
 from PySide6.QtGui import QFont, QSyntaxHighlighter, QTextCharFormat, QColor, QAction
@@ -226,7 +226,65 @@ class RephraseDialog(QDialog):
         layout.addLayout(btn_layout)
 
     def get_message(self):
-        return self.message_edit.toPlainText().strip()
+        return self.editor.toPlainText().strip()
+
+class SquashDialog(QDialog):
+    """Dialog for choosing and editing commit message during squash."""
+    def __init__(self, sha1, msg1, sha2, msg2, font_size=10, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Interactive Squash / Merge")
+        self.setMinimumSize(600, 400)
+        self.font_size = font_size
+        
+        self.msg1 = msg1
+        self.msg2 = msg2
+        
+        layout = QVBoxLayout(self)
+        
+        # Label
+        layout.addWidget(QLabel("Select or edit the final commit message:"))
+        
+        # Radio Buttons
+        self.radio1 = QRadioButton(f"Use commit msg of {sha1}: {msg1.splitlines()[0][:50]}...")
+        self.radio2 = QRadioButton(f"Use commit msg of {sha2}: {msg2.splitlines()[0][:50]}...")
+        
+        layout.addWidget(self.radio1)
+        layout.addWidget(self.radio2)
+        
+        # Text Editor
+        self.editor = QTextEdit()
+        self.editor.setFont(QFont("Courier New", self.font_size))
+        layout.addWidget(self.editor)
+        
+        # Connections
+        self.radio1.toggled.connect(self.on_radio_toggled)
+        self.radio2.toggled.connect(self.on_radio_toggled)
+        
+        # Default selection
+        self.radio1.setChecked(True)
+        self.editor.setPlainText(self.msg1)
+        
+        # Buttons
+        btn_layout = QHBoxLayout()
+        self.proceed_btn = QPushButton("Proceed")
+        self.cancel_btn = QPushButton("Cancel")
+        
+        self.proceed_btn.clicked.connect(self.accept)
+        self.cancel_btn.clicked.connect(self.reject)
+        
+        btn_layout.addStretch()
+        btn_layout.addWidget(self.proceed_btn)
+        btn_layout.addWidget(self.cancel_btn)
+        layout.addLayout(btn_layout)
+
+    def on_radio_toggled(self):
+        if self.radio1.isChecked():
+            self.editor.setPlainText(self.msg1)
+        elif self.radio2.isChecked():
+            self.editor.setPlainText(self.msg2)
+
+    def get_message(self):
+        return self.editor.toPlainText().strip()
 
 class CommitListWidget(QListWidget):
     """Subclassed QListWidget to handle Drag & Drop move confirmation."""
@@ -545,26 +603,44 @@ class GitHistoryApp(QMainWindow):
         index = self.list_widget.row(item)
         if index <= 0: return
         
-        target_item = self.list_widget.item(index - 1)
-        sha_to_squash = target_item.text().split()[0]
-        base_sha = item.text().split()[0]
+        above_item = self.list_widget.item(index - 1)
+        sha_above = above_item.text().split()[0]
+        sha_current = item.text().split()[0]
         
-        print(f"Preparing to squash {sha_to_squash} into {base_sha}...")
-        self.perform_squash(sha_to_squash)
+        try:
+            msg_above = get_full_commit_message(self.repo_path, sha_above)
+            msg_current = get_full_commit_message(self.repo_path, sha_current)
+            
+            dialog = SquashDialog(sha_above, msg_above, sha_current, msg_current, self.current_font_size, self)
+            if dialog.exec() == QDialog.Accepted:
+                final_msg = dialog.get_message()
+                print(f"Preparing to squash {sha_above} into {sha_current}...")
+                self.perform_squash(sha_above, final_msg)
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Could not prepare squash: {str(e)}")
 
     def handle_squash_below(self, item):
         """Squashes the current commit with the one below it (older)."""
         index = self.list_widget.row(item)
         if index >= self.list_widget.count() - 1: return
         
-        sha_to_squash = item.text().split()[0]
-        target_item = self.list_widget.item(index + 1)
-        base_sha = target_item.text().split()[0]
+        sha_current = item.text().split()[0]
+        below_item = self.list_widget.item(index + 1)
+        sha_below = below_item.text().split()[0]
         
-        print(f"Preparing to squash {sha_to_squash} into {base_sha}...")
-        self.perform_squash(sha_to_squash)
+        try:
+            msg_current = get_full_commit_message(self.repo_path, sha_current)
+            msg_below = get_full_commit_message(self.repo_path, sha_below)
+            
+            dialog = SquashDialog(sha_current, msg_current, sha_below, msg_below, self.current_font_size, self)
+            if dialog.exec() == QDialog.Accepted:
+                final_msg = dialog.get_message()
+                print(f"Preparing to squash {sha_current} into {sha_below}...")
+                self.perform_squash(sha_current, final_msg)
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Could not prepare squash: {str(e)}")
 
-    def perform_squash(self, sha_to_squash):
+    def perform_squash(self, sha_to_squash, final_msg):
         """Executes the squash using unified rebase logic."""
         try:
             # Current list of SHAs in UI
@@ -572,7 +648,10 @@ class GitHistoryApp(QMainWindow):
             for i in range(self.list_widget.count()):
                 current_shas.append(self.list_widget.item(i).text().split()[0])
             
-            if self.run_interactive_rebase(current_shas, squash_shas=[sha_to_squash]):
+            # Use final_msg for the rebase - we associate it with the SHA being squashed
+            # so the amend happens right after the squash command in the todo list.
+            if self.run_interactive_rebase(current_shas, squash_shas=[sha_to_squash], 
+                                          rephrase_map={sha_to_squash: final_msg}):
                 print(f"Squashed {sha_to_squash}.")
                 QMessageBox.information(self, "Success", "Commits squashed successfully.")
             
