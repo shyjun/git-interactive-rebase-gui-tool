@@ -405,6 +405,7 @@ class GitHistoryApp(QMainWindow):
     def handle_rephrase(self, item):
         """Handles the rephrase action."""
         sha = item.text().split()[0]
+        print(f"Preparing to rephrase {sha}...")
         try:
             current_message = get_full_commit_message(self.repo_path, sha)
             dialog = RephraseDialog(sha, current_message, self.current_font_size, self)
@@ -424,6 +425,7 @@ class GitHistoryApp(QMainWindow):
                 current_shas.append(self.list_widget.item(i).text().split()[0])
             
             if self.run_interactive_rebase(current_shas, rephrase_map={sha: new_message}):
+                print(f"Rephrased {sha}.")
                 QMessageBox.information(self, "Success", f"Commit {sha} rephrased successfully.")
             
             self.load_history()
@@ -436,6 +438,7 @@ class GitHistoryApp(QMainWindow):
         if not item:
             return
         sha = item.text().split()[0]
+        print(f"Viewing {sha}...")
         try:
             diff_text = get_commit_diff(self.repo_path, sha)
             dialog = ViewCommitDialog(sha, diff_text, self.current_font_size, self)
@@ -458,6 +461,7 @@ class GitHistoryApp(QMainWindow):
             self.perform_reset(sha)
 
     def perform_reset(self, sha):
+        print(f"Resetting hard to {sha}...")
         try:
             cmd = ["git", "reset", "--hard", sha]
             subprocess.run(cmd, cwd=self.repo_path, check=True, capture_output=True, text=True)
@@ -468,6 +472,7 @@ class GitHistoryApp(QMainWindow):
 
     def handle_drop(self, item):
         sha = item.text().split()[0]
+        print(f"Preparing to drop {sha}...")
         try:
             diff_text = get_commit_diff(self.repo_path, sha)
             dialog = DropDialog(sha, diff_text, self.current_font_size, self)
@@ -488,6 +493,7 @@ class GitHistoryApp(QMainWindow):
             new_shas = [s for s in current_shas if s != sha]
             
             if self.run_interactive_rebase(new_shas):
+                print(f"Dropped {sha}.")
                 QMessageBox.information(self, "Success", f"Commit {sha} dropped successfully.")
             
             self.load_history()
@@ -497,6 +503,7 @@ class GitHistoryApp(QMainWindow):
 
     def perform_move(self, new_shas):
         """Performs commit reordering using our unified rebase logic."""
+        print("Performing commit reorder...")
         if self.run_interactive_rebase(new_shas):
             QMessageBox.information(self, "Success", "Commits reordered successfully!")
         self.load_history()
@@ -508,6 +515,7 @@ class GitHistoryApp(QMainWindow):
         rephrase_map: Optional dict mapping SHA -> new commit message string.
         Returns True if successful, False otherwise.
         """
+        print("Executing rebase...")
         try:
             # For rebase todo, we need oldest-first
             rebase_shas = list(reversed(new_shas))
@@ -579,6 +587,7 @@ class GitHistoryApp(QMainWindow):
             return False
 
     def load_history(self):
+        print("Refreshing...")
         self.update_window_title()
         self.list_widget.clear()
         try:
