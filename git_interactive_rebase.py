@@ -436,13 +436,12 @@ class GitHistoryApp(QMainWindow):
         if not item:
             return
         sha = item.text().split()[0]
-        dialog = DiffViewerDialog(
-            repo_path=self.repo_path,
-            commit_sha=sha,
-            font_size=self.current_font_size,
-            parent=self
-        )
-        dialog.exec()
+        try:
+            diff_text = get_commit_diff(self.repo_path, sha)
+            dialog = ViewCommitDialog(sha, diff_text, self.current_font_size, self)
+            dialog.exec()
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Could not fetch commit diff: {str(e)}")
 
     def handle_reset(self, item):
         sha = item.text().split()[0]
