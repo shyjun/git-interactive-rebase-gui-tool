@@ -389,6 +389,7 @@ class GitHistoryApp(QMainWindow):
         # Clipboard items
         copy_sha_action = QAction("Copy SHA to clipboard", self)
         copy_msg_action = QAction("Copy commit msg to clipboard", self)
+        copy_sha_msg_action = QAction("Copy SHA and commit msg to clipboard", self)
         
         # Squash items
         index = self.list_widget.row(item)
@@ -429,6 +430,7 @@ class GitHistoryApp(QMainWindow):
         rephrase_action.triggered.connect(lambda: self.handle_rephrase(item))
         copy_sha_action.triggered.connect(lambda: self.handle_copy_sha(item))
         copy_msg_action.triggered.connect(lambda: self.handle_copy_message(item))
+        copy_sha_msg_action.triggered.connect(lambda: self.handle_copy_sha_and_message(item))
         
         menu.addAction(view_action)
         menu.addAction(move_action)
@@ -440,6 +442,7 @@ class GitHistoryApp(QMainWindow):
         menu.addSeparator()
         menu.addAction(copy_sha_action)
         menu.addAction(copy_msg_action)
+        menu.addAction(copy_sha_msg_action)
         menu.addSeparator()
         menu.addAction(squash_above_action)
         menu.addAction(squash_below_action)
@@ -487,6 +490,16 @@ class GitHistoryApp(QMainWindow):
         try:
             msg = get_full_commit_message(self.repo_path, sha)
             QApplication.clipboard().setText(msg)
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Could not fetch message: {str(e)}")
+
+    def handle_copy_sha_and_message(self, item):
+        sha = item.text().split()[0]
+        print(f"Copying SHA and message of {sha} to clipboard...")
+        try:
+            msg = get_full_commit_message(self.repo_path, sha)
+            combined = f"{sha} {msg}"
+            QApplication.clipboard().setText(combined)
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not fetch message: {str(e)}")
 
