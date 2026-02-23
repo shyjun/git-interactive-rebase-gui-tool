@@ -386,6 +386,37 @@ class GitHistoryApp(QMainWindow):
         drop_action = QAction("Drop", self)
         rephrase_action = QAction("Rephrase", self)
         
+        # Squash items
+        index = self.list_widget.row(item)
+        count = self.list_widget.count()
+        
+        def format_squash_label(neighbor_item):
+            parts = neighbor_item.text().split(maxsplit=1)
+            n_sha = parts[0]
+            n_msg = parts[1] if len(parts) > 1 else ""
+            n_short_msg = " ".join(n_msg.split()[:10])
+            return f"{n_sha} ({n_short_msg}...)"
+
+        squash_above_action = None
+        if index > 0:
+            above_item = self.list_widget.item(index - 1)
+            label = f"squash/merge with above commit ({format_squash_label(above_item)})"
+            squash_above_action = QAction(label, self)
+            squash_above_action.triggered.connect(lambda: self.handle_squash_above(item))
+        else:
+            squash_above_action = QAction("squash/merge with above commit (N/A)", self)
+            squash_above_action.setEnabled(False)
+
+        squash_below_action = None
+        if index < count - 1:
+            below_item = self.list_widget.item(index + 1)
+            label = f"squash/merge with below commit ({format_squash_label(below_item)})"
+            squash_below_action = QAction(label, self)
+            squash_below_action.triggered.connect(lambda: self.handle_squash_below(item))
+        else:
+            squash_below_action = QAction("squash/merge with below commit (N/A)", self)
+            squash_below_action.setEnabled(False)
+
         view_action.triggered.connect(lambda: self.view_commit(item))
         # Move action is primarily via drag and drop, but we can make it focus the item
         move_action.triggered.connect(lambda: self.list_widget.setCurrentItem(item))
@@ -400,6 +431,9 @@ class GitHistoryApp(QMainWindow):
         menu.addSeparator()
         menu.addAction(drop_action)
         menu.addAction(rephrase_action)
+        menu.addSeparator()
+        menu.addAction(squash_above_action)
+        menu.addAction(squash_below_action)
         menu.exec(self.list_widget.mapToGlobal(position))
 
     def handle_rephrase(self, item):
@@ -470,6 +504,47 @@ class GitHistoryApp(QMainWindow):
         except subprocess.CalledProcessError as e:
             QMessageBox.critical(self, "Reset Failed", f"Could not perform reset.\n\nError: {e.stderr}")
 
+    def handle_squash_above(self, item):
+        """Squashes the current commit with the one above it (newer)."""
+        index = self.list_widget.row(item)
+        if index <= 0: return
+        
+        target_item = self.list_widget.item(index - 1)
+        sha_to_squash = target_item.text().split()[0]
+        base_sha = item.text().split()[0]
+        
+        print(f"Preparing to squash {sha_to_squash} into {base_sha}...")
+        self.perform_squash(sha_to_squash)
+
+    def handle_squash_below(self, item):
+        """Squashes the current commit with the one below it (older)."""
+        index = self.list_widget.row(item)
+        if index >= self.list_widget.count() - 1: return
+        
+        sha_to_squash = item.text().split()[0]
+        target_item = self.list_widget.item(index + 1)
+        base_sha = target_item.text().split()[0]
+        
+        print(f"Preparing to squash {sha_to_squash} into {base_sha}...")
+        self.perform_squash(sha_to_squash)
+
+    def perform_squash(self, sha_to_squash):
+        """Executes the squash using unified rebase logic."""
+        try:
+            # Current list of SHAs in UI
+            current_shas = []
+            for i in range(self.list_widget.count()):
+                current_shas.append(self.list_widget.item(i).text().split()[0])
+            
+            if self.run_interactive_rebase(current_shas, squash_shas=[sha_to_squash]):
+                print(f"Squashed {sha_to_squash}.")
+                QMessageBox.information(self, "Success", "Commits squashed successfully.")
+            
+            self.load_history()
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"An error occurred while squashing: {str(e)}")
+            self.load_history()
+
     def handle_drop(self, item):
         sha = item.text().split()[0]
         print(f"Preparing to drop {sha}...")
@@ -508,11 +583,12 @@ class GitHistoryApp(QMainWindow):
             QMessageBox.information(self, "Success", "Commits reordered successfully!")
         self.load_history()
 
-    def run_interactive_rebase(self, new_shas, rephrase_map=None):
+    def run_interactive_rebase(self, new_shas, rephrase_map=None, squash_shas=None):
         """
         Unified handler for history rewriting using git rebase -i.
         new_shas: SHAs in the desired final order (latest to oldest as seen in UI).
         rephrase_map: Optional dict mapping SHA -> new commit message string.
+        squash_shas: Optional list of SHAs to mark as 'squash' in the todo.
         Returns True if successful, False otherwise.
         """
         print("Executing rebase...")
@@ -535,10 +611,12 @@ class GitHistoryApp(QMainWindow):
                 f.write("import sys, shlex\n")
                 f.write(f"new_order = {rebase_shas}\n")
                 f.write(f"rephrase_map = {rephrase_map or {}}\n")
+                f.write(f"squash_shas = {squash_shas or []}\n")
                 f.write("todo_path = sys.argv[1]\n")
                 f.write("with open(todo_path, 'w') as f:\n")
                 f.write("    for sha in new_order:\n")
-                f.write("        f.write(f'pick {sha}\\n')\n")
+                f.write("        op = 'squash' if sha in squash_shas else 'pick'\n")
+                f.write("        f.write(f'{op} {sha}\\n')\n")
                 f.write("        if sha in rephrase_map:\n")
                 # Using --amend -m avoids spawning another editor
                 f.write("            msg = shlex.quote(rephrase_map[sha])\n")
