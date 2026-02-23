@@ -341,6 +341,22 @@ class GitHistoryApp(QMainWindow):
 
         self.setup_ui()
         self.load_history()
+        self.load_settings()
+
+    def load_settings(self):
+        """Loads persistent user settings like font size and theme."""
+        # Font Size
+        size = self.settings.value("font_size", 10, type=int)
+        self.current_font_size = size
+        self.update_font()
+        
+        # Theme
+        theme = self.settings.value("theme", "light", type=str)
+        if theme == "dark":
+            self.dark_radio.setChecked(True)
+        else:
+            self.light_radio.setChecked(True)
+        self.apply_theme(theme)
 
     def update_window_title(self):
         """Updates window title with branch, HEAD, and path."""
@@ -381,6 +397,17 @@ class GitHistoryApp(QMainWindow):
         self.zoom_in_btn = QPushButton("Zoom In (+)")
         self.zoom_out_btn = QPushButton("Zoom Out (-)")
         self.refresh_btn = QPushButton("Refresh")
+        # Theme controls
+        self.dark_radio = QRadioButton("Dark Theme")
+        self.light_radio = QRadioButton("Light Theme")
+        self.dark_radio.toggled.connect(lambda: self.on_theme_toggled())
+        self.light_radio.toggled.connect(lambda: self.on_theme_toggled())
+        
+        controls_layout.addWidget(QLabel("Theme:"))
+        controls_layout.addWidget(self.dark_radio)
+        controls_layout.addWidget(self.light_radio)
+        controls_layout.addSpacing(20)
+
         self.exit_btn = QPushButton("Exit")
         
         for btn in [self.zoom_in_btn, self.zoom_out_btn, self.refresh_btn, self.exit_btn]:
@@ -424,6 +451,93 @@ class GitHistoryApp(QMainWindow):
             self.current_font_size -= 1
             self.update_font()
 
+    def on_theme_toggled(self):
+        theme = "dark" if self.dark_radio.isChecked() else "light"
+        self.apply_theme(theme)
+        self.settings.setValue("theme", theme)
+
+    def apply_theme(self, theme_name):
+        """Applies a theme to the entire application using QSS."""
+        if theme_name == "dark":
+            self.setStyleSheet("""
+                QMainWindow, QWidget {
+                    background-color: #1a1a1a;
+                    color: #e0e0e0;
+                }
+                QListWidget {
+                    background-color: #242424;
+                    border: 1px solid #333;
+                    border-radius: 8px;
+                    padding: 5px;
+                    color: #e0e0e0;
+                }
+                QListWidget::item:selected {
+                    background-color: #3d5afe;
+                    color: white;
+                }
+                QPushButton {
+                    background-color: #333;
+                    color: #fff;
+                    border: 1px solid #444;
+                    padding: 8px 15px;
+                    border-radius: 5px;
+                }
+                QPushButton:hover {
+                    background-color: #444;
+                }
+                QLabel {
+                    font-weight: bold;
+                }
+                QDialog {
+                    background-color: #1a1a1a;
+                }
+                QTextEdit {
+                    background-color: #242424;
+                    color: #e0e0e0;
+                    border: 1px solid #333;
+                }
+            """)
+        else:
+            self.setStyleSheet("""
+                QMainWindow, QWidget {
+                    background-color: #f5f5f7;
+                    color: #333;
+                }
+                QListWidget {
+                    background-color: #ffffff;
+                    border: 1px solid #ddd;
+                    border-radius: 8px;
+                    padding: 5px;
+                    color: #333;
+                }
+                QListWidget::item:selected {
+                    background-color: #007aff;
+                    color: white;
+                }
+                QPushButton {
+                    background-color: #ffffff;
+                    color: #333;
+                    border: 1px solid #ccc;
+                    padding: 8px 15px;
+                    border-radius: 5px;
+                }
+                QPushButton:hover {
+                    background-color: #f0f0f0;
+                }
+                QLabel {
+                    font-weight: bold;
+                    color: #333;
+                }
+                QDialog {
+                    background-color: #f5f5f7;
+                }
+                QTextEdit {
+                    background-color: #ffffff;
+                    color: #333;
+                    border: 1px solid #ddd;
+                }
+            """)
+        
     def update_font(self):
         font = QFont("Monospace", self.current_font_size)
         self.list_widget.setFont(font)
