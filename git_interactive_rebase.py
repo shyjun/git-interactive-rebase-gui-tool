@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Project: Git History Explorer
+Project: Git Interactive Rebase Helper
 Description: A premium PySide6 GUI for interactive git rebasing, squashing, and rephrasing.
 Author: n.shyju@gmail.com
 Version: 1.0.0
@@ -1034,7 +1034,7 @@ class GitHistoryApp(QMainWindow):
             QMessageBox.critical(self, "Error", str(e))
 
 def main():
-    parser = argparse.ArgumentParser(description="Git History Explorer.")
+    parser = argparse.ArgumentParser(description="Git Interactive Rebase Helper.")
     parser.add_argument("-C", "--location", type=str, default=os.getcwd())
     parser.add_argument("commit_sha", type=str)
     args = parser.parse_args()

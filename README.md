@@ -1,4 +1,4 @@
-# Git History Explorer 🚀
+# Git Interactive Rebase Helper 🚀
 
 A premium, user-friendly GUI for Git interactive rebasing. Built with **PySide6**, this tool simplifies the complex process of rewriting git history with a visual, intuitive interface.
 
