@@ -345,8 +345,8 @@ class GitHistoryApp(QMainWindow):
         self.resize(1000, 800)
 
         self.setup_ui()
-        self.load_history()
         self.load_settings()
+        self.load_history()
 
     def load_settings(self):
         """Loads persistent user settings like font size and theme."""
