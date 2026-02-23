@@ -438,76 +438,82 @@ class GitHistoryApp(QMainWindow):
     def apply_theme(self, theme_name):
         """Applies a theme to the entire application globally."""
         if theme_name == "dark":
+            # VS Code Dark+ inspired palette
             self.current_theme_colors = {
-                "added": "#a6e22e", 
-                "removed": "#f92672", 
-                "header": "#66d9ef",
-                "bg": "#1a1a1a",
-                "fg": "#e0e0e0",
-                "accent": "#3d5afe"
+                "added": "#4ec9b0",   # Soft teal/green
+                "removed": "#f48771", # Soft coral/red
+                "header": "#569cd6",  # VS Code blue
+                "bg": "#1e1e1e",      # Main background
+                "fg": "#cccccc",      # Standard text
+                "accent": "#007acc"   # VS Code accent blue
             }
             qss = """
                 QMainWindow, QWidget {
-                    background-color: #1a1a1a;
-                    color: #e0e0e0;
+                    background-color: #1e1e1e;
+                    color: #cccccc;
                 }
                 QListWidget {
-                    background-color: #242424;
-                    border: 1px solid #333;
+                    background-color: #252526;
+                    border: 1px solid #3c3c3c;
                     border-radius: 8px;
                     padding: 5px;
-                    color: #e0e0e0;
+                    color: #cccccc;
                 }
                 QListWidget::item { 
                     padding: 8px; 
-                    border-bottom: 1px solid #333; 
+                    border-bottom: 1px solid #333333; 
                 }
                 QListWidget::item:selected {
-                    background-color: #3d5afe;
-                    color: white;
+                    background-color: #37373d;
+                    color: #ffffff;
                 }
                 QPushButton {
-                    background-color: #333;
-                    color: #fff;
-                    border: 1px solid #444;
+                    background-color: #333333;
+                    color: #cccccc;
+                    border: 1px solid #3c3c3c;
                     padding: 8px 15px;
                     border-radius: 5px;
                     font-weight: bold;
                 }
                 QPushButton:hover {
-                    background-color: #444;
+                    background-color: #444444;
                 }
                 QPushButton:pressed {
-                    background-color: #2d4470;
+                    background-color: #007acc;
+                    color: white;
                 }
                 QPushButton.dialog-btn {
-                    background-color: #3c3f41;
-                    border: 1px solid #555;
+                    background-color: #333333;
+                    border: 1px solid #444444;
                 }
                 QPushButton.dialog-btn:hover {
-                    background-color: #4b6eaf;
+                    background-color: #007acc;
+                    color: white;
                 }
                 QLabel {
                     font-weight: bold;
                 }
                 QDialog {
-                    background-color: #1a1a1a;
+                    background-color: #1e1e1e;
                 }
                 QTextEdit {
-                    background-color: #242424;
-                    color: #e0e0e0;
-                    border: 1px solid #333;
+                    background-color: #1e1e1e;
+                    color: #d4d4d4;
+                    border: 1px solid #3c3c3c;
                     border-radius: 4px;
                 }
                 QScrollBar:vertical {
-                    background: #1a1a1a;
+                    background: #1e1e1e;
                     width: 12px;
                     margin: 0px;
                 }
                 QScrollBar::handle:vertical {
-                    background: #444;
+                    background: #37373d;
                     min-height: 20px;
                     border-radius: 6px;
+                }
+                QScrollBar::handle:vertical:hover {
+                    background: #4f4f4f;
                 }
                 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
                     height: 0px;
