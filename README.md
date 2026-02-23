@@ -13,7 +13,8 @@ A premium, user-friendly GUI for Git interactive rebasing. Built with **PySide6*
 
 ### 🔍 Discovery & Navigation
 - **Live Search & Filter**: Instantly find any commit by searching its **SHA** or **Message**. Filtering is live while you type.
-- **Deep Diff Viewer**: Double-click any commit to view a color-coded, syntax-highlighted diff of all changes.
+    - **Shortcut `/`**: Focus search bar.
+    - **Shortcut `Esc`**: Clear search and return to full history.
 
 ### 🎨 Premium User Experience
 - **Adaptive Themes**: Seamlessly toggle between a refined **Dark Theme** (VS Code inspired charcoal palette) and a clean **Light Theme**.

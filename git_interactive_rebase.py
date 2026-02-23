@@ -429,6 +429,25 @@ class GitHistoryApp(QMainWindow):
         
         layout.addLayout(controls_layout)
 
+    def keyPressEvent(self, event):
+        """Handle global keyboard shortcuts."""
+        if event.key() == Qt.Key_Slash:
+            if not self.search_edit.hasFocus():
+                self.search_edit.setFocus()
+                # Select all text so you can start fresh if needed
+                self.search_edit.selectAll() 
+                return # Don't pass the slash to the search edit
+        elif event.key() == Qt.Key_Escape:
+            if self.search_edit.text() or self.search_edit.hasFocus():
+                self.search_edit.clear()
+                self.search_edit.clearFocus()
+                # Putting focus back on the list widget makes it easier to navigate
+                self.list_widget.setFocus()
+            else:
+                super().keyPressEvent(event)
+        else:
+            super().keyPressEvent(event)
+
     def filter_commits(self, text):
         """Live-filters the commits in the list based on search text."""
         search_term = text.lower()
