@@ -8,7 +8,8 @@ import stat
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QListWidget, QVBoxLayout, 
     QWidget, QMessageBox, QListWidgetItem, QMenu, QDialog,
-    QTextEdit, QPushButton, QHBoxLayout, QLabel, QRadioButton
+    QTextEdit, QPushButton, QHBoxLayout, QLabel, QRadioButton,
+    QLineEdit
 )
 from PySide6.QtCore import Qt, QSize, QSettings
 from PySide6.QtGui import QFont, QSyntaxHighlighter, QTextCharFormat, QColor, QAction
@@ -380,10 +381,17 @@ class GitHistoryApp(QMainWindow):
         self.list_widget.setContextMenuPolicy(Qt.CustomContextMenu)
         self.list_widget.customContextMenuRequested.connect(self.show_context_menu)
         
-        layout.addWidget(self.list_widget)
-        
+        # Search / Filter Bar
+        self.search_edit = QLineEdit()
+        self.search_edit.setPlaceholderText("Search commits (SHA or Message)...")
+        self.search_edit.setClearButtonEnabled(True)
+        self.search_edit.setMinimumHeight(35)
+        self.search_edit.textChanged.connect(self.filter_commits)
+        layout.addWidget(self.search_edit)
+
         layout.addWidget(self.list_widget)
         self.list_widget.itemDoubleClicked.connect(self.view_commit)
+        self.update_window_title()
 
         # Bottom Control Bar
         controls_layout = QHBoxLayout()
@@ -420,6 +428,18 @@ class GitHistoryApp(QMainWindow):
         controls_layout.addWidget(self.exit_btn)
         
         layout.addLayout(controls_layout)
+
+    def filter_commits(self, text):
+        """Live-filters the commits in the list based on search text."""
+        search_term = text.lower()
+        for i in range(self.list_widget.count()):
+            item = self.list_widget.item(i)
+            # Match against SHA or Message
+            item_text = item.text().lower()
+            if search_term in item_text:
+                item.setHidden(False)
+            else:
+                item.setHidden(True)
 
     def handle_zoom_in(self):
         self.current_font_size += 1
@@ -960,7 +980,15 @@ class GitHistoryApp(QMainWindow):
             QMessageBox.critical(self, "Error", f"An error occurred during rebase: {str(e)}")
             return False
 
+
     def load_history(self):
+        """Fetches git history and populates the list widget."""
+        # Clear search when reloading history
+        if hasattr(self, 'search_edit'):
+            self.search_edit.blockSignals(True)
+            self.search_edit.clear()
+            self.search_edit.blockSignals(False)
+
         print("Refreshing...")
         self.update_window_title()
         self.list_widget.clear()
