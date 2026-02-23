@@ -665,6 +665,8 @@ class GitHistoryApp(QMainWindow):
             # Run rebase
             env = os.environ.copy()
             env["GIT_SEQUENCE_EDITOR"] = editor_script
+            # Use a headless editor for commit messages during squash to avoid hanging
+            env["GIT_EDITOR"] = "true"
             
             if has_parent:
                 cmd = ["git", "rebase", "-i", "--autosquash", f"{self.commit_sha}^"]
