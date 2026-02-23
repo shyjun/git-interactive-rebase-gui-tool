@@ -711,6 +711,7 @@ class GitHistoryApp(QMainWindow):
         sha = item.text().split()[0]
         print(f"Copying SHA {sha} to clipboard...")
         QApplication.clipboard().setText(sha)
+        QMessageBox.information(self, "Copied", f"Copied {sha} to clipboard.")
 
     def handle_copy_message(self, item):
         sha = item.text().split()[0]
@@ -718,6 +719,7 @@ class GitHistoryApp(QMainWindow):
         try:
             msg = get_full_commit_message(self.repo_path, sha)
             QApplication.clipboard().setText(msg)
+            QMessageBox.information(self, "Copied", f"Copied commit message of {sha} to clipboard.")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not fetch message: {str(e)}")
 
@@ -728,6 +730,7 @@ class GitHistoryApp(QMainWindow):
             msg = get_full_commit_message(self.repo_path, sha)
             combined = f"{sha} {msg}"
             QApplication.clipboard().setText(combined)
+            QMessageBox.information(self, "Copied", f"Copied SHA and commit message of {sha} to clipboard.")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not fetch message: {str(e)}")
 
