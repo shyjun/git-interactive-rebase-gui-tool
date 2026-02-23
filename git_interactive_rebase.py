@@ -320,6 +320,8 @@ class CommitListWidget(QListWidget):
 
     def dropEvent(self, event):
         old_row = self.currentRow()
+        # CRITICAL: Capture the original SHA order BEFORE the drop modifies the list
+        original_shas = [self.item(i).text().split()[0] for i in range(self.count())]
         super().dropEvent(event)
         new_row = self.currentRow()
         
@@ -337,12 +339,10 @@ class CommitListWidget(QListWidget):
             )
             
             if reply == QMessageBox.Yes:
-                # Capture all SHAs in current list order
-                shas = []
-                for i in range(self.count()):
-                    shas.append(self.item(i).text().split()[0])
-                # Call real move functionality
-                self.main_window.perform_move(shas)
+                # Capture all SHAs in NEW list order (after drop)
+                new_shas = [self.item(i).text().split()[0] for i in range(self.count())]
+                # Pass BOTH old and new order to perform_move
+                self.main_window.perform_move(new_shas, original_shas)
             else:
                 # If No, reload the original history to undo the visual move
                 self.main_window.load_history()
@@ -927,23 +927,29 @@ class GitHistoryApp(QMainWindow):
             QMessageBox.critical(self, "Error", f"An error occurred while dropping: {str(e)}")
             self.load_history()
 
-    def perform_move(self, new_shas):
+    def perform_move(self, new_shas, original_shas=None):
         """Performs commit reordering using our unified rebase logic."""
         print("Performing commit reorder...")
-        if self.run_interactive_rebase(new_shas):
+        if self.run_interactive_rebase(new_shas, original_shas=original_shas):
             QMessageBox.information(self, "Success", "Commits reordered successfully!")
         self.load_history()
 
-    def run_interactive_rebase(self, new_shas, rephrase_map=None, squash_shas=None):
+    def run_interactive_rebase(self, new_shas, rephrase_map=None, squash_shas=None, original_shas=None):
         """
         Unified handler for history rewriting using git rebase -i.
-        Automatically optimizes the rebase range to improve performance.
+        original_shas: The pre-change SHA order (latest-first). If provided, used
+                       for prefix comparison instead of reading list_widget (which
+                       may already show the new order after a drag-drop).
         """
         print("Executing optimized rebase...")
         try:
             # 1. Determine common prefix to minimize work
-            visible_shas = [self.list_widget.item(i).text().split()[0] for i in range(self.list_widget.count())]
-            old_order = list(reversed(visible_shas))
+            # Use the explicitly passed original order when available (e.g., after a drag)
+            if original_shas is not None:
+                display_shas = original_shas
+            else:
+                display_shas = [self.list_widget.item(i).text().split()[0] for i in range(self.list_widget.count())]
+            old_order = list(reversed(display_shas))
             proposed_order = list(reversed(new_shas))
             
             common_count = 0
@@ -989,37 +995,53 @@ class GitHistoryApp(QMainWindow):
                 return True
 
             # 2. Proceed with rebase for non-trivial changes
-            # Create a temporary sequence editor script
+            # Write each rephrase message to a temp file to handle multi-line messages safely
+            msg_files = {}  # sha -> temp file path
+            if rephrase_map:
+                for sha, msg in rephrase_map.items():
+                    if sha in todo_shas:
+                        mf = tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt', encoding='utf-8')
+                        mf.write(msg)
+                        mf.close()
+                        msg_files[sha] = mf.name
+
+            # Build a sequence editor script that writes the rebase todo
             with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.py') as f:
-                f.write(f"#!/usr/bin/env python3\n")
-                f.write("import sys, shlex\n")
+                f.write("#!/usr/bin/env python3\n")
+                f.write("import sys\n")
                 f.write(f"new_order = {todo_shas}\n")
-                f.write(f"rephrase_map = {rephrase_map or {}}\n")
+                f.write(f"msg_files = {repr(msg_files)}\n")
                 f.write(f"squash_shas = {squash_shas or []}\n")
                 f.write("todo_path = sys.argv[1]\n")
                 f.write("with open(todo_path, 'w') as f:\n")
                 f.write("    for sha in new_order:\n")
                 f.write("        op = 'squash' if sha in squash_shas else 'pick'\n")
                 f.write("        f.write(f'{op} {sha}\\n')\n")
-                f.write("        if sha in rephrase_map:\n")
-                f.write("            msg = shlex.quote(rephrase_map[sha])\n")
-                f.write("            f.write(f'exec git commit --amend -m {msg}\\n')\n")
+                f.write("        if sha in msg_files:\n")
+                f.write("            mf = msg_files[sha]\n")
+                f.write("            f.write(f'exec git commit --amend -F {mf}\\n')\n")
                 editor_script = f.name
-            
+
             os.chmod(editor_script, os.stat(editor_script).st_mode | stat.S_IEXEC)
-            
+
             env = os.environ.copy()
             env["GIT_SEQUENCE_EDITOR"] = editor_script
             env["GIT_EDITOR"] = "true"
-            
+
             if upstream == "--root":
                 cmd = ["git", "rebase", "-i", "--autosquash", "--root"]
             else:
                 cmd = ["git", "rebase", "-i", "--autosquash", upstream]
-            
+
             result = subprocess.run(cmd, cwd=self.repo_path, env=env, capture_output=True, text=True)
             os.unlink(editor_script)
-            
+            # Clean up message temp files
+            for mf_path in msg_files.values():
+                try:
+                    os.unlink(mf_path)
+                except Exception:
+                    pass
+
             if result.returncode == 0:
                 # Update bottom anchor SHA
                 if new_shas:
@@ -1027,14 +1049,15 @@ class GitHistoryApp(QMainWindow):
                 return True
             else:
                 subprocess.run(["git", "rebase", "--abort"], cwd=self.repo_path, capture_output=True)
-                QMessageBox.critical(self, "Rebase Failed", 
+                QMessageBox.critical(self, "Rebase Failed",
                     f"Action failed (likely due to merge conflicts).\n"
                     f"The rebase has been aborted.\n\nError: {result.stderr}")
                 return False
-                
+
         except Exception as e:
             QMessageBox.critical(self, "Error", f"An error occurred during rebase: {str(e)}")
             return False
+
 
 
     def load_history(self):
