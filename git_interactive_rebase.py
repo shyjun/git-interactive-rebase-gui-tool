@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
     QLineEdit
 )
 from PySide6.QtCore import Qt, QSize, QSettings
-from PySide6.QtGui import QFont, QSyntaxHighlighter, QTextCharFormat, QColor, QAction
+from PySide6.QtGui import QFont, QSyntaxHighlighter, QTextCharFormat, QColor, QAction, QShortcut, QKeySequence
 
 def get_git_history(repo_path, commit_sha):
     """Fetches git history from HEAD down to commit_sha inclusive."""
@@ -429,24 +429,26 @@ class GitHistoryApp(QMainWindow):
         
         layout.addLayout(controls_layout)
 
-    def keyPressEvent(self, event):
-        """Handle global keyboard shortcuts."""
-        if event.key() == Qt.Key_Slash:
-            if not self.search_edit.hasFocus():
-                self.search_edit.setFocus()
-                # Select all text so you can start fresh if needed
-                self.search_edit.selectAll() 
-                return # Don't pass the slash to the search edit
-        elif event.key() == Qt.Key_Escape:
-            if self.search_edit.text() or self.search_edit.hasFocus():
-                self.search_edit.clear()
-                self.search_edit.clearFocus()
-                # Putting focus back on the list widget makes it easier to navigate
-                self.list_widget.setFocus()
-            else:
-                super().keyPressEvent(event)
-        else:
-            super().keyPressEvent(event)
+        # Keyboard Shortcuts
+        self.slash_shortcut = QShortcut(QKeySequence("/"), self)
+        self.slash_shortcut.activated.connect(self.handle_slash_shortcut)
+        
+        self.esc_shortcut = QShortcut(QKeySequence("Esc"), self)
+        self.esc_shortcut.activated.connect(self.handle_esc_shortcut)
+
+    def handle_slash_shortcut(self):
+        """Focus search bar when / is pressed."""
+        if not self.search_edit.hasFocus():
+            self.search_edit.setFocus()
+            self.search_edit.selectAll()
+
+    def handle_esc_shortcut(self):
+        """Clear filter and focus when Esc is pressed."""
+        if self.search_edit.text() or self.search_edit.hasFocus():
+            self.search_edit.clear()
+            self.search_edit.clearFocus()
+            self.list_widget.setFocus()
+
 
     def filter_commits(self, text):
         """Live-filters the commits in the list based on search text."""
