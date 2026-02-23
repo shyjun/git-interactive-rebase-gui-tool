@@ -74,16 +74,16 @@ def get_full_commit_message(repo_path, commit_sha):
         raise Exception(f"Failed to fetch commit message: {e.stderr}")
 
 class DiffHighlighter(QSyntaxHighlighter):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, added_color="#a6e22e", removed_color="#f92672", header_color="#66d9ef"):
         super().__init__(parent)
         self.added_format = QTextCharFormat()
-        self.added_format.setForeground(QColor("#a6e22e"))  # Greenish
+        self.added_format.setForeground(QColor(added_color))
         
         self.removed_format = QTextCharFormat()
-        self.removed_format.setForeground(QColor("#f92672"))  # Reddish
+        self.removed_format.setForeground(QColor(removed_color))
         
         self.header_format = QTextCharFormat()
-        self.header_format.setForeground(QColor("#66d9ef"))  # Bluish
+        self.header_format.setForeground(QColor(header_color))
 
     def highlightBlock(self, text):
         if text.startswith('+') and not text.startswith('+++'):
@@ -111,15 +111,21 @@ class DiffViewerDialog(QDialog):
         self.diff_view.setReadOnly(True)
         self.diff_view.setFont(QFont("Courier New", self.font_size))
         self.diff_view.setPlainText(diff_text)
-        self.highlighter = DiffHighlighter(self.diff_view.document())
         
-        self.diff_view.setStyleSheet("""
-            QTextEdit {
-                background-color: #1e1e1e;
-                color: #dcdcdc;
-                border: 1px solid #3c3f41;
-            }
-        """)
+        # Determine highlighting colors based on parent theme or default to dark
+        app = QApplication.instance()
+        main_win = parent if isinstance(parent, QMainWindow) else None
+        if main_win and hasattr(main_win, 'current_theme_colors'):
+             colors = main_win.current_theme_colors
+        else:
+             # Default dark-ish colors if not found
+             colors = {"added": "#a6e22e", "removed": "#f92672", "header": "#66d9ef"}
+             
+        self.highlighter = DiffHighlighter(self.diff_view.document(), 
+                                           added_color=colors["added"],
+                                           removed_color=colors["removed"],
+                                           header_color=colors["header"])
+        
         self.layout.addWidget(self.diff_view)
         
         # Buttons
@@ -146,6 +152,7 @@ class ViewCommitDialog(DiffViewerDialog):
     def setup_buttons(self):
         ok_btn = QPushButton("Ok")
         ok_btn.setMinimumWidth(100)
+        ok_btn.setProperty("class", "dialog-btn")
         ok_btn.clicked.connect(self.accept)
         self.btn_layout.addWidget(ok_btn)
 
@@ -155,7 +162,14 @@ class DropDialog(DiffViewerDialog):
 
     def setup_header(self, sha):
         label = QLabel(f"Are you sure you want to drop the commit: <b>{sha}</b>?")
-        label.setStyleSheet("color: #f92672;") # Reddish warning
+        # Use theme-aware warning color
+        app = QApplication.instance()
+        main_win = self.parent() if isinstance(self.parent(), QMainWindow) else None
+        warning_color = "#f92672" # Default red
+        if main_win and hasattr(main_win, 'current_theme_colors'):
+             warning_color = main_win.current_theme_colors["removed"]
+             
+        label.setStyleSheet(f"color: {warning_color};") 
         self.layout.addWidget(label)
 
     def setup_buttons(self):
@@ -164,6 +178,9 @@ class DropDialog(DiffViewerDialog):
         
         self.yes_btn.setMinimumWidth(120)
         self.no_btn.setMinimumWidth(120)
+        
+        self.yes_btn.setProperty("class", "dialog-btn")
+        self.no_btn.setProperty("class", "dialog-btn")
         
         self.yes_btn.clicked.connect(self.accept)
         self.no_btn.clicked.connect(self.reject)
@@ -187,13 +204,6 @@ class RephraseDialog(QDialog):
         self.message_edit = QTextEdit()
         self.message_edit.setFont(QFont("Courier New", self.font_size))
         self.message_edit.setPlainText(current_message)
-        self.message_edit.setStyleSheet("""
-            QTextEdit {
-                background-color: #1e1e1e;
-                color: #dcdcdc;
-                border: 1px solid #3c3f41;
-            }
-        """)
         layout.addWidget(self.message_edit)
         
         btn_layout = QHBoxLayout()
@@ -205,16 +215,7 @@ class RephraseDialog(QDialog):
         for btn in [self.apply_btn, self.discard_btn]:
             btn.setMinimumWidth(120)
             btn.setMinimumHeight(40)
-            btn.setStyleSheet("""
-                QPushButton {
-                    background-color: #3c3f41;
-                    color: #dcdcdc;
-                    border: 1px solid #555555;
-                    border-radius: 4px;
-                    font-weight: bold;
-                }
-                QPushButton:hover { background-color: #4b6eaf; }
-            """)
+            btn.setProperty("class", "dialog-btn")
             
         self.apply_btn.clicked.connect(self.accept)
         self.discard_btn.clicked.connect(self.reject)
@@ -268,6 +269,9 @@ class SquashDialog(QDialog):
         btn_layout = QHBoxLayout()
         self.proceed_btn = QPushButton("Proceed")
         self.cancel_btn = QPushButton("Cancel")
+        
+        self.proceed_btn.setProperty("class", "dialog-btn")
+        self.cancel_btn.setProperty("class", "dialog-btn")
         
         self.proceed_btn.clicked.connect(self.accept)
         self.cancel_btn.clicked.connect(self.reject)
@@ -457,9 +461,17 @@ class GitHistoryApp(QMainWindow):
         self.settings.setValue("theme", theme)
 
     def apply_theme(self, theme_name):
-        """Applies a theme to the entire application using QSS."""
+        """Applies a theme to the entire application globally."""
         if theme_name == "dark":
-            self.setStyleSheet("""
+            self.current_theme_colors = {
+                "added": "#a6e22e", 
+                "removed": "#f92672", 
+                "header": "#66d9ef",
+                "bg": "#1a1a1a",
+                "fg": "#e0e0e0",
+                "accent": "#3d5afe"
+            }
+            qss = """
                 QMainWindow, QWidget {
                     background-color: #1a1a1a;
                     color: #e0e0e0;
@@ -481,9 +493,17 @@ class GitHistoryApp(QMainWindow):
                     border: 1px solid #444;
                     padding: 8px 15px;
                     border-radius: 5px;
+                    font-weight: bold;
                 }
                 QPushButton:hover {
                     background-color: #444;
+                }
+                QPushButton.dialog-btn {
+                    background-color: #3c3f41;
+                    border: 1px solid #555;
+                }
+                QPushButton.dialog-btn:hover {
+                    background-color: #4b6eaf;
                 }
                 QLabel {
                     font-weight: bold;
@@ -495,10 +515,32 @@ class GitHistoryApp(QMainWindow):
                     background-color: #242424;
                     color: #e0e0e0;
                     border: 1px solid #333;
+                    border-radius: 4px;
                 }
-            """)
+                QScrollBar:vertical {
+                    background: #1a1a1a;
+                    width: 12px;
+                    margin: 0px;
+                }
+                QScrollBar::handle:vertical {
+                    background: #444;
+                    min-height: 20px;
+                    border-radius: 6px;
+                }
+                QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                    height: 0px;
+                }
+            """
         else:
-            self.setStyleSheet("""
+            self.current_theme_colors = {
+                "added": "#228b22",  # Darker green for light bg
+                "removed": "#b22222", # Darker red for light bg
+                "header": "#00008b", # Darker blue for light bg
+                "bg": "#f5f5f7",
+                "fg": "#333333",
+                "accent": "#007aff"
+            }
+            qss = """
                 QMainWindow, QWidget {
                     background-color: #f5f5f7;
                     color: #333;
@@ -520,9 +562,18 @@ class GitHistoryApp(QMainWindow):
                     border: 1px solid #ccc;
                     padding: 8px 15px;
                     border-radius: 5px;
+                    font-weight: bold;
                 }
                 QPushButton:hover {
                     background-color: #f0f0f0;
+                }
+                QPushButton.dialog-btn {
+                    background-color: #e1e1e1;
+                    border: 1px solid #bbb;
+                }
+                QPushButton.dialog-btn:hover {
+                    background-color: #007aff;
+                    color: white;
                 }
                 QLabel {
                     font-weight: bold;
@@ -535,8 +586,24 @@ class GitHistoryApp(QMainWindow):
                     background-color: #ffffff;
                     color: #333;
                     border: 1px solid #ddd;
+                    border-radius: 4px;
                 }
-            """)
+                QScrollBar:vertical {
+                    background: #f5f5f7;
+                    width: 12px;
+                    margin: 0px;
+                }
+                QScrollBar::handle:vertical {
+                    background: #ccc;
+                    min-height: 20px;
+                    border-radius: 6px;
+                }
+                QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                    height: 0px;
+                }
+            """
+        
+        QApplication.instance().setStyleSheet(qss)
         
     def update_font(self):
         font = QFont("Monospace", self.current_font_size)
