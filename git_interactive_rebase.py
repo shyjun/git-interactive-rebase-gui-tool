@@ -90,6 +90,16 @@ def get_full_commit_message(repo_path, commit_sha):
     except subprocess.CalledProcessError as e:
         raise Exception(f"Failed to fetch commit message: {e.stderr}")
 
+def get_commit_metadata(repo_path, commit_sha):
+    """Fetches author name, email, and date for a commit."""
+    try:
+        # %an = author name, %ae = author email, %ad = author date (human-readable)
+        cmd = ["git", "log", "-1", "--format=%an <%ae>, %ad", "--date=format:%d %b %Y %H:%M", commit_sha]
+        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True)
+        return result.stdout.strip()
+    except subprocess.CalledProcessError as e:
+        return "Unknown author"
+
 class DiffHighlighter(QSyntaxHighlighter):
     def __init__(self, parent=None, added_color="#a6e22e", removed_color="#f92672", header_color="#66d9ef"):
         super().__init__(parent)
@@ -159,12 +169,14 @@ class DiffViewerDialog(QDialog):
         pass # To be overridden
 
 class ViewCommitDialog(DiffViewerDialog):
-    def __init__(self, sha, commit_message, diff_text, font_size=10, parent=None):
+    def __init__(self, sha, commit_message, commit_meta, diff_text, font_size=10, parent=None):
         self._commit_message = commit_message
+        self._commit_meta = commit_meta
         super().__init__(f"View Commit: {sha}", sha, diff_text, font_size, parent)
 
     def setup_header(self, sha):
-        label = QLabel(f"Showing changes for commit: <b>{sha}</b>")
+        label = QLabel(f"Showing changes for commit: <b>{sha}</b>  <span style='color:gray;'>({self._commit_meta})</span>")
+        label.setTextFormat(Qt.RichText)
         self.layout.addWidget(label)
 
         # Commit message box — auto-sizes height to content
@@ -822,7 +834,8 @@ class GitHistoryApp(QMainWindow):
         try:
             diff_text = get_commit_diff(self.repo_path, sha)
             commit_msg = get_full_commit_message(self.repo_path, sha)
-            dialog = ViewCommitDialog(sha, commit_msg, diff_text, self.current_font_size, self)
+            commit_meta = get_commit_metadata(self.repo_path, sha)
+            dialog = ViewCommitDialog(sha, commit_msg, commit_meta, diff_text, self.current_font_size, self)
             dialog.exec()
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not fetch commit diff: {str(e)}")
