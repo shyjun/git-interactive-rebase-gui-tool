@@ -822,9 +822,7 @@ class GitHistoryApp(QMainWindow):
         def format_squash_label(neighbor_item):
             parts = neighbor_item.text().split(maxsplit=1)
             n_sha = parts[0]
-            n_msg = parts[1] if len(parts) > 1 else ""
-            n_short_msg = " ".join(n_msg.split()[:10])
-            return f"{n_sha} ({n_short_msg}...)"
+            return f"{n_sha}"
 
         squash_above_action = None
         if index > 0:
