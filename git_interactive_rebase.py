@@ -486,6 +486,7 @@ class GitHistoryApp(QMainWindow):
         self.repo_path = repo_path
         self.commit_sha = commit_sha
         self.start_time_head = get_head_sha(self.repo_path)
+        self.best_commit_sha = None
         
         # Persistence
         self.settings = QSettings("shyjun", "GitInteractiveRebase")
@@ -562,16 +563,20 @@ class GitHistoryApp(QMainWindow):
 
         self.exit_btn = QPushButton("Exit")
         self.failsafe_btn = QPushButton(f"⚠ Reset Hard to START_TIME_HEAD ({self.start_time_head[:8]}) ⚠")
+        self.best_commit_btn = QPushButton("Reset Hard to BEST_COMMITID (Not Set)")
+        self.best_commit_btn.setEnabled(False)
         
         for btn in [self.zoom_in_btn, self.zoom_out_btn, self.refresh_btn, self.exit_btn]:
             btn.setMinimumHeight(40)
             btn.setMinimumWidth(120)
         self.failsafe_btn.setMinimumHeight(40)
+        self.best_commit_btn.setMinimumHeight(40)
 
         self.zoom_in_btn.clicked.connect(self.handle_zoom_in)
         self.zoom_out_btn.clicked.connect(self.handle_zoom_out)
         self.refresh_btn.clicked.connect(self.load_history)
         self.failsafe_btn.clicked.connect(self.handle_failsafe_reset)
+        self.best_commit_btn.clicked.connect(self.handle_best_commit_reset)
         self.exit_btn.clicked.connect(self.close)
 
         controls_layout.addWidget(self.zoom_in_btn)
@@ -582,8 +587,11 @@ class GitHistoryApp(QMainWindow):
         
         layout.addLayout(controls_layout)
         
-        # Add failsafe button as a distinct, full-width element below the other controls
-        layout.addWidget(self.failsafe_btn)
+        # Add failsafe options as a distinct row below the other controls
+        bottom_row = QHBoxLayout()
+        bottom_row.addWidget(self.failsafe_btn)
+        bottom_row.addWidget(self.best_commit_btn)
+        layout.addLayout(bottom_row)
 
         # Keyboard Shortcuts
         self.slash_shortcut = QShortcut(QKeySequence("/"), self)
@@ -617,6 +625,26 @@ class GitHistoryApp(QMainWindow):
                 item.setHidden(False)
             else:
                 item.setHidden(True)
+
+    def handle_set_best_commit(self, item):
+        sha = item.text().split()[0]
+        self.best_commit_sha = sha
+        self.best_commit_btn.setText(f"Reset Hard to BEST_COMMITID ({sha[:8]})")
+        self.best_commit_btn.setEnabled(True)
+
+    def handle_best_commit_reset(self):
+        if not self.best_commit_sha:
+            return
+        reply = QMessageBox.question(
+            self, 
+            "Confirm BEST_COMMITID Reset",
+            f"Are you sure you want to <b>reset --hard</b> to BEST_COMMITID (<b>{self.best_commit_sha[:8]}</b>)?<br><br>"
+            "This will discard all uncommitted changes and move your branch to this state.",
+            QMessageBox.Yes | QMessageBox.No, 
+            QMessageBox.No
+        )
+        if reply == QMessageBox.Yes:
+            self.perform_reset(self.best_commit_sha)
 
     def handle_failsafe_reset(self):
         reply = QMessageBox.question(
@@ -826,6 +854,7 @@ class GitHistoryApp(QMainWindow):
         view_action = QAction(f"Show / View commit {sha}", self)
         move_action = QAction("Move (Drag item to reorder)", self)
         reset_action = QAction(f"Reset Hard to {sha}", self)
+        set_best_action = QAction("set as BEST_COMMITID", self)
         drop_action = QAction("Drop", self)
         rephrase_action = QAction("Rephrase", self)
         
@@ -867,6 +896,7 @@ class GitHistoryApp(QMainWindow):
         # Move action is primarily via drag and drop, but we can make it focus the item
         move_action.triggered.connect(lambda: self.list_widget.setCurrentItem(item))
         reset_action.triggered.connect(lambda: self.handle_reset(item))
+        set_best_action.triggered.connect(lambda: self.handle_set_best_commit(item))
         drop_action.triggered.connect(lambda: self.handle_drop(item))
         rephrase_action.triggered.connect(lambda: self.handle_rephrase(item))
         copy_sha_action.triggered.connect(lambda: self.handle_copy_sha(item))
@@ -877,6 +907,7 @@ class GitHistoryApp(QMainWindow):
         menu.addAction(move_action)
         menu.addSeparator()
         menu.addAction(reset_action)
+        menu.addAction(set_best_action)
         menu.addSeparator()
         menu.addAction(drop_action)
         menu.addAction(rephrase_action)
