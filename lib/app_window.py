@@ -131,10 +131,25 @@ class GitHistoryApp(QMainWindow):
         self.main_splitter = QSplitter(Qt.Horizontal)
         self.main_splitter.addWidget(self.list_widget)
         
-        # Right Side Diff View
+        # Right Side Panel
+        self.right_panel = QWidget()
+        right_layout = QVBoxLayout(self.right_panel)
+        right_layout.setContentsMargins(0, 0, 0, 0)
+        
+        self.side_commit_label = QLabel("Select a commit to view details")
+        self.side_commit_label.setTextFormat(Qt.RichText)
+        right_layout.addWidget(self.side_commit_label)
+        
+        self.side_commit_msg = QTextEdit()
+        self.side_commit_msg.setReadOnly(True)
+        self.side_commit_msg.setMaximumHeight(80)
+        right_layout.addWidget(self.side_commit_msg)
+
         self.side_diff_view = QTextEdit()
         self.side_diff_view.setReadOnly(True)
-        self.main_splitter.addWidget(self.side_diff_view)
+        right_layout.addWidget(self.side_diff_view)
+        
+        self.main_splitter.addWidget(self.right_panel)
         # default split ratio: history 60%, diff 40%
         self.main_splitter.setSizes([600, 400])
         
@@ -211,17 +226,28 @@ class GitHistoryApp(QMainWindow):
     def update_side_diff(self):
         item = self.list_widget.currentItem()
         if not item:
+            if hasattr(self, 'side_commit_label'):
+                self.side_commit_label.setText("Select a commit to view details")
+                self.side_commit_msg.clear()
             self.side_diff_view.clear()
             return
         sha = item.text().split()[0]
         try:
+            meta = get_commit_metadata(self.repo_path, sha)
+            msg = get_full_commit_message(self.repo_path, sha)
             diff_text = get_commit_diff(self.repo_path, sha)
+            
+            self.side_commit_label.setText(f"Commit: <b>{sha}</b>  <span style='color:gray;'>({meta})</span>")
+            self.side_commit_msg.setPlainText(msg)
             self.side_diff_view.setPlainText(diff_text)
         except Exception as e:
             self.side_diff_view.setPlainText(f"Error loading diff: {e}")
+            if hasattr(self, 'side_commit_msg'):
+                self.side_commit_msg.clear()
+                self.side_commit_label.setText("Error")
 
     def toggle_side_diff_visibility(self):
-        self.side_diff_view.setVisible(not self.side_diff_view.isVisible())
+        self.right_panel.setVisible(not self.right_panel.isVisible())
 
     def handle_slash_shortcut(self):
         """Focus search bar when / is pressed."""
@@ -491,6 +517,8 @@ class GitHistoryApp(QMainWindow):
         self.list_widget.setFont(font)
         if hasattr(self, 'side_diff_view'):
             self.side_diff_view.setFont(font)
+        if hasattr(self, 'side_commit_msg'):
+            self.side_commit_msg.setFont(font)
         # Save persistence
         self.settings.setValue("font_size", self.current_font_size)
 
