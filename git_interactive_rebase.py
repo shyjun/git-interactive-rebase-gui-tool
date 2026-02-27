@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QListWidget, QVBoxLayout, 
     QWidget, QMessageBox, QListWidgetItem, QMenu, QDialog,
     QTextEdit, QPushButton, QHBoxLayout, QLabel, QRadioButton,
-    QLineEdit
+    QLineEdit, QSplitter
 )
 from PySide6.QtCore import Qt, QSize, QSettings
 from PySide6.QtGui import QFont, QSyntaxHighlighter, QTextCharFormat, QColor, QAction, QShortcut, QKeySequence
@@ -100,6 +100,24 @@ def get_commit_metadata(repo_path, commit_sha):
     except subprocess.CalledProcessError as e:
         return "Unknown author"
 
+def get_commit_files(repo_path, commit_sha):
+    """Returns a list of file paths changed by a given commit."""
+    try:
+        cmd = ["git", "diff-tree", "--no-commit-id", "-r", "--name-only", commit_sha]
+        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True)
+        return [f for f in result.stdout.strip().split('\n') if f.strip()]
+    except subprocess.CalledProcessError as e:
+        raise Exception(f"Failed to list commit files: {e.stderr}")
+
+def get_file_diff_in_commit(repo_path, commit_sha, filepath):
+    """Returns the diff for a single file within a commit."""
+    try:
+        cmd = ["git", "show", commit_sha, "--", filepath]
+        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True)
+        return result.stdout
+    except subprocess.CalledProcessError as e:
+        raise Exception(f"Failed to get file diff: {e.stderr}")
+
 class DiffHighlighter(QSyntaxHighlighter):
     def __init__(self, parent=None, added_color="#a6e22e", removed_color="#f92672", header_color="#66d9ef"):
         super().__init__(parent)
@@ -167,6 +185,93 @@ class DiffViewerDialog(QDialog):
 
     def setup_buttons(self):
         pass # To be overridden
+
+class SplitCommitDialog(QDialog):
+    """Dialog for moving a single file's changes out of a commit."""
+    def __init__(self, repo_path, sha, files, font_size=10, parent=None):
+        super().__init__(parent)
+        self.repo_path = repo_path
+        self.sha = sha
+        self.font_size = font_size
+        self.selected_file = None
+        self.setWindowTitle(f"Split Commit: {sha}")
+        self.setMinimumSize(860, 620)
+
+        # Diff colors from parent theme
+        main_win = parent if isinstance(parent, QMainWindow) else None
+        if main_win and hasattr(main_win, 'current_theme_colors'):
+            colors = main_win.current_theme_colors
+        else:
+            colors = {"added": "#a6e22e", "removed": "#f92672", "header": "#66d9ef"}
+        self.colors = colors
+
+        layout = QVBoxLayout(self)
+
+        # Header
+        header = QLabel(f"<b>Select a file</b> to preview its changes in commit <b>{sha}</b>")
+        header.setTextFormat(Qt.RichText)
+        layout.addWidget(header)
+
+        # Splitter: file list (top) + diff view (bottom)
+        splitter = QSplitter(Qt.Vertical)
+
+        # File list
+        self.file_list = QListWidget()
+        self.file_list.setFont(QFont("Courier New", font_size))
+        for f in files:
+            self.file_list.addItem(f)
+        self.file_list.currentTextChanged.connect(self.on_file_selected)
+        splitter.addWidget(self.file_list)
+
+        # Diff view
+        self.diff_view = QTextEdit()
+        self.diff_view.setReadOnly(True)
+        self.diff_view.setFont(QFont("Courier New", font_size))
+        self.diff_view.setPlaceholderText("Select a file above to view its diff...")
+        self.highlighter = DiffHighlighter(
+            self.diff_view.document(),
+            added_color=colors["added"],
+            removed_color=colors["removed"],
+            header_color=colors["header"]
+        )
+        splitter.addWidget(self.diff_view)
+        splitter.setSizes([150, 400])
+        layout.addWidget(splitter)
+
+        # Buttons
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+        self.move_btn = QPushButton("Move Out of Commit")
+        self.move_btn.setMinimumWidth(160)
+        self.move_btn.setEnabled(False)  # only enabled when a file is selected
+        self.move_btn.setProperty("class", "dialog-btn")
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.setMinimumWidth(100)
+        cancel_btn.setProperty("class", "dialog-btn-secondary")
+        self.move_btn.clicked.connect(self.accept)
+        cancel_btn.clicked.connect(self.reject)
+        btn_layout.addWidget(self.move_btn)
+        btn_layout.addWidget(cancel_btn)
+        btn_layout.addStretch()
+        layout.addLayout(btn_layout)
+
+        # Auto-select first file
+        if files:
+            self.file_list.setCurrentRow(0)
+
+    def on_file_selected(self, filepath):
+        if not filepath:
+            return
+        self.selected_file = filepath
+        self.move_btn.setEnabled(True)
+        try:
+            diff = get_file_diff_in_commit(self.repo_path, self.sha, filepath)
+            self.diff_view.setPlainText(diff)
+        except Exception as e:
+            self.diff_view.setPlainText(f"Error loading diff: {e}")
+
+    def get_selected_file(self):
+        return self.selected_file
 
 class ViewCommitDialog(DiffViewerDialog):
     def __init__(self, sha, commit_message, commit_meta, diff_text, font_size=10, parent=None):
@@ -758,6 +863,13 @@ class GitHistoryApp(QMainWindow):
         menu.addSeparator()
         menu.addAction(drop_action)
         menu.addAction(rephrase_action)
+        
+        # Split Commit submenu
+        split_menu = menu.addMenu("Split Commit")
+        split_move_out_action = QAction("Move File Out of This Commit", self)
+        split_move_out_action.triggered.connect(lambda: self.handle_split_commit(item))
+        split_menu.addAction(split_move_out_action)
+        
         menu.addSeparator()
         menu.addAction(copy_sha_action)
         menu.addAction(copy_msg_action)
@@ -955,6 +1067,112 @@ class GitHistoryApp(QMainWindow):
             self.load_history()
         except Exception as e:
             QMessageBox.critical(self, "Error", f"An error occurred while dropping: {str(e)}")
+            self.load_history()
+
+    def handle_split_commit(self, item):
+        """Opens SplitCommitDialog to allow moving a file out of a commit."""
+        sha = item.text().split()[0]
+        try:
+            files = get_commit_files(self.repo_path, sha)
+            if not files:
+                QMessageBox.information(self, "No Files", f"Commit {sha} has no file changes to split.")
+                return
+            dialog = SplitCommitDialog(self.repo_path, sha, files, self.current_font_size, self)
+            if dialog.exec() == QDialog.Accepted:
+                selected_file = dialog.get_selected_file()
+                if selected_file:
+                    self.perform_move_file_out(sha, selected_file)
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Could not open split dialog: {str(e)}")
+
+    def perform_move_file_out(self, sha, filepath):
+        """
+        Moves a single file's changes out of a commit into a new commit after it.
+        """
+        try:
+            all_files = get_commit_files(self.repo_path, sha)
+            other_files = [f for f in all_files if f != filepath]
+            short_sha = sha[:8]
+
+            if not other_files:
+                QMessageBox.information(self, "Info", f"File '{filepath}' is the only modified file in this commit. Nothing to split.")
+                return
+
+            def sq(s):
+                return "'" + s.replace("'", "'\\''") + "'"
+
+            exec_cmds = []
+            exec_cmds.append("git reset --soft HEAD~1")
+            exec_cmds.append(f"git reset HEAD -- {sq(filepath)}")
+            exec_cmds.append(f"git commit -C {sha}")
+            exec_cmds.append(f"git add --all -- {sq(filepath)}")
+            new_msg = f"{filepath} changes moved out of below commit"
+            exec_cmds.append(f"git commit -m {sq(new_msg)}")
+
+            single_exec = "exec " + " && ".join(exec_cmds)
+
+            current_shas = [self.list_widget.item(i).text().split()[0]
+                            for i in range(self.list_widget.count())]
+
+            with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.py') as f:
+                f.write("#!/usr/bin/env python3\n")
+                f.write("import sys\n")
+                f.write(f"target_sha = {repr(sha)}\n")
+                f.write(f"single_exec = {repr(single_exec)}\n")
+                f.write("todo_path = sys.argv[1]\n")
+                f.write("with open(todo_path, 'r') as tf:\n")
+                f.write("    lines = tf.readlines()\n")
+                f.write("output = []\n")
+                f.write("for line in lines:\n")
+                f.write("    output.append(line)\n")
+                f.write("    stripped = line.strip()\n")
+                f.write("    if not stripped.startswith('#') and len(stripped.split()) >= 2 and stripped.split()[1].startswith(target_sha):\n")
+                f.write("        output.append(single_exec + '\\n')\n")
+                f.write("with open(todo_path, 'w') as tf:\n")
+                f.write("    tf.writelines(output)\n")
+                editor_script = f.name
+
+            os.chmod(editor_script, os.stat(editor_script).st_mode | stat.S_IEXEC)
+
+            sha_idx = current_shas.index(sha) if sha in current_shas else -1
+            if sha_idx == len(current_shas) - 1:
+                has_parent = False
+                try:
+                    subprocess.run(["git", "rev-parse", f"{sha}^"],
+                                   cwd=self.repo_path, check=True, capture_output=True)
+                    has_parent = True
+                except Exception:
+                    pass
+                upstream = f"{sha}^" if has_parent else "--root"
+            else:
+                upstream = current_shas[sha_idx + 1]
+
+            env = os.environ.copy()
+            env["GIT_SEQUENCE_EDITOR"] = editor_script
+            env["GIT_EDITOR"] = "true"
+
+            if upstream == "--root":
+                cmd = ["git", "rebase", "-i", "--root"]
+            else:
+                cmd = ["git", "rebase", "-i", upstream]
+
+            result = subprocess.run(cmd, cwd=self.repo_path, env=env,
+                                    capture_output=True, text=True)
+            os.unlink(editor_script)
+
+            if result.returncode == 0:
+                QMessageBox.information(self, "Success",
+                    f"File '{filepath}' has been moved out of commit {short_sha}.\n\n"
+                    f"A new commit was created: \"{new_msg}\"")
+            else:
+                subprocess.run(["git", "rebase", "--abort"],
+                               cwd=self.repo_path, capture_output=True)
+                QMessageBox.critical(self, "Split Failed",
+                    f"The split operation failed and has been aborted.\n\n"
+                    f"Error: {result.stderr}")
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"An error occurred during split: {str(e)}")
+        finally:
             self.load_history()
 
     def perform_move(self, new_shas, original_shas=None):
