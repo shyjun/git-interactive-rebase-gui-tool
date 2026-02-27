@@ -485,6 +485,7 @@ class GitHistoryApp(QMainWindow):
         super().__init__()
         self.repo_path = repo_path
         self.commit_sha = commit_sha
+        self.start_time_head = get_head_sha(self.repo_path)
         
         # Persistence
         self.settings = QSettings("shyjun", "GitInteractiveRebase")
@@ -560,14 +561,17 @@ class GitHistoryApp(QMainWindow):
         controls_layout.addSpacing(20)
 
         self.exit_btn = QPushButton("Exit")
+        self.failsafe_btn = QPushButton(f"⚠ Reset Hard to START_TIME_HEAD ({self.start_time_head[:8]}) ⚠")
         
         for btn in [self.zoom_in_btn, self.zoom_out_btn, self.refresh_btn, self.exit_btn]:
             btn.setMinimumHeight(40)
             btn.setMinimumWidth(120)
+        self.failsafe_btn.setMinimumHeight(40)
 
         self.zoom_in_btn.clicked.connect(self.handle_zoom_in)
         self.zoom_out_btn.clicked.connect(self.handle_zoom_out)
         self.refresh_btn.clicked.connect(self.load_history)
+        self.failsafe_btn.clicked.connect(self.handle_failsafe_reset)
         self.exit_btn.clicked.connect(self.close)
 
         controls_layout.addWidget(self.zoom_in_btn)
@@ -577,6 +581,9 @@ class GitHistoryApp(QMainWindow):
         controls_layout.addWidget(self.exit_btn)
         
         layout.addLayout(controls_layout)
+        
+        # Add failsafe button as a distinct, full-width element below the other controls
+        layout.addWidget(self.failsafe_btn)
 
         # Keyboard Shortcuts
         self.slash_shortcut = QShortcut(QKeySequence("/"), self)
@@ -610,6 +617,18 @@ class GitHistoryApp(QMainWindow):
                 item.setHidden(False)
             else:
                 item.setHidden(True)
+
+    def handle_failsafe_reset(self):
+        reply = QMessageBox.question(
+            self, 
+            "Confirm Failsafe Reset",
+            f"Are you sure you want to <b>reset --hard</b> to START_TIME_HEAD (<b>{self.start_time_head[:8]}</b>)?<br><br>"
+            "This will discard all uncommitted changes and move your branch to this state.",
+            QMessageBox.Yes | QMessageBox.No, 
+            QMessageBox.No
+        )
+        if reply == QMessageBox.Yes:
+            self.perform_reset(self.start_time_head)
 
     def handle_zoom_in(self):
         self.current_font_size += 1
