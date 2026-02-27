@@ -540,8 +540,22 @@ class GitHistoryApp(QMainWindow):
         self.search_edit.textChanged.connect(self.filter_commits)
         layout.addWidget(self.search_edit)
 
-        layout.addWidget(self.list_widget)
+        # Main Splitter
+        self.main_splitter = QSplitter(Qt.Horizontal)
+        self.main_splitter.addWidget(self.list_widget)
+        
+        # Right Side Diff View
+        self.side_diff_view = QTextEdit()
+        self.side_diff_view.setReadOnly(True)
+        self.main_splitter.addWidget(self.side_diff_view)
+        # default split ratio: history 60%, diff 40%
+        self.main_splitter.setSizes([600, 400])
+        
+        layout.addWidget(self.main_splitter)
+        
         self.list_widget.itemDoubleClicked.connect(self.view_commit)
+        self.list_widget.itemSelectionChanged.connect(self.update_side_diff)
+        
         self.update_window_title()
 
         # Bottom Control Bar
@@ -549,6 +563,7 @@ class GitHistoryApp(QMainWindow):
         
         self.zoom_in_btn = QPushButton("Zoom In (+)")
         self.zoom_out_btn = QPushButton("Zoom Out (-)")
+        self.toggle_diff_btn = QPushButton("Hide/Show diffs")
         self.refresh_btn = QPushButton("Refresh")
         # Theme controls
         self.dark_radio = QRadioButton("Dark Theme")
@@ -567,7 +582,7 @@ class GitHistoryApp(QMainWindow):
         self.best_commit_btn.setEnabled(False)
         self.custom_reset_btn = QPushButton("Enter commit id to reset hard to")
         
-        for btn in [self.zoom_in_btn, self.zoom_out_btn, self.refresh_btn, self.exit_btn]:
+        for btn in [self.zoom_in_btn, self.zoom_out_btn, self.toggle_diff_btn, self.refresh_btn, self.exit_btn]:
             btn.setMinimumHeight(40)
             btn.setMinimumWidth(120)
         self.failsafe_btn.setMinimumHeight(40)
@@ -576,6 +591,7 @@ class GitHistoryApp(QMainWindow):
 
         self.zoom_in_btn.clicked.connect(self.handle_zoom_in)
         self.zoom_out_btn.clicked.connect(self.handle_zoom_out)
+        self.toggle_diff_btn.clicked.connect(self.toggle_side_diff_visibility)
         self.refresh_btn.clicked.connect(self.load_history)
         self.failsafe_btn.clicked.connect(self.handle_failsafe_reset)
         self.best_commit_btn.clicked.connect(self.handle_best_commit_reset)
@@ -584,6 +600,7 @@ class GitHistoryApp(QMainWindow):
 
         controls_layout.addWidget(self.zoom_in_btn)
         controls_layout.addWidget(self.zoom_out_btn)
+        controls_layout.addWidget(self.toggle_diff_btn)
         controls_layout.addStretch() # Space between zoom and refresh
         controls_layout.addWidget(self.refresh_btn)
         controls_layout.addWidget(self.exit_btn)
@@ -603,6 +620,21 @@ class GitHistoryApp(QMainWindow):
         
         self.esc_shortcut = QShortcut(QKeySequence("Esc"), self)
         self.esc_shortcut.activated.connect(self.handle_esc_shortcut)
+
+    def update_side_diff(self):
+        item = self.list_widget.currentItem()
+        if not item:
+            self.side_diff_view.clear()
+            return
+        sha = item.text().split()[0]
+        try:
+            diff_text = get_commit_diff(self.repo_path, sha)
+            self.side_diff_view.setPlainText(diff_text)
+        except Exception as e:
+            self.side_diff_view.setPlainText(f"Error loading diff: {e}")
+
+    def toggle_side_diff_visibility(self):
+        self.side_diff_view.setVisible(not self.side_diff_view.isVisible())
 
     def handle_slash_shortcut(self):
         """Focus search bar when / is pressed."""
@@ -856,9 +888,22 @@ class GitHistoryApp(QMainWindow):
         
         QApplication.instance().setStyleSheet(qss)
         
+        # Update highlighter colors according to the theme
+        if hasattr(self, 'side_diff_view'):
+            if hasattr(self, 'side_highlighter') and self.side_highlighter is not None:
+                self.side_highlighter.setDocument(None)
+            self.side_highlighter = DiffHighlighter(
+                self.side_diff_view.document(),
+                added_color=self.current_theme_colors["added"],
+                removed_color=self.current_theme_colors["removed"],
+                header_color=self.current_theme_colors["header"]
+            )
+        
     def update_font(self):
         font = QFont("Monospace", self.current_font_size)
         self.list_widget.setFont(font)
+        if hasattr(self, 'side_diff_view'):
+            self.side_diff_view.setFont(font)
         # Save persistence
         self.settings.setValue("font_size", self.current_font_size)
 
