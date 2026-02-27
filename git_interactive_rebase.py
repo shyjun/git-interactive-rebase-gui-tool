@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QListWidget, QVBoxLayout, 
     QWidget, QMessageBox, QListWidgetItem, QMenu, QDialog,
     QTextEdit, QPushButton, QHBoxLayout, QLabel, QRadioButton,
-    QLineEdit, QSplitter
+    QLineEdit, QSplitter, QInputDialog
 )
 from PySide6.QtCore import Qt, QSize, QSettings
 from PySide6.QtGui import QFont, QSyntaxHighlighter, QTextCharFormat, QColor, QAction, QShortcut, QKeySequence
@@ -565,18 +565,21 @@ class GitHistoryApp(QMainWindow):
         self.failsafe_btn = QPushButton(f"⚠ Reset Hard to START_TIME_HEAD ({self.start_time_head[:8]}) ⚠")
         self.best_commit_btn = QPushButton("Reset Hard to BEST_COMMITID (Not Set)")
         self.best_commit_btn.setEnabled(False)
+        self.custom_reset_btn = QPushButton("Enter commit id to reset hard to")
         
         for btn in [self.zoom_in_btn, self.zoom_out_btn, self.refresh_btn, self.exit_btn]:
             btn.setMinimumHeight(40)
             btn.setMinimumWidth(120)
         self.failsafe_btn.setMinimumHeight(40)
         self.best_commit_btn.setMinimumHeight(40)
+        self.custom_reset_btn.setMinimumHeight(40)
 
         self.zoom_in_btn.clicked.connect(self.handle_zoom_in)
         self.zoom_out_btn.clicked.connect(self.handle_zoom_out)
         self.refresh_btn.clicked.connect(self.load_history)
         self.failsafe_btn.clicked.connect(self.handle_failsafe_reset)
         self.best_commit_btn.clicked.connect(self.handle_best_commit_reset)
+        self.custom_reset_btn.clicked.connect(self.handle_custom_reset)
         self.exit_btn.clicked.connect(self.close)
 
         controls_layout.addWidget(self.zoom_in_btn)
@@ -591,6 +594,7 @@ class GitHistoryApp(QMainWindow):
         bottom_row = QHBoxLayout()
         bottom_row.addWidget(self.failsafe_btn)
         bottom_row.addWidget(self.best_commit_btn)
+        bottom_row.addWidget(self.custom_reset_btn)
         layout.addLayout(bottom_row)
 
         # Keyboard Shortcuts
@@ -657,6 +661,21 @@ class GitHistoryApp(QMainWindow):
         )
         if reply == QMessageBox.Yes:
             self.perform_reset(self.start_time_head)
+
+    def handle_custom_reset(self):
+        commit_id, ok = QInputDialog.getText(self, 'Input Dialog', 'Enter commit ID to reset hard to:')
+        if ok and commit_id.strip():
+            sha = commit_id.strip()
+            reply = QMessageBox.question(
+                self, 
+                "Confirm Custom Reset",
+                f"Are you sure you want to <b>reset --hard</b> to <b>{sha}</b>?<br><br>"
+                "This will discard all uncommitted changes and move your branch to this state.",
+                QMessageBox.Yes | QMessageBox.No, 
+                QMessageBox.No
+            )
+            if reply == QMessageBox.Yes:
+                self.perform_reset(sha)
 
     def handle_zoom_in(self):
         self.current_font_size += 1
