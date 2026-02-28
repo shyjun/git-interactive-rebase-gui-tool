@@ -111,9 +111,11 @@ class SplitCommitDialog(QDialog):
 
         # Splitter: file list (top) + diff view (bottom)
         splitter = QSplitter(Qt.Vertical)
+        splitter.setChildrenCollapsible(False)
 
         # File list
         self.file_list = QListWidget()
+        self.file_list.setMinimumHeight(60)
         self.file_list.setFont(QFont("Courier New", font_size))
         for f in files:
             self.file_list.addItem(f)
@@ -122,6 +124,7 @@ class SplitCommitDialog(QDialog):
 
         # Diff view
         self.diff_view = QTextEdit()
+        self.diff_view.setMinimumHeight(100)
         self.diff_view.setReadOnly(True)
         self.diff_view.setFont(QFont("Courier New", font_size))
         self.diff_view.setPlaceholderText("Select a file above to view its diff...")
@@ -244,9 +247,11 @@ class FileWiseViewDialog(QDialog):
         layout.addWidget(header)
 
         splitter = QSplitter(Qt.Vertical)
+        splitter.setChildrenCollapsible(False)
 
         # File list
         self.file_list = QListWidget()
+        self.file_list.setMinimumHeight(60)
         self.file_list.setFont(QFont("Courier New", font_size))
         for f in files:
             self.file_list.addItem(f)
@@ -255,6 +260,7 @@ class FileWiseViewDialog(QDialog):
 
         # Diff view
         self.diff_view = QTextEdit()
+        self.diff_view.setMinimumHeight(100)
         self.diff_view.setReadOnly(True)
         self.diff_view.setFont(QFont("Courier New", font_size))
         self.diff_view.setPlaceholderText("Select a file above to view its diff...")
