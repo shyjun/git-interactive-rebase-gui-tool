@@ -609,17 +609,17 @@ class GitHistoryApp(QMainWindow):
         copy_sha_msg_action.triggered.connect(lambda: self.handle_copy_sha_and_message(item))
         
         menu.addAction(view_action)
-        menu.addAction(move_action)
         menu.addSeparator()
         menu.addAction(reset_action)
         menu.addAction(set_best_action)
         menu.addSeparator()
         menu.addAction(drop_action)
         menu.addAction(rephrase_action)
+        menu.addAction(move_action)
         
         # Split Commit submenu
         split_menu = menu.addMenu("Split Commit")
-        split_move_out_action = QAction("Move File Out of This Commit", self)
+        split_move_out_action = QAction("move one file changes out of this commit", self)
         split_move_out_action.triggered.connect(lambda: self.handle_split_commit(item))
         split_menu.addAction(split_move_out_action)
         
@@ -834,6 +834,10 @@ class GitHistoryApp(QMainWindow):
             if not files:
                 QMessageBox.information(self, "No Files", f"Commit {sha} has no file changes to split.")
                 return
+            if len(files) == 1:
+                QMessageBox.warning(self, "Warning", "This commit has changes only in 1 file.")
+                return
+                
             dialog = SplitCommitDialog(self.repo_path, sha, files, self.current_font_size, self)
             if dialog.exec() == QDialog.Accepted:
                 selected_file = dialog.get_selected_file()
