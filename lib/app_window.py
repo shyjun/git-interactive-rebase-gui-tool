@@ -78,6 +78,7 @@ class GitHistoryApp(QMainWindow):
         # Persistence
         self.settings = QSettings("shyjun", "GitInteractiveRebase")
         self.current_font_size = int(self.settings.value("font_size", 10))
+        self.show_diffs = self.settings.value("show_diffs", False, type=bool)
         
         self.setWindowTitle(f"git_interactive_rebase.py : branch=..., HEAD=..., path={self.repo_path}") # Temporary name until load_history updates it
         self.resize(1000, 800)
@@ -148,6 +149,8 @@ class GitHistoryApp(QMainWindow):
         self.side_diff_view = QTextEdit()
         self.side_diff_view.setReadOnly(True)
         right_layout.addWidget(self.side_diff_view)
+        
+        self.right_panel.setVisible(self.show_diffs)
         
         self.main_splitter.addWidget(self.right_panel)
         # default split ratio: history 60%, diff 40%
@@ -247,7 +250,10 @@ class GitHistoryApp(QMainWindow):
                 self.side_commit_label.setText("Error")
 
     def toggle_side_diff_visibility(self):
-        self.right_panel.setVisible(not self.right_panel.isVisible())
+        new_visibility = not self.right_panel.isVisible()
+        self.right_panel.setVisible(new_visibility)
+        self.show_diffs = new_visibility
+        self.settings.setValue("show_diffs", self.show_diffs)
 
     def handle_slash_shortcut(self):
         """Focus search bar when / is pressed."""
