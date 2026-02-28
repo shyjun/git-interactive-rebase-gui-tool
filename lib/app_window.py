@@ -137,18 +137,34 @@ class GitHistoryApp(QMainWindow):
         right_layout = QVBoxLayout(self.right_panel)
         right_layout.setContentsMargins(0, 0, 0, 0)
         
+        # Right Side Splitter (Vertical)
+        self.right_splitter = QSplitter(Qt.Vertical)
+        
+        # Top half: Header + Message
+        self.right_top_widget = QWidget()
+        right_top_layout = QVBoxLayout(self.right_top_widget)
+        right_top_layout.setContentsMargins(0, 0, 0, 0)
+        
         self.side_commit_label = QLabel("Select a commit to view details")
         self.side_commit_label.setTextFormat(Qt.RichText)
-        right_layout.addWidget(self.side_commit_label)
+        right_top_layout.addWidget(self.side_commit_label)
         
         self.side_commit_msg = QTextEdit()
         self.side_commit_msg.setReadOnly(True)
-        self.side_commit_msg.setMaximumHeight(80)
-        right_layout.addWidget(self.side_commit_msg)
+        right_top_layout.addWidget(self.side_commit_msg)
+        
+        self.right_splitter.addWidget(self.right_top_widget)
 
+        # Bottom half: Diff
         self.side_diff_view = QTextEdit()
         self.side_diff_view.setReadOnly(True)
-        right_layout.addWidget(self.side_diff_view)
+        self.right_splitter.addWidget(self.side_diff_view)
+        
+        # Add the vertical splitter to the right panel's layout
+        right_layout.addWidget(self.right_splitter)
+        
+        # Set initial split sizes for top (message) and bottom (diff)
+        self.right_splitter.setSizes([150, 650])
         
         self.right_panel.setVisible(self.show_diffs)
         
