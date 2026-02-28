@@ -25,7 +25,7 @@ from lib.git_helpers import (
 )
 from lib.dialogs import (
     DiffHighlighter, DiffViewerDialog, SplitCommitDialog, ViewCommitDialog,
-    DropDialog, RephraseDialog, SquashDialog, FileWiseViewDialog
+    DropDialog, RephraseDialog, SquashDialog, FileWiseViewDialog, MultiSquashDialog
 )
 
 class CommitListWidget(QListWidget):
@@ -932,49 +932,28 @@ class GitHistoryApp(QMainWindow):
                 return
 
         selected_shas = [self.list_widget.item(i).text().split()[0] for i in selected_indices]
-        sha_list_str = "\n".join(f"  • {sha}" for sha in selected_shas)
-
-        reply = QMessageBox.question(
-            self,
-            "Confirm Merge",
-            f"Squash the following {len(selected_shas)} commits into one?\n\n{sha_list_str}",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No
-        )
-        if reply != QMessageBox.Yes:
-            return
 
         self.perform_multi_squash(selected_shas)
 
     def perform_multi_squash(self, selected_shas):
         """Squashes multiple adjacent commits into the topmost selected commit."""
         try:
-            # Collect messages for combined dialog
-            messages = {}
-            for sha in selected_shas:
-                messages[sha] = get_full_commit_message(self.repo_path, sha)
+            # Collect (sha, message) pairs preserving order
+            sha_msg_pairs = [(sha, get_full_commit_message(self.repo_path, sha)) for sha in selected_shas]
 
-            # The top item (index 0 = newest) is the "pick" target; rest become squash
+            # The top item (index 0 = newest in list) is the "pick" target; rest become squash
             base_sha = selected_shas[0]
             squash_shas = selected_shas[1:]
 
-            combined_msg = "\n\n".join(
-                f"# --- {sha} ---\n{msg}" for sha, msg in messages.items()
-            )
-
-            # Ask user for the final commit message
-            dialog = SquashDialog(
-                base_sha, messages[base_sha],
-                squash_shas[-1], messages[squash_shas[-1]],
-                self.current_font_size, self
-            )
+            # Open the N-option message selection dialog directly
+            dialog = MultiSquashDialog(sha_msg_pairs, self.current_font_size, self)
             if dialog.exec() != QDialog.Accepted:
                 self.exit_multi_select_mode()
                 return
 
             final_msg = dialog.get_message()
 
-            # Build all SHAs list
+            # Build all SHAs list from current view
             all_shas = [self.list_widget.item(i).text().split()[0] for i in range(self.list_widget.count())]
 
             if self.run_interactive_rebase(all_shas, squash_shas=squash_shas, rephrase_map={base_sha: final_msg}):

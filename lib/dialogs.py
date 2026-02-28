@@ -432,4 +432,64 @@ class SquashDialog(QDialog):
         return self.editor.toPlainText().strip()
 
 
+class MultiSquashDialog(QDialog):
+    """Dialog for squashing N commits — shows one radio per commit for message selection."""
+    def __init__(self, sha_msg_pairs, font_size=10, parent=None):
+        """
+        sha_msg_pairs: list of (sha, full_commit_message) in newest→oldest order
+        """
+        super().__init__(parent)
+        self.setWindowTitle("Merge/Squash Commits — Choose Final Commit Message")
+        self.setMinimumSize(680, 480)
+        self.sha_msg_pairs = sha_msg_pairs
+
+        layout = QVBoxLayout(self)
+        layout.addWidget(QLabel(
+            f"<b>Squashing {len(sha_msg_pairs)} commits.</b>  "
+            "Select which commit message to use as the base, then edit:"
+        ))
+
+        # Dynamic radio buttons — one per commit
+        self.radios = []
+        for sha, msg in sha_msg_pairs:
+            first_line = msg.splitlines()[0][:60] if msg else "(empty)"
+            radio = QRadioButton(f"{sha}: {first_line}...")
+            layout.addWidget(radio)
+            self.radios.append(radio)
+
+        # Text editor
+        self.editor = QTextEdit()
+        self.editor.setFont(QFont("Courier New", font_size))
+        layout.addWidget(self.editor)
+
+        # Wire radio toggling to update editor
+        for i, radio in enumerate(self.radios):
+            radio.toggled.connect(lambda checked, idx=i: self._on_radio(checked, idx))
+
+        # Default: first commit selected
+        self.radios[0].setChecked(True)
+        self.editor.setPlainText(sha_msg_pairs[0][1])
+
+        # Buttons
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+        self.proceed_btn = QPushButton("Proceed")
+        self.cancel_btn = QPushButton("Cancel")
+        self.proceed_btn.setProperty("class", "dialog-btn")
+        self.cancel_btn.setProperty("class", "dialog-btn")
+        self.proceed_btn.clicked.connect(self.accept)
+        self.cancel_btn.clicked.connect(self.reject)
+        btn_layout.addWidget(self.proceed_btn)
+        btn_layout.addWidget(self.cancel_btn)
+        layout.addLayout(btn_layout)
+
+    def _on_radio(self, checked, idx):
+        if checked:
+            self.editor.setPlainText(self.sha_msg_pairs[idx][1])
+
+    def get_message(self):
+        return self.editor.toPlainText().strip()
+
+
+
 
