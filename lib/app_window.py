@@ -130,6 +130,8 @@ class GitHistoryApp(QMainWindow):
 
         # Main Splitter
         self.main_splitter = QSplitter(Qt.Horizontal)
+        self.main_splitter.setChildrenCollapsible(False)
+        self.list_widget.setMinimumWidth(150)
         self.main_splitter.addWidget(self.list_widget)
         
         # Right Side Panel
@@ -165,6 +167,8 @@ class GitHistoryApp(QMainWindow):
         
         # Set initial split sizes for top (message) and bottom (diff)
         self.right_splitter.setSizes([150, 650])
+        
+        self.right_panel.setMinimumWidth(150)
         
         self.right_panel.setVisible(self.show_diffs)
         
