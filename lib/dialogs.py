@@ -176,23 +176,41 @@ class ViewCommitDialog(DiffViewerDialog):
         self._commit_meta = commit_meta
         super().__init__(f"View Commit: {sha}", sha, diff_text, font_size, parent)
 
+        # Convert fixed layout into a QSplitter
+        label = self.layout.itemAt(0).widget()
+        msg_box = self.layout.itemAt(1).widget()
+        diff_view = self.layout.itemAt(2).widget()
+        
+        self.layout.removeWidget(label)
+        self.layout.removeWidget(msg_box)
+        self.layout.removeWidget(diff_view)
+        
+        splitter = QSplitter(Qt.Vertical)
+        splitter.setChildrenCollapsible(False)
+        
+        top_widget = QWidget()
+        top_layout = QVBoxLayout(top_widget)
+        top_layout.setContentsMargins(0, 0, 0, 0)
+        top_layout.addWidget(label)
+        top_layout.addWidget(msg_box)
+        
+        splitter.addWidget(top_widget)
+        splitter.addWidget(diff_view)
+        
+        self.layout.insertWidget(0, splitter)
+        splitter.setSizes([150, 450])
+
     def setup_header(self, sha):
         label = QLabel(f"Showing changes for commit: <b>{sha}</b>  <span style='color:gray;'>({self._commit_meta})</span>")
         label.setTextFormat(Qt.RichText)
         self.layout.addWidget(label)
 
-        # Commit message box — auto-sizes height to content
+        # Commit message box
         msg_box = QTextEdit()
         msg_box.setReadOnly(True)
         msg_box.setPlainText(self._commit_message)
         msg_box.setFont(QFont("Courier New", self.font_size))
         msg_box.setLineWrapMode(QTextEdit.WidgetWidth)
-        # Compute height: one line per message line, capped to a max
-        line_count = self._commit_message.count('\n') + 1
-        line_height = msg_box.fontMetrics().height()
-        padding = 16  # vertical padding inside the widget
-        desired_height = min(line_count * line_height + padding, line_height * 10 + padding)
-        msg_box.setFixedHeight(desired_height)
         msg_box.setProperty("class", "commit-msg-view")
         self.layout.addWidget(msg_box)
 
