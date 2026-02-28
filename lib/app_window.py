@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QListWidget, QVBoxLayout, 
     QWidget, QMessageBox, QListWidgetItem, QMenu, QDialog,
     QTextEdit, QPushButton, QHBoxLayout, QLabel, QRadioButton,
-    QLineEdit, QSplitter, QInputDialog
+    QLineEdit, QSplitter, QInputDialog, QGroupBox
 )
 from PySide6.QtCore import Qt, QSize, QSettings
 from PySide6.QtGui import QFont, QSyntaxHighlighter, QTextCharFormat, QColor, QAction, QShortcut, QKeySequence
@@ -24,7 +24,7 @@ from lib.git_helpers import (
 )
 from lib.dialogs import (
     DiffHighlighter, DiffViewerDialog, SplitCommitDialog, ViewCommitDialog,
-    DropDialog, RephraseDialog, SquashDialog
+    DropDialog, RephraseDialog, SquashDialog, FileWiseViewDialog
 )
 
 class CommitListWidget(QListWidget):
@@ -191,14 +191,18 @@ class GitHistoryApp(QMainWindow):
         self.toggle_diff_btn = QPushButton("Hide/Show diffs")
         self.refresh_btn = QPushButton("Refresh")
         # Theme controls
+        theme_group = QGroupBox("Theme:")
+        theme_layout = QHBoxLayout()
+        theme_layout.setContentsMargins(5, 0, 5, 0) # Tighter margins for inline look
         self.dark_radio = QRadioButton("Dark Theme")
         self.light_radio = QRadioButton("Light Theme")
         self.dark_radio.toggled.connect(lambda: self.on_theme_toggled())
         self.light_radio.toggled.connect(lambda: self.on_theme_toggled())
+        theme_layout.addWidget(self.dark_radio)
+        theme_layout.addWidget(self.light_radio)
+        theme_group.setLayout(theme_layout)
         
-        controls_layout.addWidget(QLabel("Theme:"))
-        controls_layout.addWidget(self.dark_radio)
-        controls_layout.addWidget(self.light_radio)
+        controls_layout.addWidget(theme_group)
         controls_layout.addSpacing(20)
 
         self.exit_btn = QPushButton("Exit")
@@ -598,6 +602,8 @@ class GitHistoryApp(QMainWindow):
             squash_below_action.setEnabled(False)
 
         view_action.triggered.connect(lambda: self.view_commit(item))
+        view_filewise_action = QAction(f"Show / View commit {sha} -- file-wise", self)
+        view_filewise_action.triggered.connect(lambda: self.handle_view_commit_file_wise(item))
         # Move action is primarily via drag and drop, but we can make it focus the item
         move_action.triggered.connect(lambda: self.list_widget.setCurrentItem(item))
         reset_action.triggered.connect(lambda: self.handle_reset(item))
@@ -609,6 +615,7 @@ class GitHistoryApp(QMainWindow):
         copy_sha_msg_action.triggered.connect(lambda: self.handle_copy_sha_and_message(item))
         
         menu.addAction(view_action)
+        menu.addAction(view_filewise_action)
         menu.addSeparator()
         menu.addAction(reset_action)
         menu.addAction(set_best_action)
@@ -708,6 +715,20 @@ class GitHistoryApp(QMainWindow):
             dialog.exec()
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not fetch commit diff: {str(e)}")
+
+    def handle_view_commit_file_wise(self, item):
+        if not item:
+            return
+        sha = item.text().split()[0]
+        try:
+            files = get_commit_files(self.repo_path, sha)
+            if not files:
+                QMessageBox.information(self, "No Files", f"Commit {sha} has no file changes to view.")
+                return
+            dialog = FileWiseViewDialog(self.repo_path, sha, files, self.current_font_size, self)
+            dialog.exec()
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Could not open file-wise view: {str(e)}")
 
     def handle_reset(self, item):
         sha = item.text().split()[0]

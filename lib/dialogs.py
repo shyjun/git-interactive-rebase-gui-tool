@@ -221,6 +221,76 @@ class ViewCommitDialog(DiffViewerDialog):
         ok_btn.clicked.connect(self.accept)
         self.btn_layout.addWidget(ok_btn)
 
+class FileWiseViewDialog(QDialog):
+    """Dialog for viewing changes in a commit file by file."""
+    def __init__(self, repo_path, sha, files, font_size=10, parent=None):
+        super().__init__(parent)
+        self.repo_path = repo_path
+        self.sha = sha
+        self.font_size = font_size
+        self.setWindowTitle(f"View Commit File-wise: {sha}")
+        self.setMinimumSize(860, 620)
+
+        main_win = parent if isinstance(parent, QMainWindow) else None
+        if main_win and hasattr(main_win, 'current_theme_colors'):
+            colors = main_win.current_theme_colors
+        else:
+            colors = {"added": "#a6e22e", "removed": "#f92672", "header": "#66d9ef"}
+
+        layout = QVBoxLayout(self)
+
+        header = QLabel(f"<b>Select a file</b> to view its changes in commit <b>{sha}</b>")
+        header.setTextFormat(Qt.RichText)
+        layout.addWidget(header)
+
+        splitter = QSplitter(Qt.Vertical)
+
+        # File list
+        self.file_list = QListWidget()
+        self.file_list.setFont(QFont("Courier New", font_size))
+        for f in files:
+            self.file_list.addItem(f)
+        self.file_list.currentTextChanged.connect(self.on_file_selected)
+        splitter.addWidget(self.file_list)
+
+        # Diff view
+        self.diff_view = QTextEdit()
+        self.diff_view.setReadOnly(True)
+        self.diff_view.setFont(QFont("Courier New", font_size))
+        self.diff_view.setPlaceholderText("Select a file above to view its diff...")
+        self.highlighter = DiffHighlighter(
+            self.diff_view.document(),
+            added_color=colors["added"],
+            removed_color=colors["removed"],
+            header_color=colors["header"]
+        )
+        splitter.addWidget(self.diff_view)
+        splitter.setSizes([150, 400])
+        layout.addWidget(splitter)
+
+        # Buttons
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+        cancel_btn = QPushButton("Close")
+        cancel_btn.setMinimumWidth(100)
+        cancel_btn.setProperty("class", "dialog-btn-secondary")
+        cancel_btn.clicked.connect(self.reject)
+        btn_layout.addWidget(cancel_btn)
+        btn_layout.addStretch()
+        layout.addLayout(btn_layout)
+
+        if files:
+            self.file_list.setCurrentRow(0)
+
+    def on_file_selected(self, filepath):
+        if not filepath:
+            return
+        try:
+            diff = get_file_diff_in_commit(self.repo_path, self.sha, filepath)
+            self.diff_view.setPlainText(diff)
+        except Exception as e:
+            self.diff_view.setPlainText(f"Error loading diff: {e}")
+
 class DropDialog(DiffViewerDialog):
     def __init__(self, sha, diff_text, font_size=10, parent=None):
         super().__init__("Confirm Drop Commit", sha, diff_text, font_size, parent)
