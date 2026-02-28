@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QListWidget, QVBoxLayout, 
     QWidget, QMessageBox, QListWidgetItem, QMenu, QDialog,
     QTextEdit, QPushButton, QHBoxLayout, QLabel, QRadioButton,
-    QLineEdit, QSplitter, QInputDialog, QGroupBox
+    QLineEdit, QSplitter, QInputDialog, QGroupBox, QSizePolicy
 )
 from PySide6.QtCore import Qt, QSize, QSettings
 from PySide6.QtGui import QFont, QSyntaxHighlighter, QTextCharFormat, QColor, QAction, QShortcut, QKeySequence
@@ -191,9 +191,8 @@ class GitHistoryApp(QMainWindow):
         self.toggle_diff_btn = QPushButton("Hide/Show diffs")
         self.refresh_btn = QPushButton("Refresh")
         # Theme controls
-        theme_group = QGroupBox("Theme:")
+        theme_group = QGroupBox("Theme")
         theme_layout = QHBoxLayout()
-        theme_layout.setContentsMargins(5, 0, 5, 0) # Tighter margins for inline look
         self.dark_radio = QRadioButton("Dark Theme")
         self.light_radio = QRadioButton("Light Theme")
         self.dark_radio.toggled.connect(lambda: self.on_theme_toggled())
@@ -237,11 +236,14 @@ class GitHistoryApp(QMainWindow):
         layout.addLayout(controls_layout)
         
         # Add failsafe options as a distinct row below the other controls
-        bottom_row = QHBoxLayout()
-        bottom_row.addWidget(self.failsafe_btn)
-        bottom_row.addWidget(self.best_commit_btn)
-        bottom_row.addWidget(self.custom_reset_btn)
-        layout.addLayout(bottom_row)
+        failsafe_group = QGroupBox("fail-safe")
+        failsafe_group.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        failsafe_layout = QHBoxLayout()
+        failsafe_layout.addWidget(self.failsafe_btn)
+        failsafe_layout.addWidget(self.best_commit_btn)
+        failsafe_layout.addWidget(self.custom_reset_btn)
+        failsafe_group.setLayout(failsafe_layout)
+        layout.addWidget(failsafe_group)
 
         # Keyboard Shortcuts
         self.slash_shortcut = QShortcut(QKeySequence("/"), self)
@@ -398,6 +400,16 @@ class GitHistoryApp(QMainWindow):
                     background-color: #37373d;
                     color: #ffffff;
                 }
+                QGroupBox {
+                    border: 1px solid #3c3c3c;
+                    border-radius: 5px;
+                    margin-top: 10px;
+                }
+                QGroupBox::title {
+                    subcontrol-origin: margin;
+                    left: 10px;
+                    padding: 0 3px 0 3px;
+                }
                 QPushButton {
                     background-color: #333333;
                     color: #cccccc;
@@ -478,6 +490,16 @@ class GitHistoryApp(QMainWindow):
                 QListWidget::item:selected {
                     background-color: #007aff;
                     color: white;
+                }
+                QGroupBox {
+                    border: 1px solid #ccc;
+                    border-radius: 5px;
+                    margin-top: 10px;
+                }
+                QGroupBox::title {
+                    subcontrol-origin: margin;
+                    left: 10px;
+                    padding: 0 3px 0 3px;
                 }
                 QPushButton {
                     background-color: #ffffff;
