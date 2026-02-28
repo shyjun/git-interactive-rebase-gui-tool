@@ -191,6 +191,15 @@ class GitHistoryApp(QMainWindow):
         self.zoom_out_btn = QPushButton("Zoom Out (-)")
         self.toggle_diff_btn = QPushButton("Hide/Show diffs")
         self.refresh_btn = QPushButton("Refresh")
+
+        # Zoom group box
+        zoom_group = QGroupBox("Zoom")
+        zoom_group.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        zoom_layout = QHBoxLayout()
+        zoom_layout.addWidget(self.zoom_in_btn)
+        zoom_layout.addWidget(self.zoom_out_btn)
+        zoom_group.setLayout(zoom_layout)
+
         # Theme controls
         theme_group = QGroupBox("Theme")
         theme_layout = QHBoxLayout()
@@ -202,6 +211,7 @@ class GitHistoryApp(QMainWindow):
         theme_layout.addWidget(self.light_radio)
         theme_group.setLayout(theme_layout)
         
+        controls_layout.addWidget(zoom_group)
         controls_layout.addWidget(theme_group)
         controls_layout.addSpacing(20)
 
@@ -227,10 +237,8 @@ class GitHistoryApp(QMainWindow):
         self.custom_reset_btn.clicked.connect(self.handle_custom_reset)
         self.exit_btn.clicked.connect(self.close)
 
-        controls_layout.addWidget(self.zoom_in_btn)
-        controls_layout.addWidget(self.zoom_out_btn)
         controls_layout.addWidget(self.toggle_diff_btn)
-        controls_layout.addStretch() # Space between zoom and refresh
+        controls_layout.addStretch()
         controls_layout.addWidget(self.refresh_btn)
         controls_layout.addWidget(self.exit_btn)
         
@@ -882,7 +890,7 @@ class GitHistoryApp(QMainWindow):
         self.multi_select_mode = False
         try:
             self.list_widget.itemChanged.disconnect(self.on_multi_select_changed)
-        except RuntimeError:
+        except Exception: # Widened exception catch
             pass
         self.list_widget.blockSignals(True)
         for i in range(self.list_widget.count()):
@@ -948,8 +956,7 @@ class GitHistoryApp(QMainWindow):
             # Open the N-option message selection dialog directly
             dialog = MultiSquashDialog(sha_msg_pairs, self.current_font_size, self)
             if dialog.exec() != QDialog.Accepted:
-                self.exit_multi_select_mode()
-                return
+                return  # finally block handles cleanup
 
             final_msg = dialog.get_message()
 
