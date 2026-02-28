@@ -20,7 +20,8 @@ from PySide6.QtGui import QFont, QSyntaxHighlighter, QTextCharFormat, QColor, QA
 
 from lib.git_helpers import (
     get_git_history, get_head_sha, get_current_branch, get_commit_diff,
-    get_full_commit_message, get_commit_metadata, get_commit_files
+    get_full_commit_message, get_commit_metadata, get_commit_files,
+    has_uncommitted_changes
 )
 from lib.dialogs import (
     DiffHighlighter, DiffViewerDialog, SplitCommitDialog, ViewCommitDialog,
@@ -205,7 +206,7 @@ class GitHistoryApp(QMainWindow):
         controls_layout.addSpacing(20)
 
         self.exit_btn = QPushButton("Exit")
-        self.failsafe_btn = QPushButton(f"⚠ Reset Hard to START_TIME_HEAD ({self.start_time_head[:8]}) ⚠")
+        self.failsafe_btn = QPushButton("")
         self.best_commit_btn = QPushButton("Reset Hard to BEST_COMMITID (Not Set)")
         self.best_commit_btn.setEnabled(False)
         self.custom_reset_btn = QPushButton("Enter commit id to reset hard to")
@@ -1272,6 +1273,16 @@ if os.path.exists('temp.patch'):
                 self.list_widget.addItem(line)
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))
+            
+        # Update Failsafe button state
+        current_head = get_head_sha(self.repo_path)
+        uncommitted = has_uncommitted_changes(self.repo_path)
+        if current_head == self.start_time_head[:8] and not uncommitted:
+            self.failsafe_btn.setEnabled(False)
+            self.failsafe_btn.setText(f"Reset Hard to START_TIME_HEAD (Already at {self.start_time_head[:8]})")
+        else:
+            self.failsafe_btn.setEnabled(True)
+            self.failsafe_btn.setText(f"⚠ Reset Hard to START_TIME_HEAD ({self.start_time_head[:8]}) ⚠")
 
 
 

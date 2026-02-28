@@ -103,5 +103,14 @@ def get_file_diff_in_commit(repo_path, commit_sha, filepath):
     except subprocess.CalledProcessError as e:
         raise Exception(f"Failed to get file diff: {e.stderr}")
 
+def has_uncommitted_changes(repo_path):
+    """Returns True if there are uncommitted changes in the repository."""
+    try:
+        cmd = ["git", "status", "--porcelain", "--untracked-files=no"]
+        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True)
+        return bool(result.stdout.strip())
+    except subprocess.CalledProcessError:
+        return False
+
 
 
