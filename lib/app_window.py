@@ -246,6 +246,27 @@ class GitHistoryApp(QMainWindow):
         failsafe_group.setLayout(failsafe_layout)
         layout.addWidget(failsafe_group)
 
+        # Merge/Squash multiple commits group
+        self.multi_select_mode = False
+        merge_group = QGroupBox("Merge/Squash multiple commits")
+        merge_group.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        merge_layout = QHBoxLayout()
+        self.multi_select_btn = QPushButton("Select multiple commits to merge")
+        self.merge_selected_btn = QPushButton("Merge selected commits")
+        self.cancel_multi_btn = QPushButton("Cancel")
+        self.merge_selected_btn.setEnabled(False)
+        self.cancel_multi_btn.setEnabled(False)
+        for btn in [self.multi_select_btn, self.merge_selected_btn, self.cancel_multi_btn]:
+            btn.setMinimumHeight(40)
+        self.multi_select_btn.clicked.connect(self.enter_multi_select_mode)
+        self.merge_selected_btn.clicked.connect(self.handle_merge_selected)
+        self.cancel_multi_btn.clicked.connect(self.handle_cancel_multi_select)
+        merge_layout.addWidget(self.multi_select_btn)
+        merge_layout.addWidget(self.merge_selected_btn)
+        merge_layout.addWidget(self.cancel_multi_btn)
+        merge_group.setLayout(merge_layout)
+        layout.addWidget(merge_group)
+
         # Keyboard Shortcuts
         self.slash_shortcut = QShortcut(QKeySequence("/"), self)
         self.slash_shortcut.activated.connect(self.handle_slash_shortcut)
@@ -839,7 +860,134 @@ class GitHistoryApp(QMainWindow):
             QMessageBox.critical(self, "Error", f"An error occurred while squashing: {str(e)}")
             self.load_history()
 
+    # ---- Multi-select / Merge mode ----
+
+    def enter_multi_select_mode(self):
+        """Enters checkbox multi-select mode on the commit list."""
+        self.multi_select_mode = True
+        # Block signals to prevent spurious itemChanged during setup
+        self.list_widget.blockSignals(True)
+        for i in range(self.list_widget.count()):
+            item = self.list_widget.item(i)
+            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+            item.setCheckState(Qt.Unchecked)
+        self.list_widget.blockSignals(False)
+        self.list_widget.itemChanged.connect(self.on_multi_select_changed)
+        self.multi_select_btn.setEnabled(False)
+        self.merge_selected_btn.setEnabled(False)
+        self.cancel_multi_btn.setEnabled(True)
+
+    def exit_multi_select_mode(self):
+        """Exits checkbox multi-select mode and restores normal list behaviour."""
+        self.multi_select_mode = False
+        try:
+            self.list_widget.itemChanged.disconnect(self.on_multi_select_changed)
+        except RuntimeError:
+            pass
+        self.list_widget.blockSignals(True)
+        for i in range(self.list_widget.count()):
+            item = self.list_widget.item(i)
+            item.setFlags(item.flags() & ~Qt.ItemIsUserCheckable)
+            item.setData(Qt.CheckStateRole, None)
+        self.list_widget.blockSignals(False)
+        self.multi_select_btn.setEnabled(True)
+        self.merge_selected_btn.setEnabled(False)
+        self.cancel_multi_btn.setEnabled(False)
+
+    def on_multi_select_changed(self, changed_item):
+        """Enables 'Merge selected commits' only when ≥ 2 commits are checked."""
+        if not self.multi_select_mode:
+            return
+        checked_count = sum(
+            1 for i in range(self.list_widget.count())
+            if self.list_widget.item(i).checkState() == Qt.Checked
+        )
+        self.merge_selected_btn.setEnabled(checked_count >= 2)
+
+    def handle_cancel_multi_select(self):
+        """Cancels multi-select mode without merging."""
+        self.exit_multi_select_mode()
+
+    def handle_merge_selected(self):
+        """Collects checked commits, validates contiguity, confirms, then squashes."""
+        # Collect selected indices and SHAs in list order (newest → oldest)
+        selected_indices = []
+        for i in range(self.list_widget.count()):
+            item = self.list_widget.item(i)
+            if item.checkState() == Qt.Checked:
+                selected_indices.append(i)
+
+        if len(selected_indices) < 2:
+            QMessageBox.warning(self, "Not Enough Selected", "Please select at least 2 commits to merge.")
+            return
+
+        # Contiguity check
+        for k in range(len(selected_indices) - 1):
+            if selected_indices[k + 1] != selected_indices[k] + 1:
+                QMessageBox.critical(
+                    self, "Non-Adjacent Commits",
+                    "Selected commits must be adjacent (contiguous) in the log.\n\n"
+                    "Please select only neighbouring commits."
+                )
+                return
+
+        selected_shas = [self.list_widget.item(i).text().split()[0] for i in selected_indices]
+        sha_list_str = "\n".join(f"  • {sha}" for sha in selected_shas)
+
+        reply = QMessageBox.question(
+            self,
+            "Confirm Merge",
+            f"Squash the following {len(selected_shas)} commits into one?\n\n{sha_list_str}",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+        if reply != QMessageBox.Yes:
+            return
+
+        self.perform_multi_squash(selected_shas)
+
+    def perform_multi_squash(self, selected_shas):
+        """Squashes multiple adjacent commits into the topmost selected commit."""
+        try:
+            # Collect messages for combined dialog
+            messages = {}
+            for sha in selected_shas:
+                messages[sha] = get_full_commit_message(self.repo_path, sha)
+
+            # The top item (index 0 = newest) is the "pick" target; rest become squash
+            base_sha = selected_shas[0]
+            squash_shas = selected_shas[1:]
+
+            combined_msg = "\n\n".join(
+                f"# --- {sha} ---\n{msg}" for sha, msg in messages.items()
+            )
+
+            # Ask user for the final commit message
+            dialog = SquashDialog(
+                base_sha, messages[base_sha],
+                squash_shas[-1], messages[squash_shas[-1]],
+                self.current_font_size, self
+            )
+            if dialog.exec() != QDialog.Accepted:
+                self.exit_multi_select_mode()
+                return
+
+            final_msg = dialog.get_message()
+
+            # Build all SHAs list
+            all_shas = [self.list_widget.item(i).text().split()[0] for i in range(self.list_widget.count())]
+
+            if self.run_interactive_rebase(all_shas, squash_shas=squash_shas, rephrase_map={base_sha: final_msg}):
+                QMessageBox.information(self, "Success", f"Successfully squashed {len(selected_shas)} commits.")
+
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"An error occurred while merging: {str(e)}")
+        finally:
+            self.exit_multi_select_mode()
+            self.load_history()
+
     def handle_drop(self, item):
+
         sha = item.text().split()[0]
         print(f"Preparing to drop {sha}...")
         try:
