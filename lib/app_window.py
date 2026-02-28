@@ -603,6 +603,10 @@ class GitHistoryApp(QMainWindow):
         split_move_out_action.triggered.connect(lambda: self.handle_split_commit(item))
         split_menu.addAction(split_move_out_action)
         
+        split_all_action = QAction("split all changes to separate commits", self)
+        split_all_action.triggered.connect(lambda: self.handle_split_all_commits(item))
+        split_menu.addAction(split_all_action)
+        
         menu.addSeparator()
         menu.addAction(copy_sha_action)
         menu.addAction(copy_msg_action)
@@ -903,6 +907,149 @@ class GitHistoryApp(QMainWindow):
                 QMessageBox.critical(self, "Split Failed",
                     f"The split operation failed and has been aborted.\n\n"
                     f"Error: {result.stderr}")
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"An error occurred during split: {str(e)}")
+        finally:
+            self.load_history()
+
+    def handle_split_all_commits(self, item):
+        sha = item.text().split()[0]
+        try:
+            files = get_commit_files(self.repo_path, sha)
+            if len(files) != 1:
+                QMessageBox.critical(self, "Error", "This feature is only applicable if changes are in 1 single file")
+                return
+            self.perform_split_all_commits(sha, files[0])
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Could not check commit files: {str(e)}")
+
+    def perform_split_all_commits(self, sha, filepath):
+        try:
+            short_sha = sha[:8]
+            
+            # The script will be executed when the sequence editor sees 'exec python3 <script>'
+            split_script_content = f"""#!/usr/bin/env python3
+import sys, subprocess, os
+
+target_sha = {repr(sha)}
+filepath = {repr(filepath)}
+
+# 1. Get the diff of the file in the commit
+diff_text = subprocess.check_output(['git', 'log', '-p', '-1', target_sha, '--', filepath]).decode('utf-8')
+
+# 2. Parse into header and hunks
+lines = diff_text.split('\\n')
+header = []
+hunks = []
+current_hunk = []
+in_diff = False
+in_hunks = False
+
+for line in lines:
+    if line.startswith('diff --git'):
+        in_diff = True
+        header = [line]
+    elif in_diff and (line.startswith('index ') or line.startswith('--- ') or line.startswith('+++ ')):
+        header.append(line)
+    elif in_diff and line.startswith('@@'):
+        in_hunks = True
+        if current_hunk:
+            hunks.append(current_hunk)
+        current_hunk = [line]
+    elif in_hunks:
+        current_hunk.append(line)
+
+if current_hunk:
+    hunks.append(current_hunk)
+
+if not hunks:
+    print("No textual hunks found to split.")
+    sys.exit(0)
+
+# 3. Reset the working tree & index to parent commit state
+subprocess.check_call(['git', 'reset', '--hard', 'HEAD~1'])
+
+# 4. Apply each hunk as a separate patch and commit
+for i, hunk in enumerate(hunks):
+    patch_content = '\\n'.join(header) + '\\n' + '\\n'.join(hunk) + '\\n'
+    with open('temp.patch', 'w', encoding='utf-8') as f:
+        f.write(patch_content)
+    
+    # Apply patch. --no-backup-if-mismatch ignores minor offset issues.
+    subprocess.check_call(['patch', '-p1', '-i', 'temp.patch', '--no-backup-if-mismatch'])
+    subprocess.check_call(['git', 'add', filepath])
+    subprocess.check_call(['git', 'commit', '-m', f'change-{{i+1}} of {{target_sha[:8]}}'])
+
+if os.path.exists('temp.patch'):
+    os.unlink('temp.patch')
+"""
+            
+            # Write the action script
+            with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.py', encoding='utf-8') as sf:
+                sf.write(split_script_content)
+                split_action_script = sf.name
+            os.chmod(split_action_script, os.stat(split_action_script).st_mode | stat.S_IEXEC)
+
+            single_exec = f"exec python3 {split_action_script}"
+
+            current_shas = [self.list_widget.item(i).text().split()[0] for i in range(self.list_widget.count())]
+
+            # Write the sequence editor script
+            with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.py', encoding='utf-8') as f:
+                f.write("#!/usr/bin/env python3\n")
+                f.write("import sys\n")
+                f.write(f"target_sha = {repr(sha)}\n")
+                f.write(f"single_exec = {repr(single_exec)}\n")
+                f.write("todo_path = sys.argv[1]\n")
+                f.write("with open(todo_path, 'r') as tf:\n")
+                f.write("    lines = tf.readlines()\n")
+                f.write("output = []\n")
+                f.write("for line in lines:\n")
+                f.write("    stripped = line.strip()\n")
+                f.write("    if not stripped.startswith('#') and len(stripped.split()) >= 2 and stripped.split()[1].startswith(target_sha):\n")
+                f.write("        # Replace the 'pick' line with our exec script completely.\n")
+                f.write("        output.append(single_exec + '\\n')\n")
+                f.write("    else:\n")
+                f.write("        output.append(line)\n")
+                f.write("with open(todo_path, 'w') as tf:\n")
+                f.write("    tf.writelines(output)\n")
+                editor_script = f.name
+            os.chmod(editor_script, os.stat(editor_script).st_mode | stat.S_IEXEC)
+
+            # Upstream logic
+            sha_idx = current_shas.index(sha) if sha in current_shas else -1
+            if sha_idx == len(current_shas) - 1:
+                has_parent = False
+                try:
+                    subprocess.run(["git", "rev-parse", f"{sha}^"], cwd=self.repo_path, check=True, capture_output=True)
+                    has_parent = True
+                except Exception:
+                    pass
+                upstream = f"{sha}^" if has_parent else "--root"
+            else:
+                upstream = current_shas[sha_idx + 1]
+
+            env = os.environ.copy()
+            env["GIT_SEQUENCE_EDITOR"] = editor_script
+            env["GIT_EDITOR"] = "true"
+
+            cmd = ["git", "rebase", "-i", upstream] if upstream != "--root" else ["git", "rebase", "-i", "--root"]
+
+            result = subprocess.run(cmd, cwd=self.repo_path, env=env, capture_output=True, text=True)
+            
+            try:
+                os.unlink(editor_script)
+                os.unlink(split_action_script)
+            except:
+                pass
+
+            if result.returncode == 0:
+                QMessageBox.information(self, "Success",
+                    f"Commit {short_sha} has been split into multiple commits for file '{filepath}'.")
+            else:
+                subprocess.run(["git", "rebase", "--abort"], cwd=self.repo_path, capture_output=True)
+                QMessageBox.critical(self, "Split Failed",
+                    f"The split operation failed and has been aborted.\n\nError: {result.stderr}\nOutput: {result.stdout}")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"An error occurred during split: {str(e)}")
         finally:
