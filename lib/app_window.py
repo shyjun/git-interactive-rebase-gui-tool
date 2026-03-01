@@ -201,7 +201,8 @@ class GitHistoryApp(QMainWindow):
         self.show_diffs = self.settings.value("show_diffs", False, type=bool)
         
         self.setWindowTitle(f"git_interactive_rebase.py : branch=..., HEAD=..., path={self.repo_path}") # Temporary name until load_history updates it
-        self.resize(1000, 800)
+        self.resize(1100, 800)
+        self.setMinimumWidth(1100)
 
         self.setup_ui()
         self.load_settings()
