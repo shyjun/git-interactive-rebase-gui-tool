@@ -13,7 +13,10 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QSize, QSettings
 from PySide6.QtGui import QFont, QSyntaxHighlighter, QTextCharFormat, QColor, QAction, QShortcut, QKeySequence
 
-from lib.git_helpers import get_file_diff_in_commit
+from lib.git_helpers import (
+    get_file_diff_in_commit, get_file_diff_only_in_commit,
+    get_full_commit_message, get_commit_metadata
+)
 
 class DiffHighlighter(QSyntaxHighlighter):
     def __init__(self, parent=None, added_color="#a6e22e", removed_color="#f92672", header_color="#66d9ef"):
@@ -102,27 +105,59 @@ class SplitCommitDialog(QDialog):
             colors = {"added": "#a6e22e", "removed": "#f92672", "header": "#66d9ef"}
         self.colors = colors
 
+        # Fetch commit details
+        try:
+            meta = get_commit_metadata(repo_path, sha)
+            msg = get_full_commit_message(repo_path, sha)
+        except:
+            meta = "Unknown"
+            msg = "Could not fetch message"
+
         layout = QVBoxLayout(self)
 
-        # Header
-        header = QLabel(f"<b>Select a file</b> to preview its changes in commit <b>{sha}</b>")
-        header.setTextFormat(Qt.RichText)
-        layout.addWidget(header)
+        # Main Vertical Splitter
+        self.main_splitter = QSplitter(Qt.Vertical)
+        self.main_splitter.setChildrenCollapsible(False)
 
-        # Splitter: file list (top) + diff view (bottom)
-        splitter = QSplitter(Qt.Vertical)
-        splitter.setChildrenCollapsible(False)
+        # Row 1: Commit Message (Resizable)
+        msg_widget = QWidget()
+        msg_layout = QVBoxLayout(msg_widget)
+        msg_layout.setContentsMargins(0, 0, 0, 0)
+        
+        msg_header = QLabel(f"Commit: <b>{sha}</b> <span style='color:gray;'>({meta})</span>")
+        msg_header.setTextFormat(Qt.RichText)
+        msg_layout.addWidget(msg_header)
+        
+        self.msg_view = QTextEdit()
+        self.msg_view.setReadOnly(True)
+        self.msg_view.setPlainText(msg)
+        self.msg_view.setFont(QFont("Courier New", font_size))
+        msg_layout.addWidget(self.msg_view)
+        
+        self.main_splitter.addWidget(msg_widget)
 
-        # File list
+        # Row 2: File List
+        file_widget = QWidget()
+        file_layout = QVBoxLayout(file_widget)
+        file_layout.setContentsMargins(0, 5, 0, 0)
+        file_layout.addWidget(QLabel("<b>Select a file</b> to move out of this commit:"))
+        
         self.file_list = QListWidget()
         self.file_list.setMinimumHeight(60)
         self.file_list.setFont(QFont("Courier New", font_size))
         for f in files:
             self.file_list.addItem(f)
         self.file_list.currentTextChanged.connect(self.on_file_selected)
-        splitter.addWidget(self.file_list)
+        file_layout.addWidget(self.file_list)
+        
+        self.main_splitter.addWidget(file_widget)
 
-        # Diff view
+        # Row 3: Diff View
+        diff_widget = QWidget()
+        diff_layout = QVBoxLayout(diff_widget)
+        diff_layout.setContentsMargins(0, 5, 0, 0)
+        diff_layout.addWidget(QLabel("<b>File Diff:</b>"))
+        
         self.diff_view = QTextEdit()
         self.diff_view.setMinimumHeight(100)
         self.diff_view.setReadOnly(True)
@@ -134,9 +169,13 @@ class SplitCommitDialog(QDialog):
             removed_color=colors["removed"],
             header_color=colors["header"]
         )
-        splitter.addWidget(self.diff_view)
-        splitter.setSizes([150, 400])
-        layout.addWidget(splitter)
+        diff_layout.addWidget(self.diff_view)
+        
+        self.main_splitter.addWidget(diff_widget)
+
+        # Initial sizes for [Message, File List, Diff View]
+        self.main_splitter.setSizes([100, 150, 350])
+        layout.addWidget(self.main_splitter)
 
         # Buttons
         btn_layout = QHBoxLayout()
@@ -165,7 +204,7 @@ class SplitCommitDialog(QDialog):
         self.selected_file = filepath
         self.move_btn.setEnabled(True)
         try:
-            diff = get_file_diff_in_commit(self.repo_path, self.sha, filepath)
+            diff = get_file_diff_only_in_commit(self.repo_path, self.sha, filepath)
             self.diff_view.setPlainText(diff)
         except Exception as e:
             self.diff_view.setPlainText(f"Error loading diff: {e}")
@@ -240,25 +279,59 @@ class FileWiseViewDialog(QDialog):
         else:
             colors = {"added": "#a6e22e", "removed": "#f92672", "header": "#66d9ef"}
 
+        # Fetch commit details
+        try:
+            meta = get_commit_metadata(repo_path, sha)
+            msg = get_full_commit_message(repo_path, sha)
+        except:
+            meta = "Unknown"
+            msg = "Could not fetch message"
+
         layout = QVBoxLayout(self)
 
-        header = QLabel(f"<b>Select a file</b> to view its changes in commit <b>{sha}</b>")
-        header.setTextFormat(Qt.RichText)
-        layout.addWidget(header)
+        # Main Vertical Splitter
+        self.main_splitter = QSplitter(Qt.Vertical)
+        self.main_splitter.setChildrenCollapsible(False)
 
-        splitter = QSplitter(Qt.Vertical)
-        splitter.setChildrenCollapsible(False)
+        # Row 1: Commit Message (Resizable)
+        msg_widget = QWidget()
+        msg_layout = QVBoxLayout(msg_widget)
+        msg_layout.setContentsMargins(0, 0, 0, 0)
+        
+        msg_header = QLabel(f"Commit: <b>{sha}</b> <span style='color:gray;'>({meta})</span>")
+        msg_header.setTextFormat(Qt.RichText)
+        msg_layout.addWidget(msg_header)
+        
+        self.msg_view = QTextEdit()
+        self.msg_view.setReadOnly(True)
+        self.msg_view.setPlainText(msg)
+        self.msg_view.setFont(QFont("Courier New", font_size))
+        msg_layout.addWidget(self.msg_view)
+        
+        self.main_splitter.addWidget(msg_widget)
 
-        # File list
+        # Row 2: File List
+        file_widget = QWidget()
+        file_layout = QVBoxLayout(file_widget)
+        file_layout.setContentsMargins(0, 5, 0, 0)
+        file_layout.addWidget(QLabel("<b>Select a file</b> to view its changes:"))
+        
         self.file_list = QListWidget()
         self.file_list.setMinimumHeight(60)
         self.file_list.setFont(QFont("Courier New", font_size))
         for f in files:
             self.file_list.addItem(f)
         self.file_list.currentTextChanged.connect(self.on_file_selected)
-        splitter.addWidget(self.file_list)
+        file_layout.addWidget(self.file_list)
+        
+        self.main_splitter.addWidget(file_widget)
 
-        # Diff view
+        # Row 3: Diff View
+        diff_widget = QWidget()
+        diff_layout = QVBoxLayout(diff_widget)
+        diff_layout.setContentsMargins(0, 5, 0, 0)
+        diff_layout.addWidget(QLabel("<b>File Diff:</b>"))
+        
         self.diff_view = QTextEdit()
         self.diff_view.setMinimumHeight(100)
         self.diff_view.setReadOnly(True)
@@ -270,9 +343,13 @@ class FileWiseViewDialog(QDialog):
             removed_color=colors["removed"],
             header_color=colors["header"]
         )
-        splitter.addWidget(self.diff_view)
-        splitter.setSizes([150, 400])
-        layout.addWidget(splitter)
+        diff_layout.addWidget(self.diff_view)
+        
+        self.main_splitter.addWidget(diff_widget)
+
+        # Initial sizes for [Message, File List, Diff View]
+        self.main_splitter.setSizes([100, 150, 350])
+        layout.addWidget(self.main_splitter)
 
         # Buttons
         btn_layout = QHBoxLayout()
@@ -292,7 +369,7 @@ class FileWiseViewDialog(QDialog):
         if not filepath:
             return
         try:
-            diff = get_file_diff_in_commit(self.repo_path, self.sha, filepath)
+            diff = get_file_diff_only_in_commit(self.repo_path, self.sha, filepath)
             self.diff_view.setPlainText(diff)
         except Exception as e:
             self.diff_view.setPlainText(f"Error loading diff: {e}")

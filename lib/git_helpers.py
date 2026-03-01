@@ -103,6 +103,16 @@ def get_file_diff_in_commit(repo_path, commit_sha, filepath):
     except subprocess.CalledProcessError as e:
         raise Exception(f"Failed to get file diff: {e.stderr}")
 
+def get_file_diff_only_in_commit(repo_path, commit_sha, filepath):
+    """Returns the diff for a single file within a commit, excluding the commit message header."""
+    try:
+        # Use --format= to suppress the commit log/header
+        cmd = ["git", "show", "--format=", commit_sha, "--", filepath]
+        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True)
+        return result.stdout.strip()
+    except subprocess.CalledProcessError as e:
+        raise Exception(f"Failed to get file diff: {e.stderr}")
+
 def has_uncommitted_changes(repo_path):
     """Returns True if there are uncommitted changes in the repository."""
     try:
