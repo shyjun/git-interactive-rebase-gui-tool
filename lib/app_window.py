@@ -754,6 +754,7 @@ class GitHistoryApp(QMainWindow):
         reset_action = QAction(f"Reset Hard to {sha}", self)
         set_best_action = QAction("set as BEST_COMMITID", self)
         drop_action = QAction("Drop", self)
+        select_multi_merge_action = QAction("Select multiple commits to merge", self)
         rephrase_action = QAction("Rephrase", self)
         
         # Clipboard items
@@ -798,6 +799,7 @@ class GitHistoryApp(QMainWindow):
         reset_action.triggered.connect(lambda: self.handle_reset(item))
         set_best_action.triggered.connect(lambda: self.handle_set_best_commit(item))
         drop_action.triggered.connect(lambda: self.handle_drop(item))
+        select_multi_merge_action.triggered.connect(self.enter_multi_select_mode)
         rephrase_action.triggered.connect(lambda: self.handle_rephrase(item))
         copy_sha_action.triggered.connect(lambda: self.handle_copy_sha(item))
         copy_msg_action.triggered.connect(lambda: self.handle_copy_message(item))
@@ -810,6 +812,7 @@ class GitHistoryApp(QMainWindow):
         menu.addAction(set_best_action)
         menu.addSeparator()
         menu.addAction(drop_action)
+        menu.addAction(select_multi_merge_action)
         menu.addAction(rephrase_action)
         menu.addAction(move_action)
         
