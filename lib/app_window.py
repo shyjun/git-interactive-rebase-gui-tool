@@ -261,7 +261,7 @@ class GitHistoryApp(QMainWindow):
         merge_layout = QHBoxLayout()
         self.multi_select_btn = QPushButton("Select multiple commits to merge")
         self.merge_selected_btn = QPushButton("Merge selected commits")
-        self.cancel_multi_btn = QPushButton("Cancel")
+        self.cancel_multi_btn = QPushButton("Cancel multi selection")
         self.merge_selected_btn.setEnabled(False)
         self.cancel_multi_btn.setEnabled(False)
         for btn in [self.multi_select_btn, self.merge_selected_btn, self.cancel_multi_btn]:
