@@ -190,6 +190,11 @@ class GitHistoryApp(QMainWindow):
         self.start_time_head = get_head_sha(self.repo_path)
         self.best_commit_sha = None
         
+        # Set global application icon
+        icon_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "assets", "app_icon.png"))
+        if os.path.exists(icon_path):
+            QApplication.setWindowIcon(QIcon(icon_path))
+        
         # Persistence
         self.settings = QSettings("shyjun", "GitInteractiveRebase")
         self.current_font_size = int(self.settings.value("font_size", 10))
