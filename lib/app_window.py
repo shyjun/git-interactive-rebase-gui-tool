@@ -605,6 +605,15 @@ class GitHistoryApp(QMainWindow):
         self.settings.setValue("font_size", self.current_font_size)
 
     def show_context_menu(self, position):
+        if self.multi_select_mode:
+            QMessageBox.warning(
+                self,
+                "Not Available",
+                "Right-click options are not available in multi-select mode.\n\n"
+                "Please finish or cancel the current selection first."
+            )
+            return
+
         item = self.list_widget.itemAt(position)
         if not item:
             return
