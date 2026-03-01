@@ -1089,9 +1089,12 @@ class GitHistoryApp(QMainWindow):
             # Collect (sha, message) pairs preserving order
             sha_msg_pairs = [(sha, get_full_commit_message(self.repo_path, sha)) for sha in selected_shas]
 
-            # The top item (index 0 = newest in list) is the "pick" target; rest become squash
-            base_sha = selected_shas[0]
-            squash_shas = selected_shas[1:]
+            # The oldest item (last in our list) is the "pick" target; rest become squash
+            # List is newest -> oldest
+            base_sha = selected_shas[-1]
+            squash_shas = selected_shas[:-1]
+            # Use the newest commit in the group to apply the final message via --amend
+            rephrase_sha = selected_shas[0]
 
             # Open the N-option message selection dialog directly
             dialog = MultiSquashDialog(sha_msg_pairs, self.current_font_size, self)
@@ -1103,7 +1106,7 @@ class GitHistoryApp(QMainWindow):
             # Build all SHAs list from current view
             all_shas = [self.list_widget.item(i).text().split()[0] for i in range(self.list_widget.count())]
 
-            if self.run_interactive_rebase(all_shas, squash_shas=squash_shas, rephrase_map={base_sha: final_msg}):
+            if self.run_interactive_rebase(all_shas, squash_shas=squash_shas, rephrase_map={rephrase_sha: final_msg}):
                 QMessageBox.information(self, "Success", f"Successfully squashed {len(selected_shas)} commits.")
 
         except Exception as e:
