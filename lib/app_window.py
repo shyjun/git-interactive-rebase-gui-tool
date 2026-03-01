@@ -6,6 +6,7 @@ if __name__ == "__main__":
 
 import subprocess
 import os
+import webbrowser
 import tempfile
 import stat
 
@@ -15,8 +16,8 @@ from PySide6.QtWidgets import (
     QTextEdit, QPushButton, QHBoxLayout, QLabel, QRadioButton,
     QLineEdit, QSplitter, QInputDialog, QGroupBox, QSizePolicy
 )
+from PySide6.QtGui import QFont, QSyntaxHighlighter, QTextCharFormat, QColor, QAction, QShortcut, QKeySequence, QIcon
 from PySide6.QtCore import Qt, QSize, QSettings
-from PySide6.QtGui import QFont, QSyntaxHighlighter, QTextCharFormat, QColor, QAction, QShortcut, QKeySequence
 
 from lib.git_helpers import (
     get_git_history, get_head_sha, get_current_branch, get_commit_diff,
@@ -27,6 +28,119 @@ from lib.dialogs import (
     DiffHighlighter, DiffViewerDialog, SplitCommitDialog, ViewCommitDialog,
     DropDialog, RephraseDialog, SquashDialog, FileWiseViewDialog, MultiSquashDialog
 )
+
+class HelpDialog(QDialog):
+    """Simple Help dialog with links to Video Demo, Readme, and Mail to Author."""
+
+    YOUTUBE_URL = "https://www.youtube.com"  # Placeholder – update when demo video is ready
+    README_URL = "https://github.com/shyjun/git_interactive_rebase.py/blob/master/README.md"
+    MAILTO = "mailto:n.shyju@gmail.com"
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Help")
+        self.setMinimumWidth(400)
+        self.setModal(True)
+
+        # Style the dialog to match the proposal
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #f0f0f0;
+            }
+            QPushButton.help-btn {
+                background-color: white;
+                color: #333;
+                border: 1px solid #ddd;
+                border-radius: 8px;
+                padding: 10px;
+                text-align: left;
+                font-size: 14px;
+                font-weight: normal;
+            }
+            QPushButton.help-btn:hover {
+                background-color: #f9f9f9;
+                border: 1px solid #ccc;
+            }
+            QPushButton.help-btn:pressed {
+                background-color: #ececec;
+            }
+            QLabel.help-icon {
+                margin-right: 10px;
+            }
+            QPushButton.close-btn {
+                background-color: transparent;
+                border: 1px solid #ccc;
+                color: #666;
+                border-radius: 4px;
+                padding: 5px 15px;
+            }
+            QPushButton.close-btn:hover {
+                background-color: #e0e0e0;
+            }
+        """)
+
+        layout = QVBoxLayout(self)
+        layout.setSpacing(15)
+        layout.setContentsMargins(25, 25, 25, 20)
+
+        def make_help_button(text, icon_path, slot):
+            btn = QPushButton(self)
+            btn.setObjectName("help_button")
+            btn.setCursor(Qt.PointingHandCursor)
+            btn.setMinimumHeight(60)
+            btn.setProperty("class", "help-btn")
+            btn.setStyleSheet("QPushButton { padding-left: 60px; }") # Space for icon
+
+            # Create an icon label and overlay it or use layout
+            btn_layout = QHBoxLayout(btn)
+            btn_layout.setContentsMargins(15, 0, 15, 0)
+            
+            icon_label = QLabel()
+            if os.path.exists(icon_path):
+                pixmap = QIcon(icon_path).pixmap(32, 32)
+                icon_label.setPixmap(pixmap)
+            icon_label.setFixedSize(32, 32)
+            icon_label.setStyleSheet("background: transparent;")
+            
+            text_label = QLabel(text)
+            text_label.setStyleSheet("font-size: 15px; color: #444; background: transparent;")
+            
+            btn_layout.addWidget(icon_label)
+            btn_layout.addWidget(text_label)
+            btn_layout.addStretch()
+            
+            btn.clicked.connect(slot)
+            return btn
+
+        base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "assets"))
+        
+        layout.addWidget(make_help_button("View Video Demo", os.path.join(base_path, "youtube_icon.png"), self._open_video))
+        layout.addWidget(make_help_button("View Readme", os.path.join(base_path, "readme_icon.png"), self._open_readme))
+        layout.addWidget(make_help_button("Mail to Author (n.shyju@gmail.com)", os.path.join(base_path, "mail_icon.png"), self._open_mail))
+
+        layout.addSpacing(10)
+        
+        bottom_layout = QHBoxLayout()
+        bottom_layout.addStretch()
+        close_btn = QPushButton("Close")
+        close_btn.setProperty("class", "close-btn")
+        close_btn.setMinimumHeight(32)
+        close_btn.setMinimumWidth(80)
+        close_btn.clicked.connect(self.accept)
+        bottom_layout.addWidget(close_btn)
+        bottom_layout.addStretch()
+        
+        layout.addLayout(bottom_layout)
+
+    def _open_video(self):
+        webbrowser.open(self.YOUTUBE_URL)
+
+    def _open_readme(self):
+        webbrowser.open(self.README_URL)
+
+    def _open_mail(self):
+        webbrowser.open(self.MAILTO)
+
 
 class CommitListWidget(QListWidget):
     """Subclassed QListWidget to handle Drag & Drop move confirmation."""
@@ -190,6 +304,7 @@ class GitHistoryApp(QMainWindow):
         self.zoom_in_btn = QPushButton("Zoom In (+)")
         self.zoom_out_btn = QPushButton("Zoom Out (-)")
         self.toggle_diff_btn = QPushButton("Hide/Show diffs")
+        self.help_btn = QPushButton("Help")
         self.refresh_btn = QPushButton("Refresh")
 
         # Zoom group box
@@ -221,7 +336,7 @@ class GitHistoryApp(QMainWindow):
         self.best_commit_btn.setEnabled(False)
         self.custom_reset_btn = QPushButton("Enter commit id to reset hard to")
         
-        for btn in [self.zoom_in_btn, self.zoom_out_btn, self.toggle_diff_btn, self.refresh_btn, self.exit_btn]:
+        for btn in [self.zoom_in_btn, self.zoom_out_btn, self.toggle_diff_btn, self.help_btn, self.refresh_btn, self.exit_btn]:
             btn.setMinimumHeight(40)
             btn.setMinimumWidth(120)
         self.failsafe_btn.setMinimumHeight(40)
@@ -231,6 +346,7 @@ class GitHistoryApp(QMainWindow):
         self.zoom_in_btn.clicked.connect(self.handle_zoom_in)
         self.zoom_out_btn.clicked.connect(self.handle_zoom_out)
         self.toggle_diff_btn.clicked.connect(self.toggle_side_diff_visibility)
+        self.help_btn.clicked.connect(self._show_help_dialog)
         self.refresh_btn.clicked.connect(self.load_history)
         self.failsafe_btn.clicked.connect(self.handle_failsafe_reset)
         self.best_commit_btn.clicked.connect(self.handle_best_commit_reset)
@@ -238,6 +354,7 @@ class GitHistoryApp(QMainWindow):
         self.exit_btn.clicked.connect(self.close)
 
         controls_layout.addWidget(self.toggle_diff_btn)
+        controls_layout.addWidget(self.help_btn)
         controls_layout.addStretch()
         controls_layout.addWidget(self.refresh_btn)
         controls_layout.addWidget(self.exit_btn)
@@ -310,6 +427,11 @@ class GitHistoryApp(QMainWindow):
         self.right_panel.setVisible(new_visibility)
         self.show_diffs = new_visibility
         self.settings.setValue("show_diffs", self.show_diffs)
+
+    def _show_help_dialog(self):
+        """Opens the Help dialog."""
+        dialog = HelpDialog(self)
+        dialog.exec()
 
     def handle_slash_shortcut(self):
         """Focus search bar when / is pressed."""
