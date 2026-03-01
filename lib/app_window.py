@@ -39,7 +39,7 @@ class HelpDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Help")
-        self.setMinimumWidth(400)
+        self.setMinimumWidth(450)
         self.setModal(True)
 
         # Style the dialog to match the proposal
@@ -1553,6 +1553,3 @@ if os.path.exists('temp.patch'):
         else:
             self.failsafe_btn.setEnabled(True)
             self.failsafe_btn.setText(f"⚠ Reset Hard to START_TIME_HEAD ({self.start_time_head[:8]}) ⚠")
-
-
-
