@@ -123,4 +123,17 @@ def has_uncommitted_changes(repo_path):
         return False
 
 
-
+def branch_exists(repo_path, branch_name):
+    """Checks if a local or remote branch exists."""
+    try:
+        # Check local branch
+        cmd = ["git", "show-ref", "--verify", f"refs/heads/{branch_name}"]
+        result = subprocess.run(cmd, cwd=repo_path, capture_output=True)
+        if result.returncode == 0:
+            return True
+        # Check remote branch (origin)
+        cmd = ["git", "show-ref", "--verify", f"refs/remotes/origin/{branch_name}"]
+        result = subprocess.run(cmd, cwd=repo_path, capture_output=True)
+        return result.returncode == 0
+    except:
+        return False
