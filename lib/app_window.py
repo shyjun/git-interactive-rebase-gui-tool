@@ -398,6 +398,25 @@ class GitHistoryApp(QMainWindow):
         merge_group.setLayout(merge_layout)
         layout.addWidget(merge_group)
 
+        # Origin group box
+        origin_group = QGroupBox("origin")
+        origin_group.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        origin_layout = QHBoxLayout()
+        self.fetch_btn = QPushButton("git fetch")
+        self.reset_origin_btn = QPushButton("git reset --hard origin")
+        self.push_force_btn = QPushButton("git push --force")
+        for btn in [self.fetch_btn, self.reset_origin_btn, self.push_force_btn]:
+            btn.setMinimumHeight(40)
+            btn.setMinimumWidth(120)
+        self.fetch_btn.clicked.connect(self.handle_git_fetch)
+        self.reset_origin_btn.clicked.connect(self.handle_git_reset_hard_origin)
+        self.push_force_btn.clicked.connect(self.handle_git_push_force)
+        origin_layout.addWidget(self.fetch_btn)
+        origin_layout.addWidget(self.reset_origin_btn)
+        origin_layout.addWidget(self.push_force_btn)
+        origin_group.setLayout(origin_layout)
+        layout.addWidget(origin_group)
+
         # Keyboard Shortcuts
         self.slash_shortcut = QShortcut(QKeySequence("/"), self)
         self.slash_shortcut.activated.connect(self.handle_slash_shortcut)
@@ -511,6 +530,56 @@ class GitHistoryApp(QMainWindow):
             )
             if reply == QMessageBox.Yes:
                 self.perform_reset(sha)
+
+    def handle_git_fetch(self):
+        """Runs git fetch."""
+        print("Running git fetch...")
+        try:
+            subprocess.run(["git", "fetch"], cwd=self.repo_path, check=True, capture_output=True, text=True)
+            QMessageBox.information(self, "Success", "Successfully ran 'git fetch'.")
+            self.load_history()
+        except subprocess.CalledProcessError as e:
+            QMessageBox.critical(self, "Fetch Failed", f"Could not perform git fetch.\n\nError: {e.stderr}")
+
+    def handle_git_reset_hard_origin(self):
+        """Runs git reset --hard origin."""
+        reply = QMessageBox.question(
+            self, 
+            "Confirm Reset to Origin",
+            "Are you sure you want to <b>reset --hard origin</b>?<br><br>"
+            "This will discard all uncommitted changes and move your branch to the state of 'origin'.",
+            QMessageBox.Yes | QMessageBox.No, 
+            QMessageBox.No
+        )
+        if reply == QMessageBox.Yes:
+            print("Resetting hard to origin...")
+            try:
+                subprocess.run(["git", "reset", "--hard", "origin"], cwd=self.repo_path, check=True, capture_output=True, text=True)
+                QMessageBox.information(self, "Success", "Successfully reset --hard to origin.")
+            except subprocess.CalledProcessError as e:
+                # If 'origin' doesn't exist, try 'origin/main' or 'origin/master' as a fallback? 
+                # No, just report the error as per git's behavior.
+                QMessageBox.critical(self, "Reset Failed", f"Could not perform reset to origin.\n\nError: {e.stderr}")
+            finally:
+                self.load_history()
+
+    def handle_git_push_force(self):
+        """Runs git push --force."""
+        reply = QMessageBox.question(
+            self, 
+            "Confirm Force Push",
+            "Are you sure you want to <b>push --force</b>?<br><br>"
+            "This can overwrite history on the remote repository. Proceed with caution.",
+            QMessageBox.Yes | QMessageBox.No, 
+            QMessageBox.No
+        )
+        if reply == QMessageBox.Yes:
+            print("Performing git push --force...")
+            try:
+                subprocess.run(["git", "push", "--force"], cwd=self.repo_path, check=True, capture_output=True, text=True)
+                QMessageBox.information(self, "Success", "Successfully ran 'git push --force'.")
+            except subprocess.CalledProcessError as e:
+                QMessageBox.critical(self, "Push Failed", f"Could not perform git push --force.\n\nError: {e.stderr}")
 
     def handle_zoom_in(self):
         self.current_font_size += 1
