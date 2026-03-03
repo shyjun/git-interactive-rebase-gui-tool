@@ -22,7 +22,7 @@ from PySide6.QtCore import Qt, QSize, QSettings
 from lib.git_helpers import (
     get_git_history, get_head_sha, get_current_branch, get_commit_diff,
     get_full_commit_message, get_commit_metadata, get_commit_files,
-    has_uncommitted_changes
+    has_uncommitted_changes, branch_exists
 )
 from lib.dialogs import (
     DiffHighlighter, DiffViewerDialog, SplitCommitDialog, ViewCommitDialog,
@@ -207,6 +207,7 @@ class GitHistoryApp(QMainWindow):
         self.setup_ui()
         self.load_settings()
         self.load_history()
+        self.update_rebase_buttons()
 
     def load_settings(self):
         """Loads persistent user settings like font size and theme."""
@@ -368,7 +369,7 @@ class GitHistoryApp(QMainWindow):
         layout.addLayout(controls_layout)
         
         # Add failsafe options as a distinct row below the other controls
-        failsafe_group = QGroupBox("fail-safe")
+        failsafe_group = QGroupBox("Fail-safe")
         failsafe_group.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
         failsafe_layout = QHBoxLayout()
         failsafe_layout.addWidget(self.failsafe_btn)
@@ -399,7 +400,7 @@ class GitHistoryApp(QMainWindow):
         layout.addWidget(merge_group)
 
         # Origin group box
-        origin_group = QGroupBox("origin")
+        origin_group = QGroupBox("Origin")
         origin_group.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
         origin_layout = QHBoxLayout()
         self.fetch_btn = QPushButton("git fetch")
@@ -416,6 +417,25 @@ class GitHistoryApp(QMainWindow):
         origin_layout.addWidget(self.push_force_btn)
         origin_group.setLayout(origin_layout)
         layout.addWidget(origin_group)
+
+        # Rebase group box
+        rebase_group = QGroupBox("Rebase")
+        rebase_group.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        rebase_layout = QHBoxLayout()
+        self.rebase_master_btn = QPushButton("git rebase master")
+        self.rebase_main_btn = QPushButton("git rebase main")
+        self.rebase_custom_btn = QPushButton("Enter branch/sha to rebase on top of")
+        for btn in [self.rebase_master_btn, self.rebase_main_btn, self.rebase_custom_btn]:
+            btn.setMinimumHeight(40)
+            btn.setMinimumWidth(120)
+        self.rebase_master_btn.clicked.connect(self.handle_git_rebase_master)
+        self.rebase_main_btn.clicked.connect(self.handle_git_rebase_main)
+        self.rebase_custom_btn.clicked.connect(self.handle_git_rebase_custom)
+        rebase_layout.addWidget(self.rebase_master_btn)
+        rebase_layout.addWidget(self.rebase_main_btn)
+        rebase_layout.addWidget(self.rebase_custom_btn)
+        rebase_group.setLayout(rebase_layout)
+        layout.addWidget(rebase_group)
 
         # Keyboard Shortcuts
         self.slash_shortcut = QShortcut(QKeySequence("/"), self)
@@ -580,6 +600,42 @@ class GitHistoryApp(QMainWindow):
                 QMessageBox.information(self, "Success", "Successfully ran 'git push --force'.")
             except subprocess.CalledProcessError as e:
                 QMessageBox.critical(self, "Push Failed", f"Could not perform git push --force.\n\nError: {e.stderr}")
+
+    def update_rebase_buttons(self):
+        """Updates the enabled state of rebase buttons based on branch existence."""
+        has_master = branch_exists(self.repo_path, "master")
+        has_main = branch_exists(self.repo_path, "main")
+        self.rebase_master_btn.setEnabled(has_master)
+        self.rebase_main_btn.setEnabled(has_main)
+
+    def handle_git_rebase_master(self):
+        self.perform_rebase("master")
+
+    def handle_git_rebase_main(self):
+        self.perform_rebase("main")
+
+    def handle_git_rebase_custom(self):
+        target, ok = QInputDialog.getText(self, 'Rebase', 'Enter branch or commit SHA to rebase on top of:')
+        if ok and target.strip():
+            self.perform_rebase(target.strip())
+
+    def perform_rebase(self, target):
+        """Performs git rebase <target> with confirmation."""
+        reply = QMessageBox.question(
+            self, 
+            "Confirm Rebase",
+            f"Are you sure you want to <b>rebase</b> current branch on top of <b>{target}</b>?",
+            QMessageBox.Yes | QMessageBox.No, 
+            QMessageBox.No
+        )
+        if reply == QMessageBox.Yes:
+            print(f"Rebasing onto {target}...")
+            try:
+                subprocess.run(["git", "rebase", target], cwd=self.repo_path, check=True, capture_output=True, text=True)
+                QMessageBox.information(self, "Success", f"Successfully rebased onto {target}.")
+                self.load_history()
+            except subprocess.CalledProcessError as e:
+                QMessageBox.critical(self, "Rebase Failed", f"Could not perform rebase onto {target}.\n\nError: {e.stderr}")
 
     def handle_zoom_in(self):
         self.current_font_size += 1
