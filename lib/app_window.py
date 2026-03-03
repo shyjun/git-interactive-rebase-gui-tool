@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
     QLineEdit, QSplitter, QInputDialog, QGroupBox, QSizePolicy
 )
 from PySide6.QtGui import QFont, QSyntaxHighlighter, QTextCharFormat, QColor, QAction, QShortcut, QKeySequence, QIcon
-from PySide6.QtCore import Qt, QSize, QSettings
+from PySide6.QtCore import Qt, QSize, QSettings, QThread, Signal
 
 from lib.git_helpers import (
     get_git_history, get_head_sha, get_current_branch, get_commit_diff,
@@ -26,8 +26,28 @@ from lib.git_helpers import (
 )
 from lib.dialogs import (
     DiffHighlighter, DiffViewerDialog, SplitCommitDialog, ViewCommitDialog,
-    DropDialog, RephraseDialog, SquashDialog, FileWiseViewDialog, MultiSquashDialog
+    DropDialog, RephraseDialog, SquashDialog, FileWiseViewDialog, MultiSquashDialog,
+    ProgressDialog
 )
+
+class GitWorker(QThread):
+    """Generic worker for running git commands in a separate thread."""
+    finished = Signal(bool, str, str)  # (success, stdout, stderr)
+
+    def __init__(self, command, cwd):
+        super().__init__()
+        self.command = command
+        self.cwd = cwd
+
+    def run(self):
+        try:
+            result = subprocess.run(self.command, cwd=self.cwd, capture_output=True, text=True, check=True)
+            self.finished.emit(True, result.stdout, "")
+        except subprocess.CalledProcessError as e:
+            self.finished.emit(False, "", e.stderr)
+        except Exception as e:
+            self.finished.emit(False, "", str(e))
+
 
 class HelpDialog(QDialog):
     """Simple Help dialog with links to Video Demo, Readme, and Mail to Author."""
@@ -554,12 +574,24 @@ class GitHistoryApp(QMainWindow):
     def handle_git_fetch(self):
         """Runs git fetch."""
         print("Running git fetch...")
-        try:
-            subprocess.run(["git", "fetch"], cwd=self.repo_path, check=True, capture_output=True, text=True)
+        self.progress_dialog = ProgressDialog("Git Fetching", "git fetch in progress...", self)
+        
+        self.worker = GitWorker(["git", "fetch"], self.repo_path)
+        self.worker.finished.connect(self.on_fetch_finished)
+        self.worker.start()
+        
+        self.progress_dialog.exec()
+
+    def on_fetch_finished(self, success, stdout, stderr):
+        if hasattr(self, 'progress_dialog'):
+            self.progress_dialog.close()
+            
+        if success:
             QMessageBox.information(self, "Success", "Successfully ran 'git fetch'.")
             self.load_history()
-        except subprocess.CalledProcessError as e:
-            QMessageBox.critical(self, "Fetch Failed", f"Could not perform git fetch.\n\nError: {e.stderr}")
+        else:
+            QMessageBox.critical(self, "Fetch Failed", f"Could not perform git fetch.\n\nError: {stderr}")
+
 
     def handle_git_reset_hard_origin(self):
         """Runs git reset --hard origin."""
@@ -595,11 +627,23 @@ class GitHistoryApp(QMainWindow):
         )
         if reply == QMessageBox.Yes:
             print("Performing git push --force...")
-            try:
-                subprocess.run(["git", "push", "--force"], cwd=self.repo_path, check=True, capture_output=True, text=True)
-                QMessageBox.information(self, "Success", "Successfully ran 'git push --force'.")
-            except subprocess.CalledProcessError as e:
-                QMessageBox.critical(self, "Push Failed", f"Could not perform git push --force.\n\nError: {e.stderr}")
+            self.progress_dialog = ProgressDialog("Git Pushing", "git push --force in progress...", self)
+            
+            self.worker = GitWorker(["git", "push", "--force"], self.repo_path)
+            self.worker.finished.connect(self.on_push_finished)
+            self.worker.start()
+            
+            self.progress_dialog.exec()
+
+    def on_push_finished(self, success, stdout, stderr):
+        if hasattr(self, 'progress_dialog'):
+            self.progress_dialog.close()
+            
+        if success:
+            QMessageBox.information(self, "Success", "Successfully ran 'git push --force'.")
+        else:
+            QMessageBox.critical(self, "Push Failed", f"Could not perform git push --force.\n\nError: {stderr}")
+
 
     def update_rebase_buttons(self):
         """Updates the enabled state of rebase buttons based on branch existence."""

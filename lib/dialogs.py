@@ -8,9 +8,9 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QListWidget, QVBoxLayout, 
     QWidget, QMessageBox, QListWidgetItem, QMenu, QDialog,
     QTextEdit, QPushButton, QHBoxLayout, QLabel, QRadioButton,
-    QLineEdit, QSplitter, QInputDialog
+    QLineEdit, QSplitter, QInputDialog, QProgressBar
 )
-from PySide6.QtCore import Qt, QSize, QSettings
+from PySide6.QtCore import Qt, QSize, QSettings, QTimer
 from PySide6.QtGui import QFont, QSyntaxHighlighter, QTextCharFormat, QColor, QAction, QShortcut, QKeySequence
 
 from lib.git_helpers import (
@@ -566,6 +566,35 @@ class MultiSquashDialog(QDialog):
 
     def get_message(self):
         return self.editor.toPlainText().strip()
+
+
+class ProgressDialog(QDialog):
+    """Indeterminate progress dialog for background operations."""
+    def __init__(self, title, message, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(title)
+        self.setMinimumWidth(400)
+        self.setModal(True)
+        
+        # Disable close button and other hints to make it more "locked"
+        self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint & ~Qt.WindowCloseButtonHint)
+        
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
+        
+        self.label = QLabel(message)
+        self.label.setAlignment(Qt.AlignCenter)
+        self.label.setStyleSheet("font-weight: bold; font-size: 14px;")
+        layout.addWidget(self.label)
+        
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, 0)  # Indeterminate
+        self.progress_bar.setMinimumHeight(20)
+        layout.addWidget(self.progress_bar)
+        
+        # Add some spacing at the bottom
+        layout.addSpacing(10)
 
 
 
