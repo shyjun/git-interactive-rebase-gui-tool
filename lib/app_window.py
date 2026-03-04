@@ -686,8 +686,12 @@ class GitHistoryApp(QMainWindow):
         """Updates the enabled state of rebase buttons based on branch existence."""
         has_master = branch_exists(self.repo_path, "master")
         has_main = branch_exists(self.repo_path, "main")
+        
         self.rebase_master_btn.setEnabled(has_master)
+        self.rebase_master_btn.setText("git rebase master" if has_master else "git rebase master (NA)")
+        
         self.rebase_main_btn.setEnabled(has_main)
+        self.rebase_main_btn.setText("git rebase main" if has_main else "git rebase main (NA)")
 
     def handle_git_rebase_master(self):
         self.perform_rebase("master")
