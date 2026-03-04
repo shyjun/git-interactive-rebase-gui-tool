@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QListWidget, QVBoxLayout, 
     QWidget, QMessageBox, QListWidgetItem, QMenu, QDialog,
     QTextEdit, QPushButton, QHBoxLayout, QLabel, QRadioButton,
-    QLineEdit, QSplitter, QInputDialog, QGroupBox, QSizePolicy
+    QLineEdit, QSplitter, QInputDialog, QGroupBox, QSizePolicy, QCheckBox
 )
 from PySide6.QtGui import QFont, QSyntaxHighlighter, QTextCharFormat, QColor, QAction, QShortcut, QKeySequence, QIcon
 from PySide6.QtCore import Qt, QSize, QSettings, QThread, Signal
@@ -219,6 +219,8 @@ class GitHistoryApp(QMainWindow):
         self.settings = QSettings("shyjun", "GitInteractiveRebase")
         self.current_font_size = int(self.settings.value("font_size", 10))
         self.show_diffs = self.settings.value("show_diffs", False, type=bool)
+        self.show_origin_options = self.settings.value("show_origin_options", False, type=bool)
+        self.show_rebase_options = self.settings.value("show_rebase_options", False, type=bool)
         
         self.setWindowTitle(f"git_interactive_rebase.py : branch=..., HEAD=..., path={self.repo_path}") # Temporary name until load_history updates it
         self.resize(1100, 800)
@@ -226,6 +228,7 @@ class GitHistoryApp(QMainWindow):
 
         self.setup_ui()
         self.load_settings()
+        self.restore_visibility_settings()
         self.load_history()
         self.update_rebase_buttons()
 
@@ -243,13 +246,23 @@ class GitHistoryApp(QMainWindow):
         else:
             self.light_radio.setChecked(True)
         self.apply_theme(theme)
-
     def update_window_title(self):
         """Updates window title with branch, HEAD, and path."""
         branch = get_current_branch(self.repo_path)
         head_sha = get_head_sha(self.repo_path)
         title = f"git_interactive_rebase.py : branch={branch}, HEAD={head_sha}, path={self.repo_path}"
         self.setWindowTitle(title)
+
+    def restore_visibility_settings(self):
+        """Restores visibility and checkbox states for optional groups."""
+        # Origin Options Visibility
+        self.show_origin_cb.setChecked(self.show_origin_options)
+        self.origin_group.setVisible(self.show_origin_options)
+        
+        # Rebase Options Visibility
+        self.show_rebase_cb.setChecked(self.show_rebase_options)
+        self.rebase_group.setVisible(self.show_rebase_options)
+        self.force_window_resize()
 
     def setup_ui(self):
         central_widget = QWidget()
@@ -318,7 +331,7 @@ class GitHistoryApp(QMainWindow):
         # default split ratio: history 60%, diff 40%
         self.main_splitter.setSizes([600, 400])
         
-        layout.addWidget(self.main_splitter)
+        layout.addWidget(self.main_splitter, 1)
         
         self.list_widget.itemDoubleClicked.connect(self.view_commit)
         self.list_widget.itemSelectionChanged.connect(self.update_side_diff)
@@ -327,6 +340,7 @@ class GitHistoryApp(QMainWindow):
 
         # Bottom Control Bar
         controls_layout = QHBoxLayout()
+        controls_layout.setAlignment(Qt.AlignTop)
         
         self.zoom_in_btn = QPushButton("Zoom In (+)")
         self.zoom_out_btn = QPushButton("Zoom Out (-)")
@@ -380,11 +394,33 @@ class GitHistoryApp(QMainWindow):
         self.custom_reset_btn.clicked.connect(self.handle_custom_reset)
         self.exit_btn.clicked.connect(self.close)
 
-        controls_layout.addWidget(self.toggle_diff_btn)
-        controls_layout.addWidget(self.help_btn)
-        controls_layout.addStretch()
-        controls_layout.addWidget(self.refresh_btn)
-        controls_layout.addWidget(self.exit_btn)
+        # Right side controls (aligned top)
+        right_controls_layout = QVBoxLayout()
+        right_controls_layout.setContentsMargins(0, 0, 0, 0)
+        right_controls_layout.setAlignment(Qt.AlignTop)
+        
+        # Row 1 of right side: Main buttons
+        main_btns_layout = QHBoxLayout()
+        main_btns_layout.addWidget(self.toggle_diff_btn)
+        main_btns_layout.addWidget(self.help_btn)
+        main_btns_layout.addStretch()
+        main_btns_layout.addWidget(self.refresh_btn)
+        main_btns_layout.addWidget(self.exit_btn)
+        
+        # Row 2 of right side: Visibility Checkboxes
+        checkboxes_layout = QHBoxLayout()
+        self.show_origin_cb = QCheckBox("show origin options")
+        self.show_rebase_cb = QCheckBox("show rebase options")
+        self.show_origin_cb.toggled.connect(self.on_origin_visibility_toggled)
+        self.show_rebase_cb.toggled.connect(self.on_rebase_visibility_toggled)
+        checkboxes_layout.addWidget(self.show_origin_cb)
+        checkboxes_layout.addWidget(self.show_rebase_cb)
+        checkboxes_layout.addStretch()
+
+        right_controls_layout.addLayout(main_btns_layout)
+        right_controls_layout.addLayout(checkboxes_layout)
+
+        controls_layout.addLayout(right_controls_layout)
         
         layout.addLayout(controls_layout)
         
@@ -420,8 +456,8 @@ class GitHistoryApp(QMainWindow):
         layout.addWidget(merge_group)
 
         # Origin group box
-        origin_group = QGroupBox("Origin")
-        origin_group.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        self.origin_group = QGroupBox("Origin")
+        self.origin_group.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
         origin_layout = QHBoxLayout()
         self.fetch_btn = QPushButton("git fetch")
         self.reset_origin_btn = QPushButton("git reset --hard origin")
@@ -435,12 +471,12 @@ class GitHistoryApp(QMainWindow):
         origin_layout.addWidget(self.fetch_btn)
         origin_layout.addWidget(self.reset_origin_btn)
         origin_layout.addWidget(self.push_force_btn)
-        origin_group.setLayout(origin_layout)
-        layout.addWidget(origin_group)
+        self.origin_group.setLayout(origin_layout)
+        layout.addWidget(self.origin_group)
 
         # Rebase group box
-        rebase_group = QGroupBox("Rebase")
-        rebase_group.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        self.rebase_group = QGroupBox("Rebase")
+        self.rebase_group.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
         rebase_layout = QHBoxLayout()
         self.rebase_master_btn = QPushButton("git rebase master")
         self.rebase_main_btn = QPushButton("git rebase main")
@@ -454,8 +490,9 @@ class GitHistoryApp(QMainWindow):
         rebase_layout.addWidget(self.rebase_master_btn)
         rebase_layout.addWidget(self.rebase_main_btn)
         rebase_layout.addWidget(self.rebase_custom_btn)
-        rebase_group.setLayout(rebase_layout)
-        layout.addWidget(rebase_group)
+        self.rebase_group.setLayout(rebase_layout)
+        layout.addWidget(self.rebase_group)
+
 
         # Keyboard Shortcuts
         self.slash_shortcut = QShortcut(QKeySequence("/"), self)
@@ -694,6 +731,25 @@ class GitHistoryApp(QMainWindow):
         theme = "dark" if self.dark_radio.isChecked() else "light"
         self.apply_theme(theme)
         self.settings.setValue("theme", theme)
+
+    def on_origin_visibility_toggled(self):
+        visible = self.show_origin_cb.isChecked()
+        self.origin_group.setVisible(visible)
+        self.settings.setValue("show_origin_options", visible)
+        self.force_window_resize()
+
+    def on_rebase_visibility_toggled(self):
+        visible = self.show_rebase_cb.isChecked()
+        self.rebase_group.setVisible(visible)
+        self.settings.setValue("show_rebase_options", visible)
+        self.force_window_resize()
+
+    def force_window_resize(self):
+        """Forces the window to shrink to its minimum size hint."""
+        # A common trick to force a window to shrink in Qt is to 
+        # resize it to a very small height and then call adjustSize()
+        self.resize(self.width(), 1)
+        self.adjustSize()
 
     def apply_theme(self, theme_name):
         """Applies a theme to the entire application globally."""
