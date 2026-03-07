@@ -761,7 +761,15 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.force_window_resize()
 
     def force_window_resize(self):
-        """Forces the window to shrink to its minimum size hint."""
+        """Forces the window to shrink to its minimum size hint if not maximized."""
+        if self.isMaximized():
+            # If maximized, resizing doesn't make sense and can cause glitches.
+            # Just force the layout to re-evaluate and update visually.
+            if self.centralWidget() and self.centralWidget().layout():
+                self.centralWidget().layout().activate()
+            self.update()
+            return
+
         # A common trick to force a window to shrink in Qt is to 
         # resize it to a very small height and then call adjustSize()
         self.resize(self.width(), 1)
