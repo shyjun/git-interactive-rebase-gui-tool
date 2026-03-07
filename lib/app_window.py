@@ -962,14 +962,8 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.settings.setValue("font_size", self.current_font_size)
 
     def show_context_menu(self, position):
-        if self.multi_select_mode:
-            QMessageBox.warning(
-                self,
-                "Not Available",
-                "Right-click options are not available in multi-select mode.\n\n"
-                "Please finish or cancel the current selection first."
-            )
-            return
+        # Allow context menu in multi-select mode, but we will restrict it later
+        pass
 
         item = self.list_widget.itemAt(position)
         if not item:
@@ -983,7 +977,6 @@ class GitInteractiveRebaseApp(QMainWindow):
         reset_action = QAction(f"Reset Hard to {sha}", self)
         set_best_action = QAction("set as BEST_COMMITID", self)
         drop_action = QAction("Drop", self)
-        select_multi_squash_action = QAction("Select multiple commits to squash", self)
         rephrase_action = QAction("Rephrase", self)
         
         # Clipboard items
@@ -1028,11 +1021,25 @@ class GitInteractiveRebaseApp(QMainWindow):
         reset_action.triggered.connect(lambda: self.handle_reset(item))
         set_best_action.triggered.connect(lambda: self.handle_set_best_commit(item))
         drop_action.triggered.connect(lambda: self.handle_drop(item))
-        select_multi_squash_action.triggered.connect(self.enter_multi_select_mode)
         rephrase_action.triggered.connect(lambda: self.handle_rephrase(item))
         copy_sha_action.triggered.connect(lambda: self.handle_copy_sha(item))
         copy_msg_action.triggered.connect(lambda: self.handle_copy_message(item))
         copy_sha_msg_action.triggered.connect(lambda: self.handle_copy_sha_and_message(item))
+        
+        # Disable most actions if in multi-select mode
+        if self.multi_select_mode:
+            view_action.setEnabled(False)
+            view_filewise_action.setEnabled(False)
+            reset_action.setEnabled(False)
+            set_best_action.setEnabled(False)
+            drop_action.setEnabled(False)
+            rephrase_action.setEnabled(False)
+            move_action.setEnabled(False)
+            copy_sha_action.setEnabled(False)
+            copy_msg_action.setEnabled(False)
+            copy_sha_msg_action.setEnabled(False)
+            if squash_above_action: squash_above_action.setEnabled(False)
+            if squash_below_action: squash_below_action.setEnabled(False)
         
         menu.addAction(view_action)
         menu.addAction(view_filewise_action)
@@ -1041,7 +1048,30 @@ class GitInteractiveRebaseApp(QMainWindow):
         menu.addAction(set_best_action)
         menu.addSeparator()
         menu.addAction(drop_action)
-        menu.addAction(select_multi_squash_action)
+        
+        # Squash commits submenu
+        squash_menu = menu.addMenu("Squash commits")
+        
+        select_multi_action = QAction("Select commits to squash", self)
+        select_multi_action.setEnabled(not self.multi_select_mode)
+        select_multi_action.triggered.connect(self.enter_multi_select_mode)
+        
+        squash_selected_action = QAction("Squash selected commits", self)
+        checked_count = 0
+        if self.multi_select_mode:
+            checked_count = sum(1 for i in range(self.list_widget.count()) 
+                                if self.list_widget.item(i).checkState() == Qt.Checked)
+        squash_selected_action.setEnabled(self.multi_select_mode and checked_count >= 2)
+        squash_selected_action.triggered.connect(self.handle_squash_selected)
+        
+        cancel_multi_action = QAction("Cancel multi selection", self)
+        cancel_multi_action.setEnabled(self.multi_select_mode)
+        cancel_multi_action.triggered.connect(self.handle_cancel_multi_select)
+        
+        squash_menu.addAction(select_multi_action)
+        squash_menu.addAction(squash_selected_action)
+        squash_menu.addAction(cancel_multi_action)
+        
         menu.addAction(rephrase_action)
         menu.addAction(move_action)
         
