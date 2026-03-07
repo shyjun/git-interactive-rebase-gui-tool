@@ -597,5 +597,50 @@ class ProgressDialog(QDialog):
         layout.addSpacing(10)
 
 
+class UnstagedChangesDialog(QDialog):
+    """Warning dialog for unstaged changes on startup."""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Unstaged Changes Warning")
+        self.setMinimumWidth(500)
+        self.setModal(True)
+        
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(20)
+        
+        message = (
+            "<b>You have unstaged changes in the repo.</b><br><br>"
+            "If needed, we can stash the changes and go ahead with the app. "
+            "But be very careful with what you are doing.<br><br>"
+            "Also if you are not a git expert, please exit now, commit/save/discard "
+            "the unstaged changes and start the app again.<br><br>"
+            "Do you want to proceed with stash and app, or exit ?"
+        )
+        
+        self.label = QLabel(message)
+        self.label.setWordWrap(True)
+        self.label.setStyleSheet("font-size: 13px;")
+        layout.addWidget(self.label)
+        
+        btn_layout = QHBoxLayout()
+        self.stash_btn = QPushButton("Stash and proceed to app")
+        self.exit_btn = QPushButton("Exit")
+        
+        # Style buttons a bit
+        self.stash_btn.setMinimumHeight(35)
+        self.exit_btn.setMinimumHeight(35)
+        
+        self.stash_btn.clicked.connect(self.accept)
+        self.exit_btn.clicked.connect(self.reject)
+        
+        btn_layout.addStretch()
+        btn_layout.addWidget(self.stash_btn)
+        btn_layout.addWidget(self.exit_btn)
+        btn_layout.addStretch()
+        
+        layout.addLayout(btn_layout)
+
+
 
 
