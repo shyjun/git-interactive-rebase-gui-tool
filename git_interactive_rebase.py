@@ -10,10 +10,13 @@ import argparse
 import sys
 import os
 
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QMessageBox
+import tempfile
+import stat
 
-from lib.git_helpers import get_root_commit
+from lib.git_helpers import get_root_commit, has_uncommitted_changes, stash_changes
 from lib.app_window import GitInteractiveRebaseApp
+from lib.dialogs import UnstagedChangesDialog
 
 def main():
     parser = argparse.ArgumentParser(description="Git Interactive Rebase Helper.")
@@ -33,9 +36,34 @@ def main():
             sys.exit(1)
     
     app = QApplication(sys.argv)
+
+    # Check for unstaged changes
+    stashed = False
+    if has_uncommitted_changes(repo_path):
+        dialog = UnstagedChangesDialog()
+        if dialog.exec() == UnstagedChangesDialog.Accepted:
+            if stash_changes(repo_path):
+                print("Changes stashed successfully.")
+                stashed = True
+            else:
+                QMessageBox.critical(None, "Error", "Failed to stash changes. Please stash or commit manually.")
+                sys.exit(1)
+        else:
+            print("Exiting as requested by the user.")
+            sys.exit(0)
+
     window = GitInteractiveRebaseApp(repo_path, commit_sha)
     window.show()
-    sys.exit(app.exec())
+    
+    exit_code = app.exec()
+    
+    if stashed:
+        # Final reminder before exiting the process completely
+        QMessageBox.information(None, "Stash Reminder", 
+            "A stash was created for your unstaged changes when the app started.\n\n"
+            "Don't forget to 'git stash pop' if you need those changes back.")
+
+    sys.exit(exit_code)
 
 if __name__ == "__main__":
     main()

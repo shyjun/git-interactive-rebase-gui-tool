@@ -123,6 +123,15 @@ def has_uncommitted_changes(repo_path):
         return False
 
 
+def stash_changes(repo_path, message="Antigravity: Pre-start stash"):
+    """Stashes unstaged changes in the repository."""
+    try:
+        cmd = ["git", "stash", "push", "-m", message]
+        subprocess.run(cmd, cwd=repo_path, check=True, capture_output=True, text=True)
+        return True
+    except subprocess.CalledProcessError:
+        return False
+
 def branch_exists(repo_path, branch_name):
     """Checks if a local or remote branch exists."""
     try:
