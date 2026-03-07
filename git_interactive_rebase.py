@@ -11,6 +11,7 @@ import sys
 import os
 
 from PySide6.QtWidgets import QApplication, QMessageBox
+from PySide6.QtGui import QIcon
 import tempfile
 import stat
 
@@ -36,7 +37,11 @@ def main():
             sys.exit(1)
     
     app = QApplication(sys.argv)
-
+    
+    # Set global application icon
+    icon_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "assets", "app_icon.png"))
+    if os.path.exists(icon_path):
+        app.setWindowIcon(QIcon(icon_path))
     # Check for unstaged changes
     stashed = False
     if has_uncommitted_changes(repo_path):

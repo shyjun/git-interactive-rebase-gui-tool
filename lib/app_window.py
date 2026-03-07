@@ -210,10 +210,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.start_time_head = get_head_sha(self.repo_path)
         self.best_commit_sha = None
         
-        # Set global application icon
-        icon_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "assets", "app_icon.png"))
-        if os.path.exists(icon_path):
-            QApplication.setWindowIcon(QIcon(icon_path))
+        # Global application icon is handled in the main entry point
         
         # Persistence
         self.settings = QSettings("shyjun", "GitInteractiveRebase")
