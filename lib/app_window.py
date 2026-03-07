@@ -434,26 +434,26 @@ class GitInteractiveRebaseApp(QMainWindow):
         failsafe_group.setLayout(failsafe_layout)
         layout.addWidget(failsafe_group)
 
-        # Merge/Squash multiple commits group
+        # Squash multiple commits group
         self.multi_select_mode = False
-        merge_group = QGroupBox("Merge/Squash multiple commits")
-        merge_group.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
-        merge_layout = QHBoxLayout()
-        self.multi_select_btn = QPushButton("Select multiple commits to merge")
-        self.merge_selected_btn = QPushButton("Merge selected commits")
+        squash_group = QGroupBox("Squash multiple commits")
+        squash_group.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        squash_layout = QHBoxLayout()
+        self.multi_select_btn = QPushButton("Select multiple commits to squash")
+        self.squash_selected_btn = QPushButton("Squash selected commits")
         self.cancel_multi_btn = QPushButton("Cancel multi selection")
-        self.merge_selected_btn.setEnabled(False)
+        self.squash_selected_btn.setEnabled(False)
         self.cancel_multi_btn.setEnabled(False)
-        for btn in [self.multi_select_btn, self.merge_selected_btn, self.cancel_multi_btn]:
+        for btn in [self.multi_select_btn, self.squash_selected_btn, self.cancel_multi_btn]:
             btn.setMinimumHeight(40)
         self.multi_select_btn.clicked.connect(self.enter_multi_select_mode)
-        self.merge_selected_btn.clicked.connect(self.handle_merge_selected)
+        self.squash_selected_btn.clicked.connect(self.handle_squash_selected)
         self.cancel_multi_btn.clicked.connect(self.handle_cancel_multi_select)
-        merge_layout.addWidget(self.multi_select_btn)
-        merge_layout.addWidget(self.merge_selected_btn)
-        merge_layout.addWidget(self.cancel_multi_btn)
-        merge_group.setLayout(merge_layout)
-        layout.addWidget(merge_group)
+        squash_layout.addWidget(self.multi_select_btn)
+        squash_layout.addWidget(self.squash_selected_btn)
+        squash_layout.addWidget(self.cancel_multi_btn)
+        squash_group.setLayout(squash_layout)
+        layout.addWidget(squash_group)
 
         # Origin group box
         self.origin_group = QGroupBox("Origin")
@@ -983,7 +983,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         reset_action = QAction(f"Reset Hard to {sha}", self)
         set_best_action = QAction("set as BEST_COMMITID", self)
         drop_action = QAction("Drop", self)
-        select_multi_merge_action = QAction("Select multiple commits to merge", self)
+        select_multi_squash_action = QAction("Select multiple commits to squash", self)
         rephrase_action = QAction("Rephrase", self)
         
         # Clipboard items
@@ -1003,21 +1003,21 @@ class GitInteractiveRebaseApp(QMainWindow):
         squash_above_action = None
         if index > 0:
             above_item = self.list_widget.item(index - 1)
-            label = f"squash/merge with above commit ({format_squash_label(above_item)})"
+            label = f"squash with above commit ({format_squash_label(above_item)})"
             squash_above_action = QAction(label, self)
             squash_above_action.triggered.connect(lambda: self.handle_squash_above(item))
         else:
-            squash_above_action = QAction("squash/merge with above commit (N/A)", self)
+            squash_above_action = QAction("squash with above commit (N/A)", self)
             squash_above_action.setEnabled(False)
 
         squash_below_action = None
         if index < count - 1:
             below_item = self.list_widget.item(index + 1)
-            label = f"squash/merge with below commit ({format_squash_label(below_item)})"
+            label = f"squash with below commit ({format_squash_label(below_item)})"
             squash_below_action = QAction(label, self)
             squash_below_action.triggered.connect(lambda: self.handle_squash_below(item))
         else:
-            squash_below_action = QAction("squash/merge with below commit (N/A)", self)
+            squash_below_action = QAction("squash with below commit (N/A)", self)
             squash_below_action.setEnabled(False)
 
         view_action.triggered.connect(lambda: self.view_commit(item))
@@ -1028,7 +1028,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         reset_action.triggered.connect(lambda: self.handle_reset(item))
         set_best_action.triggered.connect(lambda: self.handle_set_best_commit(item))
         drop_action.triggered.connect(lambda: self.handle_drop(item))
-        select_multi_merge_action.triggered.connect(self.enter_multi_select_mode)
+        select_multi_squash_action.triggered.connect(self.enter_multi_select_mode)
         rephrase_action.triggered.connect(lambda: self.handle_rephrase(item))
         copy_sha_action.triggered.connect(lambda: self.handle_copy_sha(item))
         copy_msg_action.triggered.connect(lambda: self.handle_copy_message(item))
@@ -1041,7 +1041,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         menu.addAction(set_best_action)
         menu.addSeparator()
         menu.addAction(drop_action)
-        menu.addAction(select_multi_merge_action)
+        menu.addAction(select_multi_squash_action)
         menu.addAction(rephrase_action)
         menu.addAction(move_action)
         
@@ -1241,7 +1241,7 @@ class GitInteractiveRebaseApp(QMainWindow):
             QMessageBox.critical(self, "Error", f"An error occurred while squashing: {str(e)}")
             self.load_history()
 
-    # ---- Multi-select / Merge mode ----
+    # ---- Multi-select / Squash mode ----
 
     def enter_multi_select_mode(self):
         """Enters checkbox multi-select mode on the commit list."""
@@ -1255,7 +1255,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.list_widget.blockSignals(False)
         self.list_widget.itemChanged.connect(self.on_multi_select_changed)
         self.multi_select_btn.setEnabled(False)
-        self.merge_selected_btn.setEnabled(False)
+        self.squash_selected_btn.setEnabled(False)
         self.cancel_multi_btn.setEnabled(True)
 
     def exit_multi_select_mode(self):
@@ -1272,24 +1272,24 @@ class GitInteractiveRebaseApp(QMainWindow):
             item.setData(Qt.CheckStateRole, None)
         self.list_widget.blockSignals(False)
         self.multi_select_btn.setEnabled(True)
-        self.merge_selected_btn.setEnabled(False)
+        self.squash_selected_btn.setEnabled(False)
         self.cancel_multi_btn.setEnabled(False)
 
     def on_multi_select_changed(self, changed_item):
-        """Enables 'Merge selected commits' only when ≥ 2 commits are checked."""
+        """Enables 'Squash selected commits' only when ≥ 2 commits are checked."""
         if not self.multi_select_mode:
             return
         checked_count = sum(
             1 for i in range(self.list_widget.count())
             if self.list_widget.item(i).checkState() == Qt.Checked
         )
-        self.merge_selected_btn.setEnabled(checked_count >= 2)
+        self.squash_selected_btn.setEnabled(checked_count >= 2)
 
     def handle_cancel_multi_select(self):
         """Cancels multi-select mode without merging."""
         self.exit_multi_select_mode()
 
-    def handle_merge_selected(self):
+    def handle_squash_selected(self):
         """Collects checked commits, validates contiguity, confirms, then squashes."""
         # Collect selected indices and SHAs in list order (newest → oldest)
         selected_indices = []
@@ -1299,7 +1299,7 @@ class GitInteractiveRebaseApp(QMainWindow):
                 selected_indices.append(i)
 
         if len(selected_indices) < 2:
-            QMessageBox.warning(self, "Not Enough Selected", "Please select at least 2 commits to merge.")
+            QMessageBox.warning(self, "Not Enough Selected", "Please select at least 2 commits to squash.")
             return
 
         # Contiguity check

@@ -451,7 +451,7 @@ class SquashDialog(QDialog):
     """Dialog for choosing and editing commit message during squash."""
     def __init__(self, sha1, msg1, sha2, msg2, font_size=10, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Interactive Squash / Merge")
+        self.setWindowTitle("Interactive Squash")
         self.setMinimumSize(600, 400)
         self.font_size = font_size
         
@@ -516,7 +516,7 @@ class MultiSquashDialog(QDialog):
         sha_msg_pairs: list of (sha, full_commit_message) in newest→oldest order
         """
         super().__init__(parent)
-        self.setWindowTitle("Merge/Squash Commits — Choose Final Commit Message")
+        self.setWindowTitle("Squash Commits — Choose Final Commit Message")
         self.setMinimumSize(680, 480)
         self.sha_msg_pairs = sha_msg_pairs
 
