@@ -1471,7 +1471,7 @@ class GitInteractiveRebaseApp(QMainWindow):
             exec_cmds.append(f"git reset HEAD -- {sq(filepath)}")
             exec_cmds.append(f"git commit -C {sha}")
             exec_cmds.append(f"git add --all -- {sq(filepath)}")
-            new_msg = f"{filepath} changes moved out of below commit"
+            new_msg = f"{filepath} changes moved out of below commit({short_sha})"
             exec_cmds.append(f"git commit -m {sq(new_msg)}")
 
             single_exec = "exec " + " && ".join(exec_cmds)
