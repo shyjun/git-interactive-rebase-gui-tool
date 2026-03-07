@@ -8,7 +8,7 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QListWidget, QVBoxLayout, 
     QWidget, QMessageBox, QListWidgetItem, QMenu, QDialog,
     QTextEdit, QPushButton, QHBoxLayout, QLabel, QRadioButton,
-    QLineEdit, QSplitter, QInputDialog, QProgressBar
+    QLineEdit, QSplitter, QInputDialog, QProgressBar, QScrollArea
 )
 from PySide6.QtCore import Qt, QSize, QSettings, QTimer
 from PySide6.QtGui import QFont, QSyntaxHighlighter, QTextCharFormat, QColor, QAction, QShortcut, QKeySequence
@@ -526,18 +526,48 @@ class MultiSquashDialog(QDialog):
             "Select which commit message to use as the base, then edit:"
         ))
 
+        # Main splitter to allow resizing between the list and the editor
+        self.splitter = QSplitter(Qt.Vertical)
+        
+        # Scroll area for the radio buttons
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setFrameShape(QScrollArea.NoFrame)
+        self.scroll_area.setMinimumHeight(100)
+        
+        self.scroll_content = QWidget()
+        self.scroll_layout = QVBoxLayout(self.scroll_content)
+        self.scroll_layout.setContentsMargins(5, 5, 5, 5)
+
         # Dynamic radio buttons — one per commit
         self.radios = []
         for sha, msg in sha_msg_pairs:
             first_line = msg.splitlines()[0][:60] if msg else "(empty)"
             radio = QRadioButton(f"{sha}: {first_line}...")
-            layout.addWidget(radio)
+            self.scroll_layout.addWidget(radio)
             self.radios.append(radio)
-
+        
+        self.scroll_layout.addStretch()
+        self.scroll_area.setWidget(self.scroll_content)
+        
         # Text editor
         self.editor = QTextEdit()
         self.editor.setFont(QFont("Courier New", font_size))
-        layout.addWidget(self.editor)
+        self.editor.setMinimumHeight(100)
+
+        # Add to splitter
+        self.splitter.addWidget(self.scroll_area)
+        self.splitter.addWidget(self.editor)
+        
+        # Disable collapsing for both panes to ensure minimum heights are respected
+        self.splitter.setCollapsible(0, False)
+        self.splitter.setCollapsible(1, False)
+        
+        # Set stretch factors: list area gets some, editor gets more
+        self.splitter.setStretchFactor(0, 1)
+        self.splitter.setStretchFactor(1, 2)
+        
+        layout.addWidget(self.splitter)
 
         # Wire radio toggling to update editor
         for i, radio in enumerate(self.radios):
