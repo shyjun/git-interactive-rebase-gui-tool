@@ -1054,6 +1054,10 @@ class GitInteractiveRebaseApp(QMainWindow):
         split_all_action = QAction("split all changes to separate commits", self)
         split_all_action.triggered.connect(lambda: self.handle_split_all_commits(item))
         split_menu.addAction(split_all_action)
+
+        split_per_file_action = QAction("split each file changes to separate commit", self)
+        split_per_file_action.triggered.connect(lambda: self.handle_split_per_file(item))
+        split_menu.addAction(split_per_file_action)
         
         menu.addSeparator()
         menu.addAction(copy_sha_action)
@@ -1624,6 +1628,110 @@ if os.path.exists('temp.patch'):
                 subprocess.run(["git", "rebase", "--abort"], cwd=self.repo_path, capture_output=True)
                 QMessageBox.critical(self, "Split Failed",
                     f"The split operation failed and has been aborted.\n\nError: {result.stderr}\nOutput: {result.stdout}")
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"An error occurred during split: {str(e)}")
+        finally:
+            self.load_history()
+
+    def handle_split_per_file(self, item):
+        """Splits each file in a commit into its own separate commit."""
+        sha = item.text().split()[0]
+        try:
+            files = get_commit_files(self.repo_path, sha)
+            if not files:
+                QMessageBox.information(self, "No Files", f"Commit {sha} has no file changes to split.")
+                return
+            if len(files) == 1:
+                QMessageBox.information(self, "Info", "This commit only has 1 file changed. Nothing to split.")
+                return
+            
+            self.perform_split_per_file(sha, files)
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Could not check commit files: {str(e)}")
+
+    def perform_split_per_file(self, sha, files):
+        """Executes splitting each file into its own commit using rebase exec."""
+        try:
+            short_sha = sha[:8]
+            
+            def sq(s):
+                return "'" + s.replace("'", "'\\''") + "'"
+
+            exec_cmds = []
+            # NO reset here. HEAD is at sha^ because we replaced the pick line.
+            
+            for i, filename in enumerate(files):
+                # stage file from original commit
+                exec_cmds.append(f"git checkout {sha} -- {sq(filename)}")
+                if i == 0:
+                    # First file gets original commit message
+                    exec_cmds.append(f"git commit -C {sha}")
+                else:
+                    # Others get "filename changes separated out from short_sha"
+                    msg = f"{filename} changes separated out from {short_sha}"
+                    exec_cmds.append(f"git commit -m {sq(msg)} --no-verify")
+
+            single_exec = "exec " + " && ".join(exec_cmds)
+
+            current_shas = [self.list_widget.item(i).text().split()[0]
+                            for i in range(self.list_widget.count())]
+
+            # Write the sequence editor script
+            with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.py', encoding='utf-8') as f:
+                f.write("#!/usr/bin/env python3\n")
+                f.write("import sys\n")
+                f.write(f"target_sha = {repr(sha)}\n")
+                f.write(f"single_exec = {repr(single_exec)}\n")
+                f.write("todo_path = sys.argv[1]\n")
+                f.write("with open(todo_path, 'r') as tf:\n")
+                f.write("    lines = tf.readlines()\n")
+                f.write("output = []\n")
+                f.write("for line in lines:\n")
+                f.write("    stripped = line.strip()\n")
+                f.write("    parts = stripped.split()\n")
+                # We replace the pick line with the exec block
+                f.write("    if not stripped.startswith('#') and len(parts) >= 2 and target_sha.startswith(parts[1]):\n")
+                f.write("        output.append(single_exec + '\\n')\n")
+                f.write("    else:\n")
+                f.write("        output.append(line)\n")
+                f.write("with open(todo_path, 'w') as tf:\n")
+                f.write("    tf.writelines(output)\n")
+                editor_script = f.name
+            os.chmod(editor_script, os.stat(editor_script).st_mode | stat.S_IEXEC)
+
+            # Upstream logic
+            sha_idx = current_shas.index(sha) if sha in current_shas else -1
+            if sha_idx == len(current_shas) - 1:
+                has_parent = False
+                try:
+                    subprocess.run(["git", "rev-parse", f"{sha}^"], cwd=self.repo_path, check=True, capture_output=True)
+                    has_parent = True
+                except Exception:
+                    pass
+                upstream = f"{sha}^" if has_parent else "--root"
+            else:
+                upstream = current_shas[sha_idx + 1]
+
+            env = os.environ.copy()
+            env["GIT_SEQUENCE_EDITOR"] = editor_script
+            env["GIT_EDITOR"] = "true"
+
+            cmd = ["git", "rebase", "-i", upstream] if upstream != "--root" else ["git", "rebase", "-i", "--root"]
+
+            result = subprocess.run(cmd, cwd=self.repo_path, env=env, capture_output=True, text=True)
+            
+            try:
+                os.unlink(editor_script)
+            except:
+                pass
+
+            if result.returncode == 0:
+                QMessageBox.information(self, "Success",
+                    f"Commit {short_sha} has been split into {len(files)} commits.")
+            else:
+                subprocess.run(["git", "rebase", "--abort"], cwd=self.repo_path, capture_output=True)
+                QMessageBox.critical(self, "Split Failed",
+                    f"The split operation failed and has been aborted.\n\nError: {result.stderr}")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"An error occurred during split: {str(e)}")
         finally:
