@@ -13,7 +13,7 @@ import os
 from PySide6.QtWidgets import QApplication
 
 from lib.git_helpers import get_root_commit
-from lib.app_window import GitHistoryApp
+from lib.app_window import GitInteractiveRebaseApp
 
 def main():
     parser = argparse.ArgumentParser(description="Git Interactive Rebase Helper.")
@@ -33,7 +33,7 @@ def main():
             sys.exit(1)
     
     app = QApplication(sys.argv)
-    window = GitHistoryApp(repo_path, commit_sha)
+    window = GitInteractiveRebaseApp(repo_path, commit_sha)
     window.show()
     sys.exit(app.exec())
 

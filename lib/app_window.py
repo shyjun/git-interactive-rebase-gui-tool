@@ -202,7 +202,7 @@ class CommitListWidget(QListWidget):
                 # If No, reload the original history to undo the visual move
                 self.main_window.load_history()
 
-class GitHistoryApp(QMainWindow):
+class GitInteractiveRebaseApp(QMainWindow):
     def __init__(self, repo_path, commit_sha):
         super().__init__()
         self.repo_path = repo_path
