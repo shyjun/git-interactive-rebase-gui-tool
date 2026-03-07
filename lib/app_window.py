@@ -218,6 +218,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.show_diffs = self.settings.value("show_diffs", False, type=bool)
         self.show_origin_options = self.settings.value("show_origin_options", False, type=bool)
         self.show_rebase_options = self.settings.value("show_rebase_options", False, type=bool)
+        self.show_squash_options = self.settings.value("show_squash_options", True, type=bool)
         
         self.setWindowTitle(f"git_interactive_rebase.py : branch=..., HEAD=..., path={self.repo_path}") # Temporary name until load_history updates it
         self.resize(1100, 800)
@@ -259,6 +260,11 @@ class GitInteractiveRebaseApp(QMainWindow):
         # Rebase Options Visibility
         self.show_rebase_cb.setChecked(self.show_rebase_options)
         self.rebase_group.setVisible(self.show_rebase_options)
+        
+        # Squash Options Visibility
+        self.show_squash_cb.setChecked(self.show_squash_options)
+        self.squash_group.setVisible(self.show_squash_options)
+        
         self.force_window_resize()
 
     def setup_ui(self):
@@ -408,10 +414,13 @@ class GitInteractiveRebaseApp(QMainWindow):
         checkboxes_layout = QHBoxLayout()
         self.show_origin_cb = QCheckBox("show origin options")
         self.show_rebase_cb = QCheckBox("show rebase options")
+        self.show_squash_cb = QCheckBox("show squash options")
         self.show_origin_cb.toggled.connect(self.on_origin_visibility_toggled)
         self.show_rebase_cb.toggled.connect(self.on_rebase_visibility_toggled)
+        self.show_squash_cb.toggled.connect(self.on_squash_visibility_toggled)
         checkboxes_layout.addWidget(self.show_origin_cb)
         checkboxes_layout.addWidget(self.show_rebase_cb)
+        checkboxes_layout.addWidget(self.show_squash_cb)
         checkboxes_layout.addStretch()
 
         right_controls_layout.addLayout(main_btns_layout)
@@ -433,8 +442,8 @@ class GitInteractiveRebaseApp(QMainWindow):
 
         # Squash multiple commits group
         self.multi_select_mode = False
-        squash_group = QGroupBox("Squash multiple commits")
-        squash_group.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        self.squash_group = QGroupBox("Squash multiple commits")
+        self.squash_group.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
         squash_layout = QHBoxLayout()
         self.multi_select_btn = QPushButton("Select multiple commits to squash")
         self.squash_selected_btn = QPushButton("Squash selected commits")
@@ -449,8 +458,8 @@ class GitInteractiveRebaseApp(QMainWindow):
         squash_layout.addWidget(self.multi_select_btn)
         squash_layout.addWidget(self.squash_selected_btn)
         squash_layout.addWidget(self.cancel_multi_btn)
-        squash_group.setLayout(squash_layout)
-        layout.addWidget(squash_group)
+        self.squash_group.setLayout(squash_layout)
+        layout.addWidget(self.squash_group)
 
         # Origin group box
         self.origin_group = QGroupBox("Origin")
@@ -743,6 +752,12 @@ class GitInteractiveRebaseApp(QMainWindow):
         visible = self.show_rebase_cb.isChecked()
         self.rebase_group.setVisible(visible)
         self.settings.setValue("show_rebase_options", visible)
+        self.force_window_resize()
+
+    def on_squash_visibility_toggled(self):
+        visible = self.show_squash_cb.isChecked()
+        self.squash_group.setVisible(visible)
+        self.settings.setValue("show_squash_options", visible)
         self.force_window_resize()
 
     def force_window_resize(self):
