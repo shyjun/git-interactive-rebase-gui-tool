@@ -20,7 +20,7 @@ from PySide6.QtGui import QFont, QSyntaxHighlighter, QTextCharFormat, QColor, QA
 from PySide6.QtCore import Qt, QSize, QSettings, QThread, Signal
 
 from lib.git_helpers import (
-    get_git_history, get_head_sha, get_current_branch, get_commit_diff,
+    get_git_history, get_head_sha, get_full_head_sha, get_current_branch, get_commit_diff,
     get_full_commit_message, get_commit_metadata, get_commit_files,
     has_uncommitted_changes, branch_exists
 )
@@ -207,6 +207,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         super().__init__()
         self.repo_path = repo_path
         self.commit_sha = commit_sha
+        self.start_time_full_head = get_full_head_sha(self.repo_path)
         self.start_time_head = get_head_sha(self.repo_path)
         self.best_commit_sha = None
         
@@ -588,6 +589,11 @@ class GitInteractiveRebaseApp(QMainWindow):
             self.perform_reset(self.best_commit_sha)
 
     def handle_failsafe_reset(self):
+        current_full_head = get_full_head_sha(self.repo_path)
+        if current_full_head == self.start_time_full_head:
+            QMessageBox.warning(self, "No Changes", "HEAD is already at START_TIME_HEAD. No changes made in repo.")
+            return
+
         reply = QMessageBox.question(
             self, 
             "Confirm Failsafe Reset",
