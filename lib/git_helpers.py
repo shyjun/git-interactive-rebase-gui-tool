@@ -48,6 +48,15 @@ def get_head_sha(repo_path):
     except:
         return "Unknown"
 
+def get_full_head_sha(repo_path):
+    """Fetches current HEAD SHA (full)."""
+    try:
+        cmd = ["git", "rev-parse", "HEAD"]
+        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True)
+        return result.stdout.strip()
+    except:
+        return "Unknown"
+
 def get_root_commit(repo_path):
     """Fetches the very first commit SHA in the repository."""
     try:
