@@ -209,6 +209,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.commit_sha = commit_sha
         self.start_time_full_head = get_full_head_sha(self.repo_path)
         self.start_time_head = get_head_sha(self.repo_path)
+        self.last_head = None
         self.best_commit_sha = None
         
         # Global application icon is handled in the main entry point
@@ -350,6 +351,8 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.zoom_out_btn = QPushButton("Zoom Out (-)")
         self.toggle_diff_btn = QPushButton("Hide/Show diffs")
         self.help_btn = QPushButton("Help")
+        self.undo_btn = QPushButton("Undo")
+        self.undo_btn.setEnabled(False)
         self.refresh_btn = QPushButton("Refresh")
 
         # Zoom group box
@@ -381,7 +384,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.best_commit_btn.setEnabled(False)
         self.custom_reset_btn = QPushButton("Enter commit id to reset hard to")
         
-        for btn in [self.zoom_in_btn, self.zoom_out_btn, self.toggle_diff_btn, self.help_btn, self.refresh_btn, self.exit_btn]:
+        for btn in [self.zoom_in_btn, self.zoom_out_btn, self.toggle_diff_btn, self.help_btn, self.undo_btn, self.refresh_btn, self.exit_btn]:
             btn.setMinimumHeight(40)
             btn.setMinimumWidth(120)
         self.failsafe_btn.setMinimumHeight(40)
@@ -392,6 +395,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.zoom_out_btn.clicked.connect(self.handle_zoom_out)
         self.toggle_diff_btn.clicked.connect(self.toggle_side_diff_visibility)
         self.help_btn.clicked.connect(self._show_help_dialog)
+        self.undo_btn.clicked.connect(self.handle_undo)
         self.refresh_btn.clicked.connect(self.load_history)
         self.failsafe_btn.clicked.connect(self.handle_failsafe_reset)
         self.best_commit_btn.clicked.connect(self.handle_best_commit_reset)
@@ -408,6 +412,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         main_btns_layout.addWidget(self.toggle_diff_btn)
         main_btns_layout.addWidget(self.help_btn)
         main_btns_layout.addStretch()
+        main_btns_layout.addWidget(self.undo_btn)
         main_btns_layout.addWidget(self.refresh_btn)
         main_btns_layout.addWidget(self.exit_btn)
         
@@ -603,7 +608,42 @@ class GitInteractiveRebaseApp(QMainWindow):
             QMessageBox.No
         )
         if reply == QMessageBox.Yes:
+            self.save_undo_state()
             self.perform_reset(self.start_time_head)
+
+    def save_undo_state(self):
+        """Saves current HEAD to last_head and enables Undo button."""
+        self.last_head = get_full_head_sha(self.repo_path)
+        self.undo_btn.setEnabled(True)
+
+    def handle_undo(self):
+        """Handles the Undo action by resetting hard to last_head."""
+        if not self.last_head:
+            return
+            
+        reply = QMessageBox.question(
+            self, 
+            "Confirm Undo",
+            f"Are you sure you want to <b>reset --hard</b> to the state before the last operation (<b>{self.last_head[:8]}</b>)?<br><br>"
+            "This will discard all uncommitted changes and move your branch to this state.",
+            QMessageBox.Yes | QMessageBox.No, 
+            QMessageBox.No
+        )
+        if reply == QMessageBox.Yes:
+            # We don't save undo state FOR the undo itself, or maybe we should?
+            # The requirement says "keep it as HEAD", "update this variable before the operation is done".
+            # If we undo, the "last operation" was the undo itself. 
+            # But usually undoing an undo is "redo". Let's stick to the basic requirements.
+            try:
+                subprocess.run(["git", "reset", "--hard", self.last_head], cwd=self.repo_path, check=True, capture_output=True, text=True)
+                QMessageBox.information(self, "Success", f"Successfully undid the last operation (reset to {self.last_head[:8]}).")
+                # After undo, disable the undo button as we only have 1-level undo for now
+                self.last_head = None
+                self.undo_btn.setEnabled(False)
+            except subprocess.CalledProcessError as e:
+                QMessageBox.critical(self, "Undo Failed", f"Could not perform undo.\n\nError: {e.stderr}")
+            finally:
+                self.load_history()
 
     def handle_custom_reset(self):
         commit_id, ok = QInputDialog.getText(self, 'Input Dialog', 'Enter commit ID to reset hard to:')
@@ -653,6 +693,7 @@ class GitInteractiveRebaseApp(QMainWindow):
             QMessageBox.No
         )
         if reply == QMessageBox.Yes:
+            self.save_undo_state()
             print("Resetting hard to origin...")
             try:
                 subprocess.run(["git", "reset", "--hard", "origin"], cwd=self.repo_path, check=True, capture_output=True, text=True)
@@ -726,6 +767,7 @@ class GitInteractiveRebaseApp(QMainWindow):
             QMessageBox.No
         )
         if reply == QMessageBox.Yes:
+            self.save_undo_state()
             print(f"Rebasing onto {target}...")
             try:
                 subprocess.run(["git", "rebase", target], cwd=self.repo_path, check=True, capture_output=True, text=True)
@@ -1229,10 +1271,10 @@ class GitInteractiveRebaseApp(QMainWindow):
 
     def perform_reset(self, sha):
         print(f"Resetting hard to {sha}...")
+        self.save_undo_state()
         try:
-            cmd = ["git", "reset", "--hard", sha]
-            subprocess.run(cmd, cwd=self.repo_path, check=True, capture_output=True, text=True)
-            QMessageBox.information(self, "Success", f"Successfully reset --hard to {sha}.")
+            subprocess.run(["git", "reset", "--hard", sha], cwd=self.repo_path, check=True, capture_output=True, text=True)
+            QMessageBox.information(self, "Success", f"Successfully reset --hard to {sha[:10]}.")
             self.load_history()
         except subprocess.CalledProcessError as e:
             QMessageBox.critical(self, "Reset Failed", f"Could not perform reset.\n\nError: {e.stderr}")
@@ -1809,7 +1851,8 @@ if os.path.exists('temp.patch'):
                        for prefix comparison instead of reading list_widget (which
                        may already show the new order after a drag-drop).
         """
-        print("Executing optimized rebase...")
+        self.save_undo_state()
+        print("Starting interactive rebase...")
         try:
             # 1. Determine common prefix to minimize work
             # Use the explicitly passed original order when available (e.g., after a drag)
