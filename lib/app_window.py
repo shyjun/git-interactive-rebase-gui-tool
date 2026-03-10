@@ -977,6 +977,8 @@ class GitInteractiveRebaseApp(QMainWindow):
                 header_color=self.current_theme_colors["header"]
             )
         
+        self.update_font()
+        
     def update_font(self):
         font = QFont("Monospace", self.current_font_size)
         self.list_widget.setFont(font)
