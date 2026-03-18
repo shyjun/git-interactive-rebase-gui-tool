@@ -1337,7 +1337,9 @@ class GitInteractiveRebaseApp(QMainWindow):
             if self.run_interactive_rebase(current_shas, squash_shas=[sha_to_squash], 
                                           rephrase_map={sha_to_squash: final_msg}):
                 print(f"Squashed {sha_to_squash}.")
+                self.load_history()
                 QMessageBox.information(self, "Success", "Commits squashed successfully.")
+                return
             
             self.load_history()
         except Exception as e:
@@ -1443,6 +1445,7 @@ class GitInteractiveRebaseApp(QMainWindow):
             all_shas = [self.list_widget.item(i).text().split()[0] for i in range(self.list_widget.count())]
 
             if self.run_interactive_rebase(all_shas, squash_shas=squash_shas, rephrase_map={rephrase_sha: final_msg}):
+                self.load_history()
                 QMessageBox.information(self, "Success", f"Successfully squashed {len(selected_shas)} commits.")
 
         except Exception as e:
