@@ -1956,7 +1956,21 @@ if os.path.exists('temp.patch'):
             else:
                 cmd = ["git", "rebase", "-i", "--autosquash", upstream]
 
-            result = subprocess.run(cmd, cwd=self.repo_path, env=env, capture_output=True, text=True)
+            # Show progress dialog while rebasing
+            progress = ProgressDialog("Rebasing", "Executing interactive rebase. Please wait...\nThis might take a few moments.", self)
+            progress.show()
+            QApplication.processEvents()
+
+            import time
+            process = subprocess.Popen(cmd, cwd=self.repo_path, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            while process.poll() is None:
+                QApplication.processEvents()
+                time.sleep(0.05)
+
+            stdout, stderr = process.communicate()
+            progress.close()
+
+            result = subprocess.CompletedProcess(process.args, process.returncode, stdout, stderr)
             os.unlink(editor_script)
             # Clean up message temp files
             for mf_path in msg_files.values():
