@@ -125,7 +125,7 @@ def get_file_diff_only_in_commit(repo_path, commit_sha, filepath):
 def has_uncommitted_changes(repo_path):
     """Returns True if there are uncommitted changes in the repository."""
     try:
-        cmd = ["git", "status", "--porcelain", "--untracked-files=no"]
+        cmd = ["git", "status", "--porcelain", "--untracked-files=no", "--ignore-submodules=all"]
         result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True)
         return bool(result.stdout.strip())
     except subprocess.CalledProcessError:
