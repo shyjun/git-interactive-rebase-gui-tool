@@ -1195,7 +1195,9 @@ class GitInteractiveRebaseApp(QMainWindow):
             
             if self.run_interactive_rebase(current_shas, rephrase_map={sha: new_message}):
                 print(f"Rephrased {sha}.")
+                self.load_history()
                 QMessageBox.information(self, "Success", f"Commit {sha} rephrased successfully.")
+                return
             
             self.load_history()
         except Exception as e:
@@ -1479,7 +1481,9 @@ class GitInteractiveRebaseApp(QMainWindow):
             
             if self.run_interactive_rebase(new_shas):
                 print(f"Dropped {sha}.")
+                self.load_history()
                 QMessageBox.information(self, "Success", f"Commit {sha} dropped successfully.")
+                return
             
             self.load_history()
         except Exception as e:
@@ -1847,7 +1851,9 @@ if os.path.exists('temp.patch'):
         """Performs commit reordering using our unified rebase logic."""
         print("Performing commit reorder...")
         if self.run_interactive_rebase(new_shas, original_shas=original_shas):
+            self.load_history()
             QMessageBox.information(self, "Success", "Commits reordered successfully!")
+            return
         self.load_history()
 
     def run_interactive_rebase(self, new_shas, rephrase_map=None, squash_shas=None, original_shas=None):
@@ -1987,14 +1993,23 @@ if os.path.exists('temp.patch'):
 
         print("Refreshing...")
         self.update_window_title()
+        
+        # Save current row to restore selection
+        old_row = self.list_widget.currentRow()
+        
         self.list_widget.clear()
         try:
             history = get_git_history(self.repo_path, self.commit_sha)
             for line in history:
                 self.list_widget.addItem(line)
             
-            # Explicitly update the right-side pane to clear previous selection
-            self.update_side_diff()
+            if self.list_widget.count() > 0:
+                # If nothing was selected before (-1), default to topmost commit (0)
+                # Otherwise, bound it to the new list size
+                new_row = max(0, min(old_row if old_row >= 0 else 0, self.list_widget.count() - 1))
+                self.list_widget.setCurrentRow(new_row)
+            else:
+                self.update_side_diff()
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))
             
