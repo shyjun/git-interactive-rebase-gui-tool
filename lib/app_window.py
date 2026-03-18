@@ -513,6 +513,9 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.esc_shortcut = QShortcut(QKeySequence("Esc"), self)
         self.esc_shortcut.activated.connect(self.handle_esc_shortcut)
 
+        self.f5_shortcut = QShortcut(QKeySequence("F5"), self)
+        self.f5_shortcut.activated.connect(self.load_history)
+
     def update_side_diff(self):
         item = self.list_widget.currentItem()
         if not item:
