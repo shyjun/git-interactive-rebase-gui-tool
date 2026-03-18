@@ -125,9 +125,24 @@ def get_file_diff_only_in_commit(repo_path, commit_sha, filepath):
 def has_uncommitted_changes(repo_path):
     """Returns True if there are uncommitted changes in the repository."""
     try:
-        cmd = ["git", "status", "--porcelain", "--untracked-files=no", "--ignore-submodules=all"]
-        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True)
-        return bool(result.stdout.strip())
+        # Check all changes
+        cmd_all = ["git", "status", "--porcelain", "--untracked-files=no"]
+        result_all = subprocess.run(cmd_all, cwd=repo_path, capture_output=True, text=True, check=True)
+        changes_all = set(result_all.stdout.strip().split('\n')) if result_all.stdout.strip() else set()
+
+        # Check excluding submodules
+        cmd_ignored = ["git", "status", "--porcelain", "--untracked-files=no", "--ignore-submodules=all"]
+        result_ignored = subprocess.run(cmd_ignored, cwd=repo_path, capture_output=True, text=True, check=True)
+        changes_ignored_list = result_ignored.stdout.strip().split('\n') if result_ignored.stdout.strip() else []
+        changes_ignored = set(changes_ignored_list)
+
+        submodule_changes = changes_all - changes_ignored
+        for sc in submodule_changes:
+            parts = sc.strip().split()
+            if len(parts) >= 2:
+                print(f"change in submodule {parts[1]} is detected, but continuing")
+
+        return bool(changes_ignored_list)
     except subprocess.CalledProcessError:
         return False
 
