@@ -1992,6 +1992,9 @@ if os.path.exists('temp.patch'):
             history = get_git_history(self.repo_path, self.commit_sha)
             for line in history:
                 self.list_widget.addItem(line)
+            
+            # Explicitly update the right-side pane to clear previous selection
+            self.update_side_diff()
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))
             
