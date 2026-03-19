@@ -246,6 +246,26 @@ class GitInteractiveRebaseApp(QMainWindow):
         else:
             self.light_radio.setChecked(True)
         self.apply_theme(theme)
+        
+        # Window Geometry and State
+        geometry = self.settings.value("geometry")
+        if geometry:
+            self.restoreGeometry(geometry)
+        
+        window_state = self.settings.value("windowState")
+        if window_state:
+            self.restoreState(window_state)
+            
+        is_maximized = self.settings.value("isMaximized", False, type=bool)
+        if is_maximized:
+            self.showMaximized()
+            
+    def closeEvent(self, event):
+        """Save settings before exiting."""
+        self.settings.setValue("geometry", self.saveGeometry())
+        self.settings.setValue("windowState", self.saveState())
+        self.settings.setValue("isMaximized", self.isMaximized())
+        super().closeEvent(event)
     def update_window_title(self):
         """Updates window title with branch, HEAD, and path."""
         branch = get_current_branch(self.repo_path)
