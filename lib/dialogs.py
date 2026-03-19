@@ -438,6 +438,9 @@ class RephraseDialog(QDialog):
         self.apply_btn.clicked.connect(self.accept)
         self.discard_btn.clicked.connect(self.reject)
         
+        self.message_edit.textChanged.connect(self.on_text_changed)
+        self.on_text_changed()
+        
         btn_layout.addWidget(self.apply_btn)
         btn_layout.addWidget(self.discard_btn)
         btn_layout.addStretch()
@@ -446,6 +449,9 @@ class RephraseDialog(QDialog):
 
     def get_message(self):
         return self.message_edit.toPlainText().strip()
+        
+    def on_text_changed(self):
+        self.apply_btn.setEnabled(bool(self.message_edit.toPlainText().strip()))
 
 class SquashDialog(QDialog):
     """Dialog for choosing and editing commit message during squash."""
@@ -494,6 +500,9 @@ class SquashDialog(QDialog):
         self.proceed_btn.clicked.connect(self.accept)
         self.cancel_btn.clicked.connect(self.reject)
         
+        self.editor.textChanged.connect(self.on_text_changed)
+        self.on_text_changed()
+        
         btn_layout.addStretch()
         btn_layout.addWidget(self.proceed_btn)
         btn_layout.addWidget(self.cancel_btn)
@@ -507,6 +516,9 @@ class SquashDialog(QDialog):
 
     def get_message(self):
         return self.editor.toPlainText().strip()
+        
+    def on_text_changed(self):
+        self.proceed_btn.setEnabled(bool(self.editor.toPlainText().strip()))
 
 
 class MultiSquashDialog(QDialog):
@@ -586,6 +598,9 @@ class MultiSquashDialog(QDialog):
         self.cancel_btn.setProperty("class", "dialog-btn")
         self.proceed_btn.clicked.connect(self.accept)
         self.cancel_btn.clicked.connect(self.reject)
+        
+        self.editor.textChanged.connect(self.on_text_changed)
+        self.on_text_changed()
         btn_layout.addWidget(self.proceed_btn)
         btn_layout.addWidget(self.cancel_btn)
         layout.addLayout(btn_layout)
@@ -596,6 +611,9 @@ class MultiSquashDialog(QDialog):
 
     def get_message(self):
         return self.editor.toPlainText().strip()
+        
+    def on_text_changed(self):
+        self.proceed_btn.setEnabled(bool(self.editor.toPlainText().strip()))
 
 
 class ProgressDialog(QDialog):
