@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
     QLineEdit, QSplitter, QInputDialog, QGroupBox, QSizePolicy, QCheckBox,
     QStyledItemDelegate, QStyle, QStyleOptionViewItem
 )
-from PySide6.QtGui import QFont, QSyntaxHighlighter, QTextCharFormat, QColor, QAction, QShortcut, QKeySequence, QIcon
+from PySide6.QtGui import QFont, QSyntaxHighlighter, QTextCharFormat, QColor, QAction, QShortcut, QKeySequence, QIcon, QBrush
 from PySide6.QtCore import Qt, QSize, QSettings, QThread, Signal
 
 from lib.git_helpers import (
@@ -171,10 +171,20 @@ class CommitItemDelegate(QStyledItemDelegate):
         opt.text = ""  # Hide text so super() doesn't draw it
         
         widget = option.widget
+        main_win = widget.window() if widget else None
+        sha = index.data(Qt.DisplayRole).split()[0] if index.data(Qt.DisplayRole) else ""
+        is_marked = main_win and getattr(main_win, 'marked_shas', None) and sha in main_win.marked_shas
+        
+        painter.save()
+        if is_marked and not (opt.state & QStyle.State_Selected):
+            is_dark = main_win.settings.value("theme", "light") == "dark" if main_win else True
+            marked_bg = QColor("#000000") if is_dark else QColor("#e0e0e0")
+            painter.fillRect(option.rect, marked_bg)
+        painter.restore()
+        
         style = widget.style() if widget else QApplication.style()
         style.drawControl(QStyle.CE_ItemViewItem, opt, painter, widget)
         
-        main_win = widget.window() if widget else None
         show_branches = getattr(main_win, "show_local_branches", False)
         
         branch_text = index.data(Qt.UserRole + 1) if show_branches else None
@@ -262,6 +272,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.start_time_head = get_head_sha(self.repo_path)
         self.last_head = None
         self.best_commit_sha = None
+        self.marked_shas = set()
         
         # Global application icon is handled in the main entry point
         
@@ -1131,6 +1142,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         sha = item.text().split()[0]
         menu = QMenu()
         
+        mark_action = QAction(f"Mark / Unmark commit {sha}", self)
         view_action = QAction(f"Show / View commit {sha}", self)
         move_action = QAction("Move (Drag item to reorder)", self)
         reset_action = QAction(f"Reset Hard to {sha}", self)
@@ -1172,6 +1184,7 @@ class GitInteractiveRebaseApp(QMainWindow):
             squash_below_action = QAction("squash with below commit (N/A)", self)
             squash_below_action.setEnabled(False)
 
+        mark_action.triggered.connect(lambda: self.toggle_mark_commit(item))
         view_action.triggered.connect(lambda: self.view_commit(item))
         view_filewise_action = QAction(f"Show / View commit {sha} -- file-wise", self)
         view_filewise_action.triggered.connect(lambda: self.handle_view_commit_file_wise(item))
@@ -1187,6 +1200,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         
         # Disable most actions if in multi-select mode
         if self.multi_select_mode:
+            mark_action.setEnabled(False)
             view_action.setEnabled(False)
             view_filewise_action.setEnabled(False)
             reset_action.setEnabled(False)
@@ -1199,7 +1213,10 @@ class GitInteractiveRebaseApp(QMainWindow):
             copy_sha_msg_action.setEnabled(False)
             if squash_above_action: squash_above_action.setEnabled(False)
             if squash_below_action: squash_below_action.setEnabled(False)
+        # Construct the menu
         
+        menu.addAction(mark_action)
+        menu.addSeparator()
         menu.addAction(view_action)
         menu.addAction(view_filewise_action)
         menu.addSeparator()
@@ -1345,6 +1362,17 @@ class GitInteractiveRebaseApp(QMainWindow):
             dialog.exec()
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not open file-wise view: {str(e)}")
+
+    def toggle_mark_commit(self, item):
+        sha = item.text().split()[0]
+        
+        if sha in self.marked_shas:
+            self.marked_shas.remove(sha)
+        else:
+            self.marked_shas.add(sha)
+            
+        # Repaint to immediately apply the delegate's background fill
+        self.list_widget.viewport().update()
 
     def handle_reset(self, item):
         sha = item.text().split()[0]
@@ -2108,6 +2136,7 @@ if os.path.exists('temp.patch'):
                 if sha in branch_map:
                     branches_str = ", ".join(branch_map[sha])
                     item.setData(Qt.UserRole + 1, branches_str)
+                    
                 self.list_widget.addItem(item)
             
             if self.list_widget.count() > 0:
