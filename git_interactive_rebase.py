@@ -27,16 +27,26 @@ def main():
 
     repo_path = os.path.abspath(os.path.expanduser(args.location))
     
+    app = QApplication(sys.argv)
+    
+    # Check if we are inside a git repository
+    import subprocess
+    try:
+        subprocess.run(["git", "rev-parse", "--is-inside-work-tree"], cwd=repo_path, check=True, capture_output=True)
+    except Exception:
+        QMessageBox.critical(None, "Not a Git Repository", 
+            f"The directory '{repo_path}' is not a valid git repository.\n\n"
+            "Please run this tool inside a git repository.")
+        sys.exit(1)
+    
     commit_sha = args.commit_sha
     if not commit_sha:
         try:
             commit_sha = get_root_commit(repo_path)
             print(f"No SHA provided. Starting from root commit: {commit_sha}")
         except Exception as e:
-            print(f"Error: {e}")
+            QMessageBox.critical(None, "Error", f"Could not find root commit: {e}")
             sys.exit(1)
-    
-    app = QApplication(sys.argv)
     
     # Set global application icon
     icon_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "assets", "app_icon.png"))
