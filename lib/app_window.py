@@ -1296,7 +1296,7 @@ class GitInteractiveRebaseApp(QMainWindow):
             for i in range(self.list_widget.count()):
                 current_shas.append(self.list_widget.item(i).text().split()[0])
             
-            if self.run_interactive_rebase(current_shas, rephrase_map={sha: new_message}):
+            if self.run_interactive_rebase(current_shas, rephrase_map={sha: new_message}, progress_title="Rephrasing Commit", progress_text=f"Rephrasing commit {sha}. Please wait..."):
                 print(f"Rephrased {sha}.")
                 self.load_history()
                 QMessageBox.information(self, "Success", f"Commit {sha} rephrased successfully.")
@@ -1560,7 +1560,7 @@ class GitInteractiveRebaseApp(QMainWindow):
             # Build all SHAs list from current view
             all_shas = [self.list_widget.item(i).text().split()[0] for i in range(self.list_widget.count())]
 
-            if self.run_interactive_rebase(all_shas, squash_shas=squash_shas, rephrase_map={rephrase_sha: final_msg}):
+            if self.run_interactive_rebase(all_shas, squash_shas=squash_shas, rephrase_map={rephrase_sha: final_msg}, progress_title="Squashing Commits", progress_text="Squashing selected commits together. Please wait..."):
                 self.load_history()
                 QMessageBox.information(self, "Success", f"Successfully squashed {len(selected_shas)} commits.")
 
@@ -1593,7 +1593,7 @@ class GitInteractiveRebaseApp(QMainWindow):
             # New list without the dropped SHA
             new_shas = [s for s in current_shas if s != sha]
             
-            if self.run_interactive_rebase(new_shas):
+            if self.run_interactive_rebase(new_shas, progress_title="Dropping Commit", progress_text=f"Dropping commit {sha}. Please wait..."):
                 print(f"Dropped {sha}.")
                 self.load_history()
                 QMessageBox.information(self, "Success", f"Commit {sha} dropped successfully.")
@@ -1964,13 +1964,13 @@ if os.path.exists('temp.patch'):
     def perform_move(self, new_shas, original_shas=None):
         """Performs commit reordering using our unified rebase logic."""
         print("Performing commit reorder...")
-        if self.run_interactive_rebase(new_shas, original_shas=original_shas):
+        if self.run_interactive_rebase(new_shas, original_shas=original_shas, progress_title="Moving Commits", progress_text="Reordering commits. Please wait..."):
             self.load_history()
             QMessageBox.information(self, "Success", "Commits reordered successfully!")
             return
         self.load_history()
 
-    def run_interactive_rebase(self, new_shas, rephrase_map=None, squash_shas=None, original_shas=None):
+    def run_interactive_rebase(self, new_shas, rephrase_map=None, squash_shas=None, original_shas=None, progress_title="Rebasing", progress_text="Executing interactive rebase. Please wait...\nThis might take a few moments."):
         """
         Unified handler for history rewriting using git rebase -i.
         original_shas: The pre-change SHA order (latest-first). If provided, used
@@ -2071,7 +2071,7 @@ if os.path.exists('temp.patch'):
                 cmd = ["git", "rebase", "-i", "--autosquash", upstream]
 
             # Show progress dialog while rebasing
-            progress = ProgressDialog("Rebasing", "Executing interactive rebase. Please wait...\nThis might take a few moments.", self)
+            progress = ProgressDialog(progress_title, progress_text, self)
             progress.show()
             QApplication.processEvents()
 
