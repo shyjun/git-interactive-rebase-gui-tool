@@ -39,6 +39,22 @@ def get_current_branch(repo_path):
     except:
         return "Unknown"
 
+def get_local_branches_map(repo_path):
+    """Returns a dict mapping short_sha to a list of branch names."""
+    try:
+        cmd = ["git", "for-each-ref", "--format=%(objectname:short) %(refname:short)", "refs/heads/"]
+        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True)
+        branch_map = {}
+        for line in result.stdout.strip().split('\n'):
+            if not line.strip(): continue
+            parts = line.strip().split(maxsplit=1)
+            if len(parts) == 2:
+                sha, branch = parts
+                branch_map.setdefault(sha, []).append(branch)
+        return branch_map
+    except subprocess.CalledProcessError:
+        return {}
+
 def get_head_sha(repo_path):
     """Fetches current HEAD SHA (short)."""
     try:

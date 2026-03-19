@@ -14,7 +14,8 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QListWidget, QVBoxLayout, 
     QWidget, QMessageBox, QListWidgetItem, QMenu, QDialog,
     QTextEdit, QPushButton, QHBoxLayout, QLabel, QRadioButton,
-    QLineEdit, QSplitter, QInputDialog, QGroupBox, QSizePolicy, QCheckBox
+    QLineEdit, QSplitter, QInputDialog, QGroupBox, QSizePolicy, QCheckBox,
+    QStyledItemDelegate, QStyle, QStyleOptionViewItem
 )
 from PySide6.QtGui import QFont, QSyntaxHighlighter, QTextCharFormat, QColor, QAction, QShortcut, QKeySequence, QIcon
 from PySide6.QtCore import Qt, QSize, QSettings, QThread, Signal
@@ -22,7 +23,7 @@ from PySide6.QtCore import Qt, QSize, QSettings, QThread, Signal
 from lib.git_helpers import (
     get_git_history, get_head_sha, get_full_head_sha, get_current_branch, get_commit_diff,
     get_full_commit_message, get_commit_metadata, get_commit_files,
-    has_uncommitted_changes, branch_exists
+    has_uncommitted_changes, branch_exists, get_local_branches_map
 )
 from lib.dialogs import (
     DiffHighlighter, DiffViewerDialog, SplitCommitDialog, ViewCommitDialog,
@@ -161,6 +162,53 @@ class HelpDialog(QDialog):
     def _open_mail(self):
         webbrowser.open(self.MAILTO)
 
+class CommitItemDelegate(QStyledItemDelegate):
+    def paint(self, painter, option, index):
+        opt = QStyleOptionViewItem(option)
+        self.initStyleOption(opt, index)
+        
+        main_text = opt.text
+        opt.text = ""  # Hide text so super() doesn't draw it
+        
+        widget = option.widget
+        style = widget.style() if widget else QApplication.style()
+        style.drawControl(QStyle.CE_ItemViewItem, opt, painter, widget)
+        
+        branch_text = index.data(Qt.UserRole + 1)
+        text_rect = style.subElementRect(QStyle.SE_ItemViewItemText, opt, widget)
+        
+        painter.save()
+        if opt.state & QStyle.State_Selected:
+            painter.setPen(opt.palette.highlightedText().color())
+        else:
+            painter.setPen(opt.palette.text().color())
+            
+        if branch_text:
+            branch_str = f"[{branch_text}] "
+            
+            # Setup bold font and draw branch string
+            bold_font = QFont(opt.font)
+            bold_font.setBold(True)
+            painter.setFont(bold_font)
+            
+            fm_bold = painter.fontMetrics()
+            painter.drawText(text_rect, Qt.AlignLeft | Qt.AlignVCenter, branch_str)
+            
+            # Setup normal font and draw the rest of the text
+            branch_width = fm_bold.horizontalAdvance(branch_str)
+            painter.setFont(opt.font)
+            fm_normal = painter.fontMetrics()
+            
+            main_rect = text_rect.adjusted(branch_width, 0, 0, 0)
+            elided_main = fm_normal.elidedText(main_text, Qt.ElideRight, main_rect.width())
+            painter.drawText(main_rect, Qt.AlignLeft | Qt.AlignVCenter, elided_main)
+        else:
+            painter.setFont(opt.font)
+            fm = painter.fontMetrics()
+            elided_main = fm.elidedText(main_text, Qt.ElideRight, text_rect.width())
+            painter.drawText(text_rect, Qt.AlignLeft | Qt.AlignVCenter, elided_main)
+            
+        painter.restore()
 
 class CommitListWidget(QListWidget):
     """Subclassed QListWidget to handle Drag & Drop move confirmation."""
@@ -296,6 +344,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         
         # Use our custom list widget
         self.list_widget = CommitListWidget(self)
+        self.list_widget.setItemDelegate(CommitItemDelegate(self.list_widget))
         self.update_font()
         self.list_widget.setContextMenuPolicy(Qt.CustomContextMenu)
         self.list_widget.customContextMenuRequested.connect(self.show_context_menu)
@@ -2034,8 +2083,15 @@ if os.path.exists('temp.patch'):
         self.list_widget.clear()
         try:
             history = get_git_history(self.repo_path, self.commit_sha)
+            branch_map = get_local_branches_map(self.repo_path)
+            
             for line in history:
-                self.list_widget.addItem(line)
+                item = QListWidgetItem(line)
+                sha = line.split()[0]
+                if sha in branch_map:
+                    branches_str = ", ".join(branch_map[sha])
+                    item.setData(Qt.UserRole + 1, branches_str)
+                self.list_widget.addItem(item)
             
             if self.list_widget.count() > 0:
                 # If nothing was selected before (-1), default to topmost commit (0)
