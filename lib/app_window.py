@@ -174,7 +174,10 @@ class CommitItemDelegate(QStyledItemDelegate):
         style = widget.style() if widget else QApplication.style()
         style.drawControl(QStyle.CE_ItemViewItem, opt, painter, widget)
         
-        branch_text = index.data(Qt.UserRole + 1)
+        main_win = widget.window() if widget else None
+        show_branches = getattr(main_win, "show_local_branches", False)
+        
+        branch_text = index.data(Qt.UserRole + 1) if show_branches else None
         text_rect = style.subElementRect(QStyle.SE_ItemViewItemText, opt, widget)
         
         painter.save()
@@ -269,6 +272,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.show_origin_options = self.settings.value("show_origin_options", False, type=bool)
         self.show_rebase_options = self.settings.value("show_rebase_options", False, type=bool)
         self.show_squash_options = self.settings.value("show_squash_options", True, type=bool)
+        self.show_local_branches = self.settings.value("show_local_branches", False, type=bool)
         
         self.setWindowTitle(f"git_interactive_rebase.py : branch=..., HEAD=..., path={self.repo_path}") # Temporary name until load_history updates it
         self.resize(1100, 800)
@@ -334,6 +338,9 @@ class GitInteractiveRebaseApp(QMainWindow):
         # Squash Options Visibility
         self.show_squash_cb.setChecked(self.show_squash_options)
         self.squash_group.setVisible(self.show_squash_options)
+        
+        # Local Branches Visibility
+        self.show_local_branches_cb.setChecked(self.show_local_branches)
         
         self.force_window_resize()
 
@@ -490,12 +497,17 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.show_origin_cb = QCheckBox("show origin options")
         self.show_rebase_cb = QCheckBox("show rebase options")
         self.show_squash_cb = QCheckBox("show squash options")
+        self.show_local_branches_cb = QCheckBox("show local branches")
+        
         self.show_origin_cb.toggled.connect(self.on_origin_visibility_toggled)
         self.show_rebase_cb.toggled.connect(self.on_rebase_visibility_toggled)
         self.show_squash_cb.toggled.connect(self.on_squash_visibility_toggled)
+        self.show_local_branches_cb.toggled.connect(self.on_local_branches_visibility_toggled)
+        
         checkboxes_layout.addWidget(self.show_origin_cb)
         checkboxes_layout.addWidget(self.show_rebase_cb)
         checkboxes_layout.addWidget(self.show_squash_cb)
+        checkboxes_layout.addWidget(self.show_local_branches_cb)
         checkboxes_layout.addStretch()
 
         right_controls_layout.addLayout(main_btns_layout)
@@ -879,6 +891,11 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.squash_group.setVisible(visible)
         self.settings.setValue("show_squash_options", visible)
         self.force_window_resize()
+
+    def on_local_branches_visibility_toggled(self):
+        self.show_local_branches = self.show_local_branches_cb.isChecked()
+        self.settings.setValue("show_local_branches", self.show_local_branches)
+        self.list_widget.viewport().update()
 
     def force_window_resize(self):
         """Forces the window to shrink to its minimum size hint if not maximized."""
