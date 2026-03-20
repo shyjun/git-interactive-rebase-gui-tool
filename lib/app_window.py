@@ -23,7 +23,7 @@ from PySide6.QtCore import Qt, QSize, QSettings, QThread, Signal
 from lib.git_helpers import (
     get_git_history, get_head_sha, get_full_head_sha, get_current_branch, get_commit_diff,
     get_full_commit_message, get_commit_metadata, get_commit_files,
-    has_uncommitted_changes, branch_exists, get_local_branches_map
+    has_uncommitted_changes, branch_exists, get_local_branches_map, get_remote_head_sha
 )
 from lib.dialogs import (
     DiffHighlighter, DiffViewerDialog, SplitCommitDialog, ViewCommitDialog,
@@ -444,6 +444,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.help_btn = QPushButton("Help")
         self.undo_btn = QPushButton("Undo")
         self.undo_btn.setEnabled(False)
+        self.check_update_btn = QPushButton("Check for Updates")
         self.refresh_btn = QPushButton("Refresh")
 
         # Zoom group box
@@ -475,7 +476,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.best_commit_btn.setEnabled(False)
         self.custom_reset_btn = QPushButton("Enter commit id to reset hard to")
         
-        for btn in [self.zoom_in_btn, self.zoom_out_btn, self.toggle_diff_btn, self.help_btn, self.undo_btn, self.refresh_btn, self.exit_btn]:
+        for btn in [self.zoom_in_btn, self.zoom_out_btn, self.toggle_diff_btn, self.help_btn, self.check_update_btn, self.undo_btn, self.refresh_btn, self.exit_btn]:
             btn.setMinimumHeight(40)
             btn.setMinimumWidth(120)
         self.failsafe_btn.setMinimumHeight(40)
@@ -487,6 +488,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.toggle_diff_btn.clicked.connect(self.toggle_side_diff_visibility)
         self.help_btn.clicked.connect(self._show_help_dialog)
         self.undo_btn.clicked.connect(self.handle_undo)
+        self.check_update_btn.clicked.connect(self.handle_check_for_updates)
         self.refresh_btn.clicked.connect(self.load_history)
         self.failsafe_btn.clicked.connect(self.handle_failsafe_reset)
         self.best_commit_btn.clicked.connect(self.handle_best_commit_reset)
@@ -502,6 +504,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         main_btns_layout = QHBoxLayout()
         main_btns_layout.addWidget(self.toggle_diff_btn)
         main_btns_layout.addWidget(self.help_btn)
+        main_btns_layout.addWidget(self.check_update_btn)
         main_btns_layout.addStretch()
         main_btns_layout.addWidget(self.undo_btn)
         main_btns_layout.addWidget(self.refresh_btn)
@@ -729,20 +732,57 @@ class GitInteractiveRebaseApp(QMainWindow):
             QMessageBox.No
         )
         if reply == QMessageBox.Yes:
-            # We don't save undo state FOR the undo itself, or maybe we should?
-            # The requirement says "keep it as HEAD", "update this variable before the operation is done".
-            # If we undo, the "last operation" was the undo itself. 
-            # But usually undoing an undo is "redo". Let's stick to the basic requirements.
             try:
                 subprocess.run(["git", "reset", "--hard", self.last_head], cwd=self.repo_path, check=True, capture_output=True, text=True, encoding='utf-8', errors='replace')
                 QMessageBox.information(self, "Success", f"Successfully undid the last operation (reset to {self.last_head[:8]}).")
-                # After undo, disable the undo button as we only have 1-level undo for now
                 self.last_head = None
                 self.undo_btn.setEnabled(False)
             except subprocess.CalledProcessError as e:
                 QMessageBox.critical(self, "Undo Failed", f"Could not perform undo.\n\nError: {e.stderr}")
             finally:
                 self.load_history()
+
+    def handle_check_for_updates(self):
+        """Checks for updates from the remote repository."""
+        REPO_URL = "https://github.com/shyjun/git-interactive-rebase-gui-tool.git"
+        UPDATE_URL = "https://github.com/shyjun/git-interactive-rebase-gui-tool?tab=readme-ov-file#-staying-updated"
+        
+        self.progress_dialog = ProgressDialog("Checking for Updates", "Connecting to GitHub...", self)
+        
+        # We'll use a worker thread to avoid UI freeze
+        self.worker = GitWorker(["git", "ls-remote", REPO_URL, "HEAD"], self.repo_path)
+        
+        def on_check_finished(success, stdout, stderr):
+            if hasattr(self, 'progress_dialog'):
+                self.progress_dialog.close()
+            
+            if not success or not stdout.strip():
+                QMessageBox.warning(self, "Check Failed", "Could not check for updates. Please check your internet connection.")
+                return
+            
+            # ls-remote output format: <sha>\tHEAD
+            remote_sha = stdout.split()[0]
+            local_sha = get_full_head_sha(self.repo_path)
+            
+            if remote_sha == local_sha:
+                QMessageBox.information(self, "No Updates", "You are already using the latest version.")
+            else:
+                msg = (
+                    "<b>Update Available!</b><br><br>"
+                    "A newer version of the tool is available on GitHub.<br><br>"
+                    f"Check out the <a href='{UPDATE_URL}'>Staying Updated</a> section in README for instructions."
+                )
+                box = QMessageBox(self)
+                box.setWindowTitle("Update Available")
+                box.setText(msg)
+                box.setTextFormat(Qt.RichText)
+                box.setIcon(QMessageBox.Information)
+                box.setStandardButtons(QMessageBox.Ok)
+                box.exec()
+
+        self.worker.finished.connect(on_check_finished)
+        self.worker.start()
+        self.progress_dialog.exec()
 
     def handle_custom_reset(self):
         commit_id, ok = QInputDialog.getText(self, 'Input Dialog', 'Enter commit ID to reset hard to:')

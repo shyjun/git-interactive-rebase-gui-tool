@@ -186,3 +186,14 @@ def branch_exists(repo_path, branch_name):
         return result.returncode == 0
     except:
         return False
+
+def get_remote_head_sha(repo_url):
+    """Fetches the current HEAD SHA from the remote repository without fetching objects."""
+    try:
+        cmd = ["git", "ls-remote", repo_url, "HEAD"]
+        result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace')
+        if result.returncode == 0 and result.stdout.strip():
+            return result.stdout.split()[0]
+        return None
+    except:
+        return None
