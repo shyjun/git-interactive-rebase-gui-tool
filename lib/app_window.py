@@ -749,14 +749,39 @@ class GitInteractiveRebaseApp(QMainWindow):
         
         # 1. Find the tool's own directory
         tool_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        local_sha = "Unknown"
+        is_git_install = os.path.exists(os.path.join(tool_dir, ".git"))
         
-        # 2. Check if the tool's directory is a Git repository
-        if not os.path.exists(os.path.join(tool_dir, ".git")):
+        # 2. Extract local SHA
+        if is_git_install:
+            try:
+                res = subprocess.run(["git", "rev-parse", "HEAD"], cwd=tool_dir, capture_output=True, text=True, encoding='utf-8', errors='replace')
+                if res.returncode == 0:
+                    local_sha = res.stdout.strip()
+            except:
+                pass
+        else:
+            # Check for app_version.json (pip install case)
+            try:
+                from lib.utils import get_assets_path
+                import json
+
+                assets_dir = get_assets_path()
+                json_path = os.path.join(assets_dir, "app_version.json")
+
+                if os.path.exists(json_path):
+                    with open(json_path, "r", encoding='utf-8') as f:
+                        data = json.load(f)
+                        local_sha = data.get("sha", "Unknown")
+            except Exception:
+                pass
+
+        # 3. If no version info found, show manual update help
+        if local_sha == "Unknown":
             msg = (
-                "<b>Non-Git Installation Detected</b><br><br>"
-                "You appear to be running a version installed via pip or downloaded as a ZIP, "
-                "so we cannot automatically check your current version via Git.<br><br>"
-                f"Please check the <a href='{UPDATE_URL}'>Staying Updated</a> section in README for manual update instructions."
+                "<b>Version Check Unavailable</b><br><br>"
+                "Could not determine your current version (missing .git folder and app_version.json).<br><br>"
+                f"Please check the <a href='{UPDATE_URL}'>Staying Updated</a> section in README for update instructions."
             )
             box = QMessageBox(self)
             box.setWindowTitle("Check for Updates")
@@ -767,7 +792,7 @@ class GitInteractiveRebaseApp(QMainWindow):
             box.exec()
             return
 
-        # 3. Proceed with Git-based check
+        # 4. Proceed with Remote check
         self.progress_dialog = ProgressDialog("Checking for Updates", "Connecting to GitHub...", self)
         
         self.worker = GitWorker(["git", "ls-remote", REPO_URL, "HEAD"], self.repo_path)
@@ -782,16 +807,10 @@ class GitInteractiveRebaseApp(QMainWindow):
             
             remote_sha = stdout.split()[0]
             
-            try:
-                res = subprocess.run(["git", "rev-parse", "HEAD"], cwd=tool_dir, capture_output=True, text=True, encoding='utf-8', errors='replace')
-                local_sha = res.stdout.strip() if res.returncode == 0 else "Unknown"
-            except:
-                local_sha = "Unknown"
-            
             # Debug prints
             print(f"[DEBUG] Check for Updates:")
-            print(f"        Local Tool SHA:  {local_sha}")
-            print(f"        Remote Tool SHA: {remote_sha}")
+            print(f"        Local SHA:  {local_sha}")
+            print(f"        Remote SHA: {remote_sha}")
             
             if remote_sha == local_sha:
                 QMessageBox.information(self, "No Updates", "You are already using the latest version.")

@@ -18,6 +18,11 @@ data = {
     "repo": "https://github.com/shyjun/git-interactive-rebase-gui-tool",
 }
 
-Path("app_version.json").write_text(json.dumps(data, indent=2))
+# ensure assets dir exists
+assets_dir = Path("assets")
+assets_dir.mkdir(exist_ok=True)
+
+# write inside assets
+(assets_dir / "app_version.json").write_text(json.dumps(data, indent=2))
 
 setup()
