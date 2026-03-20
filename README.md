@@ -70,7 +70,7 @@ This tool provides a visual interface to simplify and safely manage commit histo
 ### Prerequisites
 
 * Python 3.10+
-* Git CLI installed and in your PATH.
+* Git CLI installed and available in PATH (`git --version` should work).
 * `PySide6` installed (`pip install PySide6`).
 
 ---
