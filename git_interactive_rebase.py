@@ -15,6 +15,7 @@ from PySide6.QtGui import QIcon
 import tempfile
 import stat
 
+from lib.utils import get_assets_path
 from lib.git_helpers import get_root_commit, has_uncommitted_changes, stash_changes
 from lib.app_window import GitInteractiveRebaseApp
 from lib.dialogs import UnstagedChangesDialog
@@ -29,6 +30,15 @@ def main():
     
     app = QApplication(sys.argv)
     
+    # Set global application icon
+    try:
+        assets_dir = get_assets_path()
+        icon_path = os.path.join(assets_dir, "app_icon.png")
+        if os.path.exists(icon_path):
+            app.setWindowIcon(QIcon(icon_path))
+    except Exception as e:
+        print(f"Warning: Could not load application icon: {e}")
+
     # Check if we are inside a git repository
     import subprocess
     try:
@@ -48,10 +58,6 @@ def main():
             QMessageBox.critical(None, "Error", f"Could not find root commit: {e}")
             sys.exit(1)
     
-    # Set global application icon
-    icon_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "assets", "app_icon.png"))
-    if os.path.exists(icon_path):
-        app.setWindowIcon(QIcon(icon_path))
     # Check for unstaged changes
     stashed = False
     if has_uncommitted_changes(repo_path):

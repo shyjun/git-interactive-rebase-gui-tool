@@ -30,6 +30,7 @@ from lib.dialogs import (
     DropDialog, RephraseDialog, SquashDialog, FileWiseViewDialog, MultiSquashDialog,
     ProgressDialog
 )
+from lib.utils import get_assets_path
 
 class GitWorker(QThread):
     """Generic worker for running git commands in a separate thread."""
@@ -133,7 +134,10 @@ class HelpDialog(QDialog):
             btn.clicked.connect(slot)
             return btn
 
-        base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "assets"))
+        try:
+            base_path = get_assets_path()
+        except Exception:
+            base_path = ""
         
         layout.addWidget(make_help_button("View Video Demo", os.path.join(base_path, "youtube_icon.png"), self._open_video))
         layout.addWidget(make_help_button("View Readme", os.path.join(base_path, "readme_icon.png"), self._open_readme))
