@@ -20,8 +20,8 @@ A Python-based Git Interactive Rebase GUI tool to visually reorder, squash, edit
 
 * **Live Search & Filter**: Instantly find any commit by searching its **SHA** or **Message**. Filtering is live while you type.
 
-  * **Shortcut `/`**: Focus search bar.
-  * **Shortcut `Esc`**: Clear search and return to full history.
+  * **Shortcut ****`/`**: Focus search bar.
+  * **Shortcut ****`Esc`**: Clear search and return to full history.
 
 ### 🎨 Premium User Experience
 
@@ -39,8 +39,6 @@ A Python-based Git Interactive Rebase GUI tool to visually reorder, squash, edit
 ---
 
 ## 📸 Screenshot
-
-![App Screenshot](docs/screenshot.png)
 
 ---
 
@@ -75,23 +73,69 @@ This tool provides a visual interface to simplify and safely manage commit histo
 * Git CLI installed and in your PATH.
 * `PySide6` installed (`pip install PySide6`).
 
-### Running the App
+---
 
-Navigate to the project directory and run:
+## 📦 Installation (Recommended)
 
-```bash
-# Start from the root commit (entire history)
-python git_interactive_rebase.py
-
-# Or start from a specific commit
-python git_interactive_rebase.py <commit-sha>
-```
-
-Optional: Specify a different repository location:
+Install the latest version directly from GitHub:
 
 ```bash
-python git_interactive_rebase.py -C /path/to/repo
+pip install git+https://github.com/shyjun/git-interactive-rebase-gui-tool.git
 ```
+
+Run the application:
+
+```bash
+git-interactive-rebase
+```
+
+---
+
+## 🧪 Running Without Installation
+
+If you prefer to run directly from source:
+
+```bash
+python3 git_interactive_rebase.py
+```
+
+---
+
+## ⚙️ Command Line Arguments
+
+You can pass optional arguments when running the script:
+
+Run from a specific commit:
+
+```bash
+python3 git_interactive_rebase.py <commit-sha>
+```
+
+Specify a different repository location:
+
+```bash
+python3 git_interactive_rebase.py -C /path/to/repo
+```
+
+---
+
+## 🔄 Staying Updated
+
+This project is actively under development.
+
+### If installed via pip (GitHub method)
+
+```bash
+pip uninstall git-interactive-rebase-gui-tool
+pip install git+https://github.com/shyjun/git-interactive-rebase-gui-tool.git
+```
+
+### If installed by clonning repository
+
+```bash
+git pull
+```
+
 
 ---
 
