@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "git-interactive-rebase-gui-tool"
+version = "0.1.0"
+dependencies = ["PySide6"]
+
+[project.scripts]
+git_interactive_rebase = "git_interactive_rebase:main"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
