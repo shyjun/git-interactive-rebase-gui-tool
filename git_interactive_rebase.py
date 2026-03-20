@@ -20,7 +20,13 @@ from lib.git_helpers import get_root_commit, has_uncommitted_changes, stash_chan
 from lib.app_window import GitInteractiveRebaseApp
 from lib.dialogs import UnstagedChangesDialog
 
+import shutil
+
 def main():
+    # 1. Runtime check for Git CLI
+    if not shutil.which("git"):
+        raise RuntimeError("Git CLI not found. Please install Git and ensure it is in PATH.")
+
     parser = argparse.ArgumentParser(description="git-interactive-rebase-gui-tool: A premium PySide6 GUI for interactive git rebasing.")
     parser.add_argument("-C", "--location", type=str, default=os.getcwd())
     parser.add_argument("commit_sha", type=str, nargs="?", help="Starting commit SHA (optional, defaults to root)")
