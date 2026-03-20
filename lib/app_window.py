@@ -42,7 +42,7 @@ class GitWorker(QThread):
 
     def run(self):
         try:
-            result = subprocess.run(self.command, cwd=self.cwd, capture_output=True, text=True, check=True)
+            result = subprocess.run(self.command, cwd=self.cwd, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
             self.finished.emit(True, result.stdout, "")
         except subprocess.CalledProcessError as e:
             self.finished.emit(False, "", e.stderr)
@@ -730,7 +730,7 @@ class GitInteractiveRebaseApp(QMainWindow):
             # If we undo, the "last operation" was the undo itself. 
             # But usually undoing an undo is "redo". Let's stick to the basic requirements.
             try:
-                subprocess.run(["git", "reset", "--hard", self.last_head], cwd=self.repo_path, check=True, capture_output=True, text=True)
+                subprocess.run(["git", "reset", "--hard", self.last_head], cwd=self.repo_path, check=True, capture_output=True, text=True, encoding='utf-8', errors='replace')
                 QMessageBox.information(self, "Success", f"Successfully undid the last operation (reset to {self.last_head[:8]}).")
                 # After undo, disable the undo button as we only have 1-level undo for now
                 self.last_head = None
@@ -791,7 +791,7 @@ class GitInteractiveRebaseApp(QMainWindow):
             self.save_undo_state()
             print("Resetting hard to origin...")
             try:
-                subprocess.run(["git", "reset", "--hard", "origin"], cwd=self.repo_path, check=True, capture_output=True, text=True)
+                subprocess.run(["git", "reset", "--hard", "origin"], cwd=self.repo_path, check=True, capture_output=True, text=True, encoding='utf-8', errors='replace')
                 QMessageBox.information(self, "Success", "Successfully reset --hard to origin.")
             except subprocess.CalledProcessError as e:
                 # If 'origin' doesn't exist, try 'origin/main' or 'origin/master' as a fallback? 
