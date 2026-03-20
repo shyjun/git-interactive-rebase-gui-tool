@@ -11,6 +11,7 @@ dependencies = ["PySide6"]
 git_interactive_rebase = "git_interactive_rebase:main"
 
 [tool.setuptools]
+py-modules = ["git_interactive_rebase"]
 include-package-data = true
 
 [tool.setuptools.packages.find]
