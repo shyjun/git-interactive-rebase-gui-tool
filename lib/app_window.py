@@ -747,9 +747,13 @@ class GitInteractiveRebaseApp(QMainWindow):
         REPO_URL = "https://github.com/shyjun/git-interactive-rebase-gui-tool.git"
         UPDATE_URL = "https://github.com/shyjun/git-interactive-rebase-gui-tool?tab=readme-ov-file#-staying-updated"
         
+        # We need to find the tool's own directory to check its local version/SHA
+        tool_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        
         self.progress_dialog = ProgressDialog("Checking for Updates", "Connecting to GitHub...", self)
         
         # We'll use a worker thread to avoid UI freeze
+        # Note: We run ls-remote without a cwd since it's a remote check
         self.worker = GitWorker(["git", "ls-remote", REPO_URL, "HEAD"], self.repo_path)
         
         def on_check_finished(success, stdout, stderr):
@@ -762,10 +766,25 @@ class GitInteractiveRebaseApp(QMainWindow):
             
             # ls-remote output format: <sha>\tHEAD
             remote_sha = stdout.split()[0]
-            local_sha = get_full_head_sha(self.repo_path)
+            
+            # Get the tool's local SHA. We must run this in the tool's own directory.
+            try:
+                res = subprocess.run(["git", "rev-parse", "HEAD"], cwd=tool_dir, capture_output=True, text=True, encoding='utf-8', errors='replace')
+                local_sha = res.stdout.strip() if res.returncode == 0 else "Unknown"
+            except:
+                local_sha = "Unknown"
+            
+            # Debug prints as requested
+            print(f"[DEBUG] Check for Updates:")
+            print(f"        Local Tool SHA:  {local_sha}")
+            print(f"        Remote Tool SHA: {remote_sha}")
             
             if remote_sha == local_sha:
                 QMessageBox.information(self, "No Updates", "You are already using the latest version.")
+            elif local_sha == "Unknown":
+                QMessageBox.information(self, "Unknown Version", 
+                    "Could not determine your local version (perhaps not installed via Git).\n\n"
+                    f"Check out the <a href='{UPDATE_URL}'>latest version on GitHub</a>.")
             else:
                 msg = (
                     "<b>Update Available!</b><br><br>"
