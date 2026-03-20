@@ -1,7 +1,7 @@
 
 if __name__ == "__main__":
     import sys
-    print("Please run the main app: git_interactive_rebase.py")
+    print("Please run the main app: git_interactive_rebase.py (git-interactive-rebase-gui-tool)")
     sys.exit(1)
 
 import subprocess
@@ -54,7 +54,7 @@ class HelpDialog(QDialog):
     """Simple Help dialog with links to Video Demo, Readme, and Mail to Author."""
 
     YOUTUBE_URL = "https://www.youtube.com"  # Placeholder – update when demo video is ready
-    README_URL = "https://github.com/shyjun/git_interactive_rebase.py/blob/master/README.md"
+    README_URL = "https://github.com/shyjun/git-interactive-rebase-gui-tool/blob/master/README.md"
     MAILTO = "mailto:n.shyju@gmail.com"
 
     def __init__(self, parent=None):
@@ -285,7 +285,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.show_squash_options = self.settings.value("show_squash_options", True, type=bool)
         self.show_local_branches = self.settings.value("show_local_branches", False, type=bool)
         
-        self.setWindowTitle(f"git_interactive_rebase.py : branch=..., HEAD=..., path={self.repo_path}") # Temporary name until load_history updates it
+        self.setWindowTitle(f"git-interactive-rebase-gui-tool : branch=..., HEAD=..., path={self.repo_path}") # Temporary name until load_history updates it
         self.resize(1100, 800)
         self.setMinimumWidth(1100)
 
@@ -333,7 +333,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         """Updates window title with branch, HEAD, and path."""
         branch = get_current_branch(self.repo_path)
         head_sha = get_head_sha(self.repo_path)
-        title = f"git_interactive_rebase.py : branch={branch}, HEAD={head_sha}, path={self.repo_path}"
+        title = f"git-interactive-rebase-gui-tool : branch={branch}, HEAD={head_sha}, path={self.repo_path}"
         self.setWindowTitle(title)
 
     def restore_visibility_settings(self):

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Project: Git Interactive Rebase Helper
+Project: git-interactive-rebase-gui-tool
 Description: A premium PySide6 GUI for interactive git rebasing, squashing, and rephrasing.
 Author: n.shyju@gmail.com
 Version: 1.0.0
@@ -20,7 +20,7 @@ from lib.app_window import GitInteractiveRebaseApp
 from lib.dialogs import UnstagedChangesDialog
 
 def main():
-    parser = argparse.ArgumentParser(description="Git Interactive Rebase Helper.")
+    parser = argparse.ArgumentParser(description="git-interactive-rebase-gui-tool: A premium PySide6 GUI for interactive git rebasing.")
     parser.add_argument("-C", "--location", type=str, default=os.getcwd())
     parser.add_argument("commit_sha", type=str, nargs="?", help="Starting commit SHA (optional, defaults to root)")
     args = parser.parse_args()
