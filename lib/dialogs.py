@@ -1,7 +1,7 @@
 
 if __name__ == "__main__":
     import sys
-    print("Please run the main app: git_interactive_rebase.py")
+    print("Please run the main app: git_interactive_rebase.py (git-interactive-rebase-gui-tool)")
     sys.exit(1)
 
 from PySide6.QtWidgets import (
