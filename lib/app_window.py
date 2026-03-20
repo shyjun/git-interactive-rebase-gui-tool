@@ -747,13 +747,29 @@ class GitInteractiveRebaseApp(QMainWindow):
         REPO_URL = "https://github.com/shyjun/git-interactive-rebase-gui-tool.git"
         UPDATE_URL = "https://github.com/shyjun/git-interactive-rebase-gui-tool?tab=readme-ov-file#-staying-updated"
         
-        # We need to find the tool's own directory to check its local version/SHA
+        # 1. Find the tool's own directory
         tool_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
         
+        # 2. Check if the tool's directory is a Git repository
+        if not os.path.exists(os.path.join(tool_dir, ".git")):
+            msg = (
+                "<b>Non-Git Installation Detected</b><br><br>"
+                "You appear to be running a version installed via pip or downloaded as a ZIP, "
+                "so we cannot automatically check your current version via Git.<br><br>"
+                f"Please check the <a href='{UPDATE_URL}'>Staying Updated</a> section in README for manual update instructions."
+            )
+            box = QMessageBox(self)
+            box.setWindowTitle("Check for Updates")
+            box.setText(msg)
+            box.setTextFormat(Qt.RichText)
+            box.setIcon(QMessageBox.Information)
+            box.setStandardButtons(QMessageBox.Ok)
+            box.exec()
+            return
+
+        # 3. Proceed with Git-based check
         self.progress_dialog = ProgressDialog("Checking for Updates", "Connecting to GitHub...", self)
         
-        # We'll use a worker thread to avoid UI freeze
-        # Note: We run ls-remote without a cwd since it's a remote check
         self.worker = GitWorker(["git", "ls-remote", REPO_URL, "HEAD"], self.repo_path)
         
         def on_check_finished(success, stdout, stderr):
@@ -764,27 +780,21 @@ class GitInteractiveRebaseApp(QMainWindow):
                 QMessageBox.warning(self, "Check Failed", "Could not check for updates. Please check your internet connection.")
                 return
             
-            # ls-remote output format: <sha>\tHEAD
             remote_sha = stdout.split()[0]
             
-            # Get the tool's local SHA. We must run this in the tool's own directory.
             try:
                 res = subprocess.run(["git", "rev-parse", "HEAD"], cwd=tool_dir, capture_output=True, text=True, encoding='utf-8', errors='replace')
                 local_sha = res.stdout.strip() if res.returncode == 0 else "Unknown"
             except:
                 local_sha = "Unknown"
             
-            # Debug prints as requested
+            # Debug prints
             print(f"[DEBUG] Check for Updates:")
             print(f"        Local Tool SHA:  {local_sha}")
             print(f"        Remote Tool SHA: {remote_sha}")
             
             if remote_sha == local_sha:
                 QMessageBox.information(self, "No Updates", "You are already using the latest version.")
-            elif local_sha == "Unknown":
-                QMessageBox.information(self, "Unknown Version", 
-                    "Could not determine your local version (perhaps not installed via Git).\n\n"
-                    f"Check out the <a href='{UPDATE_URL}'>latest version on GitHub</a>.")
             else:
                 msg = (
                     "<b>Update Available!</b><br><br>"
