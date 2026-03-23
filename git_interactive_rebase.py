@@ -66,8 +66,9 @@ def main():
     
     # Check for unstaged changes
     stashed = False
-    if has_uncommitted_changes(repo_path):
-        dialog = UnstagedChangesDialog()
+    unstaged_files = get_unstaged_files(repo_path)
+    if unstaged_files:
+        dialog = UnstagedChangesDialog(len(unstaged_files))
         result = dialog.exec()
         
         if result == UnstagedChangesDialog.Accepted:
@@ -78,27 +79,22 @@ def main():
                 QMessageBox.critical(None, "Error", "Failed to stash changes. Please stash or commit manually.")
                 sys.exit(1)
         elif result == UnstagedChangesDialog.CommitEachResult:
-            files = get_unstaged_files(repo_path)
-            if files:
-                # Create a temporary progress dialog (no parent since main window not created yet)
-                progress = ProgressDialog("Committing Changes", f"Committing {len(files)} files individually...", None)
-                progress.show()
-                # Process events to show the dialog
+            # We already have the files list
+            progress = ProgressDialog("Committing Changes", f"Committing {len(unstaged_files)} files individually...", None)
+            progress.show()
+            QApplication.processEvents()
+            
+            success_count = 0
+            for i, f in enumerate(unstaged_files):
+                progress.label.setText(f"Committing ({i+1}/{len(unstaged_files)}): {f}")
                 QApplication.processEvents()
-                
-                success_count = 0
-                for i, f in enumerate(files):
-                    progress.label.setText(f"Committing ({i+1}/{len(files)}): {f}")
-                    QApplication.processEvents()
-                    if commit_file(repo_path, f, f"changes in {f}"):
-                        success_count += 1
-                    else:
-                        print(f"Failed to commit {f}")
-                
-                progress.close()
-                print(f"Successfully committed {success_count} files.")
-            else:
-                print("No files discovered to commit.")
+                if commit_file(repo_path, f, f"changes in {f}"):
+                    success_count += 1
+                else:
+                    print(f"Failed to commit {f}")
+            
+            progress.close()
+            print(f"Successfully committed {success_count} files.")
         else:
             print("Exiting as requested by the user.")
             sys.exit(0)

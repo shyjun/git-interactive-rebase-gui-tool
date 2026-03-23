@@ -649,7 +649,7 @@ class UnstagedChangesDialog(QDialog):
     """Warning dialog for unstaged changes on startup."""
     CommitEachResult = 2
 
-    def __init__(self, parent=None):
+    def __init__(self, num_files, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Unstaged Changes Warning")
         self.setMinimumWidth(600)
@@ -677,7 +677,10 @@ class UnstagedChangesDialog(QDialog):
         btn_layout.setSpacing(10)
         
         self.stash_btn = QPushButton("Stash and proceed to app")
-        self.commit_each_btn = QPushButton("Commit each file changes separately and start app")
+        
+        # Dynamic button text based on file count
+        commit_btn_text = f"Commit each file changes separately and start app ({num_files} files modified, {num_files} commits)"
+        self.commit_each_btn = QPushButton(commit_btn_text)
         self.exit_btn = QPushButton("Exit")
         
         # Style buttons a bit
