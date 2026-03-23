@@ -16,9 +16,9 @@ import tempfile
 import stat
 
 from lib.utils import get_assets_path
-from lib.git_helpers import get_root_commit, has_uncommitted_changes, stash_changes
+from lib.git_helpers import get_root_commit, has_uncommitted_changes, stash_changes, get_unstaged_files, commit_file
 from lib.app_window import GitInteractiveRebaseApp
-from lib.dialogs import UnstagedChangesDialog
+from lib.dialogs import UnstagedChangesDialog, ProgressDialog
 
 import shutil
 
@@ -68,13 +68,37 @@ def main():
     stashed = False
     if has_uncommitted_changes(repo_path):
         dialog = UnstagedChangesDialog()
-        if dialog.exec() == UnstagedChangesDialog.Accepted:
+        result = dialog.exec()
+        
+        if result == UnstagedChangesDialog.Accepted:
             if stash_changes(repo_path):
                 print("Changes stashed successfully.")
                 stashed = True
             else:
                 QMessageBox.critical(None, "Error", "Failed to stash changes. Please stash or commit manually.")
                 sys.exit(1)
+        elif result == UnstagedChangesDialog.CommitEachResult:
+            files = get_unstaged_files(repo_path)
+            if files:
+                # Create a temporary progress dialog (no parent since main window not created yet)
+                progress = ProgressDialog("Committing Changes", f"Committing {len(files)} files individually...", None)
+                progress.show()
+                # Process events to show the dialog
+                QApplication.processEvents()
+                
+                success_count = 0
+                for i, f in enumerate(files):
+                    progress.label.setText(f"Committing ({i+1}/{len(files)}): {f}")
+                    QApplication.processEvents()
+                    if commit_file(repo_path, f, f"changes in {f}"):
+                        success_count += 1
+                    else:
+                        print(f"Failed to commit {f}")
+                
+                progress.close()
+                print(f"Successfully committed {success_count} files.")
+            else:
+                print("No files discovered to commit.")
         else:
             print("Exiting as requested by the user.")
             sys.exit(0)

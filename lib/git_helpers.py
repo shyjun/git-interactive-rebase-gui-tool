@@ -197,3 +197,31 @@ def get_remote_head_sha(repo_url):
         return None
     except:
         return None
+def get_unstaged_files(repo_path):
+    """Returns a list of file paths that have unstaged changes."""
+    try:
+        cmd = ["git", "status", "--porcelain", "--untracked-files=no"]
+        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
+        files = []
+        for line in result.stdout.strip().split('\n'):
+            if not line.strip(): continue
+            # Format: XY filename (X=index, Y=worktree)
+            # We care about unstaged changes (Y != ' ' and Y != '?')
+            # But porcelain v1 is a bit cryptic. Simplified check:
+            parts = line.strip().split(maxsplit=1)
+            if len(parts) == 2:
+                files.append(parts[1])
+        return files
+    except:
+        return []
+
+def commit_file(repo_path, filepath, message):
+    """Stages and commits a single file."""
+    try:
+        # Stage the file
+        subprocess.run(["git", "add", filepath], cwd=repo_path, check=True, capture_output=True)
+        # Commit the file
+        subprocess.run(["git", "commit", "-m", message], cwd=repo_path, check=True, capture_output=True)
+        return True
+    except subprocess.CalledProcessError:
+        return False
