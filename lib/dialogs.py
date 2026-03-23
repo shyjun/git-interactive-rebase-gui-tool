@@ -621,15 +621,15 @@ class ProgressDialog(QDialog):
     def __init__(self, title, message, parent=None):
         super().__init__(parent)
         self.setWindowTitle(title)
-        self.setMinimumWidth(400)
+        self.setFixedSize(450, 150)
         self.setModal(True)
         
         # Disable close button and other hints to make it more "locked"
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint & ~Qt.WindowCloseButtonHint)
         
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(15)
+        layout.setContentsMargins(25, 25, 25, 25)
+        layout.setSpacing(10)
         
         self.label = QLabel(message)
         self.label.setAlignment(Qt.AlignCenter)
