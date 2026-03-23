@@ -647,10 +647,12 @@ class ProgressDialog(QDialog):
 
 class UnstagedChangesDialog(QDialog):
     """Warning dialog for unstaged changes on startup."""
+    CommitEachResult = 2
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Unstaged Changes Warning")
-        self.setMinimumWidth(500)
+        self.setMinimumWidth(600)
         self.setModal(True)
         
         layout = QVBoxLayout(self)
@@ -661,9 +663,9 @@ class UnstagedChangesDialog(QDialog):
             "<b>You have unstaged changes in the repo.</b><br><br>"
             "If needed, we can stash the changes and go ahead with the app. "
             "But be very careful with what you are doing.<br><br>"
-            "Also if you are not a git expert, please exit now, commit/save/discard "
-            "the unstaged changes and start the app again.<br><br>"
-            "Do you want to proceed with stash and app, or exit ?"
+            "Alternatively, we can <b>commit each modified file individually</b> with a default message "
+            "like 'changes in &lt;filename&gt;' and proceed.<br><br>"
+            "Otherwise, please exit, commit/discard manually, and start the app again."
         )
         
         self.label = QLabel(message)
@@ -671,21 +673,24 @@ class UnstagedChangesDialog(QDialog):
         self.label.setStyleSheet("font-size: 13px;")
         layout.addWidget(self.label)
         
-        btn_layout = QHBoxLayout()
+        btn_layout = QVBoxLayout()
+        btn_layout.setSpacing(10)
+        
         self.stash_btn = QPushButton("Stash and proceed to app")
+        self.commit_each_btn = QPushButton("Commit each file changes separately and start app")
         self.exit_btn = QPushButton("Exit")
         
         # Style buttons a bit
-        self.stash_btn.setMinimumHeight(35)
-        self.exit_btn.setMinimumHeight(35)
+        for btn in [self.stash_btn, self.commit_each_btn, self.exit_btn]:
+            btn.setMinimumHeight(35)
         
         self.stash_btn.clicked.connect(self.accept)
+        self.commit_each_btn.clicked.connect(lambda: self.done(self.CommitEachResult))
         self.exit_btn.clicked.connect(self.reject)
         
-        btn_layout.addStretch()
         btn_layout.addWidget(self.stash_btn)
+        btn_layout.addWidget(self.commit_each_btn)
         btn_layout.addWidget(self.exit_btn)
-        btn_layout.addStretch()
         
         layout.addLayout(btn_layout)
 
