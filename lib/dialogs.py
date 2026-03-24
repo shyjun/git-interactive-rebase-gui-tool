@@ -648,6 +648,7 @@ class ProgressDialog(QDialog):
 class UnstagedChangesDialog(QDialog):
     """Warning dialog for unstaged changes on startup."""
     CommitEachResult = 2
+    BulkCommitResult = 3
 
     def __init__(self, num_files, parent=None):
         super().__init__(parent)
@@ -663,8 +664,7 @@ class UnstagedChangesDialog(QDialog):
             "<b>You have unstaged changes in the repo.</b><br><br>"
             "If needed, we can stash the changes and go ahead with the app. "
             "But be very careful with what you are doing.<br><br>"
-            "Alternatively, we can <b>commit each modified file individually</b> with a default message "
-            "like 'changes in &lt;filename&gt;' and proceed.<br><br>"
+            "Alternatively, we can <b>commit the changes</b> in various ways before we proceed.<br><br>"
             "Otherwise, please exit, commit/discard manually, and start the app again."
         )
         
@@ -678,21 +678,26 @@ class UnstagedChangesDialog(QDialog):
         
         self.stash_btn = QPushButton("Stash and proceed to app")
         
-        # Dynamic button text based on file count
-        commit_btn_text = f"Commit each file changes separately and start app ({num_files} files modified, {num_files} commits)"
-        self.commit_each_btn = QPushButton(commit_btn_text)
+        commit_each_text = f"Commit each file changes separately and start app ({num_files} files modified, {num_files} commits)"
+        self.commit_each_btn = QPushButton(commit_each_text)
+        
+        bulk_commit_text = f"Commit all unsaved changes to a single 'bulk' commit (Number of modified files: {num_files})"
+        self.bulk_commit_btn = QPushButton(bulk_commit_text)
+        
         self.exit_btn = QPushButton("Exit")
         
         # Style buttons a bit
-        for btn in [self.stash_btn, self.commit_each_btn, self.exit_btn]:
+        for btn in [self.stash_btn, self.commit_each_btn, self.bulk_commit_btn, self.exit_btn]:
             btn.setMinimumHeight(35)
         
         self.stash_btn.clicked.connect(self.accept)
         self.commit_each_btn.clicked.connect(lambda: self.done(self.CommitEachResult))
+        self.bulk_commit_btn.clicked.connect(lambda: self.done(self.BulkCommitResult))
         self.exit_btn.clicked.connect(self.reject)
         
         btn_layout.addWidget(self.stash_btn)
         btn_layout.addWidget(self.commit_each_btn)
+        btn_layout.addWidget(self.bulk_commit_btn)
         btn_layout.addWidget(self.exit_btn)
         
         layout.addLayout(btn_layout)

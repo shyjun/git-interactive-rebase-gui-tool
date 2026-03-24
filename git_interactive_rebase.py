@@ -16,7 +16,7 @@ import tempfile
 import stat
 
 from lib.utils import get_assets_path
-from lib.git_helpers import get_root_commit, has_uncommitted_changes, stash_changes, get_unstaged_files, commit_file
+from lib.git_helpers import get_root_commit, has_uncommitted_changes, stash_changes, get_unstaged_files, commit_file, bulk_commit_all
 from lib.app_window import GitInteractiveRebaseApp
 from lib.dialogs import UnstagedChangesDialog, ProgressDialog
 
@@ -95,6 +95,18 @@ def main():
             
             progress.close()
             print(f"Successfully committed {success_count} files.")
+        elif result == UnstagedChangesDialog.BulkCommitResult:
+            msg = f"bulk commit (Number of modified files: {len(unstaged_files)})"
+            progress = ProgressDialog("Bulk Committing", f"Committing {len(unstaged_files)} files at once...", None)
+            progress.show()
+            QApplication.processEvents()
+            
+            if bulk_commit_all(repo_path, msg):
+                print("Bulk commit successful.")
+            else:
+                print("Bulk commit failed.")
+            
+            progress.close()
         else:
             print("Exiting as requested by the user.")
             sys.exit(0)

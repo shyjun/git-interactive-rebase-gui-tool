@@ -225,3 +225,14 @@ def commit_file(repo_path, filepath, message):
         return True
     except subprocess.CalledProcessError:
         return False
+
+def bulk_commit_all(repo_path, message):
+    """Stages all modified files and commits them as a single bulk commit."""
+    try:
+        # Stage all changes (excluding untracked files as per --untracked-files=no in checks)
+        subprocess.run(["git", "add", "-u"], cwd=repo_path, check=True, capture_output=True)
+        # Commit
+        subprocess.run(["git", "commit", "-m", message], cwd=repo_path, check=True, capture_output=True)
+        return True
+    except subprocess.CalledProcessError:
+        return False
