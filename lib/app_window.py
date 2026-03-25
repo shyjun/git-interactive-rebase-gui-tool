@@ -1964,6 +1964,7 @@ finally:
 
     def perform_split_all_commits(self, sha, filepath):
         try:
+            short_sha = sha[:8]
             original_msg = get_full_commit_message(self.repo_path, sha)
             
             # The script will be executed when the sequence editor sees 'exec python3 <script>'
@@ -1973,6 +1974,37 @@ import sys, subprocess, os, tempfile
 target_sha = {repr(sha)}
 filepath = {repr(filepath)}
 original_msg = {repr(original_msg)}
+
+# 1. Get the diff of the file in the commit
+diff_text = subprocess.check_output(['git', 'log', '-p', '-1', target_sha, '--', filepath]).decode('utf-8')
+
+# 2. Parse into header and hunks
+lines = diff_text.split('\\n')
+header = []
+hunks = []
+current_hunk = []
+in_diff = False
+in_hunks = False
+
+for line in lines:
+    if line.startswith('diff --git'):
+        in_diff = True
+        header = [line]
+    elif in_diff and (line.startswith('index ') or line.startswith('--- ') or line.startswith('+++ ')):
+        header.append(line)
+    elif in_diff and line.startswith('@@'):
+        in_hunks = True
+        if current_hunk:
+            hunks.append(current_hunk)
+        current_hunk = [line]
+    elif in_hunks:
+        current_hunk.append(line)
+
+if current_hunk:
+    hunks.append(current_hunk)
+
+if not hunks:
+    sys.exit(0)
 
 # 3. Reset the working tree & index to parent commit state
 subprocess.check_call(['git', 'reset', '--hard', 'HEAD~1'])
@@ -2024,12 +2056,11 @@ if os.path.exists('temp.patch'):
                 f.write("    lines = tf.readlines()\n")
                 f.write("output = []\n")
                 f.write("for line in lines:\n")
+                f.write("    output.append(line)\n")
                 f.write("    stripped = line.strip()\n")
                 f.write("    if not stripped.startswith('#') and len(stripped.split()) >= 2 and stripped.split()[1].startswith(target_sha):\n")
-                f.write("        # Replace the 'pick' line with our exec script completely.\n")
+                f.write("        # Add our exec script AFTER the pick line\n")
                 f.write("        output.append(single_exec + '\\n')\n")
-                f.write("    else:\n")
-                f.write("        output.append(line)\n")
                 f.write("with open(todo_path, 'w') as tf:\n")
                 f.write("    tf.writelines(output)\n")
                 editor_script = f.name
@@ -2105,7 +2136,10 @@ files = {repr(files)}
 short_sha = {repr(short_sha)}
 original_msg = {repr(original_msg)}
 
-# Since we replaced the 'pick' line, HEAD is at the parent of 'sha'.
+# This script is executed *after* the 'pick' line, so HEAD is already at target_sha.
+# We need to reset to its parent to re-apply changes.
+subprocess.check_call(['git', 'reset', '--hard', 'HEAD~1'])
+
 for i, filename in enumerate(files):
     # checkout file from original commit to stage it
     subprocess.check_call(['git', 'checkout', sha, '--', filename])
@@ -2150,12 +2184,11 @@ for i, filename in enumerate(files):
                 f.write("    lines = tf.readlines()\n")
                 f.write("output = []\n")
                 f.write("for line in lines:\n")
+                f.write("    output.append(line)\n")
                 f.write("    stripped = line.strip()\n")
                 f.write("    if not stripped.startswith('#') and len(stripped.split()) >= 2 and stripped.split()[1].startswith(target_sha):\n")
-                f.write("        # Replace 'pick target_sha' with our exec line\n")
+                f.write("        # Add our exec line AFTER the pick line\n")
                 f.write("        output.append(single_exec + '\\n')\n")
-                f.write("    else:\n")
-                f.write("        output.append(line)\n")
                 f.write("with open(todo_path, 'w') as tf:\n")
                 f.write("    tf.writelines(output)\n")
                 editor_script = f.name
