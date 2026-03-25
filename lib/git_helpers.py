@@ -163,7 +163,7 @@ def has_uncommitted_changes(repo_path):
         return False
 
 
-def stash_changes(repo_path, message="Antigravity: Pre-start stash"):
+def stash_changes(repo_path, message="git-interactive-rebase-gui-tool: Pre-start stash"):
     """Stashes unstaged changes in the repository."""
     try:
         cmd = ["git", "stash", "push", "-m", message]
