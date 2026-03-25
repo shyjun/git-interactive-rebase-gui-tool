@@ -302,6 +302,11 @@ class GitInteractiveRebaseApp(QMainWindow):
 
     def load_settings(self):
         """Loads persistent user settings like font size and theme."""
+        # Diff Tab
+        diff_tab_index = self.settings.value("diff_tab_index", 0, type=int)
+        if hasattr(self, 'diff_tab_widget'):
+            self.diff_tab_widget.setCurrentIndex(diff_tab_index)
+            
         # Font Size
         size = self.settings.value("font_size", 10, type=int)
         self.current_font_size = size
@@ -702,6 +707,7 @@ class GitInteractiveRebaseApp(QMainWindow):
                 self.filewise_diff_view.setPlainText(f"Error loading diff: {e}")
 
     def on_diff_tab_changed(self, index):
+        self.settings.setValue("diff_tab_index", index)
         self.update_side_diff()
 
     def on_filewise_file_selected(self, filepath):
