@@ -162,8 +162,11 @@ def has_uncommitted_changes(repo_path):
     except subprocess.CalledProcessError:
         return False
 
-
-def stash_changes(repo_path, message="git-interactive-rebase-gui-tool: Pre-start stash"):
+from datetime import datetime
+def stash_changes(repo_path, message=None):
+    if message is None:
+        now = datetime.now()
+        message = f"git-interactive-rebase-gui-tool: Pre-start stash ({now.strftime('%H:%M:%S %Y-%m-%d')})"
     """Stashes unstaged changes in the repository."""
     try:
         cmd = ["git", "stash", "push", "-m", message]
