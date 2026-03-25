@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
     QWidget, QMessageBox, QListWidgetItem, QMenu, QDialog,
     QTextEdit, QPushButton, QHBoxLayout, QLabel, QRadioButton,
     QLineEdit, QSplitter, QInputDialog, QGroupBox, QSizePolicy, QCheckBox,
-    QStyledItemDelegate, QStyle, QStyleOptionViewItem, QStackedWidget, QButtonGroup
+    QStyledItemDelegate, QStyle, QStyleOptionViewItem, QTabWidget
 )
 from PySide6.QtGui import QFont, QSyntaxHighlighter, QTextCharFormat, QColor, QAction, QShortcut, QKeySequence, QIcon, QBrush
 from PySide6.QtCore import Qt, QSize, QSettings, QThread, Signal
@@ -399,39 +399,25 @@ class GitInteractiveRebaseApp(QMainWindow):
         right_top_layout = QVBoxLayout(self.right_top_widget)
         right_top_layout.setContentsMargins(0, 0, 0, 0)
         
-        # Diff Mode selection
-        diff_mode_layout = QHBoxLayout()
-        self.plain_diff_radio = QRadioButton("plain diff")
-        self.filewise_diff_radio = QRadioButton("filewise diff")
-        self.plain_diff_radio.setChecked(True)
-        
-        self.diff_mode_group = QButtonGroup(self)
-        self.diff_mode_group.addButton(self.plain_diff_radio)
-        self.diff_mode_group.addButton(self.filewise_diff_radio)
-        
-        diff_mode_layout.addWidget(self.plain_diff_radio)
-        diff_mode_layout.addWidget(self.filewise_diff_radio)
-        diff_mode_layout.addStretch()
-        
-        right_top_layout.addLayout(diff_mode_layout)
-        
         self.side_commit_label = QLabel("Select a commit to view details")
         self.side_commit_label.setTextFormat(Qt.RichText)
         right_top_layout.addWidget(self.side_commit_label)
         
         self.side_commit_msg = QTextEdit()
         self.side_commit_msg.setReadOnly(True)
+        self.side_commit_msg.setMinimumHeight(60)
         right_top_layout.addWidget(self.side_commit_msg)
         
         self.right_splitter.addWidget(self.right_top_widget)
 
-        # Bottom half: Diff Stack
-        self.diff_stack = QStackedWidget()
+        # Bottom half: Diff Tab Widget
+        self.diff_tab_widget = QTabWidget()
+        self.diff_tab_widget.setMinimumHeight(150)
         
         # Page 0: Plain Diff
         self.side_diff_view = QTextEdit()
         self.side_diff_view.setReadOnly(True)
-        self.diff_stack.addWidget(self.side_diff_view)
+        self.diff_tab_widget.addTab(self.side_diff_view, "Plain Diff")
         
         # Page 1: Filewise Diff
         filewise_widget = QWidget()
@@ -448,23 +434,28 @@ class GitInteractiveRebaseApp(QMainWindow):
         # File diff
         self.filewise_diff_view = QTextEdit()
         self.filewise_diff_view.setReadOnly(True)
+        self.filewise_diff_view.setMinimumHeight(100)
         
         # Apply highlighter
         self.filewise_highlighter = DiffHighlighter(self.filewise_diff_view.document())
         
         self.filewise_splitter.addWidget(self.filewise_file_list)
         self.filewise_splitter.addWidget(self.filewise_diff_view)
+        self.filewise_splitter.setCollapsible(0, False)
+        self.filewise_splitter.setCollapsible(1, False)
         self.filewise_splitter.setSizes([100, 300]) # default split
         
         filewise_layout.addWidget(self.filewise_splitter)
-        self.diff_stack.addWidget(filewise_widget)
+        self.diff_tab_widget.addTab(filewise_widget, "File-wise Diff")
         
-        self.right_splitter.addWidget(self.diff_stack)
+        self.right_splitter.addWidget(self.diff_tab_widget)
         
         # Add the vertical splitter to the right panel's layout
         right_layout.addWidget(self.right_splitter)
         
         # Set initial split sizes for top (message) and bottom (diff)
+        self.right_splitter.setCollapsible(0, False)
+        self.right_splitter.setCollapsible(1, False)
         self.right_splitter.setSizes([150, 650])
         
         self.right_panel.setMinimumWidth(150)
@@ -480,8 +471,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.list_widget.itemDoubleClicked.connect(self.view_commit)
         self.list_widget.itemSelectionChanged.connect(self.update_side_diff)
         
-        self.plain_diff_radio.toggled.connect(self.on_diff_mode_changed)
-        self.filewise_diff_radio.toggled.connect(self.on_diff_mode_changed)
+        self.diff_tab_widget.currentChanged.connect(self.on_diff_tab_changed)
         
         self.update_window_title()
 
@@ -686,7 +676,7 @@ class GitInteractiveRebaseApp(QMainWindow):
             self.side_commit_label.setText(f"Commit: <b>{sha}</b>  <span style='color:gray;'>({meta})</span>")
             self.side_commit_msg.setPlainText(msg)
             
-            if self.plain_diff_radio.isChecked():
+            if self.diff_tab_widget.currentIndex() == 0:
                 diff_text = get_commit_diff(self.repo_path, sha)
                 self.side_diff_view.setPlainText(diff_text)
             else:
@@ -711,10 +701,7 @@ class GitInteractiveRebaseApp(QMainWindow):
             if hasattr(self, 'filewise_diff_view'):
                 self.filewise_diff_view.setPlainText(f"Error loading diff: {e}")
 
-    def on_diff_mode_changed(self):
-        if hasattr(self, 'diff_stack'):
-            idx = 0 if self.plain_diff_radio.isChecked() else 1
-            self.diff_stack.setCurrentIndex(idx)
+    def on_diff_tab_changed(self, index):
         self.update_side_diff()
 
     def on_filewise_file_selected(self, filepath):
