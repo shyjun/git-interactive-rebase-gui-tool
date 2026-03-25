@@ -1829,30 +1829,16 @@ class GitInteractiveRebaseApp(QMainWindow):
                 QMessageBox.information(self, "Info", f"File '{filepath}' is the only modified file in this commit. Nothing to split.")
                 return
 
-            def sq(s):
-                return "'" + s.replace("'", "'\\''") + "'"
-
-            exec_cmds = []
             original_msg = get_full_commit_message(self.repo_path, sha)
             new_msg = f"{filepath} changes separated out from {short_sha}\n\n{original_msg}"
             
-            # Build a Python action script (like perform_split_all_commits) so multiline
-            # commit messages survive without shell quoting issues in git-rebase-todo.
+            # Action script content
             action_script_content = f"""#!/usr/bin/env python3
 import subprocess, os, tempfile, sys
 
 sha = {repr(sha)}
 filepath = {repr(filepath)}
 new_msg = {repr(new_msg)}
-
-# Debug log
-with open('/tmp/git_split_debug.txt', 'w', encoding='utf-8') as dbg:
-    dbg.write(f'sha={{sha}}\n')
-    dbg.write(f'filepath={{filepath}}\n')
-    dbg.write(f'new_msg repr={{repr(new_msg)}}\n')
-    dbg.write('---new_msg content---\n')
-    dbg.write(new_msg)
-    dbg.write('\n---end---\n')
 
 # 1. Soft-reset to unstage the commit
 subprocess.check_call(['git', 'reset', '--soft', 'HEAD~1'])
@@ -1963,48 +1949,15 @@ finally:
 
     def perform_split_all_commits(self, sha, filepath):
         try:
-            short_sha = sha[:8]
             original_msg = get_full_commit_message(self.repo_path, sha)
             
             # The script will be executed when the sequence editor sees 'exec python3 <script>'
             split_script_content = f"""#!/usr/bin/env python3
-import sys, subprocess, os
+import sys, subprocess, os, tempfile
 
 target_sha = {repr(sha)}
 filepath = {repr(filepath)}
 original_msg = {repr(original_msg)}
-
-# 1. Get the diff of the file in the commit
-diff_text = subprocess.check_output(['git', 'log', '-p', '-1', target_sha, '--', filepath]).decode('utf-8')
-
-# 2. Parse into header and hunks
-lines = diff_text.split('\\n')
-header = []
-hunks = []
-current_hunk = []
-in_diff = False
-in_hunks = False
-
-for line in lines:
-    if line.startswith('diff --git'):
-        in_diff = True
-        header = [line]
-    elif in_diff and (line.startswith('index ') or line.startswith('--- ') or line.startswith('+++ ')):
-        header.append(line)
-    elif in_diff and line.startswith('@@'):
-        in_hunks = True
-        if current_hunk:
-            hunks.append(current_hunk)
-        current_hunk = [line]
-    elif in_hunks:
-        current_hunk.append(line)
-
-if current_hunk:
-    hunks.append(current_hunk)
-
-if not hunks:
-    print("No textual hunks found to split.")
-    sys.exit(0)
 
 # 3. Reset the working tree & index to parent commit state
 subprocess.check_call(['git', 'reset', '--hard', 'HEAD~1'])
@@ -2020,7 +1973,16 @@ for i, hunk in enumerate(hunks):
     subprocess.check_call(['git', 'add', filepath])
     
     new_msg = f"change-{{i+1}} of {{target_sha[:8]}}\\n\\n{{original_msg}}"
-    subprocess.check_call(['git', 'commit', '-m', new_msg])
+    
+    # Use temp file for multiline message
+    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt', encoding='utf-8') as mf:
+        mf.write(new_msg)
+        mf_path = mf.name
+    try:
+        subprocess.check_call(['git', 'commit', '-F', mf_path])
+    finally:
+        if os.path.exists(mf_path):
+            os.unlink(mf_path)
 
 if os.path.exists('temp.patch'):
     os.unlink('temp.patch')
@@ -2117,25 +2079,47 @@ if os.path.exists('temp.patch'):
         """Executes splitting each file into its own commit using rebase exec."""
         try:
             short_sha = sha[:8]
+            original_msg = get_full_commit_message(self.repo_path, sha)
             
-            def sq(s):
-                return "'" + s.replace("'", "'\\''") + "'"
+            # Action script content for splitting each file
+            action_script_content = f"""#!/usr/bin/env python3
+import subprocess, os, tempfile, sys
 
-            exec_cmds = []
-            # NO reset here. HEAD is at sha^ because we replaced the pick line.
+sha = {repr(sha)}
+files = {repr(files)}
+short_sha = {repr(short_sha)}
+original_msg = {repr(original_msg)}
+
+# Since we replaced the 'pick' line, HEAD is at the parent of 'sha'.
+for i, filename in enumerate(files):
+    # checkout file from original commit to stage it
+    subprocess.check_call(['git', 'checkout', sha, '--', filename])
+    
+    if i == 0:
+        # First file gets original commit message
+        subprocess.check_call(['git', 'commit', '-C', sha])
+    else:
+        # Others get "filename changes separated out from short_sha" + original_msg
+        msg = f"{{filename}} changes separated out from {{short_sha}}\\n\\n{{original_msg}}"
+        
+        # Use temp file for multiline message
+        msg_fd, msg_path = tempfile.mkstemp(prefix='git_msg_split_', text=True)
+        with os.fdopen(msg_fd, 'w', encoding='utf-8') as f:
+            f.write(msg)
+        try:
+            subprocess.check_call(['git', 'commit', '-F', msg_path, '--no-verify'])
+        finally:
+            try:
+                os.unlink(msg_path)
+            except:
+                pass
+"""
+            action_fd, action_path = tempfile.mkstemp(prefix='git_split_perfile_', suffix='.py', text=True)
+            with os.fdopen(action_fd, 'w', encoding='utf-8') as f:
+                f.write(action_script_content)
+            os.chmod(action_path, os.stat(action_path).st_mode | stat.S_IEXEC)
             
-            for i, filename in enumerate(files):
-                # stage file from original commit
-                exec_cmds.append(f"git checkout {sha} -- {sq(filename)}")
-                if i == 0:
-                    # First file gets original commit message
-                    exec_cmds.append(f"git commit -C {sha}")
-                else:
-                    # Others get "filename changes separated out from short_sha"
-                    msg = f"{filename} changes separated out from {short_sha}"
-                    exec_cmds.append(f"git commit -m {sq(msg)} --no-verify")
-
-            single_exec = "exec " + " && ".join(exec_cmds)
+            single_exec = f"exec python3 {action_path}"
 
             current_shas = [self.list_widget.item(i).text().split()[0]
                             for i in range(self.list_widget.count())]
@@ -2152,9 +2136,8 @@ if os.path.exists('temp.patch'):
                 f.write("output = []\n")
                 f.write("for line in lines:\n")
                 f.write("    stripped = line.strip()\n")
-                f.write("    parts = stripped.split()\n")
-                # We replace the pick line with the exec block
-                f.write("    if not stripped.startswith('#') and len(parts) >= 2 and target_sha.startswith(parts[1]):\n")
+                f.write("    if not stripped.startswith('#') and len(stripped.split()) >= 2 and stripped.split()[1].startswith(target_sha):\n")
+                f.write("        # Replace 'pick target_sha' with our exec line\n")
                 f.write("        output.append(single_exec + '\\n')\n")
                 f.write("    else:\n")
                 f.write("        output.append(line)\n")
@@ -2186,6 +2169,7 @@ if os.path.exists('temp.patch'):
             
             try:
                 os.unlink(editor_script)
+                os.unlink(action_path) # Clean up the action script as well
             except:
                 pass
 
