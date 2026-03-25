@@ -1833,15 +1833,53 @@ class GitInteractiveRebaseApp(QMainWindow):
                 return "'" + s.replace("'", "'\\''") + "'"
 
             exec_cmds = []
-            exec_cmds.append("git reset --soft HEAD~1")
-            exec_cmds.append(f"git reset HEAD -- {sq(filepath)}")
-            exec_cmds.append(f"git commit -C {sha}")
-            exec_cmds.append(f"git add --all -- {sq(filepath)}")
             original_msg = get_full_commit_message(self.repo_path, sha)
-            new_msg = f"{filepath} changes separated out from {short_sha}\n{original_msg}"
-            exec_cmds.append(f"git commit -m {sq(new_msg)}")
+            new_msg = f"{filepath} changes separated out from {short_sha}\n\n{original_msg}"
+            
+            # Build a Python action script (like perform_split_all_commits) so multiline
+            # commit messages survive without shell quoting issues in git-rebase-todo.
+            action_script_content = f"""#!/usr/bin/env python3
+import subprocess, os, tempfile, sys
 
-            single_exec = "exec " + " && ".join(exec_cmds)
+sha = {repr(sha)}
+filepath = {repr(filepath)}
+new_msg = {repr(new_msg)}
+
+# Debug log
+with open('/tmp/git_split_debug.txt', 'w', encoding='utf-8') as dbg:
+    dbg.write(f'sha={{sha}}\n')
+    dbg.write(f'filepath={{filepath}}\n')
+    dbg.write(f'new_msg repr={{repr(new_msg)}}\n')
+    dbg.write('---new_msg content---\n')
+    dbg.write(new_msg)
+    dbg.write('\n---end---\n')
+
+# 1. Soft-reset to unstage the commit
+subprocess.check_call(['git', 'reset', '--soft', 'HEAD~1'])
+# 2. Un-stage the target file from the index
+subprocess.check_call(['git', 'reset', 'HEAD', '--', filepath])
+# 3. Re-commit the remaining files with the original commit message
+subprocess.check_call(['git', 'commit', '-C', sha])
+# 4. Stage the target file
+subprocess.check_call(['git', 'add', '--all', '--', filepath])
+# 5. Commit the target file with the new descriptive message
+msg_fd, msg_path = tempfile.mkstemp(prefix='git_msg_', text=True)
+with os.fdopen(msg_fd, 'w', encoding='utf-8') as f:
+    f.write(new_msg)
+try:
+    subprocess.check_call(['git', 'commit', '-F', msg_path])
+finally:
+    try:
+        os.unlink(msg_path)
+    except:
+        pass
+"""
+            action_fd, action_path = tempfile.mkstemp(prefix='git_split_action_', suffix='.py', text=True)
+            with os.fdopen(action_fd, 'w', encoding='utf-8') as f:
+                f.write(action_script_content)
+            os.chmod(action_path, os.stat(action_path).st_mode | stat.S_IEXEC)
+            
+            single_exec = f"exec python3 {action_path}"
 
             current_shas = [self.list_widget.item(i).text().split()[0]
                             for i in range(self.list_widget.count())]
@@ -1890,12 +1928,17 @@ class GitInteractiveRebaseApp(QMainWindow):
 
             result = subprocess.run(cmd, cwd=self.repo_path, env=env,
                                     capture_output=True, text=True)
-            os.unlink(editor_script)
+            
+            try:
+                os.unlink(editor_script)
+                os.unlink(action_path)
+            except:
+                pass
 
             if result.returncode == 0:
                 QMessageBox.information(self, "Success",
                     f"File '{filepath}' has been moved out of commit {short_sha}.\n\n"
-                    f"A new commit was created: \"{new_msg}\"")
+                    f"A new commit was created with message: \"{filepath} changes separated out from {short_sha}\"")
             else:
                 subprocess.run(["git", "rebase", "--abort"],
                                cwd=self.repo_path, capture_output=True)
@@ -1921,6 +1964,7 @@ class GitInteractiveRebaseApp(QMainWindow):
     def perform_split_all_commits(self, sha, filepath):
         try:
             short_sha = sha[:8]
+            original_msg = get_full_commit_message(self.repo_path, sha)
             
             # The script will be executed when the sequence editor sees 'exec python3 <script>'
             split_script_content = f"""#!/usr/bin/env python3
@@ -1928,6 +1972,7 @@ import sys, subprocess, os
 
 target_sha = {repr(sha)}
 filepath = {repr(filepath)}
+original_msg = {repr(original_msg)}
 
 # 1. Get the diff of the file in the commit
 diff_text = subprocess.check_output(['git', 'log', '-p', '-1', target_sha, '--', filepath]).decode('utf-8')
@@ -1973,7 +2018,9 @@ for i, hunk in enumerate(hunks):
     # Apply patch. --no-backup-if-mismatch ignores minor offset issues.
     subprocess.check_call(['patch', '-p1', '-i', 'temp.patch', '--no-backup-if-mismatch'])
     subprocess.check_call(['git', 'add', filepath])
-    subprocess.check_call(['git', 'commit', '-m', f'change-{{i+1}} of {{target_sha[:8]}}'])
+    
+    new_msg = f"change-{{i+1}} of {{target_sha[:8]}}\\n\\n{{original_msg}}"
+    subprocess.check_call(['git', 'commit', '-m', new_msg])
 
 if os.path.exists('temp.patch'):
     os.unlink('temp.patch')
