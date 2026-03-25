@@ -956,25 +956,25 @@ class GitInteractiveRebaseApp(QMainWindow):
 
 
     def handle_git_reset_hard_origin(self):
-        """Runs git reset --hard origin."""
+        """Runs git reset --hard origin/<current_branch>."""
+        branch = get_current_branch(self.repo_path)
+        origin_ref = f"origin/{branch}"
         reply = QMessageBox.question(
             self, 
             "Confirm Reset to Origin",
-            "Are you sure you want to <b>reset --hard origin</b>?<br><br>"
-            "This will discard all uncommitted changes and move your branch to the state of 'origin'.",
+            f"Are you sure you want to <b>reset --hard {origin_ref}</b>?<br><br>"
+            f"This will discard all uncommitted changes and move your branch to '{origin_ref}'.",
             QMessageBox.Yes | QMessageBox.No, 
             QMessageBox.No
         )
         if reply == QMessageBox.Yes:
             self.save_undo_state()
-            print("Resetting hard to origin...")
+            print(f"Resetting hard to {origin_ref}...")
             try:
-                subprocess.run(["git", "reset", "--hard", "origin"], cwd=self.repo_path, check=True, capture_output=True, text=True, encoding='utf-8', errors='replace')
-                QMessageBox.information(self, "Success", "Successfully reset --hard to origin.")
+                subprocess.run(["git", "reset", "--hard", origin_ref], cwd=self.repo_path, check=True, capture_output=True, text=True, encoding='utf-8', errors='replace')
+                QMessageBox.information(self, "Success", f"Successfully reset --hard to {origin_ref}.")
             except subprocess.CalledProcessError as e:
-                # If 'origin' doesn't exist, try 'origin/main' or 'origin/master' as a fallback? 
-                # No, just report the error as per git's behavior.
-                QMessageBox.critical(self, "Reset Failed", f"Could not perform reset to origin.\n\nError: {e.stderr}")
+                QMessageBox.critical(self, "Reset Failed", f"Could not perform reset to {origin_ref}.\n\nError: {e.stderr}")
             finally:
                 self.load_history()
 
@@ -2361,6 +2361,11 @@ if os.path.exists('temp.patch'):
 
         print("Refreshing...")
         self.update_window_title()
+        
+        # Update origin reset button label with current branch
+        if hasattr(self, 'reset_origin_btn'):
+            branch = get_current_branch(self.repo_path)
+            self.reset_origin_btn.setText(f"git reset --hard origin/{branch}")
         
         # Save current row to restore selection
         old_row = self.list_widget.currentRow()
