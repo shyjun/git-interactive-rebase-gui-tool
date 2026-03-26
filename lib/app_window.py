@@ -959,6 +959,17 @@ class GitInteractiveRebaseApp(QMainWindow):
         """Runs git reset --hard origin/<current_branch>."""
         branch = get_current_branch(self.repo_path)
         origin_ref = f"origin/{branch}"
+        
+        # Check if HEAD is already at origin_ref
+        try:
+            head_sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=self.repo_path).decode('utf-8').strip()
+            origin_sha = subprocess.check_output(["git", "rev-parse", origin_ref], cwd=self.repo_path).decode('utf-8').strip()
+            if head_sha == origin_sha:
+                QMessageBox.information(self, "Nothing to do", f"Current HEAD is same as {origin_ref} HEAD. Nothing to do.")
+                return
+        except Exception:
+            pass # Probably origin_ref doesn't exist, proceed to confirmation which will fail naturally if so
+            
         reply = QMessageBox.question(
             self, 
             "Confirm Reset to Origin",
