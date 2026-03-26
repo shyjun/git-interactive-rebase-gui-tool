@@ -18,7 +18,7 @@ from PySide6.QtWidgets import (
     QStyledItemDelegate, QStyle, QStyleOptionViewItem, QTabWidget
 )
 from PySide6.QtGui import QFont, QSyntaxHighlighter, QTextCharFormat, QColor, QAction, QShortcut, QKeySequence, QIcon, QBrush
-from PySide6.QtCore import Qt, QSize, QSettings, QThread, Signal
+from PySide6.QtCore import Qt, QSize, QSettings, QThread, Signal, QRect
 
 from lib.git_helpers import (
     get_git_history, get_head_sha, get_full_head_sha, get_current_branch, get_commit_diff,
@@ -202,22 +202,45 @@ class CommitItemDelegate(QStyledItemDelegate):
             painter.setPen(opt.palette.text().color())
             
         if branch_text:
-            branch_str = f"[{branch_text}] "
+            branches = branch_text.split(", ")
+            current_x = text_rect.left()
+            is_dark = main_win.settings.value("theme", "light") == "dark" if main_win else True
             
-            # Setup bold font and draw branch string
+            # Setup bold font
             bold_font = QFont(opt.font)
             bold_font.setBold(True)
             painter.setFont(bold_font)
-            
             fm_bold = painter.fontMetrics()
-            painter.drawText(text_rect, Qt.AlignLeft | Qt.AlignVCenter, branch_str)
+            
+            for br in branches:
+                is_remote = br.startswith("origin/")
+                
+                # Determine colors based on branch type and theme
+                if is_remote:
+                    color = QColor("#ffb74d") if is_dark else QColor("#e65100") # Amber/Orange
+                else:
+                    color = QColor("#81c784") if is_dark else QColor("#2e7d32") # Green
+                
+                # If selected, use highlighted text color to ensure readability
+                if opt.state & QStyle.State_Selected:
+                    color = opt.palette.highlightedText().color()
+                
+                painter.setPen(color)
+                br_box = f"[{br}] "
+                painter.drawText(QRect(current_x, text_rect.top(), text_rect.width() - (current_x - text_rect.left()), text_rect.height()), 
+                                 Qt.AlignLeft | Qt.AlignVCenter, br_box)
+                
+                current_x += fm_bold.horizontalAdvance(br_box)
             
             # Setup normal font and draw the rest of the text
-            branch_width = fm_bold.horizontalAdvance(branch_str)
             painter.setFont(opt.font)
+            if opt.state & QStyle.State_Selected:
+                painter.setPen(opt.palette.highlightedText().color())
+            else:
+                painter.setPen(opt.palette.text().color())
+                
             fm_normal = painter.fontMetrics()
-            
-            main_rect = text_rect.adjusted(branch_width, 0, 0, 0)
+            main_rect = text_rect.adjusted(current_x - text_rect.left(), 0, 0, 0)
             elided_main = fm_normal.elidedText(main_text, Qt.ElideRight, main_rect.width())
             painter.drawText(main_rect, Qt.AlignLeft | Qt.AlignVCenter, elided_main)
         else:
