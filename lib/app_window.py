@@ -1345,7 +1345,8 @@ class GitInteractiveRebaseApp(QMainWindow):
             
         sha = item.text().split()[0]
         menu = QMenu()
-        menu.setFont(QFont("Monospace", self.current_font_size))
+        menu_font = QFont("Monospace", max(8, self.current_font_size - 2))
+        menu.setFont(menu_font)
         
         mark_action = QAction(f"Mark / Unmark commit {sha}", self)
         view_action = QAction(f"Show / View commit {sha}", self)
@@ -1432,7 +1433,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         
         # Squash commits submenu
         squash_menu = menu.addMenu("Squash commits")
-        squash_menu.setFont(menu.font())
+        squash_menu.setFont(menu_font)
         
         select_multi_action = QAction("Select commits to squash", self)
         select_multi_action.setEnabled(not self.multi_select_mode)
@@ -1459,7 +1460,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         
         # Split Commit submenu
         split_menu = menu.addMenu("Split Commit")
-        split_menu.setFont(menu.font())
+        split_menu.setFont(menu_font)
         split_move_out_action = QAction("move one file changes out of this commit", self)
         split_move_out_action.triggered.connect(lambda: self.handle_split_commit(item))
         split_menu.addAction(split_move_out_action)
