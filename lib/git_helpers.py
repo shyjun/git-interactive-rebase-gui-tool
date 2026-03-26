@@ -40,16 +40,31 @@ def get_current_branch(repo_path):
         return "Unknown"
 
 def get_local_branches_map(repo_path):
-    """Returns a dict mapping short_sha to a list of branch names."""
+    """Returns a dict mapping short_sha to a list of branch names (local + specific remotes)."""
     try:
-        cmd = ["git", "for-each-ref", "--format=%(objectname:short) %(refname:short)", "refs/heads/"]
+        # Get current branch to include its remote counterpart
+        current_branch = get_current_branch(repo_path)
+        
+        # for-each-ref with multiple patterns. %(refname:short) for remotes is origin/branch.
+        cmd = ["git", "for-each-ref", "--format=%(objectname:short) %(refname:short)", 
+               "refs/heads/", "refs/remotes/origin/"]
+        
         result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
+        
+        target_remotes = ["origin/master", "origin/main"]
+        if current_branch and current_branch != "DETACHED":
+            target_remotes.append(f"origin/{current_branch}")
+            
         branch_map = {}
         for line in result.stdout.strip().split('\n'):
             if not line.strip(): continue
             parts = line.strip().split(maxsplit=1)
             if len(parts) == 2:
                 sha, branch = parts
+                # If it's a remote, only include it if it's one of our targets
+                if branch.startswith("origin/"):
+                    if branch not in target_remotes:
+                        continue
                 branch_map.setdefault(sha, []).append(branch)
         return branch_map
     except subprocess.CalledProcessError:
