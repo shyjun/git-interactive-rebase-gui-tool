@@ -40,6 +40,8 @@ A Python-based Git Interactive Rebase GUI tool to visually reorder, squash, edit
 
 ## 📸 Screenshot
 
+Coming soon...
+
 ---
 
 ## 🎥 Demo Video
