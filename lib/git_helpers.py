@@ -128,7 +128,7 @@ def get_commit_metadata(repo_path, commit_sha):
 def get_commit_files(repo_path, commit_sha):
     """Returns a list of file paths changed by a given commit."""
     try:
-        cmd = ["git", "diff-tree", "--no-commit-id", "-r", "--name-only", commit_sha]
+        cmd = ["git", "diff-tree", "--no-commit-id", "--root", "-r", "--name-only", commit_sha]
         result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
         return [f for f in result.stdout.strip().split('\n') if f.strip()]
     except subprocess.CalledProcessError as e:
