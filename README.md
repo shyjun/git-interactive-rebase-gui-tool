@@ -38,9 +38,9 @@ A Python-based Git Interactive Rebase GUI tool to visually reorder, squash, edit
 
 ---
 
-## 📸 Screenshot
+## 📸 Screenshots
 
-Coming soon...
+See the [Screenshots & Feature Guide](docs/screenshots.md) for visual documentation of all features.
 
 ---
 
