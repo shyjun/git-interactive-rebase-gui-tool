@@ -23,6 +23,7 @@
             <div class="links">
                 <a href="#features">Features</a>
                 <a href="#usage">Usage</a>
+                <a href="screenshots.md">Docs</a>
                 <a href="https://github.com/shyjun/git-interactive-rebase-gui-tool" class="github-btn">View on
                     GitHub</a>
             </div>
@@ -52,7 +53,7 @@
                 <div class="feature-card">
                     <div class="feature-icon">🔍</div>
                     <h3>Smart Navigation</h3>
-                    <p>Live search and filter by SHA or message. Quick shortcuts for a fluid workflow.</p>
+                    <p>Live search and filter by SHA or message. Keyboard shortcuts: <kbd>/</kbd> <kbd>Esc</kbd> <kbd>F5</kbd></p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">🎨</div>
@@ -77,14 +78,25 @@
                     <span class="dot green"></span>
                 </div>
                 <div class="terminal-body">
-                    <pre><code><span class="comment"># Clone the repository</span>
-git clone https://github.com/shyjun/git-interactive-rebase-gui-tool.git
-cd git-interactive-rebase-gui-tool
-
-<span class="comment"># Install dependencies</span>
-pip install PySide6
+                    <pre><code><span class="comment"># Install via pip</span>
+pip install git-interactive-rebase-gui-tool
 
 <span class="comment"># Run the app</span>
+git-interactive-rebase-gui-tool</code></pre>
+                </div>
+            </div>
+            <p class="usage-note">Or clone the repository for the latest development version:</p>
+            <div class="terminal-window">
+                <div class="terminal-header">
+                    <span class="dot red"></span>
+                    <span class="dot yellow"></span>
+                    <span class="dot green"></span>
+                </div>
+                <div class="terminal-body">
+                    <pre><code><span class="comment"># Clone and run</span>
+git clone https://github.com/shyjun/git-interactive-rebase-gui-tool.git
+cd git-interactive-rebase-gui-tool
+pip install PySide6
 python git_interactive_rebase.py</code></pre>
                 </div>
             </div>

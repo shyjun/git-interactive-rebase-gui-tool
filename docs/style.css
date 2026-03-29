@@ -216,6 +216,68 @@ nav {
     overflow: hidden;
     box-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.8);
     border: 1px solid var(--border);
+    margin-bottom: 1.5rem;
+}
+
+.usage-note {
+    text-align: center;
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+}
+
+.shortcuts {
+    padding: 6rem 5%;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.shortcuts h2 {
+    text-align: center;
+    font-size: 2.5rem;
+    margin-bottom: 2rem;
+}
+
+.shortcuts-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--card-bg);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.shortcuts-table th,
+.shortcuts-table td {
+    padding: 1rem 1.5rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+}
+
+.shortcuts-table th {
+    background: rgba(99, 102, 241, 0.1);
+    font-weight: 600;
+    color: var(--primary);
+}
+
+.shortcuts-table tr:last-child td {
+    border-bottom: none;
+}
+
+.shortcuts-table code {
+    background: rgba(99, 102, 241, 0.2);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-family: 'Consolas', monospace;
+    color: var(--primary);
+}
+
+kbd {
+    background: rgba(99, 102, 241, 0.15);
+    border: 1px solid var(--primary);
+    border-radius: 4px;
+    padding: 0.15rem 0.5rem;
+    font-family: 'Consolas', monospace;
+    font-size: 0.85rem;
+    color: var(--primary);
 }
 
 .terminal-header {
