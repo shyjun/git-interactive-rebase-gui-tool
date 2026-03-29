@@ -84,10 +84,10 @@ This tool provides a visual interface to simplify and safely manage commit histo
 
 ## 📦 Installation (Recommended)
 
-Install via pip:
+Install the latest version directly from GitHub:
 
 ```bash
-pip install git-interactive-rebase-gui-tool
+pip install git+https://github.com/shyjun/git-interactive-rebase-gui-tool.git
 ```
 
 Run the application:
@@ -134,7 +134,7 @@ This project is actively under development.
 
 ```bash
 pip uninstall git-interactive-rebase-gui-tool
-pip install git-interactive-rebase-gui-tool
+pip install git+https://github.com/shyjun/git-interactive-rebase-gui-tool.git
 ```
 
 ### If installed by clonning repository
