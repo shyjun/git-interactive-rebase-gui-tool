@@ -20,11 +20,13 @@ A Python-based Git Interactive Rebase GUI tool to visually reorder, squash, edit
 
 * **Live Search & Filter**: Instantly find any commit by searching its **SHA** or **Message**. Filtering is live while you type.
 
-  | Shortcut | Action |
-  |----------|--------|
-  | `/` | Focus search bar |
-  | `Esc` | Clear search and return to full history |
-  | `F5` | Refresh commit history |
+### ⌨️ Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `/` | Focus search bar |
+| `Esc` | Clear search / Close dialog |
+| `F5` | Refresh commit history |
 
 ### 🎨 Premium User Experience
 
