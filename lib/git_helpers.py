@@ -190,6 +190,15 @@ def stash_changes(repo_path, message=None):
     except subprocess.CalledProcessError:
         return False
 
+def stash_pop(repo_path):
+    """Pops the latest stash in the repository."""
+    try:
+        cmd = ["git", "stash", "pop"]
+        subprocess.run(cmd, cwd=repo_path, check=True, capture_output=True, text=True, encoding='utf-8', errors='replace')
+        return True
+    except subprocess.CalledProcessError:
+        return False
+
 def branch_exists(repo_path, branch_name):
     """Checks if a local or remote branch exists."""
     try:
