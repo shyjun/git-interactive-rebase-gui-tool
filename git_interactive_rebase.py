@@ -64,17 +64,17 @@ def main():
             QMessageBox.critical(None, "Error", f"Could not find root commit: {e}")
             sys.exit(1)
 
-    # Check for unstaged changes
-    stashed = False
-    unstaged_files = get_unstaged_files(repo_path)
+    # Check for unstaged changes (ignoring submodules as per design)
+    created_stash_sha = None
+    unstaged_files = get_unstaged_files(repo_path, ignore_submodules=True)
     if unstaged_files:
         dialog = UnstagedChangesDialog(len(unstaged_files))
         result = dialog.exec()
 
         if result == UnstagedChangesDialog.Accepted:
-            if stash_changes(repo_path):
-                print("Changes stashed successfully.")
-                stashed = True
+            created_stash_sha = stash_changes(repo_path)
+            if created_stash_sha:
+                print(f"Changes stashed successfully (SHA: {created_stash_sha}).")
             else:
                 QMessageBox.critical(None, "Error", "Failed to stash changes. Please stash or commit manually.")
                 sys.exit(1)
@@ -116,7 +116,7 @@ def main():
 
     exit_code = app.exec()
 
-    if stashed:
+    if created_stash_sha:
         # Final reminder before exiting the process completely
         msg_box = QMessageBox(None)
         msg_box.setWindowTitle("Stash Reminder")
@@ -126,8 +126,8 @@ def main():
         msg_box.exec()
 
         if msg_box.clickedButton() == yes_button:
-            if stash_pop(repo_path):
-                print("Stash popped successfully.")
+            if stash_pop(repo_path, created_stash_sha):
+                print(f"Stash {created_stash_sha} popped successfully.")
             else:
                 QMessageBox.critical(None, "Error", "Failed to pop stash. You may need to do it manually.")
 
