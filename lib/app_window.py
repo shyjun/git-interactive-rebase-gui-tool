@@ -292,10 +292,11 @@ class CommitListWidget(QListWidget):
                 self.main_window.load_history()
 
 class GitInteractiveRebaseApp(QMainWindow):
-    def __init__(self, repo_path, commit_sha):
+    def __init__(self, repo_path, commit_sha, app_start_time):
         super().__init__()
         self.repo_path = repo_path
         self.commit_sha = commit_sha
+        self.app_start_time = app_start_time
         self.start_time_full_head = get_full_head_sha(self.repo_path)
         self.start_time_head = get_head_sha(self.repo_path)
         self.last_head = None
@@ -365,8 +366,8 @@ class GitInteractiveRebaseApp(QMainWindow):
     def update_window_title(self):
         """Updates window title with branch, HEAD, and path."""
         branch = get_current_branch(self.repo_path)
-        head_sha = get_head_sha(self.repo_path)
-        title = f"git-interactive-rebase-gui-tool : branch={branch}, HEAD={head_sha}, path={self.repo_path}"
+        app_time = self.app_start_time if self.app_start_time else "N/A"
+        title = f"git-interactive-rebase-gui-tool : branch={branch}, path={self.repo_path}, app_start_time={app_time}"
         self.setWindowTitle(title)
 
     def restore_visibility_settings(self):

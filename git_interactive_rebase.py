@@ -9,6 +9,7 @@ Date: Feb 2026
 import argparse
 import sys
 import os
+from datetime import datetime
 
 from PySide6.QtWidgets import QApplication, QMessageBox
 from PySide6.QtGui import QIcon
@@ -111,7 +112,10 @@ def main():
             print("Exiting as requested by the user.")
             sys.exit(0)
 
-    window = GitInteractiveRebaseApp(repo_path, commit_sha)
+    now = datetime.now()
+    app_start_time = f"{now.strftime('%I.%M%p').lower()} {now.day}-{now.strftime('%b-%Y')}"
+
+    window = GitInteractiveRebaseApp(repo_path, commit_sha, app_start_time)
     window.show()
 
     exit_code = app.exec()
