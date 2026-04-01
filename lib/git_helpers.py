@@ -182,18 +182,50 @@ def stash_changes(repo_path, message=None):
     if message is None:
         now = datetime.now()
         message = f"git-interactive-rebase-gui-tool: Pre-start stash ({now.strftime('%H:%M:%S %Y-%m-%d')})"
-    """Stashes unstaged changes in the repository."""
+    """Stashes unstaged changes in the repository. Returns the stash SHA if successful, otherwise None."""
     try:
+        # Before stashing, get the current top stash SHA (if any)
+        old_stash_sha = None
+        try:
+            result = subprocess.run(["git", "rev-parse", "refs/stash"], cwd=repo_path, capture_output=True, text=True, encoding='utf-8', errors='replace')
+            if result.returncode == 0:
+                old_stash_sha = result.stdout.strip()
+        except:
+            pass
+
         cmd = ["git", "stash", "push", "-m", message]
         subprocess.run(cmd, cwd=repo_path, check=True, capture_output=True, text=True, encoding='utf-8', errors='replace')
-        return True
+        
+        # After stashing, check if refs/stash has changed or been created
+        result = subprocess.run(["git", "rev-parse", "refs/stash"], cwd=repo_path, capture_output=True, text=True, encoding='utf-8', errors='replace')
+        if result.returncode == 0:
+            new_stash_sha = result.stdout.strip()
+            if new_stash_sha != old_stash_sha:
+                return new_stash_sha
+        return None
     except subprocess.CalledProcessError:
-        return False
+        return None
 
-def stash_pop(repo_path):
-    """Pops the latest stash in the repository."""
+def stash_pop(repo_path, stash_sha=None):
+    """Pops a stash from the repository. If stash_sha is provided, pops that specific stash."""
     try:
-        cmd = ["git", "stash", "pop"]
+        target = "stash@{0}"
+        if stash_sha:
+            # Find the index of the stash with this SHA
+            cmd_list = ["git", "log", "--format=%H", "-g", "refs/stash"]
+            result = subprocess.run(cmd_list, cwd=repo_path, capture_output=True, text=True, encoding='utf-8', errors='replace')
+            if result.returncode == 0:
+                shas = result.stdout.strip().split('\n')
+                try:
+                    idx = shas.index(stash_sha)
+                    target = f"stash@{{{idx}}}"
+                except ValueError:
+                    # SHA not found in stash list
+                    return False
+            else:
+                return False
+
+        cmd = ["git", "stash", "pop", target]
         subprocess.run(cmd, cwd=repo_path, check=True, capture_output=True, text=True, encoding='utf-8', errors='replace')
         return True
     except subprocess.CalledProcessError:
@@ -224,10 +256,13 @@ def get_remote_head_sha(repo_url):
         return None
     except:
         return None
-def get_unstaged_files(repo_path):
+def get_unstaged_files(repo_path, ignore_submodules=False):
     """Returns a list of file paths that have unstaged changes."""
     try:
         cmd = ["git", "status", "--porcelain", "--untracked-files=no"]
+        if ignore_submodules:
+            cmd.append("--ignore-submodules=all")
+            
         result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
         files = []
         for line in result.stdout.strip().split('\n'):
