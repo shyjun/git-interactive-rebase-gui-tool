@@ -126,8 +126,11 @@ def main():
         msg_box.exec()
 
         if msg_box.clickedButton() == yes_button:
-            if stash_pop(repo_path, created_stash_sha):
-                print(f"Stash {created_stash_sha} popped successfully.")
+            success, msg = stash_pop(repo_path, created_stash_sha)
+            if success:
+                short_sha = created_stash_sha[:7]
+                print(f"Stash {short_sha}({msg}) popped successfully.")
+                QMessageBox.information(None, "Success", f"Stash {short_sha}({msg}) popped successfully.")
             else:
                 QMessageBox.critical(None, "Error", "Failed to pop stash. You may need to do it manually.")
 
