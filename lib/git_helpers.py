@@ -207,7 +207,8 @@ def stash_changes(repo_path, message=None):
         return None
 
 def stash_pop(repo_path, stash_sha=None):
-    """Pops a stash from the repository. If stash_sha is provided, pops that specific stash."""
+    """Pops a stash from the repository. If stash_sha is provided, pops that specific stash.
+    Returns (success, message)."""
     try:
         target = "stash@{0}"
         if stash_sha:
@@ -221,15 +222,25 @@ def stash_pop(repo_path, stash_sha=None):
                     target = f"stash@{{{idx}}}"
                 except ValueError:
                     # SHA not found in stash list
-                    return False
+                    return False, ""
             else:
-                return False
+                return False, ""
+
+        # Get message of the stash before popping it
+        message = ""
+        try:
+            cmd_msg = ["git", "log", "-1", "--format=%s", target]
+            result_msg = subprocess.run(cmd_msg, cwd=repo_path, capture_output=True, text=True, encoding='utf-8', errors='replace')
+            if result_msg.returncode == 0:
+                message = result_msg.stdout.strip()
+        except:
+            pass
 
         cmd = ["git", "stash", "pop", target]
         subprocess.run(cmd, cwd=repo_path, check=True, capture_output=True, text=True, encoding='utf-8', errors='replace')
-        return True
+        return True, message
     except subprocess.CalledProcessError:
-        return False
+        return False, ""
 
 def branch_exists(repo_path, branch_name):
     """Checks if a local or remote branch exists."""
