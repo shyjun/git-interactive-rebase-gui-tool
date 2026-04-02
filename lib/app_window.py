@@ -263,33 +263,52 @@ class CommitListWidget(QListWidget):
         self.setDragDropMode(QListWidget.InternalMove)
 
     def dropEvent(self, event):
-        old_row = self.currentRow()
-        # CRITICAL: Capture the original SHA order BEFORE the drop modifies the list
-        original_shas = [self.item(i).text().split()[0] for i in range(self.count())]
-        super().dropEvent(event)
-        new_row = self.currentRow()
-        
-        if old_row != new_row:
-            item = self.item(new_row)
-            sha = item.text().split()[0]
+        try:
+            # Identify which item is being dragged
+            dragged_item = self.currentItem()
+            if not dragged_item:
+                super().dropEvent(event)
+                return
+
+            sha = dragged_item.text().split()[0]
             
-            # Ask for confirmation
+            # Identify the target location to give a more descriptive message
+            # event.position() returns QPointF, indexAt() needs QPoint
+            target_index = self.indexAt(event.position().toPoint())
+            target_row = target_index.row()
+            if target_row == -1:
+                target_msg = "to the end of the list"
+            else:
+                target_item = self.item(target_row)
+                target_sha = target_item.text().split()[0] if target_item else "N/A"
+                target_msg = f"near commit <b>{target_sha}</b>"
+
+            # Ask for confirmation BEFORE any visual change in the list
             reply = QMessageBox.question(
                 self, 
-                "Confirm Move",
-                f"Do you want to move commit <b>{sha}</b> to this new position?",
+                "Confirm Reorder",
+                f"Do you want to move commit <b>{sha}</b> {target_msg}?",
                 QMessageBox.Yes | QMessageBox.No, 
                 QMessageBox.No
             )
             
             if reply == QMessageBox.Yes:
-                # Capture all SHAs in NEW list order (after drop)
+                # Capture the original order BEFORE the move
+                original_shas = [self.item(i).text().split()[0] for i in range(self.count())]
+                
+                # Now perform the visual move
+                super().dropEvent(event)
+                
+                # Capture the new order and perform rebase
                 new_shas = [self.item(i).text().split()[0] for i in range(self.count())]
-                # Pass BOTH old and new order to perform_move
                 self.main_window.perform_move(new_shas, original_shas)
             else:
-                # If No, reload the original history to undo the visual move
-                self.main_window.load_history()
+                # If No, ignore the drop event completely so the list does not change
+                event.ignore()
+        except Exception as e:
+            print(f"[DRAG-DROP ERROR] {e}")
+            import traceback
+            traceback.print_exc()
 
 class GitInteractiveRebaseApp(QMainWindow):
     def __init__(self, repo_path, commit_sha, app_start_time):
