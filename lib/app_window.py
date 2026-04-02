@@ -1470,6 +1470,14 @@ class GitInteractiveRebaseApp(QMainWindow):
         squash_menu = menu.addMenu("Squash commits")
         squash_menu.setFont(menu_font)
         
+        # Move individual squash actions here
+        if squash_above_action:
+            squash_menu.addAction(squash_above_action)
+        if squash_below_action:
+            squash_menu.addAction(squash_below_action)
+        
+        squash_menu.addSeparator()
+
         select_multi_action = QAction("Select commits to squash", self)
         select_multi_action.setEnabled(not self.multi_select_mode)
         select_multi_action.triggered.connect(self.enter_multi_select_mode)
@@ -1512,9 +1520,6 @@ class GitInteractiveRebaseApp(QMainWindow):
         menu.addAction(copy_sha_action)
         menu.addAction(copy_msg_action)
         menu.addAction(copy_sha_msg_action)
-        menu.addSeparator()
-        menu.addAction(squash_above_action)
-        menu.addAction(squash_below_action)
         menu.exec(self.list_widget.mapToGlobal(position))
 
     def handle_rephrase(self, item):
