@@ -1409,7 +1409,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         set_best_action = QAction("set as BEST_COMMITID", self)
         drop_action = QAction("Drop", self)
         rephrase_action = QAction("Rephrase", self)
-        revert_action = QAction("Revert this commit", self)
+        revert_action = QAction("Revert", self)
         
         # Clipboard items
         copy_sha_action = QAction("Copy SHA to clipboard", self)
@@ -1488,6 +1488,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         menu.addAction(rephrase_action)
         menu.addAction(drop_action)
         menu.addAction(revert_action)
+        menu.addSeparator()
         
         # Squash commits submenu
         squash_menu = menu.addMenu("Squash commits")
