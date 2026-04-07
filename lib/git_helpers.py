@@ -299,6 +299,25 @@ def commit_file(repo_path, filepath, message):
     except subprocess.CalledProcessError:
         return False
 
+def get_revert_commit_message(repo_path, commit_sha):
+    """Generates the default git revert commit message for a given SHA."""
+    try:
+        # Get the subject line only
+        cmd_subject = ["git", "log", "-1", "--format=%s", commit_sha]
+        result_subject = subprocess.run(cmd_subject, cwd=repo_path, capture_output=True,
+                                        text=True, check=True, encoding='utf-8', errors='replace')
+        subject = result_subject.stdout.strip()
+
+        # Get the full SHA for the body line
+        cmd_full_sha = ["git", "rev-parse", commit_sha]
+        result_full_sha = subprocess.run(cmd_full_sha, cwd=repo_path, capture_output=True,
+                                         text=True, check=True, encoding='utf-8', errors='replace')
+        full_sha = result_full_sha.stdout.strip()
+
+        return f'Revert "{subject}"\n\nThis reverts commit {full_sha}.'
+    except subprocess.CalledProcessError as e:
+        raise Exception(f"Failed to generate revert message: {e.stderr}")
+
 def bulk_commit_all(repo_path, message):
     """Stages all modified files and commits them as a single bulk commit."""
     try:

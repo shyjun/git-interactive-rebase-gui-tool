@@ -24,12 +24,12 @@ from lib.git_helpers import (
     get_git_history, get_head_sha, get_full_head_sha, get_current_branch, get_commit_diff,
     get_full_commit_message, get_commit_metadata, get_commit_files,
     has_uncommitted_changes, branch_exists, get_local_branches_map, get_remote_head_sha,
-    get_file_diff_only_in_commit
+    get_file_diff_only_in_commit, get_revert_commit_message
 )
 from lib.dialogs import (
     DiffHighlighter, DiffViewerDialog, SplitCommitDialog, ViewCommitDialog,
-    DropDialog, RephraseDialog, SquashDialog, FileWiseViewDialog, MultiSquashDialog,
-    ProgressDialog
+    DropDialog, RephraseDialog, RevertCommitDialog, SquashDialog, FileWiseViewDialog,
+    MultiSquashDialog, ProgressDialog
 )
 from lib.utils import get_assets_path
 
@@ -1409,6 +1409,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         set_best_action = QAction("set as BEST_COMMITID", self)
         drop_action = QAction("Drop", self)
         rephrase_action = QAction("Rephrase", self)
+        revert_action = QAction("Revert this commit", self)
         
         # Clipboard items
         copy_sha_action = QAction("Copy SHA to clipboard", self)
@@ -1454,6 +1455,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         set_best_action.triggered.connect(lambda: self.handle_set_best_commit(item))
         drop_action.triggered.connect(lambda: self.handle_drop(item))
         rephrase_action.triggered.connect(lambda: self.handle_rephrase(item))
+        revert_action.triggered.connect(lambda: self.handle_revert_commit(item))
         copy_sha_action.triggered.connect(lambda: self.handle_copy_sha(item))
         copy_msg_action.triggered.connect(lambda: self.handle_copy_message(item))
         copy_sha_msg_action.triggered.connect(lambda: self.handle_copy_sha_and_message(item))
@@ -1467,6 +1469,7 @@ class GitInteractiveRebaseApp(QMainWindow):
             set_best_action.setEnabled(False)
             drop_action.setEnabled(False)
             rephrase_action.setEnabled(False)
+            revert_action.setEnabled(False)
             move_action.setEnabled(False)
             copy_sha_action.setEnabled(False)
             copy_msg_action.setEnabled(False)
@@ -1518,6 +1521,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         squash_menu.addAction(cancel_multi_action)
         
         menu.addAction(rephrase_action)
+        menu.addAction(revert_action)
         menu.addAction(move_action)
         
         # Split Commit submenu
@@ -1572,6 +1576,43 @@ class GitInteractiveRebaseApp(QMainWindow):
             self.load_history()
         except Exception as e:
             QMessageBox.critical(self, "Error", f"An error occurred while rephrasing: {str(e)}")
+            self.load_history()
+
+    def handle_revert_commit(self, item):
+        """Handles the 'Revert this commit' context menu action."""
+        sha = item.text().split()[0]
+        print(f"Preparing to revert {sha}...")
+        try:
+            default_message = get_revert_commit_message(self.repo_path, sha)
+            dialog = RevertCommitDialog(sha, default_message, self.current_font_size, self)
+            if dialog.exec() == QDialog.Accepted:
+                revert_message = dialog.get_message()
+                self.perform_revert_commit(sha, revert_message)
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Could not prepare revert: {str(e)}")
+
+    def perform_revert_commit(self, sha, revert_message):
+        """Executes git revert --no-commit then commits with the edited message."""
+        self.save_undo_state()
+        try:
+            # Revert without auto-committing so we can supply our own message
+            subprocess.run(
+                ["git", "revert", "--no-commit", sha],
+                cwd=self.repo_path, check=True, capture_output=True, text=True
+            )
+            # Commit with the (possibly edited) revert message
+            subprocess.run(
+                ["git", "commit", "-m", revert_message],
+                cwd=self.repo_path, check=True, capture_output=True, text=True
+            )
+            print(f"Reverted {sha}.")
+            self.load_history()
+            QMessageBox.information(self, "Success", f"Commit {sha} reverted successfully.")
+        except subprocess.CalledProcessError as e:
+            # Abort any lingering revert state so the repo stays clean
+            subprocess.run(["git", "revert", "--abort"], cwd=self.repo_path, capture_output=True)
+            QMessageBox.critical(self, "Revert Failed",
+                                 f"Could not revert commit {sha}.\n\nError: {e.stderr}")
             self.load_history()
 
     def handle_copy_sha(self, item):

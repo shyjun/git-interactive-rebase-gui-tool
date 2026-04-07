@@ -15,7 +15,7 @@ from PySide6.QtGui import QFont, QSyntaxHighlighter, QTextCharFormat, QColor, QA
 
 from lib.git_helpers import (
     get_file_diff_in_commit, get_file_diff_only_in_commit,
-    get_full_commit_message, get_commit_metadata
+    get_full_commit_message, get_commit_metadata, get_revert_commit_message
 )
 
 class DiffHighlighter(QSyntaxHighlighter):
@@ -452,6 +452,58 @@ class RephraseDialog(QDialog):
         
     def on_text_changed(self):
         self.apply_btn.setEnabled(bool(self.message_edit.toPlainText().strip()))
+
+class RevertCommitDialog(QDialog):
+    """Dialog for editing the commit message before reverting a commit."""
+    def __init__(self, sha, revert_message, font_size=10, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(f"Revert Commit: {sha}")
+        self.setMinimumSize(600, 300)
+        self.font_size = font_size
+
+        layout = QVBoxLayout(self)
+
+        label = QLabel(
+            f"Reverting commit <b>{sha}</b>. "
+            "Edit the revert commit message below:"
+        )
+        label.setTextFormat(Qt.RichText)
+        label.setWordWrap(True)
+        layout.addWidget(label)
+
+        self.message_edit = QTextEdit()
+        self.message_edit.setFont(QFont("Courier New", self.font_size))
+        self.message_edit.setPlainText(revert_message)
+        layout.addWidget(self.message_edit)
+
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+
+        self.revert_btn = QPushButton("Revert")
+        self.cancel_btn = QPushButton("Cancel")
+
+        for btn in [self.revert_btn, self.cancel_btn]:
+            btn.setMinimumWidth(120)
+            btn.setMinimumHeight(40)
+            btn.setProperty("class", "dialog-btn")
+
+        self.revert_btn.clicked.connect(self.accept)
+        self.cancel_btn.clicked.connect(self.reject)
+
+        self.message_edit.textChanged.connect(self._on_text_changed)
+        self._on_text_changed()
+
+        btn_layout.addWidget(self.revert_btn)
+        btn_layout.addWidget(self.cancel_btn)
+        btn_layout.addStretch()
+        layout.addLayout(btn_layout)
+
+    def get_message(self):
+        return self.message_edit.toPlainText().strip()
+
+    def _on_text_changed(self):
+        self.revert_btn.setEnabled(bool(self.message_edit.toPlainText().strip()))
+
 
 class SquashDialog(QDialog):
     """Dialog for choosing and editing commit message during squash."""
