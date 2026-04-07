@@ -1486,7 +1486,9 @@ class GitInteractiveRebaseApp(QMainWindow):
         menu.addAction(reset_action)
         menu.addAction(set_best_action)
         menu.addSeparator()
+        menu.addAction(rephrase_action)
         menu.addAction(drop_action)
+        menu.addAction(revert_action)
         
         # Squash commits submenu
         squash_menu = menu.addMenu("Squash commits")
@@ -1520,8 +1522,6 @@ class GitInteractiveRebaseApp(QMainWindow):
         squash_menu.addAction(squash_selected_action)
         squash_menu.addAction(cancel_multi_action)
         
-        menu.addAction(rephrase_action)
-        menu.addAction(revert_action)
         menu.addAction(move_action)
         
         # Split Commit submenu
