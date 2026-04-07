@@ -1449,8 +1449,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         view_action.triggered.connect(lambda: self.view_commit(item))
         view_filewise_action = QAction(f"Show / View commit {sha} -- file-wise", self)
         view_filewise_action.triggered.connect(lambda: self.handle_view_commit_file_wise(item))
-        # Move action is primarily via drag and drop, but we can make it focus the item
-        move_action.triggered.connect(lambda: self.list_widget.setCurrentItem(item))
+        move_action.triggered.connect(lambda: self.handle_move_info(item))
         reset_action.triggered.connect(lambda: self.handle_reset(item))
         set_best_action.triggered.connect(lambda: self.handle_set_best_commit(item))
         drop_action.triggered.connect(lambda: self.handle_drop(item))
@@ -1544,6 +1543,14 @@ class GitInteractiveRebaseApp(QMainWindow):
         menu.addAction(copy_msg_action)
         menu.addAction(copy_sha_msg_action)
         menu.exec(self.list_widget.mapToGlobal(position))
+
+    def handle_move_info(self, item):
+        QMessageBox.information(
+            self,
+            "Move Commit",
+            "Any commit can be dragged and dropped to a new position to reorder.\n\n"
+            "Simply click and hold a commit, then drag it to where you want it."
+        )
 
     def handle_rephrase(self, item):
         """Handles the rephrase action."""
