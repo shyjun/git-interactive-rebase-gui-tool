@@ -2064,7 +2064,14 @@ finally:
         try:
             files = get_commit_files(self.repo_path, sha)
             if len(files) != 1:
-                QMessageBox.critical(self, "Error", "This feature is only applicable if changes are in 1 single file")
+                QMessageBox.critical(
+                    self,
+                    "Cannot Split All Commits",
+                    "This commit contains multiple files.\n\n"
+                    "To split this commit:\n"
+                    "1. First move a file changes out of this commit and then split all changes in this file to separate commits.\n\n"
+                    "2. Split each file changes to separate commits, and then select the file and split its changes to separate commits."
+                )
                 return
             self.perform_split_all_commits(sha, files[0])
         except Exception as e:
