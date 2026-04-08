@@ -579,7 +579,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.help_btn.clicked.connect(self._show_help_dialog)
         self.undo_btn.clicked.connect(self.handle_undo)
         self.check_update_btn.clicked.connect(self.handle_check_for_updates)
-        self.refresh_btn.clicked.connect(self.load_history)
+        self.refresh_btn.clicked.connect(self.handle_manual_refresh)
         self.failsafe_btn.clicked.connect(self.handle_failsafe_reset)
         self.best_commit_btn.clicked.connect(self.handle_best_commit_reset)
         self.custom_reset_btn.clicked.connect(self.handle_custom_reset)
@@ -703,7 +703,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.esc_shortcut.activated.connect(self.handle_esc_shortcut)
 
         self.f5_shortcut = QShortcut(QKeySequence("F5"), self)
-        self.f5_shortcut.activated.connect(self.load_history)
+        self.f5_shortcut.activated.connect(self.handle_manual_refresh)
 
     def update_side_diff(self):
         item = self.list_widget.currentItem()
@@ -2516,6 +2516,16 @@ for i, filename in enumerate(files):
             return False
 
 
+
+    def handle_manual_refresh(self):
+        """Shows a progress dialog during manual refresh."""
+        progress = ProgressDialog("Refreshing", "Refreshing git history. Please wait...", self)
+        progress.show()
+        QApplication.processEvents()
+        try:
+            self.load_history()
+        finally:
+            progress.close()
 
     def load_history(self):
         """Fetches git history and populates the list widget."""
