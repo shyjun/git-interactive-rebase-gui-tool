@@ -148,4 +148,4 @@ git pull
 
 ## 📄 License
 
-This project is open-source. Feel free to contribute or adapt it for your own Git workflows!
+This project is licensed under the [MIT License](LICENSE).

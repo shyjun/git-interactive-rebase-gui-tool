@@ -5,6 +5,13 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "git-interactive-rebase-gui-tool"
 version = "0.1.0"
+description = "A Python-based Git Interactive Rebase GUI tool"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+  {name = "shyjun"},
+]
 dependencies = ["PySide6"]
 
 [project.scripts]
