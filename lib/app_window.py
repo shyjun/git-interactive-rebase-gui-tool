@@ -9,6 +9,7 @@ import os
 import webbrowser
 import tempfile
 import stat
+import time
 
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QListWidget, QVBoxLayout, 
@@ -2413,85 +2414,102 @@ for i, filename in enumerate(files):
                 upstream = f"{self.commit_sha}^" if has_parent else "--root"
                 todo_shas = proposed_order
 
-            # Feature: Fast-track top-drops (reset --hard)
-            if not todo_shas and common_count > 0:
-                print(f"Fast-tracking drop via reset --hard to {upstream}")
-                subprocess.run(["git", "reset", "--hard", upstream], cwd=self.repo_path, check=True)
-                return True
-
-            # 2. Proceed with rebase for non-trivial changes
-            # Write each rephrase message to a temp file to handle multi-line messages safely
-            msg_files = {}  # sha -> temp file path
-            if rephrase_map:
-                for sha, msg in rephrase_map.items():
-                    if sha in todo_shas:
-                        mf = tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt', encoding='utf-8')
-                        mf.write(msg)
-                        mf.close()
-                        msg_files[sha] = mf.name
-
-            # Build a sequence editor script that writes the rebase todo
-            with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.py') as f:
-                f.write("#!/usr/bin/env python3\n")
-                f.write("import sys\n")
-                f.write(f"new_order = {todo_shas}\n")
-                f.write(f"msg_files = {repr(msg_files)}\n")
-                f.write(f"squash_shas = {squash_shas or []}\n")
-                f.write("todo_path = sys.argv[1]\n")
-                f.write("with open(todo_path, 'w') as f:\n")
-                f.write("    for sha in new_order:\n")
-                f.write("        op = 'squash' if sha in squash_shas else 'pick'\n")
-                f.write("        f.write(f'{op} {sha}\\n')\n")
-                f.write("        if sha in msg_files:\n")
-                f.write("            mf = msg_files[sha]\n")
-                f.write("            f.write(f'exec git commit --amend -F {mf}\\n')\n")
-                editor_script = f.name
-
-            os.chmod(editor_script, os.stat(editor_script).st_mode | stat.S_IEXEC)
-
-            env = os.environ.copy()
-            env["GIT_SEQUENCE_EDITOR"] = editor_script
-            env["GIT_EDITOR"] = "true"
-
-            if upstream == "--root":
-                cmd = ["git", "rebase", "-i", "--autosquash", "--root"]
-            else:
-                cmd = ["git", "rebase", "-i", "--autosquash", upstream]
-
-            # Show progress dialog while rebasing
+            # Show progress dialog
             progress = ProgressDialog(progress_title, progress_text, self)
             progress.show()
             QApplication.processEvents()
 
-            import time
-            process = subprocess.Popen(cmd, cwd=self.repo_path, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-            while process.poll() is None:
-                QApplication.processEvents()
-                time.sleep(0.05)
+            try:
+                # Feature: Fast-track top-drops (reset --hard)
+                if not todo_shas and common_count > 0:
+                    print(f"Fast-tracking drop via reset --hard to {upstream}")
+                    process = subprocess.Popen(["git", "reset", "--hard", upstream], 
+                                               cwd=self.repo_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                    while process.poll() is None:
+                        QApplication.processEvents()
+                        time.sleep(0.05)
+                    
+                    if process.returncode != 0:
+                        stdout, stderr = process.communicate()
+                        raise Exception(f"Fast-track reset failed: {stderr}")
+                    
+                    # Small non-blocking delay to ensure the progress window is seen by the user
+                    # and has a chance to paint correctly if the operation was near-instant.
+                    for _ in range(10):
+                        QApplication.processEvents()
+                        time.sleep(0.05)
+                    return True
 
-            stdout, stderr = process.communicate()
-            progress.close()
+                # 2. Proceed with rebase for non-trivial changes
+                # Write each rephrase message to a temp file to handle multi-line messages safely
+                msg_files = {}  # sha -> temp file path
+                if rephrase_map:
+                    for sha, msg in rephrase_map.items():
+                        if sha in todo_shas:
+                            mf = tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt', encoding='utf-8')
+                            mf.write(msg)
+                            mf.close()
+                            msg_files[sha] = mf.name
 
-            result = subprocess.CompletedProcess(process.args, process.returncode, stdout, stderr)
-            os.unlink(editor_script)
-            # Clean up message temp files
-            for mf_path in msg_files.values():
-                try:
-                    os.unlink(mf_path)
-                except Exception:
-                    pass
+                # Build a sequence editor script that writes the rebase todo
+                with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.py') as f:
+                    f.write("#!/usr/bin/env python3\n")
+                    f.write("import sys\n")
+                    f.write(f"new_order = {todo_shas}\n")
+                    f.write(f"msg_files = {repr(msg_files)}\n")
+                    f.write(f"squash_shas = {squash_shas or []}\n")
+                    f.write("todo_path = sys.argv[1]\n")
+                    f.write("with open(todo_path, 'w') as f:\n")
+                    f.write("    for sha in new_order:\n")
+                    f.write("        op = 'squash' if sha in squash_shas else 'pick'\n")
+                    f.write("        f.write(f'{op} {sha}\\n')\n")
+                    f.write("        if sha in msg_files:\n")
+                    f.write("            mf = msg_files[sha]\n")
+                    f.write("            f.write(f'exec git commit --amend -F {mf}\\n')\n")
+                    editor_script = f.name
 
-            if result.returncode == 0:
-                # Update bottom anchor SHA
-                if new_shas:
-                    self.commit_sha = new_shas[-1]
-                return True
-            else:
-                subprocess.run(["git", "rebase", "--abort"], cwd=self.repo_path, capture_output=True)
-                QMessageBox.critical(self, "Rebase Failed",
-                    f"Action failed (likely due to merge conflicts).\n"
-                    f"The rebase has been aborted.\n\nError: {result.stderr}")
-                return False
+                os.chmod(editor_script, os.stat(editor_script).st_mode | stat.S_IEXEC)
+
+                env = os.environ.copy()
+                env["GIT_SEQUENCE_EDITOR"] = editor_script
+                env["GIT_EDITOR"] = "true"
+
+                if upstream == "--root":
+                    cmd = ["git", "rebase", "-i", "--autosquash", "--root"]
+                else:
+                    cmd = ["git", "rebase", "-i", "--autosquash", upstream]
+
+
+                process = subprocess.Popen(cmd, cwd=self.repo_path, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                while process.poll() is None:
+                    QApplication.processEvents()
+                    time.sleep(0.05)
+
+                stdout, stderr = process.communicate()
+
+                result = subprocess.CompletedProcess(process.args, process.returncode, stdout, stderr)
+                os.unlink(editor_script)
+                # Clean up message temp files
+                for mf_path in msg_files.values():
+                    try:
+                        os.unlink(mf_path)
+                    except Exception:
+                        pass
+
+                if result.returncode == 0:
+                    # Update bottom anchor SHA
+                    if new_shas:
+                        self.commit_sha = new_shas[-1]
+                    return True
+                else:
+                    subprocess.run(["git", "rebase", "--abort"], cwd=self.repo_path, capture_output=True)
+                    QMessageBox.critical(self, "Rebase Failed",
+                        f"Action failed (likely due to merge conflicts).\n"
+                        f"The rebase has been aborted.\n\nError: {result.stderr}")
+                    return False
+
+            finally:
+                progress.close()
 
         except Exception as e:
             QMessageBox.critical(self, "Error", f"An error occurred during rebase: {str(e)}")
