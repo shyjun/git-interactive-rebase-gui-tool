@@ -97,6 +97,21 @@ def get_root_commit(repo_path):
     except Exception as e:
         raise Exception(f"Failed to find root commit: {e}")
 
+def get_recent_history_start(repo_path, count=1000):
+    """
+    Returns the SHA of the commit 'count' steps back from HEAD.
+    If history is shorter than 'count', returns the root commit.
+    """
+    try:
+        cmd = ["git", "rev-list", "--max-count=1", f"--skip={count}", "HEAD"]
+        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, encoding='utf-8', errors='replace')
+        sha = result.stdout.strip()
+        if sha:
+            return sha
+        return get_root_commit(repo_path)
+    except:
+        return get_root_commit(repo_path)
+
 def get_commit_diff(repo_path, commit_sha):
     """Fetches the diff for a specific commit."""
     try:

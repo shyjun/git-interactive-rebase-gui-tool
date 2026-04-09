@@ -262,6 +262,7 @@ class CommitListWidget(QListWidget):
         self.setAcceptDrops(True)
         self.setDropIndicatorShown(True)
         self.setDragDropMode(QListWidget.InternalMove)
+        self.setUniformItemSizes(True)
 
     def dropEvent(self, event):
         try:
@@ -2547,6 +2548,8 @@ for i, filename in enumerate(files):
         old_row = self.list_widget.currentRow()
         
         self.list_widget.clear()
+        self.list_widget.setUpdatesEnabled(False)
+        self.list_widget.blockSignals(True)
         try:
             history = get_git_history(self.repo_path, self.commit_sha)
             branch_map = get_local_branches_map(self.repo_path)
@@ -2569,6 +2572,9 @@ for i, filename in enumerate(files):
                 self.update_side_diff()
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))
+        finally:
+            self.list_widget.setUpdatesEnabled(True)
+            self.list_widget.blockSignals(False)
             
         # Update Failsafe button state
         current_head = get_head_sha(self.repo_path)

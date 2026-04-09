@@ -19,7 +19,10 @@ import tempfile
 import stat
 
 from lib.utils import get_assets_path
-from lib.git_helpers import get_root_commit, has_uncommitted_changes, stash_changes, get_unstaged_files, commit_file, bulk_commit_all, stash_pop
+from lib.git_helpers import (
+    get_root_commit, get_recent_history_start, has_uncommitted_changes, 
+    stash_changes, get_unstaged_files, commit_file, bulk_commit_all, stash_pop
+)
 from lib.app_window import GitInteractiveRebaseApp
 from lib.dialogs import UnstagedChangesDialog, ProgressDialog
 
@@ -61,10 +64,12 @@ def main():
     commit_sha = args.commit_sha
     if not commit_sha:
         try:
-            commit_sha = get_root_commit(repo_path)
-            print(f"No SHA provided. Starting from root commit: {commit_sha}")
+            # Optimize: Instead of root commit (which could be 100k commits ago),
+            # default to last 1000 commits for better performance in large repos.
+            commit_sha = get_recent_history_start(repo_path, count=1000)
+            print(f"No SHA provided. Defaulting to recent history (HEAD~1000 limit): {commit_sha}")
         except Exception as e:
-            QMessageBox.critical(None, "Error", f"Could not find root commit: {e}")
+            QMessageBox.critical(None, "Error", f"Could not find start commit: {e}")
             sys.exit(1)
 
     # Check for unstaged changes (ignoring submodules as per design)
