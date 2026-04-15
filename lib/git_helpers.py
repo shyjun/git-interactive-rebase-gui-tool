@@ -112,6 +112,66 @@ def get_recent_history_start(repo_path, count=1000):
     except:
         return get_root_commit(repo_path)
 
+def get_branch_base_info(repo_path):
+    """
+    Finds the first commit in HEAD's history that exists in another local branch.
+    Returns (base_sha, branch_name) or (None, None).
+    """
+    try:
+        current = get_current_branch(repo_path)
+        if not current or current == "DETACHED":
+            return None, None
+            
+        # Get all local branch names except current
+        cmd_branches = ["git", "for-each-ref", "--format=%(refname:short)", "refs/heads/"]
+        res_branches = subprocess.run(cmd_branches, cwd=repo_path, capture_output=True, text=True, encoding='utf-8', errors='replace')
+        others = [b.strip() for b in res_branches.stdout.strip().split('\n') if b.strip() and b.strip() != current]
+        
+        if not others:
+            return None, None
+            
+        # Find first commit unique to this branch (the oldest one in the unique list)
+        cmd_rev = ["git", "rev-list", "HEAD", "--reverse", "--not"] + others
+        res_rev = subprocess.run(cmd_rev, cwd=repo_path, capture_output=True, text=True, encoding='utf-8', errors='replace')
+        unique_commits = res_rev.stdout.strip().split('\n')
+        
+        if not unique_commits or not unique_commits[0].strip():
+            # No unique commits (branch is at the same point as some other branch)
+            base_sha = get_full_head_sha(repo_path)
+        else:
+            first_unique = unique_commits[0].strip()
+            # The base is the parent of the first unique commit
+            cmd_parent = ["git", "rev-parse", f"{first_unique}^"]
+            res_parent = subprocess.run(cmd_parent, cwd=repo_path, capture_output=True, text=True, encoding='utf-8', errors='replace')
+            base_sha = res_parent.stdout.strip()
+            
+        if not base_sha:
+            return None, None
+            
+        # Find which branch contains this base
+        cmd_contains = ["git", "branch", "--contains", base_sha]
+        res_contains = subprocess.run(cmd_contains, cwd=repo_path, capture_output=True, text=True, encoding='utf-8', errors='replace')
+        containing_branches = []
+        for line in res_contains.stdout.strip().split('\n'):
+            b = line.strip().lstrip('* ').strip()
+            if b and b != current:
+                containing_branches.append(b)
+                
+        # Heuristic: Prefer 'main' or 'master' if multiple found
+        base_branch = "multiple branches"
+        if containing_branches:
+            if "main" in containing_branches:
+                base_branch = "main"
+            elif "master" in containing_branches:
+                base_branch = "master"
+            else:
+                base_branch = containing_branches[0]
+                
+        return base_sha, base_branch
+        
+    except Exception:
+        return None, None
+
 def get_commit_diff(repo_path, commit_sha):
     """Fetches the diff for a specific commit."""
     try:
