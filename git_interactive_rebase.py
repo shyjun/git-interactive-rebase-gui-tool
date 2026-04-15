@@ -70,18 +70,20 @@ def main():
     commit_sha = args.commit_sha
     if not commit_sha:
         try:
-            # Phase 2: Detect branch base for a more relevant view.
+            print("No commit SHA provided. Detecting branch base...")
             base_sha, base_branch = get_branch_base_info(repo_path)
             if base_sha:
                 commit_sha = base_sha
-                print(f"Detected branch base: {commit_sha} (branched from {base_branch})")
+                print(f"Detected branch base: {commit_sha} (looks like it branched out from '{base_branch}', showing commits since that point)")
             else:
-                # Fallback to last 1000 commits if no branch base found
+                print("Could not detect branch base. Falling back to recent history limit (HEAD~1000)...")
                 commit_sha = get_recent_history_start(repo_path, count=1000)
-                print(f"No SHA provided. Defaulting to recent history (HEAD~1000 limit): {commit_sha}")
+                print(f"Defaulting to recent history: {commit_sha}")
         except Exception as e:
             QMessageBox.critical(None, "Error", f"Could not find start commit: {e}")
             sys.exit(1)
+    else:
+        print(f"Commit SHA provided: {commit_sha} (showing commits from this point)")
 
     # Check for unstaged changes (ignoring submodules as per design)
     created_stash_sha = None

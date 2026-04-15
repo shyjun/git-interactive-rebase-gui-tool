@@ -119,26 +119,33 @@ def get_branch_base_info(repo_path):
     """
     try:
         current = get_current_branch(repo_path)
+        print(f"[get_branch_base_info] Current branch: {current}")
+        
         if not current or current == "DETACHED":
+            print("[get_branch_base_info] DETACHED HEAD state, cannot detect base")
             return None, None
             
         # Get all local branch names except current
         cmd_branches = ["git", "for-each-ref", "--format=%(refname:short)", "refs/heads/"]
         res_branches = subprocess.run(cmd_branches, cwd=repo_path, capture_output=True, text=True, encoding='utf-8', errors='replace')
         others = [b.strip() for b in res_branches.stdout.strip().split('\n') if b.strip() and b.strip() != current]
+        print(f"[get_branch_base_info] Found {len(others)} other branch(es)")
         
         if not others:
+            print("[get_branch_base_info] No other branches found to compare against")
             return None, None
             
+        print(f"[get_branch_base_info] Searching for commits unique to current branch...")
         # Find first commit unique to this branch (the oldest one in the unique list)
         cmd_rev = ["git", "rev-list", "HEAD", "--reverse", "--not"] + others
         res_rev = subprocess.run(cmd_rev, cwd=repo_path, capture_output=True, text=True, encoding='utf-8', errors='replace')
         unique_commits = res_rev.stdout.strip().split('\n')
         
         if not unique_commits or not unique_commits[0].strip():
-            # No unique commits (branch is at the same point as some other branch)
+            print("[get_branch_base_info] No unique commits found, branch may be in sync with another branch")
             base_sha = get_full_head_sha(repo_path)
         else:
+            print(f"[get_branch_base_info] Found {len([c for c in unique_commits if c.strip()])} unique commit(s) in current branch")
             first_unique = unique_commits[0].strip()
             # The base is the parent of the first unique commit
             cmd_parent = ["git", "rev-parse", f"{first_unique}^"]
@@ -156,6 +163,8 @@ def get_branch_base_info(repo_path):
             b = line.strip().lstrip('* ').strip()
             if b and b != current:
                 containing_branches.append(b)
+        
+        print(f"[get_branch_base_info] Branches containing base SHA: {containing_branches}")
                 
         # Heuristic: Prefer 'main' or 'master' if multiple found
         base_branch = "multiple branches"
@@ -166,6 +175,8 @@ def get_branch_base_info(repo_path):
                 base_branch = "master"
             else:
                 base_branch = containing_branches[0]
+        
+        print(f"[get_branch_base_info] Detected base: SHA={base_sha[:8]}..., branch={base_branch}")
                 
         return base_sha, base_branch
         
