@@ -21,7 +21,8 @@ import stat
 from lib.utils import get_assets_path
 from lib.git_helpers import (
     get_root_commit, get_recent_history_start, has_uncommitted_changes, 
-    stash_changes, get_unstaged_files, commit_file, bulk_commit_all, stash_pop
+    stash_changes, get_unstaged_files, commit_file, bulk_commit_all, stash_pop,
+    get_full_head_sha
 )
 from lib.app_window import GitInteractiveRebaseApp
 from lib.dialogs import UnstagedChangesDialog, ProgressDialog
@@ -39,6 +40,11 @@ def main():
     args = parser.parse_args()
 
     repo_path = os.path.abspath(os.path.expanduser(args.location))
+
+    now = datetime.now()
+    app_start_time = f"{now.strftime('%I.%M%p').lower()} {now.day}-{now.strftime('%b-%Y')}"
+    head_sha = get_full_head_sha(repo_path)
+    print(f"App started at {app_start_time} | HEAD commit: {head_sha}")
 
     app = QApplication(sys.argv)
 
@@ -118,9 +124,6 @@ def main():
         else:
             print("Exiting as requested by the user.")
             sys.exit(0)
-
-    now = datetime.now()
-    app_start_time = f"{now.strftime('%I.%M%p').lower()} {now.day}-{now.strftime('%b-%Y')}"
 
     window = GitInteractiveRebaseApp(repo_path, commit_sha, app_start_time)
     window.show()
