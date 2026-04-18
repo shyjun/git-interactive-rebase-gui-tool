@@ -2,7 +2,7 @@
 """
 Project: git-interactive-rebase-gui-tool
 Description: A premium PySide6 GUI for interactive git rebasing, squashing, and rephrasing.
-Author: n.shyju@gmail.com
+Author: shyjun(n.shyju@gmail.com)
 Version: 1.0.0
 Date: Feb 2026
 """
