@@ -45,7 +45,7 @@ python3 git_interactive_rebase.py HEAD~N
 ![Launch with HEAD commits](screenshots/head-commits.png)
 
 ### Option 2: Full commit history
-View all commits from the current branch.
+View all commits from the current branch. If no commit SHA is provided, shows up to 200 recent commits by default.
 
 **Screenshot:** `screenshots/main-interface.png`
 
