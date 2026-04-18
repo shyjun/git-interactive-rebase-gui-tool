@@ -76,8 +76,8 @@ def main():
                 commit_sha = base_sha
                 print(f"Detected branch base: {commit_sha} (looks like it branched out from '{base_branch}', showing commits since that point)")
             else:
-                print("Could not detect branch base. Falling back to recent history limit (HEAD~1000)...")
-                commit_sha = get_recent_history_start(repo_path, count=1000)
+                print("Could not detect branch base. Falling back to recent history limit (HEAD~200)...")
+                commit_sha = get_recent_history_start(repo_path, count=200)
                 print(f"Defaulting to recent history: {commit_sha}")
         except Exception as e:
             QMessageBox.critical(None, "Error", f"Could not find start commit: {e}")
