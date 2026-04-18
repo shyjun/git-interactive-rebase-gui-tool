@@ -12,19 +12,20 @@ Visual documentation for the Git Interactive Rebase GUI Tool. Each section showc
 2. [Main Interface](#2-main-interface)
 3. [Context Menu](#3-context-menu)
 4. [Search & Filter](#4-search--filter)
-5. [Diff Viewer](#5-diff-viewer)
-6. [File-wise View](#6-file-wise-view)
-7. [Rephrase Commit](#7-rephrase-commit)
-8. [Drop Commit](#8-drop-commit)
-9. [Drag to Reorder](#9-drag-to-reorder)
-10. [Squash Commit with above / below commit](#10-squash-commit-with-above--below-commit)
-11. [Split Dialog](#11-split-dialog)
-12. [Light Theme](#12-light-theme)
-13. [Dark Theme](#13-dark-theme)
-14. [Reset Options](#14-reset-options)
-15. [Rebase Dialog](#15-rebase-dialog)
-16. [Copy to Clipboard](#16-copy-to-clipboard)
-17. [Zoom Controls](#17-zoom-controls)
+5. [Themes (Light / Dark)](#5-themes-light--dark)
+6. [Zoom Controls](#6-zoom-controls)
+7. [Mark / Unmark Commit](#7-mark--unmark-commit)
+8. [Show Local Branches](#8-show-local-branches)
+9. [Copy to Clipboard](#9-copy-to-clipboard)
+10. [Diff Viewer](#10-diff-viewer)
+11. [File-wise Diff Viewer](#11-file-wise-diff-viewer)
+12. [Rephrase Commit](#12-rephrase-commit)
+13. [Drop Commit](#13-drop-commit)
+14. [Drag to Reorder](#14-drag-to-reorder)
+15. [Squash Commits](#15-squash-commits)
+16. [Split Dialog](#16-split-dialog)
+17. [Reset Options](#17-reset-options)
+18. [Rebase Options](#18-rebase-options)
 
 ---
 
@@ -32,24 +33,27 @@ Visual documentation for the Git Interactive Rebase GUI Tool. Each section showc
 
 Launch the application with options to choose the number of commits to view.
 
-### Option 1: Selected number of HEAD commits
-View only the most recent N commits.
+### Option 1: Show commits since a specific commit (provide SHA as argument)
+View only the most recent N commits in the current branch. You can specify the number of commits using `~N` or `^^^...` (each `^` represents one commit).
 
 ```bash
 python3 git_interactive_rebase.py <commit-sha>
 python3 git_interactive_rebase.py HEAD~N
+python3 git_interactive_rebase.py HEAD^^^
 ```
 
 **Screenshot:** `screenshots/head-commits.png`
 
 ![Launch with HEAD commits](screenshots/head-commits.png)
 
-### Option 2: Full commit history
-View all commits from the current branch. If no commit SHA is provided, shows up to 200 recent commits by default.
+**Description:** The screenshot above shows the result of running `python3 git_interactive_rebase.py HEAD~6`.
 
-**Screenshot:** `screenshots/main-interface.png`
+### Option 2: Auto-detect branch base (shows commits from where current branch diverged)
+When no commit SHA is provided, the tool automatically detects the base branch (e.g., main/master) and displays commits since that point. If detection fails, it falls back to showing the 200 most recent commits from HEAD.
 
-![Launch with Full History](screenshots/main-interface.png)
+**Screenshot:** `screenshots/selected_commits_history.png`
+
+![Launch with Selected History](screenshots/selected_commits_history.png)
 
 ---
 
@@ -80,7 +84,7 @@ Access all commit actions via right-click menu.
 - Rephrase
 - Drop
 - Split
-- Mark as important
+- Mark / Unmark commit
 - Reset hard to this commit
 
 ---
@@ -97,7 +101,73 @@ Instantly find commits by SHA or message.
 
 ---
 
-## 5. Diff Viewer
+## 5. Themes (Light / Dark)
+
+Toggle between light and dark themes for comfortable viewing.
+
+**Screenshot:** `screenshots/light-theme.png`
+
+![Light Theme](screenshots/light-theme.png)
+
+**Screenshot:** `screenshots/dark-theme.png`
+
+![Dark Theme](screenshots/dark-theme.png)
+
+**Description:** Switch between light and dark themes to suit your preference. Light theme (default) provides a clean, high-contrast interface for daytime use. Dark theme features a VS Code-inspired charcoal palette that is easy on the eyes. Click the theme toggle (sun/moon icon) to switch. Theme preference is automatically saved across sessions.
+
+---
+
+## 6. Zoom Controls
+
+Adjust the font size for better readability.
+
+**Screenshot:** `screenshots/zoom-controls.png`
+
+![Zoom Controls](screenshots/zoom-controls.png)
+
+**Description:** Use the zoom controls (+/- buttons) in the toolbar to increase or decrease the font size. Font size preference is automatically saved across sessions.
+
+---
+
+## 7. Mark / Unmark Commit
+
+Mark commits for easy identification.
+
+**Screenshot:** `screenshots/mark-commits.png`
+
+![Mark / Unmark Commit](screenshots/mark-commits.png)
+
+**Description:** Right-click any commit and select "Mark / Unmark commit" to toggle a mark. Marked commits display with a distinct background color for easy identification. This helps you keep track of important commits like releases, milestones, or commits that need further attention. Right-click again to unmark.
+
+**Note:** In the screenshot, the 2nd and 4th commits are already marked.
+
+---
+
+## 8. Show Local Branches
+
+Display local and remote branch names alongside commits.
+
+**Screenshot:** `screenshots/show-local-branches.png`
+
+![Show Local Branches](screenshots/show-local-branches.png)
+
+**Description:** Toggle the "show local branches" checkbox to display branch names next to commits. Local branches are shown in green, and remote branches (e.g., origin/main, origin/master) are shown in orange. This helps you identify which branch a commit belongs to or originated from, making it easier to understand the commit's context and lineage.
+
+**Note:** In the screenshot, local branches feat1, master, and memleak_fix are visible.
+
+---
+
+## 9. Copy to Clipboard
+
+**Screenshot:** `screenshots/copy-commit-details.png`
+
+![Copy to Clipboard](screenshots/copy-commit-details.png)
+
+**Description:** Right-click any commit and select "Copy SHA", "Copy Message", or "Copy Both" to copy to clipboard. A "Copied!" notification appears briefly to confirm the action.
+
+---
+
+## 10. Diff Viewer
 
 View code changes with syntax highlighting for added and removed lines.
 
@@ -109,19 +179,19 @@ View code changes with syntax highlighting for added and removed lines.
 
 ---
 
-## 6. File-wise View
+## 11. File-wise Diff Viewer
 
 Browse commit changes file by file.
 
-**Screenshot:** `screenshots/file-view.png`
+**Screenshot:** `screenshots/file-wise-diff-viewer.png`
 
-![File-wise View](screenshots/file-view.png)
+![File-wise Diff Viewer](screenshots/file-wise-diff-viewer.png)
 
 **Description:** Click the "File-wise View" button to open a dialog listing all changed files. Select any file to view its specific diff. This makes it easy to understand what each file contributed to the commit.
 
 ---
 
-## 7. Rephrase Commit
+## 12. Rephrase Commit
 
 Update the commit message without changing the commit contents.
 
@@ -133,7 +203,7 @@ Update the commit message without changing the commit contents.
 
 ---
 
-## 8. Drop Commit
+## 13. Drop Commit
 
 Remove a commit entirely from the history.
 
@@ -145,7 +215,7 @@ Remove a commit entirely from the history.
 
 ---
 
-## 9. Drag to Reorder
+## 14. Drag to Reorder
 
 Drag commits up or down to change their order in the history.
 
@@ -157,9 +227,12 @@ Drag commits up or down to change their order in the history.
 
 ---
 
-## 10. Squash Commit with above / below commit
+## 15. Squash Commits
 
-Combine commits into one with a custom message.
+Combine multiple commits into one.
+
+### Option 1: Squash Commit with above / below commit
+Squash a commit with its immediate neighbor (above or below).
 
 **Screenshot:** `screenshots/squash-context-menu.png` (context menu)
 
@@ -169,22 +242,31 @@ Combine commits into one with a custom message.
 
 ![Squash Dialog](screenshots/squash-dialogue.png)
 
-**Description:** Right-click a commit and select "Squash with above" or "Squash with below" to open the squash dialog. Edit the combined commit message and click "Confirm" to apply.
+**Description:** Right-click a commit and select "Squash with above" or "Squash with below" to open the squash dialog. You can either select a commit message from one of the commits being squashed, or enter your own custom commit message. Click "Confirm" to apply.
 
-**Note:** Only adjacent commits can be squashed together.
+### Option 2: Select multiple commits and squash them together
+Squash multiple adjacent commits at once.
+
+**Screenshot:** `screenshots/multi-squash.png`
+
+![Multi Squash](screenshots/multi-squash.png)
+
+**Description:** Switch to multiple commit selection mode using the highlighted button in the toolbar (or via the context menu), then select multiple adjacent commits by clicking on them. Once selected, click the "Squash selected commits" button (or use the context menu) to open the squash dialog. Edit the combined commit message in the dialog and click "Confirm" to apply.
+
+To exit multi-selection mode without squashing, click the cancel multi-selection button (or use the context menu) to deselect and return to normal mode.
 
 ---
 
-## 11. Split Dialog
+## 16. Split Dialog
 
 Break a commit into multiple smaller commits by file or change.
 
-**Screenshot:** `screenshots/split-dialogue.png`
+**Screenshot:** `screenshots/split-context-menu.png`
 
-![Split Dialog](screenshots/split-dialogue.png)
+![Split Context Menu](screenshots/split-context-menu.png)
 
-### Option 1: Move single file changes out
-Move changes of a specific file to a separate commit (only for commits with single file changes).
+### Option 1: Move single file changes out of a commit
+Move changes of a specific file to a separate commit (only for commits with multiple file changes).
 
 **Screenshot:** `screenshots/split-move-single-file-1.png`
 
@@ -194,47 +276,23 @@ Move changes of a specific file to a separate commit (only for commits with sing
 
 ![Split Move Single File 2](screenshots/split-move-single-file-2.png)
 
-### Option 2: Split all changes to separate commits
-Break all changes into individual commits per file.
-
-**Screenshot:** `screenshots/split-all-to-separate.png`
-
-![Split All to Separate](screenshots/split-all-to-separate.png)
-
-### Option 3: Split each file to separate commits
-Create one commit per changed file.
+### Option 2: Split each file changes to separate commits
+Available only in commits with multiple file changes. Creates one commit per changed file.
 
 **Screenshot:** `screenshots/split-each-to-separate.png`
 
 ![Split Each to Separate](screenshots/split-each-to-separate.png)
 
----
+### Option 3: Split all changes in one file to separate commits
+Breaks all changes in a single file into individual commits per file change. Available only in commits with single file changes.
 
-## 12. Light Theme
+**Screenshot:** `screenshots/split-all-to-separate.png`
 
-Clean and bright light theme (default).
-
-**Screenshot:** `screenshots/light-theme.png`
-
-![Light Theme](screenshots/light-theme.png)
-
-**Description:** Light theme is the default theme on first run. Provides a clean, high-contrast interface for daytime use. Click the theme toggle (sun icon) to switch themes. Theme preference is automatically saved.
+![Split All to Separate](screenshots/split-all-to-separate.png)
 
 ---
 
-## 13. Dark Theme
-
-VS Code-inspired dark theme for comfortable working.
-
-**Screenshot:** `screenshots/dark-theme.png`
-
-![Dark Theme](screenshots/dark-theme.png)
-
-**Description:** Click the theme toggle (moon icon) to switch to dark mode. The dark theme uses a charcoal palette that is easy on the eyes. Theme preference is automatically saved.
-
----
-
-## 14. Reset Options
+## 17. Reset Options
 
 Fail-safe options to reset your branch to a safe state.
 
@@ -249,13 +307,13 @@ Fail-safe options to reset your branch to a safe state.
 
 ---
 
-## 15. Rebase Dialog
+## 18. Rebase Options
 
 Rebase your commits onto a different branch.
 
-**Screenshot:** `screenshots/rebase-dialog.png`
+**Screenshot:** `screenshots/rebase-options.png`
 
-![Rebase Dialog](screenshots/rebase-dialog.png)
+![Rebase Options](screenshots/rebase-options.png)
 
 **Description:** Click "Rebase" to open the rebase dialog. Choose to rebase onto:
 - master
@@ -263,28 +321,6 @@ Rebase your commits onto a different branch.
 - A custom branch
 
 The rebase runs in the background without blocking the UI.
-
----
-
-## 16. Copy to Clipboard
-
-**Screenshot:** `screenshots/copy-commit-details.png`
-
-![Copy to Clipboard](screenshots/copy-commit-details.png)
-
-**Description:** Right-click any commit and select "Copy SHA", "Copy Message", or "Copy Both" to copy to clipboard. A "Copied!" notification appears briefly to confirm the action.
-
----
-
-## 17. Zoom Controls
-
-Adjust the font size for better readability.
-
-**Screenshot:** `screenshots/zoom-controls.png`
-
-![Zoom Controls](screenshots/zoom-controls.png)
-
-**Description:** Use the zoom controls (+/- buttons) in the toolbar to increase or decrease the font size. Font size preference is automatically saved across sessions.
 
 ---
 
