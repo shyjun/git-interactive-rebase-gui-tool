@@ -19,8 +19,8 @@ def get_git_history(repo_path, commit_sha):
             has_parent = False
 
         if has_parent:
-            # Inclusive range: parent..HEAD shows commit_sha and its descendants
-            cmd = ["git", "log", f"{commit_sha}^..HEAD", "--oneline"]
+            # Exclusive range: commit_sha..HEAD shows only commits after commit_sha (not including it)
+            cmd = ["git", "log", f"{commit_sha}..HEAD", "--oneline"]
         else:
             # Root commit case: show everything reachable from HEAD
             cmd = ["git", "log", "HEAD", "--oneline"]
