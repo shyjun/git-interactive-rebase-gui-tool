@@ -126,9 +126,22 @@ def get_branch_base_info(repo_path):
             return None, None
             
         # Get all local branch names except current
-        cmd_branches = ["git", "for-each-ref", "--format=%(refname:short)", "refs/heads/"]
+        cmd_branches = ["git", "for-each-ref", "--format=%(objectname) %(refname:short)", "refs/heads/"]
         res_branches = subprocess.run(cmd_branches, cwd=repo_path, capture_output=True, text=True, encoding='utf-8', errors='replace')
-        others = [b.strip() for b in res_branches.stdout.strip().split('\n') if b.strip() and b.strip() != current]
+        head_sha = get_full_head_sha(repo_path)
+        others = []
+        for line in res_branches.stdout.strip().split('\n'):
+            parts = line.strip().split(maxsplit=1)
+            if len(parts) == 2:
+                tip_sha, branch = parts
+                if branch == current:
+                    continue
+                if tip_sha == head_sha:
+                    # Sibling branch: points to same commit as HEAD.
+                    # Excluding it so it doesn't absorb our unique commits.
+                    print(f"[get_branch_base_info] Skipping sibling branch '{branch}' (same tip as HEAD)")
+                    continue
+                others.append(branch)
         print(f"[get_branch_base_info] Found {len(others)} other branch(es)")
         
         if not others:
@@ -143,7 +156,7 @@ def get_branch_base_info(repo_path):
         
         if not unique_commits or not unique_commits[0].strip():
             print("[get_branch_base_info] No unique commits found, branch may be in sync with another branch")
-            base_sha = get_full_head_sha(repo_path)
+            return None, None
         else:
             print(f"[get_branch_base_info] Found {len([c for c in unique_commits if c.strip()])} unique commit(s) in current branch")
             first_unique = unique_commits[0].strip()
