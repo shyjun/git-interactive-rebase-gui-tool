@@ -313,11 +313,12 @@ class CommitListWidget(QListWidget):
             traceback.print_exc()
 
 class GitInteractiveRebaseApp(QMainWindow):
-    def __init__(self, repo_path, commit_sha, app_start_time):
+    def __init__(self, repo_path, commit_sha, app_start_time, base_branch=None):
         super().__init__()
         self.repo_path = repo_path
         self.commit_sha = commit_sha
         self.app_start_time = app_start_time
+        self.base_branch = base_branch  # set only when auto-detected; None when SHA provided manually
         self.start_time_full_head = get_full_head_sha(self.repo_path)
         self.start_time_head = get_head_sha(self.repo_path)
         self.last_head = None
@@ -1889,9 +1890,24 @@ class GitInteractiveRebaseApp(QMainWindow):
             self.load_history()
 
     def handle_drop(self, item):
-
         sha = item.text().split()[0]
         print(f"Preparing to drop {sha}...")
+
+        # Guard: if this is the only commit in the list and we're in branch-detection
+        # mode, dropping it is equivalent to a hard-reset to the base — not supported.
+        if self.list_widget.count() == 1 and self.base_branch:
+            base_sha_short = self.commit_sha[:8] if self.commit_sha else "<base>"
+            QMessageBox.information(
+                self,
+                "Drop",
+                f"This is the only unique commit in your branch.\n"
+                f"If you do this, it's as good as resetting hard to "
+                f"branch: {self.base_branch} or {base_sha_short}\n\n"
+                "App doesn't support doing this when run in unique-changes branch mode.\n"
+                "To drop this commit, run the app with an explicit number of commits as argument."
+            )
+            return
+
         try:
             diff_text = get_commit_diff(self.repo_path, sha)
             dialog = DropDialog(sha, diff_text, self.current_font_size, self)

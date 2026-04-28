@@ -68,6 +68,7 @@ def main():
         sys.exit(1)
 
     commit_sha = args.commit_sha
+    base_branch = None  # only set when auto-detected from branch base
     if not commit_sha:
         try:
             print("No commit SHA provided. Detecting branch base...")
@@ -132,7 +133,7 @@ def main():
             print("Exiting as requested by the user.")
             sys.exit(0)
 
-    window = GitInteractiveRebaseApp(repo_path, commit_sha, app_start_time)
+    window = GitInteractiveRebaseApp(repo_path, commit_sha, app_start_time, base_branch=base_branch)
     window.show()
 
     exit_code = app.exec()
