@@ -114,21 +114,24 @@ def get_recent_history_start(repo_path, count=1000):
 
 def get_branch_base_info(repo_path):
     """
-    Finds the first commit in HEAD's history that exists in another local branch.
+    Finds the merge-base of HEAD with the most likely upstream branch.
+    Uses 'git merge-base HEAD <upstream>' which is immune to unrelated branches
+    that happen to contain our commits somewhere in their history.
     Returns (base_sha, branch_name) or (None, None).
     """
     try:
         current = get_current_branch(repo_path)
         print(f"[get_branch_base_info] Current branch: {current}")
-        
+
         if not current or current == "DETACHED":
             print("[get_branch_base_info] DETACHED HEAD state, cannot detect base")
             return None, None
-            
-        # Get all local branch names except current
+
+        # Collect all local branches with their tip SHAs
         cmd_branches = ["git", "for-each-ref", "--format=%(objectname) %(refname:short)", "refs/heads/"]
         res_branches = subprocess.run(cmd_branches, cwd=repo_path, capture_output=True, text=True, encoding='utf-8', errors='replace')
         head_sha = get_full_head_sha(repo_path)
+
         others = []
         for line in res_branches.stdout.strip().split('\n'):
             parts = line.strip().split(maxsplit=1)
@@ -137,62 +140,38 @@ def get_branch_base_info(repo_path):
                 if branch == current:
                     continue
                 if tip_sha == head_sha:
-                    # Sibling branch: points to same commit as HEAD.
-                    # Excluding it so it doesn't absorb our unique commits.
                     print(f"[get_branch_base_info] Skipping sibling branch '{branch}' (same tip as HEAD)")
                     continue
                 others.append(branch)
-        print(f"[get_branch_base_info] Found {len(others)} other branch(es)")
-        
+
+        print(f"[get_branch_base_info] Found {len(others)} candidate upstream branch(es)")
+
         if not others:
             print("[get_branch_base_info] No other branches found to compare against")
             return None, None
-            
-        print(f"[get_branch_base_info] Searching for commits unique to current branch...")
-        # Find first commit unique to this branch (the oldest one in the unique list)
-        cmd_rev = ["git", "rev-list", "HEAD", "--reverse", "--not"] + others
-        res_rev = subprocess.run(cmd_rev, cwd=repo_path, capture_output=True, text=True, encoding='utf-8', errors='replace')
-        unique_commits = res_rev.stdout.strip().split('\n')
-        
-        if not unique_commits or not unique_commits[0].strip():
-            print("[get_branch_base_info] No unique commits found, branch may be in sync with another branch")
-            return None, None
-        else:
-            print(f"[get_branch_base_info] Found {len([c for c in unique_commits if c.strip()])} unique commit(s) in current branch")
-            first_unique = unique_commits[0].strip()
-            # The base is the parent of the first unique commit
-            cmd_parent = ["git", "rev-parse", f"{first_unique}^"]
-            res_parent = subprocess.run(cmd_parent, cwd=repo_path, capture_output=True, text=True, encoding='utf-8', errors='replace')
-            base_sha = res_parent.stdout.strip()
-            
-        if not base_sha:
-            return None, None
-            
-        # Find which branch contains this base
-        cmd_contains = ["git", "branch", "--contains", base_sha]
-        res_contains = subprocess.run(cmd_contains, cwd=repo_path, capture_output=True, text=True, encoding='utf-8', errors='replace')
-        containing_branches = []
-        for line in res_contains.stdout.strip().split('\n'):
-            b = line.strip().lstrip('* ').strip()
-            if b and b != current:
-                containing_branches.append(b)
-        
-        print(f"[get_branch_base_info] Branches containing base SHA: {containing_branches}")
-                
-        # Heuristic: Prefer 'main' or 'master' if multiple found
-        base_branch = "multiple branches"
-        if containing_branches:
-            if "main" in containing_branches:
-                base_branch = "main"
-            elif "master" in containing_branches:
-                base_branch = "master"
-            else:
-                base_branch = containing_branches[0]
-        
-        print(f"[get_branch_base_info] Detected base: SHA={base_sha[:8]}..., branch={base_branch}")
-                
-        return base_sha, base_branch
-        
+
+        # Try candidates in priority order: master > main > anything else
+        PREFERRED = ["master", "main"]
+        candidates = [b for b in PREFERRED if b in others] + [b for b in others if b not in PREFERRED]
+
+        for upstream in candidates:
+            cmd_mb = ["git", "merge-base", "HEAD", upstream]
+            res_mb = subprocess.run(cmd_mb, cwd=repo_path, capture_output=True, text=True, encoding='utf-8', errors='replace')
+            if res_mb.returncode == 0:
+                base_sha = res_mb.stdout.strip()
+                if base_sha:
+                    # Sanity check: ensure there is at least 1 commit after the base
+                    cmd_check = ["git", "rev-list", f"{base_sha}..HEAD"]
+                    res_check = subprocess.run(cmd_check, cwd=repo_path, capture_output=True, text=True, encoding='utf-8', errors='replace')
+                    unique = [c for c in res_check.stdout.strip().split('\n') if c.strip()]
+                    print(f"[get_branch_base_info] merge-base with '{upstream}': {base_sha[:8]}, unique commits: {len(unique)}")
+                    if unique:
+                        print(f"[get_branch_base_info] Detected base: SHA={base_sha[:8]}..., branch={upstream}")
+                        return base_sha, upstream
+
+        print("[get_branch_base_info] No diverging base found against any candidate upstream")
+        return None, None
+
     except Exception:
         return None, None
 
