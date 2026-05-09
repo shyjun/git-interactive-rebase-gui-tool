@@ -22,11 +22,11 @@ A Python-based Git Interactive Rebase GUI tool to visually reorder, squash, edit
 
 ### ⌨️ Keyboard Shortcuts
 
-| Shortcut | Action |
-|----------|--------|
-| `/` | Focus search bar |
-| `Esc` | Clear search / Close dialog |
-| `F5` | Refresh commit history |
+| Shortcut | Action                      |
+| -------- | --------------------------- |
+| `/`      | Focus search bar            |
+| `Esc`    | Clear search / Close dialog |
+| `F5`     | Refresh commit history      |
 
 ### 🎨 Premium User Experience
 
@@ -57,8 +57,32 @@ Coming soon...
 
 ## 🤔 Why this tool?
 
-Interactive rebasing in Git is powerful but error-prone when editing raw todo files.
-This tool provides a visual interface to simplify and safely manage commit history.
+Interactive rebasing in Git is powerful, but repeatedly editing raw rebase todo files can become tedious during commit cleanup workflows.
+
+This tool is designed as a lightweight visual helper around Git interactive rebase, especially useful while cleaning up a feature branch before raising a PR.
+
+### Why it is different
+
+* **Uses native Git under the hood**
+
+  All operations are executed using standard Git commands itself.
+  No custom Git implementation or hidden logic.
+
+  This also means that when Git itself improves or adds new capabilities, the tool automatically benefits from them.
+
+* **Lightweight setup**
+
+  No heavy installation or large Git client required.
+
+* **Focused specifically on interactive rebase**
+
+  Instead of being a full Git client, the tool focuses only on commit history cleanup workflows:
+
+  * reorder commits
+  * squash commits
+  * split commits
+  * rephrase commits
+  * clean up history before PR creation
 
 ---
 
@@ -137,12 +161,11 @@ pip uninstall git-interactive-rebase-gui-tool
 pip install git+https://github.com/shyjun/git-interactive-rebase-gui-tool.git
 ```
 
-### If installed by clonning repository
+### If installed by cloning repository
 
 ```bash
 git pull
 ```
-
 
 ---
 
