@@ -2591,6 +2591,7 @@ for i, filename in enumerate(files):
         finally:
             self.list_widget.setUpdatesEnabled(True)
             self.list_widget.blockSignals(False)
+            self.update_side_diff()
             
         # Update Failsafe button state
         current_head = get_head_sha(self.repo_path)
