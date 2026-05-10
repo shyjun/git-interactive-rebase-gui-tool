@@ -1,8 +1,10 @@
 # Git Interactive Rebase GUI Tool 🚀
 
-🌐 Live Demo / Project Page: https://shyjun.github.io/git-interactive-rebase-gui-tool/
+🌐 **Live Demo / Project Page:** https://shyjun.github.io/git-interactive-rebase-gui-tool/
 
-A Python-based Git Interactive Rebase GUI tool to visually reorder, squash, edit, and manage Git commit history. Built with **PySide6**, this tool simplifies the complex process of rewriting git history with a visual, intuitive interface.
+**A clean visual GUI for `git rebase -i`** — reorder, squash, split, rephrase, and drop commits with an intuitive interface.
+
+A Python-based Git Interactive Rebase GUI tool to visually manage commit history. Built with **PySide6**, this tool simplifies the complex process of rewriting Git history with a faster and more visual workflow.
 
 **Keywords:** git rebase gui, interactive rebase tool, git history editor, git squash commits gui
 
@@ -51,7 +53,7 @@ See the [Screenshots & Feature Guide](docs/screenshots.md) for visual documentat
 
 ## 🎥 Demo Video
 
-Coming soon...
+Coming soon... (Recording in progress)
 
 ---
 
@@ -84,6 +86,8 @@ This tool is designed as a lightweight visual helper around Git interactive reba
   * rephrase commits
   * clean up history before PR creation
 
+**Key Strength:** Uses **native Git under the hood** — all operations are executed using standard Git commands.
+
 ---
 
 ## 🚀 Technical Details
@@ -108,13 +112,11 @@ This tool is designed as a lightweight visual helper around Git interactive reba
 
 ## 📦 Installation (Recommended)
 
-Install the latest version directly from GitHub:
-
 ```bash
 pip install git+https://github.com/shyjun/git-interactive-rebase-gui-tool.git
 ```
 
-Run the application:
+Then run:
 
 ```bash
 git_interactive_rebase
@@ -172,3 +174,7 @@ git pull
 ## 📄 License
 
 This project is licensed under the [MIT License](LICENSE).
+
+---
+
+⭐ If this tool helps you, consider starring the repository!
