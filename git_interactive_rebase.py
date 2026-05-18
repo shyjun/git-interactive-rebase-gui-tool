@@ -61,6 +61,9 @@ def main():
     import subprocess
     try:
         subprocess.run(["git", "rev-parse", "--is-inside-work-tree"], cwd=repo_path, check=True, capture_output=True, encoding='utf-8', errors='replace')
+        root_res = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=repo_path, check=True, capture_output=True, encoding='utf-8', errors='replace')
+        if root_res.stdout.strip():
+            repo_path = root_res.stdout.strip()
     except Exception:
         QMessageBox.critical(None, "Not a Git Repository",
             f"The directory '{repo_path}' is not a valid git repository.\n\n"

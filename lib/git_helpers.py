@@ -374,7 +374,9 @@ def commit_file(repo_path, filepath, message):
         # Commit the file
         subprocess.run(["git", "commit", "-m", message], cwd=repo_path, check=True, capture_output=True)
         return True
-    except subprocess.CalledProcessError:
+    except subprocess.CalledProcessError as e:
+        err = e.stderr.decode('utf-8') if e.stderr else str(e)
+        print(f"Git commit failed for {filepath}: {err}")
         return False
 
 def get_revert_commit_message(repo_path, commit_sha):
