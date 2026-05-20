@@ -717,6 +717,7 @@ class UnstagedChangesDialog(QDialog):
             "If needed, we can stash the changes and go ahead with the app. "
             "But be very careful with what you are doing.<br><br>"
             "Alternatively, we can <b>commit the changes</b> in various ways before we proceed.<br><br>"
+            "<b>Note:</b> Untracked files are <b>not considered</b> and will be left untouched.<br><br>"
             "Otherwise, please exit, commit/discard manually, and start the app again."
         )
         
