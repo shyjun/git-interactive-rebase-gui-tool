@@ -148,6 +148,8 @@ class SplitCommitDialog(QDialog):
         for f in files:
             self.file_list.addItem(f)
         self.file_list.currentTextChanged.connect(self.on_file_selected)
+        self.file_list.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.file_list.customContextMenuRequested.connect(self.show_file_context_menu)
         file_layout.addWidget(self.file_list)
         
         self.main_splitter.addWidget(file_widget)
@@ -197,6 +199,20 @@ class SplitCommitDialog(QDialog):
         # Auto-select first file
         if files:
             self.file_list.setCurrentRow(0)
+
+    def show_file_context_menu(self, pos):
+        item = self.file_list.itemAt(pos)
+        if not item:
+            return
+        menu = QMenu(self)
+        copy_action = QAction("Copy filename to clipboard", self)
+        copy_action.triggered.connect(lambda checked=False, text=item.text(): self.copy_filename_to_clipboard(text))
+        menu.addAction(copy_action)
+        menu.exec(self.file_list.mapToGlobal(pos))
+
+    def copy_filename_to_clipboard(self, filename):
+        QApplication.clipboard().setText(filename)
+        QMessageBox.information(self, "Copied", f"Copied '{filename}' to clipboard.")
 
     def on_file_selected(self, filepath):
         if not filepath:
@@ -322,6 +338,8 @@ class FileWiseViewDialog(QDialog):
         for f in files:
             self.file_list.addItem(f)
         self.file_list.currentTextChanged.connect(self.on_file_selected)
+        self.file_list.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.file_list.customContextMenuRequested.connect(self.show_file_context_menu)
         file_layout.addWidget(self.file_list)
         
         self.main_splitter.addWidget(file_widget)
@@ -364,6 +382,20 @@ class FileWiseViewDialog(QDialog):
 
         if files:
             self.file_list.setCurrentRow(0)
+
+    def show_file_context_menu(self, pos):
+        item = self.file_list.itemAt(pos)
+        if not item:
+            return
+        menu = QMenu(self)
+        copy_action = QAction("Copy filename to clipboard", self)
+        copy_action.triggered.connect(lambda checked=False, text=item.text(): self.copy_filename_to_clipboard(text))
+        menu.addAction(copy_action)
+        menu.exec(self.file_list.mapToGlobal(pos))
+
+    def copy_filename_to_clipboard(self, filename):
+        QApplication.clipboard().setText(filename)
+        QMessageBox.information(self, "Copied", f"Copied '{filename}' to clipboard.")
 
     def on_file_selected(self, filepath):
         if not filepath:
