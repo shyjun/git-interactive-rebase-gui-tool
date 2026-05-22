@@ -481,6 +481,8 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.filewise_file_list = QListWidget()
         self.filewise_file_list.setMinimumHeight(60)
         self.filewise_file_list.currentTextChanged.connect(self.on_filewise_file_selected)
+        self.filewise_file_list.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.filewise_file_list.customContextMenuRequested.connect(self.show_filewise_context_menu)
         
         # File diff
         self.filewise_diff_view = QTextEdit()
@@ -755,6 +757,20 @@ class GitInteractiveRebaseApp(QMainWindow):
     def on_diff_tab_changed(self, index):
         self.settings.setValue("diff_tab_index", index)
         self.update_side_diff()
+
+    def show_filewise_context_menu(self, pos):
+        item = self.filewise_file_list.itemAt(pos)
+        if not item:
+            return
+        menu = QMenu(self)
+        copy_action = QAction("Copy filename to clipboard", self)
+        copy_action.triggered.connect(lambda checked=False, text=item.text(): self.copy_filename_to_clipboard(text))
+        menu.addAction(copy_action)
+        menu.exec(self.filewise_file_list.mapToGlobal(pos))
+
+    def copy_filename_to_clipboard(self, filename):
+        QApplication.clipboard().setText(filename)
+        QMessageBox.information(self, "Copied", f"Copied '{filename}' to clipboard.")
 
     def on_filewise_file_selected(self, filepath):
         if not filepath:
