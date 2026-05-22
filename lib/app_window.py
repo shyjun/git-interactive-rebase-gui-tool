@@ -766,7 +766,19 @@ class GitInteractiveRebaseApp(QMainWindow):
         copy_action = QAction("Copy filename to clipboard", self)
         copy_action.triggered.connect(lambda checked=False, text=item.text(): self.copy_filename_to_clipboard(text))
         menu.addAction(copy_action)
+        
+        move_action = QAction("Move file changes out of this commit", self)
+        move_action.triggered.connect(lambda checked=False, text=item.text(): self.handle_context_move_file_out(text))
+        menu.addAction(move_action)
+
         menu.exec(self.filewise_file_list.mapToGlobal(pos))
+
+    def handle_context_move_file_out(self, filepath):
+        current_commit_item = self.list_widget.currentItem()
+        if not current_commit_item:
+            return
+        sha = current_commit_item.text().split()[0]
+        self.perform_move_file_out(sha, filepath)
 
     def copy_filename_to_clipboard(self, filename):
         QApplication.clipboard().setText(filename)

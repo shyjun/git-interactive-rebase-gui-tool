@@ -208,7 +208,16 @@ class SplitCommitDialog(QDialog):
         copy_action = QAction("Copy filename to clipboard", self)
         copy_action.triggered.connect(lambda checked=False, text=item.text(): self.copy_filename_to_clipboard(text))
         menu.addAction(copy_action)
+
+        move_action = QAction("Move file changes out of this commit", self)
+        move_action.triggered.connect(lambda checked=False, text=item.text(): self.move_file_out(text))
+        menu.addAction(move_action)
+
         menu.exec(self.file_list.mapToGlobal(pos))
+
+    def move_file_out(self, filepath):
+        self.selected_file = filepath
+        self.accept()
 
     def copy_filename_to_clipboard(self, filename):
         QApplication.clipboard().setText(filename)
@@ -391,7 +400,18 @@ class FileWiseViewDialog(QDialog):
         copy_action = QAction("Copy filename to clipboard", self)
         copy_action.triggered.connect(lambda checked=False, text=item.text(): self.copy_filename_to_clipboard(text))
         menu.addAction(copy_action)
+
+        move_action = QAction("Move file changes out of this commit", self)
+        move_action.triggered.connect(lambda checked=False, text=item.text(): self.move_file_out(text))
+        menu.addAction(move_action)
+
         menu.exec(self.file_list.mapToGlobal(pos))
+
+    def move_file_out(self, filepath):
+        main_win = self.parent() if isinstance(self.parent(), QMainWindow) else None
+        if main_win and hasattr(main_win, 'perform_move_file_out'):
+            self.accept()
+            QTimer.singleShot(0, lambda: main_win.perform_move_file_out(self.sha, filepath))
 
     def copy_filename_to_clipboard(self, filename):
         QApplication.clipboard().setText(filename)
