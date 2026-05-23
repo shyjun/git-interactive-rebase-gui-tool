@@ -656,6 +656,33 @@ class ConfirmDropFileDialog(DiffViewerDialog):
         self.btn_layout.addWidget(self.yes_btn)
         self.btn_layout.addWidget(self.no_btn)
 
+class ConfirmMoveFileDialog(DiffViewerDialog):
+    """Confirmation dialog showing file diff before moving file changes out of a commit."""
+    def __init__(self, sha, filepath, diff_text, font_size=10, parent=None):
+        self.filepath = filepath
+        super().__init__(f"Confirm Move File Out: {sha}", sha, diff_text, font_size, parent)
+
+    def setup_header(self, sha):
+        label = QLabel(f"Are you sure you want to move changes of <b>{self.filepath}</b> out of commit: <b>{sha}</b>?")
+        label.setWordWrap(True)
+        self.layout.addWidget(label)
+
+    def setup_buttons(self):
+        self.yes_btn = QPushButton("Yes, Move this file out")
+        self.no_btn = QPushButton("No, Cancel")
+
+        self.yes_btn.setMinimumWidth(180)
+        self.no_btn.setMinimumWidth(120)
+
+        self.yes_btn.setProperty("class", "dialog-btn")
+        self.no_btn.setProperty("class", "dialog-btn")
+
+        self.yes_btn.clicked.connect(self.accept)
+        self.no_btn.clicked.connect(self.reject)
+
+        self.btn_layout.addWidget(self.yes_btn)
+        self.btn_layout.addWidget(self.no_btn)
+
 class RephraseDialog(QDialog):
     """Dialog for editing commit message."""
     def __init__(self, sha, current_message, font_size=10, parent=None):
