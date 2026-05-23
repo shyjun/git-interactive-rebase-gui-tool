@@ -30,7 +30,8 @@ from lib.git_helpers import (
 from lib.dialogs import (
     DiffHighlighter, DiffViewerDialog, SplitCommitDialog, ViewCommitDialog,
     DropDialog, RephraseDialog, RevertCommitDialog, SquashDialog, FileWiseViewDialog,
-    MultiSquashDialog, ProgressDialog, DropFileFromCommitDialog, ConfirmDropFileDialog
+    MultiSquashDialog, ProgressDialog, DropFileFromCommitDialog, ConfirmDropFileDialog,
+    ConfirmMoveFileDialog
 )
 from lib.utils import get_assets_path
 
@@ -2024,6 +2025,16 @@ class GitInteractiveRebaseApp(QMainWindow):
 
             if not other_files:
                 QMessageBox.information(self, "Info", f"File '{filepath}' is the only modified file in this commit. Nothing to split.")
+                return
+
+            # Show confirmation dialog with file diff
+            try:
+                diff_text = get_file_diff_only_in_commit(self.repo_path, sha, filepath)
+            except Exception:
+                diff_text = "Could not load diff for this file."
+
+            confirm_dialog = ConfirmMoveFileDialog(sha, filepath, diff_text, self.current_font_size, self)
+            if confirm_dialog.exec() != QDialog.Accepted:
                 return
 
             original_msg = get_full_commit_message(self.repo_path, sha)
