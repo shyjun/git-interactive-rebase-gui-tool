@@ -623,6 +623,39 @@ class DropDialog(DiffViewerDialog):
         self.btn_layout.addWidget(self.yes_btn)
         self.btn_layout.addWidget(self.no_btn)
 
+class ConfirmDropFileDialog(DiffViewerDialog):
+    """Confirmation dialog showing file diff before dropping file changes from a commit."""
+    def __init__(self, sha, filepath, diff_text, font_size=10, parent=None):
+        self.filepath = filepath
+        super().__init__(f"Confirm Drop File Changes: {sha}", sha, diff_text, font_size, parent)
+
+    def setup_header(self, sha):
+        label = QLabel(f"Are you sure you want to drop changes of <b>{self.filepath}</b> from commit: <b>{sha}</b>?")
+        label.setWordWrap(True)
+        # Use theme-aware warning color
+        main_win = self.parent() if isinstance(self.parent(), QMainWindow) else None
+        warning_color = "#f92672"
+        if main_win and hasattr(main_win, 'current_theme_colors'):
+            warning_color = main_win.current_theme_colors["removed"]
+        label.setStyleSheet(f"color: {warning_color};")
+        self.layout.addWidget(label)
+
+    def setup_buttons(self):
+        self.yes_btn = QPushButton("Yes, Drop this file's changes")
+        self.no_btn = QPushButton("No, Cancel")
+
+        self.yes_btn.setMinimumWidth(180)
+        self.no_btn.setMinimumWidth(120)
+
+        self.yes_btn.setProperty("class", "dialog-btn")
+        self.no_btn.setProperty("class", "dialog-btn")
+
+        self.yes_btn.clicked.connect(self.accept)
+        self.no_btn.clicked.connect(self.reject)
+
+        self.btn_layout.addWidget(self.yes_btn)
+        self.btn_layout.addWidget(self.no_btn)
+
 class RephraseDialog(QDialog):
     """Dialog for editing commit message."""
     def __init__(self, sha, current_message, font_size=10, parent=None):
