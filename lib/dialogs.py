@@ -551,10 +551,18 @@ class FileWiseViewDialog(QDialog):
         copy_action = QAction("Copy filename to clipboard", self)
         copy_action.triggered.connect(lambda checked=False, text=item.text(): self.copy_filename_to_clipboard(text))
         menu.addAction(copy_action)
+        
+        is_only_file = self.file_list.count() <= 1
 
         move_action = QAction("Move file changes out of this commit", self)
         move_action.triggered.connect(lambda checked=False, text=item.text(): self.move_file_out(text))
+        move_action.setEnabled(not is_only_file)
         menu.addAction(move_action)
+
+        drop_action = QAction("Drop file changes from this commit", self)
+        drop_action.triggered.connect(lambda checked=False, text=item.text(): self.drop_file(text))
+        drop_action.setEnabled(not is_only_file)
+        menu.addAction(drop_action)
 
         menu.exec(self.file_list.mapToGlobal(pos))
 
@@ -563,6 +571,12 @@ class FileWiseViewDialog(QDialog):
         if main_win and hasattr(main_win, 'perform_move_file_out'):
             self.accept()
             QTimer.singleShot(0, lambda: main_win.perform_move_file_out(self.sha, filepath))
+
+    def drop_file(self, filepath):
+        main_win = self.parent() if isinstance(self.parent(), QMainWindow) else None
+        if main_win and hasattr(main_win, 'perform_drop_file_from_commit'):
+            self.accept()
+            QTimer.singleShot(0, lambda: main_win.perform_drop_file_from_commit(self.sha, filepath))
 
     def copy_filename_to_clipboard(self, filename):
         QApplication.clipboard().setText(filename)
