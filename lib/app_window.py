@@ -30,7 +30,7 @@ from lib.git_helpers import (
 from lib.dialogs import (
     DiffHighlighter, DiffViewerDialog, SplitCommitDialog, ViewCommitDialog,
     DropDialog, RephraseDialog, RevertCommitDialog, SquashDialog, FileWiseViewDialog,
-    MultiSquashDialog, ProgressDialog, DropFileFromCommitDialog
+    MultiSquashDialog, ProgressDialog, DropFileFromCommitDialog, ConfirmDropFileDialog
 )
 from lib.utils import get_assets_path
 
@@ -2164,6 +2164,16 @@ finally:
 
             if not other_files:
                 QMessageBox.information(self, "Info", f"File '{filepath}' is the only modified file in this commit. Dropping it means dropping the commit completely. Use Drop action instead.")
+                return
+
+            # Show confirmation dialog with file diff
+            try:
+                diff_text = get_file_diff_only_in_commit(self.repo_path, sha, filepath)
+            except Exception:
+                diff_text = "Could not load diff for this file."
+
+            confirm_dialog = ConfirmDropFileDialog(sha, filepath, diff_text, self.current_font_size, self)
+            if confirm_dialog.exec() != QDialog.Accepted:
                 return
 
             # Action script content for dropping
