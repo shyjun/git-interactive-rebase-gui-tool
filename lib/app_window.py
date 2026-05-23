@@ -30,7 +30,7 @@ from lib.git_helpers import (
 from lib.dialogs import (
     DiffHighlighter, DiffViewerDialog, SplitCommitDialog, ViewCommitDialog,
     DropDialog, RephraseDialog, RevertCommitDialog, SquashDialog, FileWiseViewDialog,
-    MultiSquashDialog, ProgressDialog
+    MultiSquashDialog, ProgressDialog, DropFileFromCommitDialog
 )
 from lib.utils import get_assets_path
 
@@ -1558,6 +1558,18 @@ class GitInteractiveRebaseApp(QMainWindow):
         # Split Commit submenu
         split_menu = menu.addMenu("Split Commit")
         split_menu.setFont(menu_font)
+
+        try:
+            files_changed = get_commit_files(self.repo_path, sha)
+            has_multiple_files = len(files_changed) > 1
+        except Exception:
+            has_multiple_files = False
+
+        split_drop_file_action = QAction("drop changes from one file from this commit", self)
+        split_drop_file_action.triggered.connect(lambda: self.handle_split_drop_file(item))
+        split_drop_file_action.setEnabled(has_multiple_files)
+        split_menu.addAction(split_drop_file_action)
+
         split_move_out_action = QAction("move one file changes out of this commit", self)
         split_move_out_action.triggered.connect(lambda: self.handle_split_commit(item))
         split_menu.addAction(split_move_out_action)
@@ -2103,6 +2115,133 @@ finally:
                     f"Error: {result.stderr}")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"An error occurred during split: {str(e)}")
+        finally:
+            self.load_history()
+
+    def handle_split_drop_file(self, item):
+        """Opens DropFileFromCommitDialog to allow dropping a file from a commit."""
+        sha = item.text().split()[0]
+        try:
+            files = get_commit_files(self.repo_path, sha)
+            if not files:
+                QMessageBox.information(self, "No Files", f"Commit {sha} has no file changes to drop.")
+                return
+            if len(files) == 1:
+                QMessageBox.warning(self, "Warning", "This commit has changes only in 1 file.")
+                return
+                
+            dialog = DropFileFromCommitDialog(self.repo_path, sha, files, self.current_font_size, self)
+            if dialog.exec() == QDialog.Accepted:
+                selected_file = dialog.get_selected_file()
+                if selected_file:
+                    self.perform_drop_file_from_commit(sha, selected_file)
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Could not open drop file dialog: {str(e)}")
+
+    def perform_drop_file_from_commit(self, sha, filepath):
+        """
+        Drops a single file's changes from a commit without moving it to a new one.
+        """
+        try:
+            all_files = get_commit_files(self.repo_path, sha)
+            other_files = [f for f in all_files if f != filepath]
+            short_sha = sha[:8]
+
+            if not other_files:
+                QMessageBox.information(self, "Info", f"File '{filepath}' is the only modified file in this commit. Dropping it means dropping the commit completely. Use Drop action instead.")
+                return
+
+            # Action script content for dropping
+            action_script_content = f"""#!/usr/bin/env python3
+import subprocess, sys
+
+sha = {repr(sha)}
+filepath = {repr(filepath)}
+
+# 1. Soft-reset to unstage the commit
+subprocess.check_call(['git', 'reset', '--soft', 'HEAD~1'])
+# 2. Un-stage the target file from the index so it won't be committed
+subprocess.check_call(['git', 'reset', 'HEAD', '--', filepath])
+# 3. Commit the remaining files with the original commit message
+subprocess.check_call(['git', 'commit', '-C', sha])
+# 4. Discard the unstaged changes to drop them
+subprocess.check_call(['git', 'reset', '--hard', 'HEAD'])
+# 5. Clean untracked files (in case the dropped change was a new file)
+subprocess.check_call(['git', 'clean', '-fd', '--', filepath])
+"""
+            import tempfile, os, stat
+            action_fd, action_path = tempfile.mkstemp(prefix='git_drop_action_', suffix='.py', text=True)
+            with os.fdopen(action_fd, 'w', encoding='utf-8') as f:
+                f.write(action_script_content)
+            os.chmod(action_path, os.stat(action_path).st_mode | stat.S_IEXEC)
+            
+            single_exec = f"exec python3 {action_path}"
+
+            current_shas = [self.list_widget.item(i).text().split()[0]
+                            for i in range(self.list_widget.count())]
+
+            with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.py') as f:
+                f.write("#!/usr/bin/env python3\n")
+                f.write("import sys\n")
+                f.write(f"target_sha = {repr(sha)}\n")
+                f.write(f"single_exec = {repr(single_exec)}\n")
+                f.write("todo_path = sys.argv[1]\n")
+                f.write("with open(todo_path, 'r') as tf:\n")
+                f.write("    lines = tf.readlines()\n")
+                f.write("output = []\n")
+                f.write("for line in lines:\n")
+                f.write("    output.append(line)\n")
+                f.write("    stripped = line.strip()\n")
+                f.write("    if not stripped.startswith('#') and len(stripped.split()) >= 2 and stripped.split()[1].startswith(target_sha):\n")
+                f.write("        output.append(single_exec + '\\n')\n")
+                f.write("with open(todo_path, 'w') as tf:\n")
+                f.write("    tf.writelines(output)\n")
+                editor_script = f.name
+
+            os.chmod(editor_script, os.stat(editor_script).st_mode | stat.S_IEXEC)
+
+            sha_idx = current_shas.index(sha) if sha in current_shas else -1
+            if sha_idx == len(current_shas) - 1:
+                has_parent = False
+                try:
+                    subprocess.run(["git", "rev-parse", f"{sha}^"],
+                                   cwd=self.repo_path, check=True, capture_output=True)
+                    has_parent = True
+                except Exception:
+                    pass
+                upstream = f"{sha}^" if has_parent else "--root"
+            else:
+                upstream = current_shas[sha_idx + 1]
+
+            env = os.environ.copy()
+            env["GIT_SEQUENCE_EDITOR"] = editor_script
+            env["GIT_EDITOR"] = "true"
+
+            if upstream == "--root":
+                cmd = ["git", "rebase", "-i", "--root"]
+            else:
+                cmd = ["git", "rebase", "-i", upstream]
+
+            result = subprocess.run(cmd, cwd=self.repo_path, env=env,
+                                    capture_output=True, text=True)
+            
+            try:
+                os.unlink(editor_script)
+                os.unlink(action_path)
+            except:
+                pass
+
+            if result.returncode == 0:
+                QMessageBox.information(self, "Success",
+                    f"File '{filepath}' changes have been dropped from commit {short_sha}.")
+            else:
+                subprocess.run(["git", "rebase", "--abort"],
+                               cwd=self.repo_path, capture_output=True)
+                QMessageBox.critical(self, "Drop Failed",
+                    f"The drop operation failed and has been aborted.\n\n"
+                    f"Error: {result.stderr}")
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"An error occurred during drop: {str(e)}")
         finally:
             self.load_history()
 
