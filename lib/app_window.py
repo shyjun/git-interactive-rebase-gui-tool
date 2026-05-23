@@ -767,9 +767,17 @@ class GitInteractiveRebaseApp(QMainWindow):
         copy_action.triggered.connect(lambda checked=False, text=item.text(): self.copy_filename_to_clipboard(text))
         menu.addAction(copy_action)
         
+        is_only_file = self.filewise_file_list.count() <= 1
+        
         move_action = QAction("Move file changes out of this commit", self)
         move_action.triggered.connect(lambda checked=False, text=item.text(): self.handle_context_move_file_out(text))
+        move_action.setEnabled(not is_only_file)
         menu.addAction(move_action)
+
+        drop_action = QAction("Drop file changes from this commit", self)
+        drop_action.triggered.connect(lambda checked=False, text=item.text(): self.handle_context_drop_file(text))
+        drop_action.setEnabled(not is_only_file)
+        menu.addAction(drop_action)
 
         menu.exec(self.filewise_file_list.mapToGlobal(pos))
 
@@ -779,6 +787,13 @@ class GitInteractiveRebaseApp(QMainWindow):
             return
         sha = current_commit_item.text().split()[0]
         self.perform_move_file_out(sha, filepath)
+
+    def handle_context_drop_file(self, filepath):
+        current_commit_item = self.list_widget.currentItem()
+        if not current_commit_item:
+            return
+        sha = current_commit_item.text().split()[0]
+        self.perform_drop_file_from_commit(sha, filepath)
 
     def copy_filename_to_clipboard(self, filename):
         QApplication.clipboard().setText(filename)
