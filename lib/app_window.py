@@ -2018,6 +2018,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         """
         Moves a single file's changes out of a commit into a new commit after it.
         """
+        self.save_undo_state()
         try:
             all_files = get_commit_files(self.repo_path, sha)
             other_files = [f for f in all_files if f != filepath]
@@ -2168,6 +2169,7 @@ finally:
         """
         Drops a single file's changes from a commit without moving it to a new one.
         """
+        self.save_undo_state()
         try:
             all_files = get_commit_files(self.repo_path, sha)
             other_files = [f for f in all_files if f != filepath]
@@ -2300,6 +2302,7 @@ subprocess.check_call(['git', 'clean', '-fd', '--', filepath])
             QMessageBox.critical(self, "Error", f"Could not check commit files: {str(e)}")
 
     def perform_split_all_commits(self, sha, filepath):
+        self.save_undo_state()
         try:
             short_sha = sha[:8]
             original_msg = get_full_commit_message(self.repo_path, sha)
@@ -2460,6 +2463,7 @@ if os.path.exists('temp.patch'):
 
     def perform_split_per_file(self, sha, files):
         """Executes splitting each file into its own commit using rebase exec."""
+        self.save_undo_state()
         try:
             short_sha = sha[:8]
             original_msg = get_full_commit_message(self.repo_path, sha)
