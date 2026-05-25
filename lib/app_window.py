@@ -31,7 +31,7 @@ from lib.dialogs import (
     DiffHighlighter, DiffViewerDialog, SplitCommitDialog, ViewCommitDialog,
     DropDialog, RephraseDialog, RevertCommitDialog, SquashDialog, FileWiseViewDialog,
     MultiSquashDialog, ProgressDialog, DropFileFromCommitDialog, ConfirmDropFileDialog,
-    ConfirmMoveFileDialog
+    ConfirmMoveFileDialog, RefineFileSelectDialog, RefineChangesDialog
 )
 from lib.utils import get_assets_path
 
@@ -1597,6 +1597,11 @@ class GitInteractiveRebaseApp(QMainWindow):
         split_per_file_action = QAction("split each file changes to separate commit", self)
         split_per_file_action.triggered.connect(lambda: self.handle_split_per_file(item))
         split_menu.addAction(split_per_file_action)
+
+        split_menu.addSeparator()
+        split_refine_action = QAction("Refine changes in selected file", self)
+        split_refine_action.triggered.connect(lambda: self.handle_refine_changes(item))
+        split_menu.addAction(split_refine_action)
         
         menu.addSeparator()
         menu.addAction(copy_sha_action)
@@ -2013,6 +2018,272 @@ class GitInteractiveRebaseApp(QMainWindow):
                     self.perform_move_file_out(sha, selected_file)
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not open split dialog: {str(e)}")
+
+    # ─────────────────────────────────────────────────────────────────
+    #  Refine Changes in Selected File
+    # ─────────────────────────────────────────────────────────────────
+
+    def handle_refine_changes(self, item):
+        """Opens RefineFileSelectDialog to let user pick a file to refine."""
+        sha = item.text().split()[0]
+        try:
+            files = get_commit_files(self.repo_path, sha)
+            if not files:
+                QMessageBox.information(self, "No Files",
+                                        f"Commit {sha} has no file changes.")
+                return
+
+            dialog = RefineFileSelectDialog(self.repo_path, sha, files,
+                                            self.current_font_size, self)
+            if dialog.exec() == QDialog.Accepted:
+                selected_file = dialog.get_selected_file()
+                if selected_file:
+                    self.perform_refine_changes(sha, selected_file)
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Could not open refine dialog: {str(e)}")
+
+    @staticmethod
+    def _parse_hunks(diff_text):
+        """
+        Parse a unified diff (for one file) into a list of (header_line, body_text) tuples.
+        header_line: the '@@ … @@' line (stripped)
+        body_text:   the context/+/- lines that follow, as a single string
+        """
+        hunks = []
+        current_header = None
+        current_body_lines = []
+        for line in diff_text.splitlines():
+            if line.startswith("@@"):
+                if current_header is not None:
+                    hunks.append((current_header, "\n".join(current_body_lines)))
+                current_header = line
+                current_body_lines = []
+            elif current_header is not None:
+                current_body_lines.append(line)
+        if current_header is not None:
+            hunks.append((current_header, "\n".join(current_body_lines)))
+        return hunks
+
+    @staticmethod
+    def _rebuild_patch(diff_header_text, all_hunks, kept_indices):
+        """
+        Build a minimal unified-diff patch string that contains only the kept hunks.
+        Recalculates the +line offsets so 'git apply' accepts the patch cleanly.
+
+        diff_header_text: the part of the diff before the first @@ (diff --git / --- / +++)
+        all_hunks:        list of (header_line, body_text) for ALL hunks
+        kept_indices:     indices into all_hunks that should appear in the result
+        """
+        if not kept_indices:
+            return ""
+
+        # Parse the original @@ -a,b +c,d @@ tails
+        import re
+
+        patch_parts = [diff_header_text]
+        new_plus_start = None  # we will track the running +start line
+
+        for idx in kept_indices:
+            orig_hdr, body = all_hunks[idx]
+            m = re.match(r"@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@(.*)", orig_hdr)
+            if not m:
+                # Safeguard: just keep original header
+                patch_parts.append(orig_hdr)
+                patch_parts.append(body)
+                continue
+
+            minus_start = int(m.group(1))
+            minus_count = int(m.group(2)) if m.group(2) is not None else 1
+            plus_start  = int(m.group(3))
+            plus_count  = int(m.group(4)) if m.group(4) is not None else 1
+            tail        = m.group(5)
+
+            if new_plus_start is None:
+                new_plus_start = plus_start
+            # Recalculate plus_count from actual body lines
+            body_lines = body.splitlines()
+            real_plus_count = sum(1 for l in body_lines if not l.startswith('-'))
+            real_minus_count = sum(1 for l in body_lines if not l.startswith('+'))
+
+            new_hdr = f"@@ -{minus_start},{real_minus_count} +{new_plus_start},{real_plus_count} @@{tail}"
+            patch_parts.append(new_hdr)
+            patch_parts.append(body)
+
+            # Advance new_plus_start: original file advances by context+added lines
+            new_plus_start += real_plus_count
+
+        return "\n".join(patch_parts) + "\n"
+
+    def perform_refine_changes(self, sha, filepath):
+        """
+        Opens the hunk-selection dialog and, on acceptance, rewrites the commit
+        so that only the selected hunks of `filepath` are kept.
+        """
+        try:
+            raw_diff = get_file_diff_only_in_commit(self.repo_path, sha, filepath)
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Could not load diff for {filepath}: {e}")
+            return
+
+        hunks = self._parse_hunks(raw_diff)
+        if not hunks:
+            QMessageBox.information(self, "No Hunks",
+                                    f"No individual hunks found for {filepath} in commit {sha}.")
+            return
+
+        try:
+            commit_msg = get_full_commit_message(self.repo_path, sha)
+        except Exception:
+            commit_msg = ""
+
+        dialog = RefineChangesDialog(sha, filepath, commit_msg,
+                                     hunks, self.current_font_size, self)
+        if dialog.exec() != QDialog.Accepted:
+            return
+
+        kept_indices = dialog.kept_indices
+        if not kept_indices and len(hunks) > 0:
+            reply = QMessageBox.question(
+                self, "No Hunks Kept",
+                "You have not kept any hunks. This would remove all changes for this file.\n"
+                "Continue and completely remove this file's changes from the commit?",
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.No
+            )
+            if reply != QMessageBox.Yes:
+                return
+
+        self.save_undo_state()
+
+        # Build the partial patch (or empty string for full-drop)
+        # Extract the diff header lines (up to first @@)
+        header_lines = []
+        for line in raw_diff.splitlines():
+            if line.startswith("@@"):
+                break
+            header_lines.append(line)
+        diff_header_text = "\n".join(header_lines)
+
+        partial_patch = self._rebuild_patch(diff_header_text, hunks, kept_indices)
+
+        action_script_content = f"""#!/usr/bin/env python3
+import subprocess, os, tempfile, sys
+
+sha = {repr(sha)}
+filepath = {repr(filepath)}
+commit_msg = {repr(commit_msg)}
+partial_patch = {repr(partial_patch)}
+
+# 1. Soft-reset so the commit's changes go back into the staging area
+subprocess.check_call(['git', 'reset', '--soft', 'HEAD~1'])
+
+# 2. Restore this file to the state it had BEFORE the commit (parent's version)
+#    in BOTH the index and the working tree.
+subprocess.check_call(['git', 'checkout', 'HEAD', '--', filepath])
+
+# 3. Apply the partial patch to BOTH the working tree and the index, then stage.
+#    Using 'git apply' (without --cached) keeps index and worktree in sync so
+#    git rebase -i doesn't complain about "unstaged changes" after the exec.
+if partial_patch.strip():
+    patch_fd, patch_path = tempfile.mkstemp(prefix='git_refine_', suffix='.patch', text=True)
+    with os.fdopen(patch_fd, 'w', encoding='utf-8') as pf:
+        pf.write(partial_patch)
+    try:
+        subprocess.check_call(['git', 'apply', patch_path])
+        subprocess.check_call(['git', 'add', '--', filepath])
+    finally:
+        try:
+            os.unlink(patch_path)
+        except:
+            pass
+# else: file is back to parent state (all hunks dropped) — leave it unstaged
+
+# 4. Create a new commit (not --amend) with all currently staged changes
+#    and the original commit message.
+msg_fd, msg_path = tempfile.mkstemp(prefix='git_msg_', text=True)
+with os.fdopen(msg_fd, 'w', encoding='utf-8') as f:
+    f.write(commit_msg)
+try:
+    subprocess.check_call(['git', 'commit', '-F', msg_path])
+finally:
+    try:
+        os.unlink(msg_path)
+    except:
+        pass
+"""
+        action_fd, action_path = tempfile.mkstemp(prefix='git_refine_exec_', suffix='.py', text=True)
+        with os.fdopen(action_fd, 'w', encoding='utf-8') as f:
+            f.write(action_script_content)
+        os.chmod(action_path, os.stat(action_path).st_mode | stat.S_IEXEC)
+
+        single_exec = f"exec python3 {action_path}"
+
+        current_shas = [self.list_widget.item(i).text().split()[0]
+                        for i in range(self.list_widget.count())]
+
+        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.py') as f:
+            f.write("#!/usr/bin/env python3\n")
+            f.write("import sys\n")
+            f.write(f"target_sha = {repr(sha)}\n")
+            f.write(f"single_exec = {repr(single_exec)}\n")
+            f.write("todo_path = sys.argv[1]\n")
+            f.write("with open(todo_path, 'r') as tf:\n")
+            f.write("    lines = tf.readlines()\n")
+            f.write("output = []\n")
+            f.write("for line in lines:\n")
+            f.write("    stripped = line.strip()\n")
+            f.write("    if not stripped.startswith('#') and len(stripped.split()) >= 2 and stripped.split()[1].startswith(target_sha):\n")
+            f.write("        output.append('pick ' + stripped.split(None, 1)[1] + '\\n')\n")
+            f.write("        output.append(single_exec + '\\n')\n")
+            f.write("    else:\n")
+            f.write("        output.append(line)\n")
+            f.write("with open(todo_path, 'w') as tf:\n")
+            f.write("    tf.writelines(output)\n")
+            editor_script = f.name
+
+        os.chmod(editor_script, os.stat(editor_script).st_mode | stat.S_IEXEC)
+
+        sha_idx = current_shas.index(sha) if sha in current_shas else -1
+        if sha_idx == len(current_shas) - 1:
+            has_parent = False
+            try:
+                subprocess.run(["git", "rev-parse", f"{sha}^"],
+                               cwd=self.repo_path, check=True, capture_output=True)
+                has_parent = True
+            except Exception:
+                pass
+            if not has_parent:
+                QMessageBox.critical(self, "Cannot Refine",
+                                     "Cannot refine the oldest commit (no parent).\n"
+                                     "This operation only works when the commit has a parent.")
+                return
+            upstream = f"{sha}^"
+        else:
+            upstream = current_shas[sha_idx + 1]
+
+        env = os.environ.copy()
+        env["GIT_SEQUENCE_EDITOR"] = editor_script
+        env["GIT_EDITOR"] = "true"
+
+        cmd = ["git", "rebase", "-i", upstream]
+        result = subprocess.run(cmd, cwd=self.repo_path, env=env,
+                                capture_output=True, text=True)
+
+        try:
+            os.unlink(editor_script)
+            os.unlink(action_path)
+        except Exception:
+            pass
+
+        if result.returncode == 0:
+            self.load_history()
+            QMessageBox.information(self, "Success",
+                                    f"Successfully refined changes for '{filepath}' in commit {sha[:8]}.")
+        else:
+            subprocess.run(["git", "rebase", "--abort"],
+                           cwd=self.repo_path, capture_output=True)
+            QMessageBox.critical(self, "Refine Failed",
+                                 f"Could not refine changes.\n\nError: {result.stderr}")
+            self.load_history()
 
     def perform_move_file_out(self, sha, filepath):
         """

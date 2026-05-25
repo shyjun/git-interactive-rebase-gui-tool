@@ -5,10 +5,11 @@ if __name__ == "__main__":
     sys.exit(1)
 
 from PySide6.QtWidgets import (
-    QApplication, QMainWindow, QListWidget, QVBoxLayout, 
+    QApplication, QMainWindow, QListWidget, QVBoxLayout,
     QWidget, QMessageBox, QListWidgetItem, QMenu, QDialog,
     QTextEdit, QPushButton, QHBoxLayout, QLabel, QRadioButton,
-    QLineEdit, QSplitter, QInputDialog, QProgressBar, QScrollArea
+    QLineEdit, QSplitter, QInputDialog, QProgressBar, QScrollArea,
+    QFrame, QCheckBox
 )
 from PySide6.QtCore import Qt, QSize, QSettings, QTimer
 from PySide6.QtGui import QFont, QSyntaxHighlighter, QTextCharFormat, QColor, QAction, QShortcut, QKeySequence
@@ -1032,6 +1033,227 @@ class UnstagedChangesDialog(QDialog):
         
         layout.addLayout(btn_layout)
 
+class RefineFileSelectDialog(SplitCommitDialog):
+    """File-selection dialog for Refine Changes. Reuses SplitCommitDialog layout."""
+    def __init__(self, repo_path, sha, files, font_size=10, parent=None):
+        super().__init__(repo_path, sha, files, font_size, parent)
+        self.setWindowTitle(f"Refine Changes: {sha}")
+        self.move_btn.setText("Refine changes in selected file")
+        # Update the instruction label
+        label = self.main_splitter.widget(1).layout().itemAt(0).widget()
+        label.setText("<b>Select a file</b> to refine changes in this commit:")
+
+    def show_file_context_menu(self, pos):
+        item = self.file_list.itemAt(pos)
+        if not item:
+            return
+        menu = QMenu(self)
+        copy_action = QAction("Copy filename to clipboard", self)
+        copy_action.triggered.connect(lambda checked=False, text=item.text(): self.copy_filename_to_clipboard(text))
+        menu.addAction(copy_action)
+        refine_action = QAction("Refine changes in selected file", self)
+        refine_action.triggered.connect(lambda checked=False, text=item.text(): self.move_file_out(text))
+        menu.addAction(refine_action)
+        menu.exec(self.file_list.mapToGlobal(pos))
 
 
+class HunkWidget(QFrame):
+    """A framed widget displaying a single diff hunk with a checkbox."""
+    def __init__(self, hunk_index, hunk_header, hunk_text, colors, font_size):
+        super().__init__()
+        self.setFrameShape(QFrame.StyledPanel)
+        self.setFrameShadow(QFrame.Raised)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(6, 6, 6, 6)
+        layout.setSpacing(4)
+
+        # Header row: checkbox + hunk @@ header on the left, line count on the right
+        header_row = QHBoxLayout()
+        self.checkbox = QCheckBox(f"Change {hunk_index}   {hunk_header}")
+        self.checkbox.setChecked(True)
+        bold_font = self.checkbox.font()
+        bold_font.setBold(True)
+        self.checkbox.setFont(bold_font)
+        header_row.addWidget(self.checkbox)
+        header_row.addStretch()
+
+        changed = sum(1 for l in hunk_text.splitlines() if l.startswith(('+', '-')) and not l.startswith(('+++', '---')))
+        line_count_label = QLabel(f"{changed} line{'s' if changed != 1 else ''}")
+        line_count_label.setStyleSheet("color: gray;")
+        header_row.addWidget(line_count_label)
+        layout.addLayout(header_row)
+
+        self.diff_view = QTextEdit()
+        self.diff_view.setReadOnly(True)
+        self.diff_view.setFont(QFont("Courier New", font_size))
+        self.diff_view.setPlainText(hunk_text)
+
+        lines = hunk_text.count('\n') + 1
+        line_h = font_size + 8
+        self.diff_view.setMinimumHeight(min(max(lines * line_h + 10, 50), 280))
+        self.diff_view.setMaximumHeight(min(max(lines * line_h + 10, 50), 280))
+
+        self.highlighter = DiffHighlighter(
+            self.diff_view.document(),
+            added_color=colors["added"],
+            removed_color=colors["removed"],
+            header_color=colors["header"]
+        )
+        layout.addWidget(self.diff_view)
+
+    def is_selected(self):
+        return self.checkbox.isChecked()
+
+    def set_selected(self, state):
+        self.checkbox.setChecked(state)
+
+
+class RefineChangesDialog(QDialog):
+    """Hunk selection dialog for Refine Changes in File feature."""
+    def __init__(self, sha, filepath, commit_msg, hunks, font_size=10, parent=None):
+        """
+        hunks: list of (hunk_header_str, hunk_body_str)
+        """
+        super().__init__(parent)
+        self.setWindowTitle("Refine Changes in File")
+        self.setMinimumSize(920, 720)
+        self.hunk_widgets = []
+        self.result_action = None   # 'keep' or 'drop'
+        self.kept_indices = []
+
+        main_win = parent if isinstance(parent, QMainWindow) else None
+        if main_win and hasattr(main_win, 'current_theme_colors'):
+            colors = main_win.current_theme_colors
+        else:
+            colors = {"added": "#a6e22e", "removed": "#f92672", "header": "#66d9ef"}
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(8)
+
+        # --- Header ---
+        short_msg = commit_msg.split('\n')[0] if commit_msg else ""
+        header_html = (
+            f"<b>Commit:</b> <span style='color:{colors['header']};'>{sha}</span>"
+            f"&nbsp;&nbsp;{short_msg}<br>"
+            f"<b>File:</b> {filepath}<br>"
+            "Select the changes (hunks) you want to <b>KEEP</b> in this file."
+        )
+        header_label = QLabel(header_html)
+        header_label.setTextFormat(Qt.RichText)
+        header_label.setWordWrap(True)
+        layout.addWidget(header_label)
+
+        # --- Select All / Deselect All + counter ---
+        top_row = QHBoxLayout()
+        select_all_btn = QPushButton("Select All")
+        deselect_all_btn = QPushButton("Deselect All")
+        select_all_btn.setFixedWidth(110)
+        deselect_all_btn.setFixedWidth(110)
+        select_all_btn.clicked.connect(lambda: self._set_all(True))
+        deselect_all_btn.clicked.connect(lambda: self._set_all(False))
+        top_row.addWidget(select_all_btn)
+        top_row.addWidget(deselect_all_btn)
+        top_row.addStretch()
+        self.counter_label = QLabel()
+        top_row.addWidget(self.counter_label)
+        layout.addLayout(top_row)
+
+        # --- Scrollable hunk list ---
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        container = QWidget()
+        hunks_layout = QVBoxLayout(container)
+        hunks_layout.setSpacing(8)
+
+        for i, (hdr, body) in enumerate(hunks):
+            hw = HunkWidget(i + 1, hdr, body, colors, font_size)
+            hw.checkbox.stateChanged.connect(self._update_counter)
+            self.hunk_widgets.append(hw)
+            hunks_layout.addWidget(hw)
+
+        hunks_layout.addStretch()
+        scroll.setWidget(container)
+        layout.addWidget(scroll)
+
+        self._update_counter()
+
+        # --- Bottom buttons ---
+        bot_row = QHBoxLayout()
+        bot_row.setSpacing(10)
+
+        self.drop_btn = QPushButton()
+        self.drop_btn.setText("Drop Selected Changes")
+        self.drop_btn.setToolTip("Checked hunks will be dropped; unchecked will remain in the commit.")
+        self.drop_btn.setStyleSheet(
+            "QPushButton { color: #cc2200; border: 2px solid #cc2200; padding: 10px 18px; "
+            "border-radius: 6px; font-weight: bold; } "
+            "QPushButton:hover { background-color: #fff0ee; }"
+        )
+
+        self.keep_btn = QPushButton()
+        self.keep_btn.setText("Keep Only Selected Changes")
+        self.keep_btn.setToolTip("Checked hunks will remain; unchecked will be dropped from the commit.")
+        self.keep_btn.setStyleSheet(
+            "QPushButton { color: #0055cc; border: 2px solid #0055cc; padding: 10px 18px; "
+            "border-radius: 6px; font-weight: bold; } "
+            "QPushButton:hover { background-color: #eef4ff; }"
+        )
+
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.setMinimumWidth(100)
+        cancel_btn.setProperty("class", "dialog-btn-secondary")
+
+        self.drop_btn.clicked.connect(self._on_drop)
+        self.keep_btn.clicked.connect(self._on_keep)
+        cancel_btn.clicked.connect(self.reject)
+
+        # Sub-labels
+        drop_col = QVBoxLayout()
+        drop_col.setSpacing(2)
+        drop_col.addWidget(self.drop_btn)
+        drop_note = QLabel("(Unchecked changes will be kept in the commit)")
+        drop_note.setStyleSheet("color: #cc2200; font-size: 11px;")
+        drop_note.setAlignment(Qt.AlignCenter)
+        drop_col.addWidget(drop_note)
+
+        keep_col = QVBoxLayout()
+        keep_col.setSpacing(2)
+        keep_col.addWidget(self.keep_btn)
+        keep_note = QLabel("(Unchecked changes will be dropped from the commit)")
+        keep_note.setStyleSheet("color: #0055cc; font-size: 11px;")
+        keep_note.setAlignment(Qt.AlignCenter)
+        keep_col.addWidget(keep_note)
+
+        bot_row.addLayout(drop_col)
+        bot_row.addLayout(keep_col)
+        bot_row.addStretch()
+        bot_row.addWidget(cancel_btn)
+        layout.addLayout(bot_row)
+
+    def _update_counter(self, _=None):
+        total = len(self.hunk_widgets)
+        sel = sum(1 for hw in self.hunk_widgets if hw.is_selected())
+        drop = total - sel
+        self.counter_label.setText(
+            f"<b>Selected:</b> {sel}&nbsp;&nbsp;<b>Un-Selected:</b> {drop}&nbsp;&nbsp;<b>Total:</b> {total}"
+        )
+        self.counter_label.setTextFormat(Qt.RichText)
+
+    def _set_all(self, state):
+        for hw in self.hunk_widgets:
+            hw.set_selected(state)
+
+    def _on_drop(self):
+        # Kept = unchecked
+        self.kept_indices = [i for i, hw in enumerate(self.hunk_widgets) if not hw.is_selected()]
+        self.result_action = "keep"   # we reconstruct a patch with only the kept ones
+        self.accept()
+
+    def _on_keep(self):
+        # Kept = checked
+        self.kept_indices = [i for i, hw in enumerate(self.hunk_widgets) if hw.is_selected()]
+        self.result_action = "keep"
+        self.accept()
 
