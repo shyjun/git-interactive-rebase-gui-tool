@@ -780,6 +780,11 @@ class GitInteractiveRebaseApp(QMainWindow):
         drop_action.setEnabled(not is_only_file)
         menu.addAction(drop_action)
 
+        menu.addSeparator()
+        refine_action = QAction("Refine changes in selected file", self)
+        refine_action.triggered.connect(lambda checked=False, text=item.text(): self.handle_context_refine_changes(text))
+        menu.addAction(refine_action)
+
         menu.exec(self.filewise_file_list.mapToGlobal(pos))
 
     def handle_context_move_file_out(self, filepath):
@@ -795,6 +800,13 @@ class GitInteractiveRebaseApp(QMainWindow):
             return
         sha = current_commit_item.text().split()[0]
         self.perform_drop_file_from_commit(sha, filepath)
+
+    def handle_context_refine_changes(self, filepath):
+        current_commit_item = self.list_widget.currentItem()
+        if not current_commit_item:
+            return
+        sha = current_commit_item.text().split()[0]
+        self.perform_refine_changes(sha, filepath)
 
     def copy_filename_to_clipboard(self, filename):
         QApplication.clipboard().setText(filename)
