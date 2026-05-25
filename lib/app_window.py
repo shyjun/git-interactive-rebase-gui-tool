@@ -2142,6 +2142,15 @@ class GitInteractiveRebaseApp(QMainWindow):
             QMessageBox.information(self, "No Hunks",
                                     f"No individual hunks found for {filepath} in commit {sha}.")
             return
+        
+        if len(hunks) == 1:
+            QMessageBox.information(
+                self, "Single Hunk",
+                f"File '{filepath}' has only 1 hunk of changes.\n\n"
+                "Refining is used for files with multiple hunks. For a single hunk, "
+                "you can just use 'Drop file changes' if you want to remove it completely."
+            )
+            return
 
         try:
             commit_msg = get_full_commit_message(self.repo_path, sha)
