@@ -1148,7 +1148,6 @@ class RefineChangesDialog(QDialog):
         header_html = (
             f"<b>Commit:</b> <span style='color:{colors['header']};'>{sha}</span>"
             f"&nbsp;&nbsp;{short_msg}<br>"
-            f"<b>File:</b> {filepath}<br>"
             "Select the changes (hunks) you want to <b>KEEP</b> in this file."
         )
         header_label = QLabel(header_html)
