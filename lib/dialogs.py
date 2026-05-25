@@ -565,6 +565,11 @@ class FileWiseViewDialog(QDialog):
         drop_action.setEnabled(not is_only_file)
         menu.addAction(drop_action)
 
+        menu.addSeparator()
+        refine_action = QAction("Refine changes in selected file", self)
+        refine_action.triggered.connect(lambda checked=False, text=item.text(): self.refine_file(text))
+        menu.addAction(refine_action)
+
         menu.exec(self.file_list.mapToGlobal(pos))
 
     def move_file_out(self, filepath):
@@ -578,6 +583,12 @@ class FileWiseViewDialog(QDialog):
         if main_win and hasattr(main_win, 'perform_drop_file_from_commit'):
             self.accept()
             QTimer.singleShot(0, lambda: main_win.perform_drop_file_from_commit(self.sha, filepath))
+
+    def refine_file(self, filepath):
+        main_win = self.parent() if isinstance(self.parent(), QMainWindow) else None
+        if main_win and hasattr(main_win, 'perform_refine_changes'):
+            self.accept()
+            QTimer.singleShot(0, lambda: main_win.perform_refine_changes(self.sha, filepath))
 
     def copy_filename_to_clipboard(self, filename):
         QApplication.clipboard().setText(filename)
