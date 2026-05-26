@@ -1068,10 +1068,106 @@ class RefineFileSelectDialog(SplitCommitDialog):
         menu.exec(self.file_list.mapToGlobal(pos))
 
 
+class EditHunkDialog(QDialog):
+    """A small lightweight dialog to edit a single diff hunk."""
+    def __init__(self, sha, filepath, hunk_index, hunk_text, font_size=10, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Edit Hunk")
+        self.setMinimumSize(800, 500)
+        self.original_hunk = hunk_text
+        
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(15, 15, 15, 15)
+        layout.setSpacing(12)
+        
+        # Header info
+        header_layout = QVBoxLayout()
+        header_layout.setSpacing(4)
+        
+        commit_label = QLabel(f"<b>Commit:</b> <span style='color:{self.parent().colors['header'] if self.parent() and hasattr(self.parent(), 'colors') else '#66d9ef'};'>{sha}</span>&nbsp;&nbsp;changes in {filepath}")
+        commit_label.setTextFormat(Qt.RichText)
+        header_layout.addWidget(commit_label)
+        
+        file_label = QLabel(f"<b>File:</b> {filepath}")
+        file_label.setTextFormat(Qt.RichText)
+        header_layout.addWidget(file_label)
+        
+        hunk_label = QLabel("Edit the selected hunk below. Only valid patch format should be kept.")
+        hunk_label.setStyleSheet("color: #666;")
+        header_layout.addWidget(hunk_label)
+        
+        layout.addLayout(header_layout)
+        
+        # Editor
+        editor_label = QLabel("Hunk (editable)")
+        editor_label.setContentsMargins(2, 0, 0, 0)
+        layout.addWidget(editor_label)
+        
+        self.editor = QTextEdit()
+        self.editor.setFont(QFont("Courier New", font_size))
+        self.editor.setPlainText(hunk_text)
+        self.editor.setAcceptRichText(False)
+        self.editor.setLineWrapMode(QTextEdit.NoWrap)
+        layout.addWidget(self.editor)
+        
+        # Tip/Warning row
+        tip_row = QHBoxLayout()
+        tip_row.setSpacing(8)
+        warning_icon = QLabel("ⓘ")
+        warning_icon.setStyleSheet("font-size: 16px; color: #e67e22;")
+        warning_text = QLabel("Invalid patch edits may fail to apply.")
+        warning_text.setStyleSheet("color: #666; font-size: 11px;")
+        tip_row.addStretch()
+        tip_row.addWidget(warning_icon)
+        tip_row.addWidget(warning_text)
+        layout.addLayout(tip_row)
+
+        # Buttons
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(10)
+        
+        reset_btn = QPushButton("Reset to Original Hunk")
+        reset_btn.setMinimumHeight(32)
+        reset_btn.clicked.connect(self._reset)
+        
+        self.apply_btn = QPushButton("Apply")
+        self.apply_btn.setMinimumHeight(32)
+        self.apply_btn.setMinimumWidth(100)
+        self.apply_btn.clicked.connect(self.accept)
+        self.apply_btn.setStyleSheet("font-weight: bold;")
+        
+        self.cancel_btn = QPushButton("Cancel")
+        self.cancel_btn.setMinimumHeight(32)
+        self.cancel_btn.setMinimumWidth(100)
+        self.cancel_btn.clicked.connect(self.reject)
+        
+        btn_row.addWidget(reset_btn)
+        btn_row.addStretch()
+        btn_row.addWidget(self.apply_btn)
+        btn_row.addWidget(self.cancel_btn)
+        layout.addLayout(btn_row)
+
+    def _reset(self):
+        self.editor.setPlainText(self.original_hunk)
+
+    def get_hunk_text(self):
+        return self.editor.toPlainText()
+
+
 class HunkWidget(QFrame):
     """A framed widget displaying a single diff hunk with a checkbox."""
-    def __init__(self, hunk_index, hunk_header, hunk_text, colors, font_size):
+    def __init__(self, hunk_index, hunk_header, hunk_text, colors, font_size, sha=None, filepath=None):
         super().__init__()
+        self.hunk_index = hunk_index
+        self.hunk_header = hunk_header
+        self.original_hunk_header = hunk_header
+        self.original_hunk_text = hunk_text
+        self.current_hunk_text = hunk_text
+        self.colors = colors
+        self.font_size = font_size
+        self.sha = sha
+        self.filepath = filepath
+
         self.setFrameShape(QFrame.StyledPanel)
         self.setFrameShadow(QFrame.Raised)
 
@@ -1079,7 +1175,7 @@ class HunkWidget(QFrame):
         layout.setContentsMargins(6, 6, 6, 6)
         layout.setSpacing(4)
 
-        # Header row: checkbox + hunk @@ header on the left, line count on the right
+        # Header row: checkbox + hunk @@ header on the left, line count + Edit on the right
         header_row = QHBoxLayout()
         self.checkbox = QCheckBox(f"Change {hunk_index}   {hunk_header}")
         self.checkbox.setChecked(True)
@@ -1090,15 +1186,23 @@ class HunkWidget(QFrame):
         header_row.addStretch()
 
         changed = sum(1 for l in hunk_text.splitlines() if l.startswith(('+', '-')) and not l.startswith(('+++', '---')))
-        line_count_label = QLabel(f"{changed} line{'s' if changed != 1 else ''}")
-        line_count_label.setStyleSheet("color: gray;")
-        header_row.addWidget(line_count_label)
+        self.line_count_label = QLabel(f"{changed} line{'s' if changed != 1 else ''}")
+        self.line_count_label.setStyleSheet("color: gray;")
+        header_row.addWidget(self.line_count_label)
+        
+        self.edit_btn = QPushButton("Edit")
+        self.edit_btn.setFixedWidth(70)
+        self.edit_btn.setCursor(Qt.PointingHandCursor)
+        self.edit_btn.clicked.connect(self.show_hunk_menu)
+        header_row.addWidget(self.edit_btn)
+        
         layout.addLayout(header_row)
 
         self.diff_view = QTextEdit()
         self.diff_view.setReadOnly(True)
         self.diff_view.setFont(QFont("Courier New", font_size))
         self.diff_view.setPlainText(hunk_text)
+        self.diff_view.setLineWrapMode(QTextEdit.NoWrap)
 
         lines = hunk_text.count('\n') + 1
         line_h = font_size + 8
@@ -1112,6 +1216,52 @@ class HunkWidget(QFrame):
             header_color=colors["header"]
         )
         layout.addWidget(self.diff_view)
+
+    def show_hunk_menu(self):
+        menu = QMenu(self)
+        edit_action = menu.addAction("Edit Hunk")
+        copy_action = menu.addAction("Copy Hunk")
+        reset_action = menu.addAction("Reset Hunk (Revert to original)")
+        
+        if self.current_hunk_text == self.original_hunk_text:
+            reset_action.setEnabled(False)
+            
+        # Position menu below the edit button
+        action = menu.exec(self.edit_btn.mapToGlobal(self.edit_btn.rect().bottomLeft()))
+        
+        if action == edit_action:
+            self.open_edit_dialog()
+        elif action == copy_action:
+            QApplication.clipboard().setText(self.current_hunk_text)
+        elif action == reset_action:
+            self.current_hunk_text = self.original_hunk_text
+            self.hunk_header = self.original_hunk_header
+            self.checkbox.setText(f"Change {self.hunk_index}   {self.hunk_header}")
+            self.diff_view.setPlainText(self.current_hunk_text)
+            self._update_line_count()
+
+    def open_edit_dialog(self):
+        full_text = f"{self.hunk_header}\n{self.current_hunk_text}"
+        dlg = EditHunkDialog(self.sha, self.filepath, self.hunk_index, full_text, self.font_size, self)
+        if dlg.exec() == QDialog.Accepted:
+            new_full_text = dlg.get_hunk_text()
+            if '\n' in new_full_text:
+                self.hunk_header, self.current_hunk_text = new_full_text.split('\n', 1)
+            else:
+                self.hunk_header = new_full_text
+                self.current_hunk_text = ""
+            
+            # Update the checkbox text to show potentially new header
+            self.checkbox.setText(f"Change {self.hunk_index}   {self.hunk_header}")
+            self.diff_view.setPlainText(self.current_hunk_text)
+            self._update_line_count()
+
+    def _update_line_count(self):
+        changed = sum(1 for l in self.current_hunk_text.splitlines() if l.startswith(('+', '-')) and not l.startswith(('+++', '---')))
+        self.line_count_label.setText(f"{changed} line{'s' if changed != 1 else ''}")
+
+    def get_current_text(self):
+        return self.current_hunk_text
 
     def is_selected(self):
         return self.checkbox.isChecked()
@@ -1178,7 +1328,7 @@ class RefineChangesDialog(QDialog):
         hunks_layout.setSpacing(8)
 
         for i, (hdr, body) in enumerate(hunks):
-            hw = HunkWidget(i + 1, hdr, body, colors, font_size)
+            hw = HunkWidget(i + 1, hdr, body, colors, font_size, sha=sha, filepath=filepath)
             hw.checkbox.stateChanged.connect(self._update_counter)
             self.hunk_widgets.append(hw)
             hunks_layout.addWidget(hw)
@@ -1260,6 +1410,11 @@ class RefineChangesDialog(QDialog):
         bot_row.addStretch()
         bot_row.addWidget(cancel_btn)
         layout.addLayout(bot_row)
+        
+        # --- Tip label ---
+        tip_label = QLabel("ⓘ Tip: Click 'Edit' on any hunk to modify it. Right-click a hunk for more options.")
+        tip_label.setStyleSheet("color: #666; font-size: 11px; padding-top: 5px;")
+        layout.addWidget(tip_label)
 
     def _update_counter(self, _=None):
         total = len(self.hunk_widgets)
@@ -1292,4 +1447,8 @@ class RefineChangesDialog(QDialog):
         self.kept_indices = [i for i, hw in enumerate(self.hunk_widgets) if not hw.is_selected()]
         self.result_action = "move"
         self.accept()
+
+    def get_hunk_data(self):
+        """Returns a list of (hunk_header, hunk_text) for all hunks."""
+        return [(hw.hunk_header, hw.get_current_text()) for hw in self.hunk_widgets]
 
