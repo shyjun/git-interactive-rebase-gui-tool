@@ -393,6 +393,23 @@ class GitInteractiveRebaseApp(QMainWindow):
         title = f"git-interactive-rebase-gui-tool : branch={branch}, path={self.repo_path}, app_start_time={app_time}"
         self.setWindowTitle(title)
 
+    def get_head_sha(self):
+        """Returns the current HEAD SHA of the repository."""
+        try:
+            return subprocess.check_output(['git', 'rev-parse', 'HEAD'], 
+                                          cwd=self.repo_path).decode().strip()
+        except:
+            return "unknown"
+
+    def log_action(self, sha, action, old_head, new_head):
+        """Prints a standardized, user-friendly log message for an action."""
+        # Shorten SHAs for readability
+        s_sha = sha[:8] if sha and len(sha) > 8 else (sha or "N/A")
+        s_old = old_head[:8] if len(old_head) > 8 else old_head
+        s_new = new_head[:8] if len(new_head) > 8 else new_head
+        
+        print(f"[{time.strftime('%H:%M:%S')}] {s_sha} {action}, HEAD before={s_old}, HEAD after={s_new}")
+
     def restore_visibility_settings(self):
         """Restores visibility and checkbox states for optional groups."""
         # Origin Options Visibility
@@ -920,14 +937,17 @@ class GitInteractiveRebaseApp(QMainWindow):
             QMessageBox.No
         )
         if reply == QMessageBox.Yes:
+            old_head = self.get_head_sha()
             try:
                 subprocess.run(["git", "reset", "--hard", self.last_head], cwd=self.repo_path, check=True, capture_output=True, text=True, encoding='utf-8', errors='replace')
+                self.load_history()
+                new_head = self.get_head_sha()
+                self.log_action(self.last_head, "undid last operation (reset hard to)", old_head, new_head)
                 QMessageBox.information(self, "Success", f"Successfully undid the last operation (reset to {self.last_head[:8]}).")
                 self.last_head = None
                 self.undo_btn.setEnabled(False)
             except subprocess.CalledProcessError as e:
                 QMessageBox.critical(self, "Undo Failed", f"Could not perform undo.\n\nError: {e.stderr}")
-            finally:
                 self.load_history()
 
     def handle_check_for_updates(self):
@@ -1154,11 +1174,14 @@ class GitInteractiveRebaseApp(QMainWindow):
         )
         if reply == QMessageBox.Yes:
             self.save_undo_state()
+            old_head = self.get_head_sha()
             print(f"Rebasing onto {target}...")
             try:
                 subprocess.run(["git", "rebase", target], cwd=self.repo_path, check=True, capture_output=True, text=True)
-                QMessageBox.information(self, "Success", f"Successfully rebased onto {target}.")
                 self.load_history()
+                new_head = self.get_head_sha()
+                self.log_action(target, f"rebased onto {target}", old_head, new_head)
+                QMessageBox.information(self, "Success", f"Successfully rebased onto {target}.")
             except subprocess.CalledProcessError as e:
                 QMessageBox.critical(self, "Rebase Failed", f"Could not perform rebase onto {target}.\n\nError: {e.stderr}")
 
@@ -1645,6 +1668,7 @@ class GitInteractiveRebaseApp(QMainWindow):
 
     def perform_rephrase(self, sha, new_message):
         """Executes the rephrase using unified rebase logic."""
+        old_head = self.get_head_sha()
         try:
             # Current list of SHAs in UI
             current_shas = []
@@ -1652,8 +1676,9 @@ class GitInteractiveRebaseApp(QMainWindow):
                 current_shas.append(self.list_widget.item(i).text().split()[0])
             
             if self.run_interactive_rebase(current_shas, rephrase_map={sha: new_message}, progress_title="Rephrasing Commit", progress_text=f"Rephrasing commit {sha}. Please wait..."):
-                print(f"Rephrased {sha}.")
                 self.load_history()
+                new_head = self.get_head_sha()
+                self.log_action(sha, "rephrased", old_head, new_head)
                 QMessageBox.information(self, "Success", f"Commit {sha} rephrased successfully.")
                 return
             
@@ -1678,6 +1703,7 @@ class GitInteractiveRebaseApp(QMainWindow):
     def perform_revert_commit(self, sha, revert_message):
         """Executes git revert --no-commit then commits with the edited message."""
         self.save_undo_state()
+        old_head = self.get_head_sha()
         try:
             # Revert without auto-committing so we can supply our own message
             subprocess.run(
@@ -1689,8 +1715,9 @@ class GitInteractiveRebaseApp(QMainWindow):
                 ["git", "commit", "-m", revert_message],
                 cwd=self.repo_path, check=True, capture_output=True, text=True
             )
-            print(f"Reverted {sha}.")
             self.load_history()
+            new_head = self.get_head_sha()
+            self.log_action(sha, "reverted", old_head, new_head)
             QMessageBox.information(self, "Success", f"Commit {sha} reverted successfully.")
         except subprocess.CalledProcessError as e:
             # Abort any lingering revert state so the repo stays clean
@@ -1781,12 +1808,15 @@ class GitInteractiveRebaseApp(QMainWindow):
             self.perform_reset(sha)
 
     def perform_reset(self, sha):
+        old_head = self.get_head_sha()
         print(f"Resetting hard to {sha}...")
         self.save_undo_state()
         try:
             subprocess.run(["git", "reset", "--hard", sha], cwd=self.repo_path, check=True, capture_output=True, text=True)
-            QMessageBox.information(self, "Success", f"Successfully reset --hard to {sha[:10]}.")
             self.load_history()
+            new_head = self.get_head_sha()
+            self.log_action(sha, "reset hard to", old_head, new_head)
+            QMessageBox.information(self, "Success", f"Successfully reset --hard to {sha[:10]}.")
         except subprocess.CalledProcessError as e:
             QMessageBox.critical(self, "Reset Failed", f"Could not perform reset.\n\nError: {e.stderr}")
 
@@ -1834,6 +1864,7 @@ class GitInteractiveRebaseApp(QMainWindow):
 
     def perform_squash(self, sha_to_squash, final_msg):
         """Executes the squash using unified rebase logic."""
+        old_head = self.get_head_sha()
         try:
             # Current list of SHAs in UI
             current_shas = []
@@ -1844,8 +1875,9 @@ class GitInteractiveRebaseApp(QMainWindow):
             # so the amend happens right after the squash command in the todo list.
             if self.run_interactive_rebase(current_shas, squash_shas=[sha_to_squash], 
                                           rephrase_map={sha_to_squash: final_msg}):
-                print(f"Squashed {sha_to_squash}.")
                 self.load_history()
+                new_head = self.get_head_sha()
+                self.log_action(sha_to_squash, "squashed", old_head, new_head)
                 QMessageBox.information(self, "Success", "Commits squashed successfully.")
                 return
             
@@ -1991,6 +2023,7 @@ class GitInteractiveRebaseApp(QMainWindow):
 
     def perform_drop(self, sha):
         """Drops a commit using our unified rebase logic."""
+        old_head = self.get_head_sha()
         try:
             # Current list of SHAs in UI
             current_shas = []
@@ -2001,8 +2034,9 @@ class GitInteractiveRebaseApp(QMainWindow):
             new_shas = [s for s in current_shas if s != sha]
             
             if self.run_interactive_rebase(new_shas, progress_title="Dropping Commit", progress_text=f"Dropping commit {sha}. Please wait..."):
-                print(f"Dropped {sha}.")
                 self.load_history()
+                new_head = self.get_head_sha()
+                self.log_action(sha, "dropped", old_head, new_head)
                 QMessageBox.information(self, "Success", f"Commit {sha} dropped successfully.")
                 return
             
@@ -2201,6 +2235,7 @@ class GitInteractiveRebaseApp(QMainWindow):
             move_msg = text
 
         self.save_undo_state()
+        old_head = self.get_head_sha()
 
         # Build the partial patch (or empty string for full-drop)
         # Extract the diff header lines (up to first @@)
@@ -2351,6 +2386,8 @@ if result_action == "move" and move_patch.strip():
 
         if result.returncode == 0:
             self.load_history()
+            new_head = self.get_head_sha()
+            self.log_action(sha, f"refined {filepath}", old_head, new_head)
             QMessageBox.information(self, "Success",
                                     f"Successfully refined changes for '{filepath}' in commit {sha[:8]}.")
         else:
@@ -2364,6 +2401,7 @@ if result_action == "move" and move_patch.strip():
         """
         Moves a single file's changes out of a commit into a new commit after it.
         """
+        old_head = self.get_head_sha()
         self.save_undo_state()
         try:
             all_files = get_commit_files(self.repo_path, sha)
@@ -2477,6 +2515,9 @@ finally:
                 pass
 
             if result.returncode == 0:
+                self.load_history()
+                new_head = self.get_head_sha()
+                self.log_action(sha, f"moved {filepath} out of", old_head, new_head)
                 QMessageBox.information(self, "Success",
                     f"File '{filepath}' has been moved out of commit {short_sha}.\n\n"
                     f"A new commit was created with message: \"{filepath} changes separated out from {short_sha}\"")
@@ -2515,6 +2556,7 @@ finally:
         """
         Drops a single file's changes from a commit without moving it to a new one.
         """
+        old_head = self.get_head_sha()
         self.save_undo_state()
         try:
             all_files = get_commit_files(self.repo_path, sha)
@@ -2616,6 +2658,9 @@ subprocess.check_call(['git', 'clean', '-fd', '--', filepath])
                 pass
 
             if result.returncode == 0:
+                self.load_history()
+                new_head = self.get_head_sha()
+                self.log_action(sha, f"dropped {filepath} from", old_head, new_head)
                 QMessageBox.information(self, "Success",
                     f"File '{filepath}' changes have been dropped from commit {short_sha}.")
             else:
@@ -2648,6 +2693,7 @@ subprocess.check_call(['git', 'clean', '-fd', '--', filepath])
             QMessageBox.critical(self, "Error", f"Could not check commit files: {str(e)}")
 
     def perform_split_all_commits(self, sha, filepath):
+        old_head = self.get_head_sha()
         self.save_undo_state()
         try:
             short_sha = sha[:8]
@@ -2780,6 +2826,9 @@ if os.path.exists('temp.patch'):
                 pass
 
             if result.returncode == 0:
+                self.load_history()
+                new_head = self.get_head_sha()
+                self.log_action(sha, f"split {filepath} in", old_head, new_head)
                 QMessageBox.information(self, "Success",
                     f"Commit {short_sha} has been split into multiple commits for file '{filepath}'.")
             else:
@@ -2808,6 +2857,11 @@ if os.path.exists('temp.patch'):
             QMessageBox.critical(self, "Error", f"Could not check commit files: {str(e)}")
 
     def perform_split_per_file(self, sha, files):
+        """
+        Splits each file in a commit into its own separate commit.
+        """
+        old_head = self.get_head_sha()
+        self.save_undo_state()
         """Executes splitting each file into its own commit using rebase exec."""
         self.save_undo_state()
         try:
@@ -2922,9 +2976,12 @@ for i, filename in enumerate(files):
 
     def perform_move(self, new_shas, original_shas=None):
         """Performs commit reordering using our unified rebase logic."""
+        old_head = self.get_head_sha()
         print("Performing commit reorder...")
         if self.run_interactive_rebase(new_shas, original_shas=original_shas, progress_title="Moving Commits", progress_text="Reordering commits. Please wait..."):
             self.load_history()
+            new_head = self.get_head_sha()
+            self.log_action("N/A", "reordered commits", old_head, new_head)
             QMessageBox.information(self, "Success", "Commits reordered successfully!")
             return
         self.load_history()
