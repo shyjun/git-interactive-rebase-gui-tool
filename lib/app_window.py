@@ -2166,6 +2166,28 @@ class GitInteractiveRebaseApp(QMainWindow):
         kept_indices = dialog.kept_indices
         moved_indices = getattr(dialog, 'moved_indices', [])
         
+        # Bug fix: if it's the only file and we result in an empty commit, warn user
+        try:
+            all_files = get_commit_files(self.repo_path, sha)
+        except:
+            all_files = [filepath]
+
+        is_only_file = len(all_files) == 1
+
+        if not kept_indices:
+            if is_only_file:
+                action_name = "Drop" if result_action != "move" else "Move All"
+                feature_name = "Drop Commit" if result_action != "move" else "Move file changes out of this commit"
+                QMessageBox.information(
+                    self, "Empty Commit",
+                    f"You have selected to {action_name} all changes from the only file in this commit.\n\n"
+                    f"This would result in an empty commit. Please use the dedicated '{feature_name}' feature instead."
+                )
+                return
+            else:
+                # If there are other files, it's okay to drop all hunks from this one.
+                pass
+
         move_msg = ""
         if result_action == "move":
             from PySide6.QtWidgets import QInputDialog
@@ -2177,16 +2199,6 @@ class GitInteractiveRebaseApp(QMainWindow):
             if not ok:
                 return
             move_msg = text
-
-        if result_action == "keep" and not kept_indices and len(hunks) > 0:
-            reply = QMessageBox.question(
-                self, "No Hunks Kept",
-                "You have not kept any hunks. This would remove all changes for this file.\n"
-                "Continue and completely remove this file's changes from the commit?",
-                QMessageBox.Yes | QMessageBox.No, QMessageBox.No
-            )
-            if reply != QMessageBox.Yes:
-                return
 
         self.save_undo_state()
 
@@ -2236,11 +2248,12 @@ if partial_patch.strip():
             pass
 
 # 4. Commit original changes (the ones we kept)
+#    Use --allow-empty as a safety safeguard.
 msg_fd, msg_path = tempfile.mkstemp(prefix='git_msg_orig_', text=True)
 with os.fdopen(msg_fd, 'w', encoding='utf-8') as f:
     f.write(commit_msg)
 try:
-    subprocess.check_call(['git', 'commit', '-F', msg_path])
+    subprocess.check_call(['git', 'commit', '--allow-empty', '-F', msg_path])
 finally:
     try:
         os.unlink(msg_path)
@@ -2265,7 +2278,7 @@ if result_action == "move" and move_patch.strip():
     with os.fdopen(msg_fd, 'w', encoding='utf-8') as f:
         f.write(move_msg)
     try:
-        subprocess.check_call(['git', 'commit', '-F', msg_path])
+        subprocess.check_call(['git', 'commit', '--allow-empty', '-F', msg_path])
     finally:
         try:
             os.unlink(msg_path)
