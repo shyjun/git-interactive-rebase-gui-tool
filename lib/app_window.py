@@ -2234,10 +2234,11 @@ class GitInteractiveRebaseApp(QMainWindow):
             move_msg = ""
             if result_action == "move":
                 from PySide6.QtWidgets import QInputDialog
+                default_msg = f"Change hunk from {sha[:8]} in {filepath}"
                 text, ok = QInputDialog.getMultiLineText(
                     self, "New Commit Message",
                     "Enter commit message for the new commit (containing moved hunks):",
-                    commit_msg
+                    default_msg
                 )
                 if not ok:
                     break
