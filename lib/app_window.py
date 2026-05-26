@@ -2153,7 +2153,7 @@ class GitInteractiveRebaseApp(QMainWindow):
 
             new_hdr = f"@@ -{minus_start},{real_minus_count} +{new_plus_start},{real_plus_count} @@{tail}"
             patch_parts.append(new_hdr)
-            patch_parts.append(body)
+            patch_parts.append(body.rstrip())
 
             # Advance new_plus_start: original file advances by context+added lines
             new_plus_start += real_plus_count
@@ -2197,6 +2197,8 @@ class GitInteractiveRebaseApp(QMainWindow):
             return
 
         result_action = getattr(dialog, 'result_action', 'keep')
+        # Use updated hunk data if available
+        all_hunks = dialog.get_hunk_data() if hasattr(dialog, 'get_hunk_data') else hunks
         kept_indices = dialog.kept_indices
         moved_indices = getattr(dialog, 'moved_indices', [])
         
@@ -2246,10 +2248,10 @@ class GitInteractiveRebaseApp(QMainWindow):
             header_lines.append(line)
         diff_header_text = "\n".join(header_lines)
 
-        partial_patch = self._rebuild_patch(diff_header_text, hunks, kept_indices)
+        partial_patch = self._rebuild_patch(diff_header_text, all_hunks, kept_indices)
         move_patch = ""
         if result_action == "move":
-            move_patch = self._rebuild_patch(diff_header_text, hunks, moved_indices)
+            move_patch = self._rebuild_patch(diff_header_text, all_hunks, moved_indices)
 
         action_script_content = f"""#!/usr/bin/env python3
 import subprocess, os, tempfile, sys
@@ -2274,8 +2276,17 @@ if partial_patch.strip():
     with os.fdopen(patch_fd, 'w', encoding='utf-8') as pf:
         pf.write(partial_patch)
     try:
-        subprocess.check_call(['git', 'apply', patch_path])
+        # Check if patch is empty
+        if not partial_patch.strip():
+             return
+        subprocess.check_call(['git', 'apply', '--ignore-whitespace', patch_path])
         subprocess.check_call(['git', 'add', '--', filepath])
+    except subprocess.CalledProcessError as e:
+        print(f"FAILED to apply refinement patch for {filepath} in {sha}")
+        print(f"Error: {e}")
+        # Optionally dump the patch for debugging
+        # print(partial_patch)
+        sys.exit(1)
     finally:
         try:
             os.unlink(patch_path)
@@ -2301,8 +2312,12 @@ if result_action == "move" and move_patch.strip():
     with os.fdopen(patch_fd, 'w', encoding='utf-8') as pf:
         pf.write(move_patch)
     try:
-        subprocess.check_call(['git', 'apply', patch_path])
+        subprocess.check_call(['git', 'apply', '--ignore-whitespace', patch_path])
         subprocess.check_call(['git', 'add', '--', filepath])
+    except subprocess.CalledProcessError as e:
+        print(f"FAILED to apply move patch for {filepath} in {sha}")
+        print(f"Error: {e}")
+        sys.exit(1)
     finally:
         try:
             os.unlink(patch_path)
