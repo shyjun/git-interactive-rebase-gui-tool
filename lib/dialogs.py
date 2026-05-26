@@ -1430,8 +1430,17 @@ class RefineChangesDialog(QDialog):
         cancel_note.setAlignment(Qt.AlignCenter)
         cancel_col.addWidget(cancel_note)
 
+        move_col = QVBoxLayout()
+        move_col.setSpacing(2)
+        move_col.addWidget(self.move_btn)
+        move_note = QLabel("(Unchecked will remain in current commit)")
+        move_note.setStyleSheet("color: #e67e22; font-size: 11px;")
+        move_note.setAlignment(Qt.AlignCenter)
+        move_col.addWidget(move_note)
+
         bot_row.addLayout(drop_col)
         bot_row.addLayout(keep_col)
+        bot_row.addLayout(move_col)
         bot_row.addLayout(cancel_col)
         
         layout.addLayout(bot_row)
