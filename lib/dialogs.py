@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (
     QLineEdit, QSplitter, QInputDialog, QProgressBar, QScrollArea,
     QFrame, QCheckBox
 )
-from PySide6.QtCore import Qt, QSize, QSettings, QTimer
+from PySide6.QtCore import Qt, QSize, QSettings, QTimer, Signal
 from PySide6.QtGui import QFont, QSyntaxHighlighter, QTextCharFormat, QColor, QAction, QShortcut, QKeySequence
 
 from lib.git_helpers import (
@@ -1156,6 +1156,8 @@ class EditHunkDialog(QDialog):
 
 class HunkWidget(QFrame):
     """A framed widget displaying a single diff hunk with a checkbox."""
+    apply_hunk_modification = Signal(int)
+
     def __init__(self, hunk_index, hunk_header, hunk_text, colors, font_size, sha=None, filepath=None):
         super().__init__()
         self.hunk_index = hunk_index
@@ -1190,6 +1192,11 @@ class HunkWidget(QFrame):
         self.line_count_label.setStyleSheet("color: gray;")
         header_row.addWidget(self.line_count_label)
         
+        self.modified_label = QLabel(" (MODIFIED) ")
+        self.modified_label.setStyleSheet("color: #0055cc; font-weight: bold; font-family: monospace;")
+        self.modified_label.setVisible(False)
+        header_row.addWidget(self.modified_label)
+        
         self.edit_btn = QPushButton("Edit")
         self.edit_btn.setFixedWidth(70)
         self.edit_btn.setCursor(Qt.PointingHandCursor)
@@ -1221,6 +1228,11 @@ class HunkWidget(QFrame):
         menu = QMenu(self)
         edit_action = menu.addAction("Edit Hunk")
         copy_action = menu.addAction("Copy Hunk")
+        
+        apply_mod_action = None
+        if self.modified_label.isVisible():
+            apply_mod_action = menu.addAction("Apply modification")
+            
         reset_action = menu.addAction("Reset Hunk (Revert to original)")
         
         if self.current_hunk_text == self.original_hunk_text:
@@ -1233,12 +1245,15 @@ class HunkWidget(QFrame):
             self.open_edit_dialog()
         elif action == copy_action:
             QApplication.clipboard().setText(self.current_hunk_text)
+        elif apply_mod_action and action == apply_mod_action:
+            self.apply_hunk_modification.emit(self.hunk_index)
         elif action == reset_action:
             self.current_hunk_text = self.original_hunk_text
             self.hunk_header = self.original_hunk_header
             self.checkbox.setText(f"Change {self.hunk_index}   {self.hunk_header}")
             self.diff_view.setPlainText(self.current_hunk_text)
             self._update_line_count()
+            self.modified_label.setVisible(False)
 
     def open_edit_dialog(self):
         full_text = f"{self.hunk_header}\n{self.current_hunk_text}"
@@ -1255,6 +1270,7 @@ class HunkWidget(QFrame):
             self.checkbox.setText(f"Change {self.hunk_index}   {self.hunk_header}")
             self.diff_view.setPlainText(self.current_hunk_text)
             self._update_line_count()
+            self.modified_label.setVisible(True)
 
     def _update_line_count(self):
         changed = sum(1 for l in self.current_hunk_text.splitlines() if l.startswith(('+', '-')) and not l.startswith(('+++', '---')))
@@ -1272,6 +1288,8 @@ class HunkWidget(QFrame):
 
 class RefineChangesDialog(QDialog):
     """Hunk selection dialog for Refine Changes in File feature."""
+    apply_hunk_modification = Signal(int)
+
     def __init__(self, sha, filepath, commit_msg, hunks, font_size=10, parent=None):
         """
         hunks: list of (hunk_header_str, hunk_body_str)
@@ -1298,7 +1316,8 @@ class RefineChangesDialog(QDialog):
         header_html = (
             f"<b>Commit:</b> <span style='color:{colors['header']};'>{sha}</span>"
             f"&nbsp;&nbsp;{short_msg}<br>"
-            "Select the changes (hunks) you want to <b>KEEP</b> in this file."
+            "Select the changes (hunks) you want to <b>KEEP</b> in this file.<br>"
+            "To finalize your edits and selection, click <b>'Apply Selected Changes'</b> below."
         )
         header_label = QLabel(header_html)
         header_label.setTextFormat(Qt.RichText)
@@ -1329,6 +1348,7 @@ class RefineChangesDialog(QDialog):
 
         for i, (hdr, body) in enumerate(hunks):
             hw = HunkWidget(i + 1, hdr, body, colors, font_size, sha=sha, filepath=filepath)
+            hw.apply_hunk_modification.connect(self.apply_hunk_modification.emit)
             hw.checkbox.stateChanged.connect(self._update_counter)
             self.hunk_widgets.append(hw)
             hunks_layout.addWidget(hw)
@@ -1344,8 +1364,8 @@ class RefineChangesDialog(QDialog):
         bot_row.setSpacing(10)
 
         self.drop_btn = QPushButton()
-        self.drop_btn.setText("Drop Selected Changes")
-        self.drop_btn.setToolTip("Checked hunks will be dropped; unchecked will remain in the commit.")
+        self.drop_btn.setText("Drop Selected")
+        self.drop_btn.setToolTip("Checked hunks will be removed from the commit; unchecked will be kept.")
         self.drop_btn.setStyleSheet(
             "QPushButton { color: #cc2200; border: 2px solid #cc2200; padding: 10px 18px; "
             "border-radius: 6px; font-weight: bold; } "
@@ -1353,8 +1373,9 @@ class RefineChangesDialog(QDialog):
         )
 
         self.keep_btn = QPushButton()
-        self.keep_btn.setText("Keep Only Selected Changes")
-        self.keep_btn.setToolTip("Checked hunks will remain; unchecked will be dropped from the commit.")
+        self.keep_btn.setText("Apply Selected Changes")
+        self.keep_btn.setDefault(True)
+        self.keep_btn.setToolTip("Checked hunks (including your edits) will remain in the commit; unchecked will be dropped.")
         self.keep_btn.setStyleSheet(
             "QPushButton { color: #0055cc; border: 2px solid #0055cc; padding: 10px 18px; "
             "border-radius: 6px; font-weight: bold; } "
@@ -1372,7 +1393,12 @@ class RefineChangesDialog(QDialog):
 
         cancel_btn = QPushButton("Cancel")
         cancel_btn.setMinimumWidth(80)
-        cancel_btn.setProperty("class", "dialog-btn-secondary")
+        cancel_btn.setToolTip("Close the refine window and return to history.")
+        cancel_btn.setStyleSheet(
+            "QPushButton { color: #555; border: 2px solid #555; padding: 10px 18px; "
+            "border-radius: 6px; font-weight: bold; } "
+            "QPushButton:hover { background-color: #f5f5f5; }"
+        )
 
         self.drop_btn.clicked.connect(self._on_drop)
         self.keep_btn.clicked.connect(self._on_keep)
@@ -1396,25 +1422,21 @@ class RefineChangesDialog(QDialog):
         keep_note.setAlignment(Qt.AlignCenter)
         keep_col.addWidget(keep_note)
 
-        move_col = QVBoxLayout()
-        move_col.setSpacing(2)
-        move_col.addWidget(self.move_btn)
-        move_note = QLabel("(Unchecked will remain in current commit)")
-        move_note.setStyleSheet("color: #e67e22; font-size: 11px;")
-        move_note.setAlignment(Qt.AlignCenter)
-        move_col.addWidget(move_note)
+        cancel_col = QVBoxLayout()
+        cancel_col.setSpacing(2)
+        cancel_col.addWidget(cancel_btn)
+        cancel_note = QLabel("Cancel/Done")
+        cancel_note.setStyleSheet("color: #555; font-size: 11px;")
+        cancel_note.setAlignment(Qt.AlignCenter)
+        cancel_col.addWidget(cancel_note)
 
         bot_row.addLayout(drop_col)
         bot_row.addLayout(keep_col)
-        bot_row.addLayout(move_col)
-        bot_row.addStretch()
-        bot_row.addWidget(cancel_btn)
+        bot_row.addLayout(cancel_col)
+        
         layout.addLayout(bot_row)
         
-        # --- Tip label ---
-        tip_label = QLabel("ⓘ Tip: Click 'Edit' on any hunk to modify it. Right-click a hunk for more options.")
-        tip_label.setStyleSheet("color: #666; font-size: 11px; padding-top: 5px;")
-        layout.addWidget(tip_label)
+        # --- Tip label removed as requested ---
 
     def _update_counter(self, _=None):
         total = len(self.hunk_widgets)
