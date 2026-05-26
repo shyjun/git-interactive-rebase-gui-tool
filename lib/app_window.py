@@ -1016,9 +1016,7 @@ class GitInteractiveRebaseApp(QMainWindow):
             remote_sha = stdout.split()[0]
             
             # Debug prints
-            print(f"[DEBUG] Check for Updates:")
-            print(f"        Local SHA:  {local_sha}")
-            print(f"        Remote SHA: {remote_sha}")
+            pass
             
             if remote_sha == local_sha:
                 QMessageBox.information(self, "No Updates", "You are already using the latest version.")
@@ -2127,133 +2125,143 @@ class GitInteractiveRebaseApp(QMainWindow):
         import re
 
         patch_parts = [diff_header_text]
-        new_plus_start = None  # we will track the running +start line
-
+        cumulative_offset = 0
         for idx in kept_indices:
             orig_hdr, body = all_hunks[idx]
             m = re.match(r"@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@(.*)", orig_hdr)
             if not m:
-                # Safeguard: just keep original header
                 patch_parts.append(orig_hdr)
                 patch_parts.append(body)
                 continue
 
             minus_start = int(m.group(1))
-            minus_count = int(m.group(2)) if m.group(2) is not None else 1
             plus_start  = int(m.group(3))
-            plus_count  = int(m.group(4)) if m.group(4) is not None else 1
+            orig_plus_count = int(m.group(4)) if m.group(4) is not None else 1
             tail        = m.group(5)
 
-            if new_plus_start is None:
-                new_plus_start = plus_start
-            # Recalculate plus_count from actual body lines
-            body_lines = body.splitlines()
+            new_plus_start = plus_start + cumulative_offset
+
+            # Count lines from body (splitlines preserves empty lines at end if keepends=False + trailing check)
+            body_lines = body.split("\n")
+            # Remove a single trailing empty string caused by a trailing \n
+            if body_lines and body_lines[-1] == "":
+                body_lines = body_lines[:-1]
+
             real_plus_count = sum(1 for l in body_lines if not l.startswith('-'))
             real_minus_count = sum(1 for l in body_lines if not l.startswith('+'))
 
             new_hdr = f"@@ -{minus_start},{real_minus_count} +{new_plus_start},{real_plus_count} @@{tail}"
+            # Reconstruct body ensuring each line ends with \n
+            body_text = "\n".join(body_lines) + "\n"
+
             patch_parts.append(new_hdr)
-            patch_parts.append(body.rstrip())
+            patch_parts.append(body_text)
 
-            # Advance new_plus_start: original file advances by context+added lines
-            new_plus_start += real_plus_count
+            # Update cumulative offset for subsequent hunks
+            cumulative_offset += (real_plus_count - orig_plus_count)
 
-        return "\n".join(patch_parts) + "\n"
+        return "".join(f"{p}\n" if not p.endswith("\n") else p for p in patch_parts)
 
     def perform_refine_changes(self, sha, filepath):
         """
         Opens the hunk-selection dialog and, on acceptance, rewrites the commit
         so that only the selected hunks of `filepath` are kept.
+        Keeps the dialog open and refreshes it until the user cancels.
         """
-        try:
-            raw_diff = get_file_diff_only_in_commit(self.repo_path, sha, filepath)
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Could not load diff for {filepath}: {e}")
-            return
-
-        hunks = self._parse_hunks(raw_diff)
-        if not hunks:
-            QMessageBox.information(self, "No Hunks",
-                                    f"No individual hunks found for {filepath} in commit {sha}.")
-            return
-        
-        if len(hunks) == 1:
-            QMessageBox.information(
-                self, "Single Hunk",
-                f"File '{filepath}' has only 1 hunk of changes.\n\n"
-                "Refining is used for files with multiple hunks. For a single hunk, "
-                "you can just use 'Drop file changes' if you want to remove it completely."
-            )
-            return
-
-        try:
-            commit_msg = get_full_commit_message(self.repo_path, sha)
-        except Exception:
-            commit_msg = ""
-
-        dialog = RefineChangesDialog(sha, filepath, commit_msg,
-                                     hunks, self.current_font_size, self)
-        if dialog.exec() != QDialog.Accepted:
-            return
-
-        result_action = getattr(dialog, 'result_action', 'keep')
-        # Use updated hunk data if available
-        all_hunks = dialog.get_hunk_data() if hasattr(dialog, 'get_hunk_data') else hunks
-        kept_indices = dialog.kept_indices
-        moved_indices = getattr(dialog, 'moved_indices', [])
-        
-        # Bug fix: if it's the only file and we result in an empty commit, warn user
-        try:
-            all_files = get_commit_files(self.repo_path, sha)
-        except:
-            all_files = [filepath]
-
-        is_only_file = len(all_files) == 1
-
-        if not kept_indices:
-            if is_only_file:
-                action_name = "Drop" if result_action != "move" else "Move All"
-                feature_name = "Drop Commit" if result_action != "move" else "Move file changes out of this commit"
-                QMessageBox.information(
-                    self, "Empty Commit",
-                    f"You have selected to {action_name} all changes from the only file in this commit.\n\n"
-                    f"This would result in an empty commit. Please use the dedicated '{feature_name}' feature instead."
-                )
-                return
-            else:
-                # If there are other files, it's okay to drop all hunks from this one.
-                pass
-
-        move_msg = ""
-        if result_action == "move":
-            from PySide6.QtWidgets import QInputDialog
-            text, ok = QInputDialog.getMultiLineText(
-                self, "New Commit Message",
-                "Enter commit message for the new commit (containing moved hunks):",
-                commit_msg
-            )
-            if not ok:
-                return
-            move_msg = text
-
-        self.save_undo_state()
-        old_head = self.get_head_sha()
-
-        # Build the partial patch (or empty string for full-drop)
-        # Extract the diff header lines (up to first @@)
-        header_lines = []
-        for line in raw_diff.splitlines():
-            if line.startswith("@@"):
+        while True:
+            try:
+                raw_diff = get_file_diff_only_in_commit(self.repo_path, sha, filepath)
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Could not load diff for {filepath}: {e}")
                 break
-            header_lines.append(line)
-        diff_header_text = "\n".join(header_lines)
 
-        partial_patch = self._rebuild_patch(diff_header_text, all_hunks, kept_indices)
-        move_patch = ""
-        if result_action == "move":
-            move_patch = self._rebuild_patch(diff_header_text, all_hunks, moved_indices)
+            hunks = self._parse_hunks(raw_diff)
+            if not hunks:
+                QMessageBox.information(self, "No Hunks",
+                                        f"No individual hunks found for {filepath} in commit {sha}.")
+                break
+            
+            if len(hunks) == 1:
+                QMessageBox.information(
+                    self, "Single Hunk",
+                    f"File '{filepath}' has only 1 hunk of changes.\n\n"
+                    "Refining is used for files with multiple hunks. For a single hunk, "
+                    "you can just use 'Drop file changes' if you want to remove it completely."
+                )
+                break
 
-        action_script_content = f"""#!/usr/bin/env python3
+            try:
+                commit_msg = get_full_commit_message(self.repo_path, sha)
+            except Exception:
+                commit_msg = ""
+
+            dialog = RefineChangesDialog(sha, filepath, commit_msg,
+                                         hunks, self.current_font_size, self)
+            
+            # When user clicks "Apply modification" in a hunk menu, treat it as a final "Keep Selected" action
+            dialog.apply_hunk_modification.connect(dialog._on_keep)
+            
+            if dialog.exec() != QDialog.Accepted:
+                break
+
+            result_action = getattr(dialog, 'result_action', 'keep')
+            all_hunks = dialog.get_hunk_data() if hasattr(dialog, 'get_hunk_data') else hunks
+            kept_indices = dialog.kept_indices
+            moved_indices = getattr(dialog, 'moved_indices', [])
+            
+            # Bug fix: if it's the only file and we result in an empty commit, warn user
+            try:
+                all_files = get_commit_files(self.repo_path, sha)
+            except:
+                all_files = [filepath]
+
+            is_only_file = len(all_files) == 1
+
+            if not kept_indices:
+                if is_only_file:
+                    action_name = "Drop" if result_action != "move" else "Move All"
+                    feature_name = "Drop Commit" if result_action != "move" else "Move file changes out of this commit"
+                    QMessageBox.information(
+                        self, "Empty Commit",
+                        f"You have selected to {action_name} all changes from the only file in this commit.\n\n"
+                        f"This would result in an empty commit. Please use the dedicated '{feature_name}' feature instead."
+                    )
+                    break
+                else:
+                    # If there are other files, it's okay to drop all hunks from this one.
+                    pass
+
+            move_msg = ""
+            if result_action == "move":
+                from PySide6.QtWidgets import QInputDialog
+                text, ok = QInputDialog.getMultiLineText(
+                    self, "New Commit Message",
+                    "Enter commit message for the new commit (containing moved hunks):",
+                    commit_msg
+                )
+                if not ok:
+                    break
+                move_msg = text
+
+            self.save_undo_state()
+            old_head = self.get_head_sha()
+
+            # Build the partial patch (or empty string for full-drop)
+            # Extract the diff header lines (up to first @@)
+            header_lines = []
+            for line in raw_diff.splitlines():
+                if line.startswith("@@"):
+                    break
+                header_lines.append(line)
+            diff_header_text = "\n".join(header_lines)
+
+            partial_patch = self._rebuild_patch(diff_header_text, all_hunks, kept_indices)
+            # DEBUG: partial_patch prints removed
+            move_patch = ""
+            if result_action == "move":
+                move_patch = self._rebuild_patch(diff_header_text, all_hunks, moved_indices)
+
+            action_script_content = f"""#!/usr/bin/env python3
 import subprocess, os, tempfile, sys
 
 sha = {repr(sha)}
@@ -2276,16 +2284,11 @@ if partial_patch.strip():
     with os.fdopen(patch_fd, 'w', encoding='utf-8') as pf:
         pf.write(partial_patch)
     try:
-        # Check if patch is empty
-        if not partial_patch.strip():
-             return
         subprocess.check_call(['git', 'apply', '--ignore-whitespace', patch_path])
         subprocess.check_call(['git', 'add', '--', filepath])
     except subprocess.CalledProcessError as e:
-        print(f"FAILED to apply refinement patch for {filepath} in {sha}")
-        print(f"Error: {e}")
-        # Optionally dump the patch for debugging
-        # print(partial_patch)
+        print(f"FAILED to apply refinement patch for {{filepath}} in {{sha}}")
+        print(f"Error: {{e}}")
         sys.exit(1)
     finally:
         try:
@@ -2315,8 +2318,8 @@ if result_action == "move" and move_patch.strip():
         subprocess.check_call(['git', 'apply', '--ignore-whitespace', patch_path])
         subprocess.check_call(['git', 'add', '--', filepath])
     except subprocess.CalledProcessError as e:
-        print(f"FAILED to apply move patch for {filepath} in {sha}")
-        print(f"Error: {e}")
+        print(f"FAILED to apply move patch for {{filepath}} in {{sha}}")
+        print(f"Error: {{e}}")
         sys.exit(1)
     finally:
         try:
@@ -2335,82 +2338,103 @@ if result_action == "move" and move_patch.strip():
         except:
             pass
 """
-        action_fd, action_path = tempfile.mkstemp(prefix='git_refine_exec_', suffix='.py', text=True)
-        with os.fdopen(action_fd, 'w', encoding='utf-8') as f:
-            f.write(action_script_content)
-        os.chmod(action_path, os.stat(action_path).st_mode | stat.S_IEXEC)
+            action_fd, action_path = tempfile.mkstemp(prefix='git_refine_exec_', suffix='.py', text=True)
+            with os.fdopen(action_fd, 'w', encoding='utf-8') as f:
+                f.write(action_script_content)
+            os.chmod(action_path, os.stat(action_path).st_mode | stat.S_IEXEC)
 
-        single_exec = f"exec python3 {action_path}"
+            single_exec = f"exec python3 {action_path}"
 
-        current_shas = [self.list_widget.item(i).text().split()[0]
-                        for i in range(self.list_widget.count())]
+            current_shas = [self.list_widget.item(i).text().split()[0]
+                            for i in range(self.list_widget.count())]
 
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.py') as f:
-            f.write("#!/usr/bin/env python3\n")
-            f.write("import sys\n")
-            f.write(f"target_sha = {repr(sha)}\n")
-            f.write(f"single_exec = {repr(single_exec)}\n")
-            f.write("todo_path = sys.argv[1]\n")
-            f.write("with open(todo_path, 'r') as tf:\n")
-            f.write("    lines = tf.readlines()\n")
-            f.write("output = []\n")
-            f.write("for line in lines:\n")
-            f.write("    stripped = line.strip()\n")
-            f.write("    if not stripped.startswith('#') and len(stripped.split()) >= 2 and stripped.split()[1].startswith(target_sha):\n")
-            f.write("        output.append('pick ' + stripped.split(None, 1)[1] + '\\n')\n")
-            f.write("        output.append(single_exec + '\\n')\n")
-            f.write("    else:\n")
-            f.write("        output.append(line)\n")
-            f.write("with open(todo_path, 'w') as tf:\n")
-            f.write("    tf.writelines(output)\n")
-            editor_script = f.name
+            with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.py') as f:
+                f.write("#!/usr/bin/env python3\n")
+                f.write("import sys\n")
+                f.write(f"target_sha = {repr(sha)}\n")
+                f.write(f"single_exec = {repr(single_exec)}\n")
+                f.write("todo_path = sys.argv[1]\n")
+                f.write("with open(todo_path, 'r') as tf:\n")
+                f.write("    lines = tf.readlines()\n")
+                f.write("output = []\n")
+                f.write("for line in lines:\n")
+                f.write("    stripped = line.strip()\n")
+                f.write("    parts = stripped.split()\n")
+                f.write("    # Match pick/reword/edit etc. followed by SHA\n")
+                f.write("    if not stripped.startswith('#') and len(parts) >= 2 and len(parts[1]) >= 4:\n")
+                f.write("        todo_sha = parts[1]\n")
+                f.write(f"        if {repr(sha)}.startswith(todo_sha) or todo_sha.startswith({repr(sha[:4])}):\n")
+                f.write("             output.append('pick ' + stripped.split(None, 1)[1] + '\\n')\n")
+                f.write("             output.append(single_exec + '\\n')\n")
+                f.write("             continue\n")
+                f.write("    output.append(line)\n")
+                f.write("with open(todo_path, 'w') as tf:\n")
+                f.write("    tf.writelines(output)\n")
+                editor_script = f.name
 
-        os.chmod(editor_script, os.stat(editor_script).st_mode | stat.S_IEXEC)
+            os.chmod(editor_script, os.stat(editor_script).st_mode | stat.S_IEXEC)
 
-        sha_idx = current_shas.index(sha) if sha in current_shas else -1
-        if sha_idx == len(current_shas) - 1:
-            has_parent = False
+            sha_idx = current_shas.index(sha) if sha in current_shas else -1
+            if sha_idx == len(current_shas) - 1:
+                has_parent = False
+                try:
+                    subprocess.run(["git", "rev-parse", f"{sha}^"],
+                                   cwd=self.repo_path, check=True, capture_output=True)
+                    has_parent = True
+                except Exception:
+                    pass
+                if not has_parent:
+                    QMessageBox.critical(self, "Cannot Refine",
+                                         "Cannot refine the oldest commit (no parent).\n"
+                                         "This operation only works when the commit has a parent.")
+                    break
+                upstream = f"{sha}^"
+            else:
+                upstream = current_shas[sha_idx + 1]
+
+            env = os.environ.copy()
+            env["GIT_SEQUENCE_EDITOR"] = editor_script
+            env["GIT_EDITOR"] = "true"
+
+            from PySide6.QtWidgets import QProgressDialog
+            progress = QProgressDialog(f"Applying refinement to {sha[:8]}...", None, 0, 0, self)
+            progress.setWindowModality(Qt.WindowModal)
+            progress.show()
+            QApplication.processEvents()
+
+            cmd = ["git", "rebase", "-i", upstream]
+            result = subprocess.run(cmd, cwd=self.repo_path, env=env,
+                                    capture_output=True, text=True)
+            
+            progress.close()
+
             try:
-                subprocess.run(["git", "rev-parse", f"{sha}^"],
-                               cwd=self.repo_path, check=True, capture_output=True)
-                has_parent = True
+                os.unlink(editor_script)
+                os.unlink(action_path)
             except Exception:
                 pass
-            if not has_parent:
-                QMessageBox.critical(self, "Cannot Refine",
-                                     "Cannot refine the oldest commit (no parent).\n"
-                                     "This operation only works when the commit has a parent.")
-                return
-            upstream = f"{sha}^"
-        else:
-            upstream = current_shas[sha_idx + 1]
 
-        env = os.environ.copy()
-        env["GIT_SEQUENCE_EDITOR"] = editor_script
-        env["GIT_EDITOR"] = "true"
-
-        cmd = ["git", "rebase", "-i", upstream]
-        result = subprocess.run(cmd, cwd=self.repo_path, env=env,
-                                capture_output=True, text=True)
-
-        try:
-            os.unlink(editor_script)
-            os.unlink(action_path)
-        except Exception:
-            pass
-
-        if result.returncode == 0:
-            self.load_history()
-            new_head = self.get_head_sha()
-            self.log_action(sha, f"refined {filepath}", old_head, new_head)
-            QMessageBox.information(self, "Success",
-                                    f"Successfully refined changes for '{filepath}' in commit {sha[:8]}.")
-        else:
-            subprocess.run(["git", "rebase", "--abort"],
-                           cwd=self.repo_path, capture_output=True)
-            QMessageBox.critical(self, "Refine Failed",
-                                 f"Could not refine changes.\n\nError: {result.stderr}")
-            self.load_history()
+            if result.returncode == 0:
+                self.load_history()
+                new_head = self.get_head_sha()
+                self.log_action(sha, f"refined {filepath}", old_head, new_head)
+                # Find the new SHA at the same position to allow refreshing the dialog
+                new_shas = [self.list_widget.item(i).text().split()[0]
+                            for i in range(self.list_widget.count())]
+                if sha_idx >= 0 and sha_idx < len(new_shas):
+                    sha = new_shas[sha_idx]
+                
+                QMessageBox.information(self, "Success",
+                                        f"Successfully refined changes for '{filepath}' in commit {sha[:8]}.\n\n"
+                                        "The refine window will now refresh.")
+            else:
+                print(f"Refine Changes: FAILED. {result.stderr}")
+                subprocess.run(["git", "rebase", "--abort"],
+                               cwd=self.repo_path, capture_output=True)
+                QMessageBox.critical(self, "Refine Failed",
+                                     f"Could not refine changes.\n\nError: {result.stderr}")
+                self.load_history()
+                break
 
     def perform_move_file_out(self, sha, filepath):
         """
