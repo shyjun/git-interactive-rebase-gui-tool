@@ -1211,19 +1211,29 @@ class RefineChangesDialog(QDialog):
             "QPushButton:hover { background-color: #eef4ff; }"
         )
 
+        self.move_btn = QPushButton()
+        self.move_btn.setText("Move Selected Changes to New Commit")
+        self.move_btn.setToolTip("Checked hunks will be moved out to a new commit; unchecked will remain.")
+        self.move_btn.setStyleSheet(
+            "QPushButton { color: #e67e22; border: 2px solid #e67e22; padding: 10px 18px; "
+            "border-radius: 6px; font-weight: bold; } "
+            "QPushButton:hover { background-color: #fff9f0; }"
+        )
+
         cancel_btn = QPushButton("Cancel")
-        cancel_btn.setMinimumWidth(100)
+        cancel_btn.setMinimumWidth(80)
         cancel_btn.setProperty("class", "dialog-btn-secondary")
 
         self.drop_btn.clicked.connect(self._on_drop)
         self.keep_btn.clicked.connect(self._on_keep)
+        self.move_btn.clicked.connect(self._on_move)
         cancel_btn.clicked.connect(self.reject)
 
         # Sub-labels
         drop_col = QVBoxLayout()
         drop_col.setSpacing(2)
         drop_col.addWidget(self.drop_btn)
-        drop_note = QLabel("(Unchecked changes will be kept in the commit)")
+        drop_note = QLabel("(Unchecked will be kept)")
         drop_note.setStyleSheet("color: #cc2200; font-size: 11px;")
         drop_note.setAlignment(Qt.AlignCenter)
         drop_col.addWidget(drop_note)
@@ -1231,13 +1241,22 @@ class RefineChangesDialog(QDialog):
         keep_col = QVBoxLayout()
         keep_col.setSpacing(2)
         keep_col.addWidget(self.keep_btn)
-        keep_note = QLabel("(Unchecked changes will be dropped from the commit)")
+        keep_note = QLabel("(Unchecked will be dropped)")
         keep_note.setStyleSheet("color: #0055cc; font-size: 11px;")
         keep_note.setAlignment(Qt.AlignCenter)
         keep_col.addWidget(keep_note)
 
+        move_col = QVBoxLayout()
+        move_col.setSpacing(2)
+        move_col.addWidget(self.move_btn)
+        move_note = QLabel("(Unchecked will remain in current commit)")
+        move_note.setStyleSheet("color: #e67e22; font-size: 11px;")
+        move_note.setAlignment(Qt.AlignCenter)
+        move_col.addWidget(move_note)
+
         bot_row.addLayout(drop_col)
         bot_row.addLayout(keep_col)
+        bot_row.addLayout(move_col)
         bot_row.addStretch()
         bot_row.addWidget(cancel_btn)
         layout.addLayout(bot_row)
@@ -1265,5 +1284,12 @@ class RefineChangesDialog(QDialog):
         # Kept = checked
         self.kept_indices = [i for i, hw in enumerate(self.hunk_widgets) if hw.is_selected()]
         self.result_action = "keep"
+        self.accept()
+
+    def _on_move(self):
+        # Moved = checked, Kept = unchecked
+        self.moved_indices = [i for i, hw in enumerate(self.hunk_widgets) if hw.is_selected()]
+        self.kept_indices = [i for i, hw in enumerate(self.hunk_widgets) if not hw.is_selected()]
+        self.result_action = "move"
         self.accept()
 

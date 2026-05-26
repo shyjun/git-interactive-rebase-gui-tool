@@ -2162,8 +2162,23 @@ class GitInteractiveRebaseApp(QMainWindow):
         if dialog.exec() != QDialog.Accepted:
             return
 
+        result_action = getattr(dialog, 'result_action', 'keep')
         kept_indices = dialog.kept_indices
-        if not kept_indices and len(hunks) > 0:
+        moved_indices = getattr(dialog, 'moved_indices', [])
+        
+        move_msg = ""
+        if result_action == "move":
+            from PySide6.QtWidgets import QInputDialog
+            text, ok = QInputDialog.getMultiLineText(
+                self, "New Commit Message",
+                "Enter commit message for the new commit (containing moved hunks):",
+                commit_msg
+            )
+            if not ok:
+                return
+            move_msg = text
+
+        if result_action == "keep" and not kept_indices and len(hunks) > 0:
             reply = QMessageBox.question(
                 self, "No Hunks Kept",
                 "You have not kept any hunks. This would remove all changes for this file.\n"
@@ -2185,6 +2200,9 @@ class GitInteractiveRebaseApp(QMainWindow):
         diff_header_text = "\n".join(header_lines)
 
         partial_patch = self._rebuild_patch(diff_header_text, hunks, kept_indices)
+        move_patch = ""
+        if result_action == "move":
+            move_patch = self._rebuild_patch(diff_header_text, hunks, moved_indices)
 
         action_script_content = f"""#!/usr/bin/env python3
 import subprocess, os, tempfile, sys
@@ -2193,19 +2211,19 @@ sha = {repr(sha)}
 filepath = {repr(filepath)}
 commit_msg = {repr(commit_msg)}
 partial_patch = {repr(partial_patch)}
+move_patch = {repr(move_patch)}
+move_msg = {repr(move_msg)}
+result_action = {repr(result_action)}
 
 # 1. Soft-reset so the commit's changes go back into the staging area
 subprocess.check_call(['git', 'reset', '--soft', 'HEAD~1'])
 
 # 2. Restore this file to the state it had BEFORE the commit (parent's version)
-#    in BOTH the index and the working tree.
 subprocess.check_call(['git', 'checkout', 'HEAD', '--', filepath])
 
-# 3. Apply the partial patch to BOTH the working tree and the index, then stage.
-#    Using 'git apply' (without --cached) keeps index and worktree in sync so
-#    git rebase -i doesn't complain about "unstaged changes" after the exec.
+# 3. Apply the 'keep' patch (the ones that stay in original commit)
 if partial_patch.strip():
-    patch_fd, patch_path = tempfile.mkstemp(prefix='git_refine_', suffix='.patch', text=True)
+    patch_fd, patch_path = tempfile.mkstemp(prefix='git_refine_keep_', suffix='.patch', text=True)
     with os.fdopen(patch_fd, 'w', encoding='utf-8') as pf:
         pf.write(partial_patch)
     try:
@@ -2216,11 +2234,9 @@ if partial_patch.strip():
             os.unlink(patch_path)
         except:
             pass
-# else: file is back to parent state (all hunks dropped) — leave it unstaged
 
-# 4. Create a new commit (not --amend) with all currently staged changes
-#    and the original commit message.
-msg_fd, msg_path = tempfile.mkstemp(prefix='git_msg_', text=True)
+# 4. Commit original changes (the ones we kept)
+msg_fd, msg_path = tempfile.mkstemp(prefix='git_msg_orig_', text=True)
 with os.fdopen(msg_fd, 'w', encoding='utf-8') as f:
     f.write(commit_msg)
 try:
@@ -2230,6 +2246,31 @@ finally:
         os.unlink(msg_path)
     except:
         pass
+
+# 5. If we are moving, apply the 'move' patch and commit again
+if result_action == "move" and move_patch.strip():
+    patch_fd, patch_path = tempfile.mkstemp(prefix='git_refine_move_', suffix='.patch', text=True)
+    with os.fdopen(patch_fd, 'w', encoding='utf-8') as pf:
+        pf.write(move_patch)
+    try:
+        subprocess.check_call(['git', 'apply', patch_path])
+        subprocess.check_call(['git', 'add', '--', filepath])
+    finally:
+        try:
+            os.unlink(patch_path)
+        except:
+            pass
+    
+    msg_fd, msg_path = tempfile.mkstemp(prefix='git_msg_move_', text=True)
+    with os.fdopen(msg_fd, 'w', encoding='utf-8') as f:
+        f.write(move_msg)
+    try:
+        subprocess.check_call(['git', 'commit', '-F', msg_path])
+    finally:
+        try:
+            os.unlink(msg_path)
+        except:
+            pass
 """
         action_fd, action_path = tempfile.mkstemp(prefix='git_refine_exec_', suffix='.py', text=True)
         with os.fdopen(action_fd, 'w', encoding='utf-8') as f:
