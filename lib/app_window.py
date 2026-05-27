@@ -798,7 +798,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         menu.addAction(drop_action)
 
         menu.addSeparator()
-        refine_action = QAction("Refine changes in selected file", self)
+        refine_action = QAction("Refine/Edit changes in selected file", self)
         refine_action.triggered.connect(lambda checked=False, text=item.text(): self.handle_context_refine_changes(text))
         menu.addAction(refine_action)
 
@@ -1632,7 +1632,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         split_menu.addAction(split_per_file_action)
 
         split_menu.addSeparator()
-        split_refine_action = QAction("Refine changes in selected file", self)
+        split_refine_action = QAction("Refine/Edit changes in selected file", self)
         split_refine_action.triggered.connect(lambda: self.handle_refine_changes(item))
         split_menu.addAction(split_refine_action)
         
@@ -2181,14 +2181,6 @@ class GitInteractiveRebaseApp(QMainWindow):
                                         f"No individual hunks found for {filepath} in commit {sha}.")
                 break
             
-            if len(hunks) == 1:
-                QMessageBox.information(
-                    self, "Single Hunk",
-                    f"File '{filepath}' has only 1 hunk of changes.\n\n"
-                    "Refining is used for files with multiple hunks. For a single hunk, "
-                    "you can just use 'Drop file changes' if you want to remove it completely."
-                )
-                break
 
             try:
                 commit_msg = get_full_commit_message(self.repo_path, sha)
@@ -2427,7 +2419,7 @@ if result_action == "move" and move_patch.strip():
                 
                 QMessageBox.information(self, "Success",
                                         f"Successfully refined changes for '{filepath}' in commit {sha[:8]}.\n\n"
-                                        "The refine window will now refresh.")
+                                        "The Refine/Edit window will now refresh.")
             else:
                 print(f"Refine Changes: FAILED. {result.stderr}")
                 subprocess.run(["git", "rebase", "--abort"],
