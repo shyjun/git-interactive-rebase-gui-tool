@@ -566,7 +566,7 @@ class FileWiseViewDialog(QDialog):
         menu.addAction(drop_action)
 
         menu.addSeparator()
-        refine_action = QAction("Refine changes in selected file", self)
+        refine_action = QAction("Refine/Edit changes in selected file", self)
         refine_action.triggered.connect(lambda checked=False, text=item.text(): self.refine_file(text))
         menu.addAction(refine_action)
 
@@ -1228,24 +1228,24 @@ class HunkWidget(QFrame):
         menu = QMenu(self)
         edit_action = menu.addAction("Edit Hunk")
         copy_action = menu.addAction("Copy Hunk")
-        
-        apply_mod_action = None
-        if self.modified_label.isVisible():
-            apply_mod_action = menu.addAction("Apply modification")
-            
+
+        apply_mod_action = menu.addAction("Apply changes")
+        if not self.modified_label.isVisible():
+            apply_mod_action.setEnabled(False)
+
         reset_action = menu.addAction("Reset Hunk (Revert to original)")
-        
+
         if self.current_hunk_text == self.original_hunk_text:
             reset_action.setEnabled(False)
-            
+
         # Position menu below the edit button
         action = menu.exec(self.edit_btn.mapToGlobal(self.edit_btn.rect().bottomLeft()))
-        
+
         if action == edit_action:
             self.open_edit_dialog()
         elif action == copy_action:
             QApplication.clipboard().setText(self.current_hunk_text)
-        elif apply_mod_action and action == apply_mod_action:
+        elif action == apply_mod_action:
             self.apply_hunk_modification.emit(self.hunk_index)
         elif action == reset_action:
             self.current_hunk_text = self.original_hunk_text
@@ -1271,6 +1271,12 @@ class HunkWidget(QFrame):
             self.diff_view.setPlainText(self.current_hunk_text)
             self._update_line_count()
             self.modified_label.setVisible(True)
+            
+            QMessageBox.information(
+                self,
+                "Hunk Edited",
+                "Hunk has been modified, go to edit menu and 'Apply Changes' to apply it to commit."
+            )
 
     def _update_line_count(self):
         changed = sum(1 for l in self.current_hunk_text.splitlines() if l.startswith(('+', '-')) and not l.startswith(('+++', '---')))
@@ -1295,7 +1301,7 @@ class RefineChangesDialog(QDialog):
         hunks: list of (hunk_header_str, hunk_body_str)
         """
         super().__init__(parent)
-        self.setWindowTitle("Refine Changes in File")
+        self.setWindowTitle(f"Refine/Edit Changes in File: {filepath}")
         self.setMinimumSize(920, 720)
         self.hunk_widgets = []
         self.result_action = None   # 'keep' or 'drop'
@@ -1316,8 +1322,8 @@ class RefineChangesDialog(QDialog):
         header_html = (
             f"<b>Commit:</b> <span style='color:{colors['header']};'>{sha}</span>"
             f"&nbsp;&nbsp;{short_msg}<br>"
-            "Select the changes (hunks) you want to <b>KEEP</b> in this file.<br>"
-            "To finalize your edits and selection, click <b>'Apply Selected Changes'</b> below."
+            "<br>"
+            f"File: {filepath}<br>"
         )
         header_label = QLabel(header_html)
         header_label.setTextFormat(Qt.RichText)
@@ -1364,7 +1370,7 @@ class RefineChangesDialog(QDialog):
         bot_row.setSpacing(10)
 
         self.drop_btn = QPushButton()
-        self.drop_btn.setText("Drop Selected")
+        self.drop_btn.setText("Drop Selected Hunks")
         self.drop_btn.setToolTip("Checked hunks will be removed from the commit; unchecked will be kept.")
         self.drop_btn.setStyleSheet(
             "QPushButton { color: #cc2200; border: 2px solid #cc2200; padding: 10px 18px; "
@@ -1373,7 +1379,7 @@ class RefineChangesDialog(QDialog):
         )
 
         self.keep_btn = QPushButton()
-        self.keep_btn.setText("Apply Selected Changes")
+        self.keep_btn.setText("Apply Only Selected Hunks")
         self.keep_btn.setDefault(True)
         self.keep_btn.setToolTip("Checked hunks (including your edits) will remain in the commit; unchecked will be dropped.")
         self.keep_btn.setStyleSheet(
@@ -1460,19 +1466,40 @@ class RefineChangesDialog(QDialog):
         for hw in self.hunk_widgets:
             hw.set_selected(state)
 
+    def _warn_single_hunk(self, action_label):
+        """Show a warning when the file has only one hunk. Returns True to proceed."""
+        if len(self.hunk_widgets) == 1:
+            reply = QMessageBox.warning(
+                self,
+                "Single Change Warning",
+                f"This file has only <b>one change (hunk)</b>.<br><br>"
+                f"<b>{action_label}</b> on a single hunk will affect the <b>entire file change</b>.<br>"
+                "Are you sure you want to continue?",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No
+            )
+            return reply == QMessageBox.Yes
+        return True
+
     def _on_drop(self):
+        if not self._warn_single_hunk("Drop Selected"):
+            return
         # Kept = unchecked
         self.kept_indices = [i for i, hw in enumerate(self.hunk_widgets) if not hw.is_selected()]
         self.result_action = "keep"   # we reconstruct a patch with only the kept ones
         self.accept()
 
     def _on_keep(self):
+        if not self._warn_single_hunk("Apply Selected Changes"):
+            return
         # Kept = checked
         self.kept_indices = [i for i, hw in enumerate(self.hunk_widgets) if hw.is_selected()]
         self.result_action = "keep"
         self.accept()
 
     def _on_move(self):
+        if not self._warn_single_hunk("Move Selected Changes to New Commit"):
+            return
         # Moved = checked, Kept = unchecked
         self.moved_indices = [i for i, hw in enumerate(self.hunk_widgets) if hw.is_selected()]
         self.kept_indices = [i for i, hw in enumerate(self.hunk_widgets) if not hw.is_selected()]
