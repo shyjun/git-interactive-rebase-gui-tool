@@ -4,6 +4,7 @@ if __name__ == "__main__":
     print("Please run the main app: git_interactive_rebase.py (git-interactive-rebase-gui-tool)")
     sys.exit(1)
 
+# pyrefly: ignore [missing-import]
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QListWidget, QVBoxLayout,
     QWidget, QMessageBox, QListWidgetItem, QMenu, QDialog,
@@ -12,7 +13,7 @@ from PySide6.QtWidgets import (
     QFrame, QCheckBox, QSizePolicy
 )
 from PySide6.QtCore import Qt, QSize, QSettings, QTimer, Signal
-from PySide6.QtGui import QFont, QSyntaxHighlighter, QTextCharFormat, QColor, QAction, QShortcut, QKeySequence, QPainter
+from PySide6.QtGui import QFont, QFontMetrics, QSyntaxHighlighter, QTextCharFormat, QColor, QAction, QShortcut, QKeySequence, QPainter
 
 from lib.git_helpers import (
     get_file_diff_in_commit, get_file_diff_only_in_commit,
@@ -1212,8 +1213,13 @@ class HunkWidget(QFrame):
         layout.setContentsMargins(6, 6, 6, 6)
         layout.setSpacing(4)
 
-        # Header row: checkbox on the left, ElidedLabel in the middle, line count + Edit on the right
-        header_row = QHBoxLayout()
+        # Header row wrapped in a fixed-height widget to prevent expansion from long hunk headers
+        self.header_widget = QWidget()
+        self.header_widget.setFixedHeight(34)
+        header_row = QHBoxLayout(self.header_widget)
+        header_widget = self.header_widget  # alias for addWidget below
+        header_row.setContentsMargins(0, 0, 0, 0)
+        header_row.setSpacing(6)
         self.checkbox = QCheckBox("")  # Empty text so it takes minimum space and doesn't wrap natively
         self.checkbox.setChecked(True)
         # Prevent it from sizing dynamically
@@ -1245,11 +1251,12 @@ class HunkWidget(QFrame):
         
         self.edit_btn = QPushButton("Edit")
         self.edit_btn.setFixedWidth(70)
+        self.edit_btn.setFixedHeight(26)
         self.edit_btn.setCursor(Qt.PointingHandCursor)
         self.edit_btn.clicked.connect(self.show_hunk_menu)
         header_row.addWidget(self.edit_btn)
         
-        layout.addLayout(header_row)
+        layout.addWidget(header_widget)
 
         self.diff_view = QTextEdit()
         self.diff_view.setReadOnly(True)
@@ -1257,10 +1264,20 @@ class HunkWidget(QFrame):
         self.diff_view.setPlainText(hunk_text)
         self.diff_view.setLineWrapMode(QTextEdit.NoWrap)
 
-        lines = hunk_text.count('\n') + 1
-        line_h = font_size + 8
-        self.diff_view.setMinimumHeight(min(max(lines * line_h + 10, 50), 280))
-        self.diff_view.setMaximumHeight(min(max(lines * line_h + 10, 50), 280))
+        _fm = QFontMetrics(self.diff_view.font())
+        _stripped = hunk_text.rstrip('\n')
+        _lines = _stripped.count('\n') + 1 if _stripped else 1
+        _doc_margin = int(self.diff_view.document().documentMargin())
+        _h = (_lines * _fm.lineSpacing()
+              + _doc_margin * 2
+              + self.diff_view.frameWidth() * 2
+              + self.diff_view.contentsMargins().top()
+              + self.diff_view.contentsMargins().bottom()
+              + 4)
+        _final_h = min(max(_h, 50), 320)
+        #print(f"[HunkWidget] hunk_index={hunk_index} lines={_lines} lineSpacing={_fm.lineSpacing()} docMargin={_doc_margin} frameW={self.diff_view.frameWidth()} computed_h={_h} final_h={_final_h}")
+        self.diff_view.setMinimumHeight(_final_h)
+        self.diff_view.setMaximumHeight(_final_h)
 
         self.highlighter = DiffHighlighter(
             self.diff_view.document(),
@@ -1270,7 +1287,35 @@ class HunkWidget(QFrame):
         )
         layout.addWidget(self.diff_view)
 
+        # Deferred height adjustment: re-measure after the widget is shown and laid out
+        QTimer.singleShot(0, self._adjust_diff_view_height)
+
+    def _adjust_diff_view_height(self):
+        """Re-measure and fix the diff_view height after the first event loop cycle."""
+        doc_h = self.diff_view.document().size().height()
+        m = self.diff_view.contentsMargins()
+        h = int(doc_h) + self.diff_view.frameWidth() * 2 + m.top() + m.bottom() + 2
+        h = min(max(h, 50), 320)
+
+        self.diff_view.setMinimumHeight(h)
+        self.diff_view.setMaximumHeight(h)
+
+        # Compute and fix the total HunkWidget height explicitly — updateGeometry() alone
+        # is not enough because the scroll area won't shrink already-allocated space.
+        lm = self.layout().contentsMargins()
+        total_h = (lm.top() + self.header_widget.height() +
+                   self.layout().spacing() + h + lm.bottom())
+        #print(f"[HunkWidget._adjust] doc_h={doc_h:.1f} diff_h={h} header_h={self.header_widget.height()} → total_hw={total_h} (was {self.height()})")
+        self.setFixedHeight(total_h)
+
+        parent = self.parent()
+        while parent:
+            parent.updateGeometry()
+            parent.adjustSize() if hasattr(parent, 'adjustSize') else None
+            parent = parent.parent() if not isinstance(parent, QScrollArea) else None
+
     def show_hunk_menu(self):
+
         menu = QMenu(self)
         edit_action = menu.addAction("Edit Hunk")
         copy_action = menu.addAction("Copy Hunk")
