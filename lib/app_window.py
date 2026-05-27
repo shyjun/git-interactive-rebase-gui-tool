@@ -3161,9 +3161,6 @@ for i, filename in enumerate(files):
                         pass
 
                 if result.returncode == 0:
-                    # Update bottom anchor SHA
-                    if new_shas:
-                        self.commit_sha = new_shas[-1]
                     return True
                 else:
                     subprocess.run(["git", "rebase", "--abort"], cwd=self.repo_path, capture_output=True)

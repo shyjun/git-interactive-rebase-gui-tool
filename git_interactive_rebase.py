@@ -87,7 +87,16 @@ def main():
             QMessageBox.critical(None, "Error", f"Could not find start commit: {e}")
             sys.exit(1)
     else:
-        print(f"Commit SHA provided: {commit_sha} (showing commits from this point)")
+        # Resolve the provided SHA/ref (like HEAD^^^^) to a concrete static SHA-1 hash.
+        # This is critical so the base doesn't drift when the rebase rewrites HEAD!
+        try:
+            res = subprocess.run(["git", "rev-parse", commit_sha], cwd=repo_path, check=True, capture_output=True, encoding='utf-8', errors='replace')
+            resolved_sha = res.stdout.strip()
+            print(f"Commit SHA provided: {commit_sha} -> resolved to {resolved_sha}")
+            commit_sha = resolved_sha
+        except Exception:
+            QMessageBox.critical(None, "Error", f"Invalid commit reference: {commit_sha}")
+            sys.exit(1)
 
     # Check for unstaged changes (ignoring submodules as per design)
     created_stash_sha = None
