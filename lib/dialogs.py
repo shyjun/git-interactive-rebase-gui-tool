@@ -1163,10 +1163,21 @@ class ElidedLabel(QLabel):
         self.setMinimumWidth(10)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.setMaximumHeight(35) # Ensure it never pushes layout row height
+        self._elided_text = text
         
     def setText(self, text):
-        self._full_text = text
-        self.update()
+        if self._full_text != text:
+            self._full_text = text
+            self._update_elided()
+            self.update()
+            
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._update_elided()
+
+    def _update_elided(self):
+        fm = self.fontMetrics()
+        self._elided_text = fm.elidedText(self._full_text, Qt.ElideRight, self.width())
         
     def mouseReleaseEvent(self, event):
         if self.checkbox and event.button() == Qt.LeftButton:
@@ -1175,9 +1186,7 @@ class ElidedLabel(QLabel):
 
     def paintEvent(self, event):
         painter = QPainter(self)
-        fm = self.fontMetrics()
-        elided = fm.elidedText(self._full_text, Qt.ElideRight, self.width())
-        painter.drawText(self.rect(), Qt.AlignLeft | Qt.AlignVCenter, elided)
+        painter.drawText(self.rect(), Qt.AlignLeft | Qt.AlignVCenter, self._elided_text)
 
 
 class HunkWidget(QFrame):
