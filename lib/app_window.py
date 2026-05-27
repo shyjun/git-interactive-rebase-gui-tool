@@ -25,7 +25,7 @@ from lib.git_helpers import (
     get_git_history, get_head_sha, get_full_head_sha, get_current_branch, get_commit_diff,
     get_full_commit_message, get_commit_metadata, get_commit_files,
     has_uncommitted_changes, branch_exists, get_local_branches_map, get_remote_head_sha,
-    get_file_diff_only_in_commit, get_revert_commit_message
+    get_file_diff_only_in_commit, get_revert_commit_message, get_commit_metadata_and_message
 )
 from lib.dialogs import (
     DiffHighlighter, DiffViewerDialog, SplitCommitDialog, ViewCommitDialog,
@@ -184,7 +184,7 @@ class CommitItemDelegate(QStyledItemDelegate):
         
         painter.save()
         if is_marked and not (opt.state & QStyle.State_Selected):
-            is_dark = main_win.settings.value("theme", "light") == "dark" if main_win else True
+            is_dark = getattr(main_win, 'is_dark_theme', True) if main_win else True
             marked_bg = QColor("#000000") if is_dark else QColor("#e0e0e0")
             painter.fillRect(option.rect, marked_bg)
         painter.restore()
@@ -206,12 +206,16 @@ class CommitItemDelegate(QStyledItemDelegate):
         if branch_text:
             branches = branch_text.split(", ")
             current_x = text_rect.left()
-            is_dark = main_win.settings.value("theme", "light") == "dark" if main_win else True
+            is_dark = getattr(main_win, 'is_dark_theme', True) if main_win else True
             
-            # Setup bold font
-            bold_font = QFont(opt.font)
-            bold_font.setBold(True)
-            painter.setFont(bold_font)
+            # Setup bold font lazily and cache it
+            if not hasattr(self, '_bold_font') or getattr(self, '_base_font', None) != opt.font:
+                self._base_font = QFont(opt.font)
+                self._bold_font = QFont(opt.font)
+                self._bold_font.setBold(True)
+                # fm_bold will be recreated dynamically when painter.setFont is called
+                
+            painter.setFont(self._bold_font)
             fm_bold = painter.fontMetrics()
             
             for br in branches:
@@ -361,7 +365,8 @@ class GitInteractiveRebaseApp(QMainWindow):
         
         # Theme
         theme = self.settings.value("theme", "light", type=str)
-        if theme == "dark":
+        self.is_dark_theme = (theme == "dark")
+        if self.is_dark_theme:
             self.dark_radio.setChecked(True)
         else:
             self.light_radio.setChecked(True)
@@ -741,8 +746,7 @@ class GitInteractiveRebaseApp(QMainWindow):
 
         sha = item.text().split()[0]
         try:
-            meta = get_commit_metadata(self.repo_path, sha)
-            msg = get_full_commit_message(self.repo_path, sha)
+            meta, msg = get_commit_metadata_and_message(self.repo_path, sha)
             
             self.side_commit_label.setText(f"Commit: <b>{sha}</b>  <span style='color:gray;'>({meta})</span>")
             self.side_commit_msg.setPlainText(msg)
@@ -1194,6 +1198,7 @@ class GitInteractiveRebaseApp(QMainWindow):
 
     def on_theme_toggled(self):
         theme = "dark" if self.dark_radio.isChecked() else "light"
+        self.is_dark_theme = (theme == "dark")
         self.apply_theme(theme)
         self.settings.setValue("theme", theme)
 
@@ -3197,10 +3202,11 @@ for i, filename in enumerate(files):
         print("Refreshing...")
         self.update_window_title()
         
+        current_branch = get_current_branch(self.repo_path)
+        
         # Update origin reset button label with current branch
         if hasattr(self, 'reset_origin_btn'):
-            branch = get_current_branch(self.repo_path)
-            self.reset_origin_btn.setText(f"git reset --hard origin/{branch}")
+            self.reset_origin_btn.setText(f"git reset --hard origin/{current_branch}")
         
         # Save current row to restore selection
         old_row = self.list_widget.currentRow()
@@ -3210,7 +3216,7 @@ for i, filename in enumerate(files):
         self.list_widget.blockSignals(True)
         try:
             history = get_git_history(self.repo_path, self.commit_sha)
-            branch_map = get_local_branches_map(self.repo_path)
+            branch_map = get_local_branches_map(self.repo_path, current_branch=current_branch)
             
             for line in history:
                 item = QListWidgetItem(line)

@@ -39,11 +39,12 @@ def get_current_branch(repo_path):
     except:
         return "Unknown"
 
-def get_local_branches_map(repo_path):
+def get_local_branches_map(repo_path, current_branch=None):
     """Returns a dict mapping short_sha to a list of branch names (local + specific remotes)."""
     try:
         # Get current branch to include its remote counterpart
-        current_branch = get_current_branch(repo_path)
+        if current_branch is None:
+            current_branch = get_current_branch(repo_path)
         
         # for-each-ref with multiple patterns. %(refname:short) for remotes is origin/branch.
         cmd = ["git", "for-each-ref", "--format=%(objectname:short) %(refname:short)", 
@@ -193,6 +194,18 @@ def get_full_commit_message(repo_path, commit_sha):
     except subprocess.CalledProcessError as e:
         raise Exception(f"Failed to fetch commit message: {e.stderr}")
 
+def get_commit_metadata_and_message(repo_path, commit_sha):
+    """Fetches both metadata and message in a single git log call for performance."""
+    try:
+        cmd = ["git", "log", "-1", "--format=%an <%ae>, %ad%n%n%B", "--date=format:%d %b %Y %H:%M", commit_sha]
+        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
+        parts = result.stdout.strip().split('\n\n', 1)
+        meta = parts[0]
+        msg = parts[1] if len(parts) > 1 else ""
+        return meta, msg.strip()
+    except Exception:
+        return "Unknown author", ""
+
 def get_commit_metadata(repo_path, commit_sha):
     """Fetches author name, email, and date for a commit."""
     try:
@@ -234,24 +247,10 @@ def get_file_diff_only_in_commit(repo_path, commit_sha, filepath):
 def has_uncommitted_changes(repo_path):
     """Returns True if there are uncommitted changes in the repository."""
     try:
-        # Check all changes
-        cmd_all = ["git", "status", "--porcelain", "--untracked-files=no"]
-        result_all = subprocess.run(cmd_all, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
-        changes_all = set(result_all.stdout.strip().split('\n')) if result_all.stdout.strip() else set()
-
-        # Check excluding submodules
+        # Check excluding submodules to avoid recursive deep checks
         cmd_ignored = ["git", "status", "--porcelain", "--untracked-files=no", "--ignore-submodules=all"]
-        result_ignored = subprocess.run(cmd_ignored, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
-        changes_ignored_list = result_ignored.stdout.strip().split('\n') if result_ignored.stdout.strip() else []
-        changes_ignored = set(changes_ignored_list)
-
-        submodule_changes = changes_all - changes_ignored
-        for sc in submodule_changes:
-            parts = sc.strip().split()
-            if len(parts) >= 2:
-                print(f"change in submodule {parts[1]} is detected, but continuing")
-
-        return bool(changes_ignored_list)
+        result = subprocess.run(cmd_ignored, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
+        return bool(result.stdout.strip())
     except subprocess.CalledProcessError:
         return False
 
