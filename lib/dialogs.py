@@ -9,10 +9,10 @@ from PySide6.QtWidgets import (
     QWidget, QMessageBox, QListWidgetItem, QMenu, QDialog,
     QTextEdit, QPushButton, QHBoxLayout, QLabel, QRadioButton,
     QLineEdit, QSplitter, QInputDialog, QProgressBar, QScrollArea,
-    QFrame, QCheckBox
+    QFrame, QCheckBox, QSizePolicy
 )
 from PySide6.QtCore import Qt, QSize, QSettings, QTimer, Signal
-from PySide6.QtGui import QFont, QSyntaxHighlighter, QTextCharFormat, QColor, QAction, QShortcut, QKeySequence
+from PySide6.QtGui import QFont, QSyntaxHighlighter, QTextCharFormat, QColor, QAction, QShortcut, QKeySequence, QPainter
 
 from lib.git_helpers import (
     get_file_diff_in_commit, get_file_diff_only_in_commit,
@@ -1154,6 +1154,32 @@ class EditHunkDialog(QDialog):
         return self.editor.toPlainText()
 
 
+class ElidedLabel(QLabel):
+    """A QLabel that strictly stays on one line and elides text with '...' when space is constrained."""
+    def __init__(self, text, checkbox_to_toggle=None, parent=None):
+        super().__init__(text, parent)
+        self._full_text = text
+        self.checkbox = checkbox_to_toggle
+        self.setMinimumWidth(10)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        self.setMaximumHeight(35) # Ensure it never pushes layout row height
+        
+    def setText(self, text):
+        self._full_text = text
+        self.update()
+        
+    def mouseReleaseEvent(self, event):
+        if self.checkbox and event.button() == Qt.LeftButton:
+            self.checkbox.toggle()
+        super().mouseReleaseEvent(event)
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        fm = self.fontMetrics()
+        elided = fm.elidedText(self._full_text, Qt.ElideRight, self.width())
+        painter.drawText(self.rect(), Qt.AlignLeft | Qt.AlignVCenter, elided)
+
+
 class HunkWidget(QFrame):
     """A framed widget displaying a single diff hunk with a checkbox."""
     apply_hunk_modification = Signal(int)
@@ -1177,14 +1203,25 @@ class HunkWidget(QFrame):
         layout.setContentsMargins(6, 6, 6, 6)
         layout.setSpacing(4)
 
-        # Header row: checkbox + hunk @@ header on the left, line count + Edit on the right
+        # Header row: checkbox on the left, ElidedLabel in the middle, line count + Edit on the right
         header_row = QHBoxLayout()
-        self.checkbox = QCheckBox(f"Change {hunk_index}   {hunk_header}")
+        self.checkbox = QCheckBox("")  # Empty text so it takes minimum space and doesn't wrap natively
         self.checkbox.setChecked(True)
+        # Prevent it from sizing dynamically
+        self.checkbox.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        
         bold_font = self.checkbox.font()
         bold_font.setBold(True)
-        self.checkbox.setFont(bold_font)
+        
+        # We manually render the text in an ElidedLabel which forwards clicks
+        self.hunk_header_label = ElidedLabel(f"Change {hunk_index}   {hunk_header}", self.checkbox)
+        self.hunk_header_label.setFont(bold_font)
+        
         header_row.addWidget(self.checkbox)
+        header_row.addWidget(self.hunk_header_label, stretch=1)
+        
+        # spacer to push right content
+
         header_row.addStretch()
 
         changed = sum(1 for l in hunk_text.splitlines() if l.startswith(('+', '-')) and not l.startswith(('+++', '---')))
@@ -1250,7 +1287,7 @@ class HunkWidget(QFrame):
         elif action == reset_action:
             self.current_hunk_text = self.original_hunk_text
             self.hunk_header = self.original_hunk_header
-            self.checkbox.setText(f"Change {self.hunk_index}   {self.hunk_header}")
+            self.hunk_header_label.setText(f"Change {self.hunk_index}   {self.hunk_header}")
             self.diff_view.setPlainText(self.current_hunk_text)
             self._update_line_count()
             self.modified_label.setVisible(False)
@@ -1266,8 +1303,8 @@ class HunkWidget(QFrame):
                 self.hunk_header = new_full_text
                 self.current_hunk_text = ""
             
-            # Update the checkbox text to show potentially new header
-            self.checkbox.setText(f"Change {self.hunk_index}   {self.hunk_header}")
+            # Update the label text to show potentially new header
+            self.hunk_header_label.setText(f"Change {self.hunk_index}   {self.hunk_header}")
             self.diff_view.setPlainText(self.current_hunk_text)
             self._update_line_count()
             self.modified_label.setVisible(True)
