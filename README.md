@@ -17,6 +17,10 @@ A Python-based Git Interactive Rebase GUI tool to visually manage commit history
 * **Smart Rephrase**: Effortlessly update commit messages without leaving the app.
 * **Instant Drop**: Remove unwanted commits with a single click.
 * **Reset Hard**: Quickly reset your branch to a specific commit.
+* **Refine Changes in File**: Selectively keep or drop specific changes/hunks inside a single file within a commit before finalizing commit history.
+* **Move Changes to New Commit**: Move selected changes/hunks from a single file within a commit into a separate commit. Useful when a change accidentally landed in the wrong commit — move it out, place it correctly, and squash it with the intended commit.
+* **Edit Hunk**: Edit a selected hunk inside a single file within a commit using a lightweight patch editor.
+* **Copy Hunk**: Quickly copy a hunk patch to clipboard.
 
 ### 🔍 Discovery & Navigation
 
@@ -42,6 +46,7 @@ A Python-based Git Interactive Rebase GUI tool to visually manage commit history
 * **Inclusive Range History**: View and edit history all the way down to the root commit or a specific parent.
 * **Headless Execution**: Rebase operations run in the background without blocking or spawning external editors.
 * **Clean Startup**: Defaults to Light Theme on the first run with optimized loading to prevent flickering.
+* **Recovery Friendly**: Operations log important commit SHAs, making it easy to reset back to earlier states if needed.
 
 ---
 
@@ -63,11 +68,14 @@ Interactive rebasing in Git is powerful, but repeatedly editing raw rebase todo 
 
 This tool is designed as a lightweight visual helper around Git interactive rebase, especially useful while cleaning up a feature branch before raising a PR.
 
+Useful when a commit accidentally contains mixed changes — for example:
+feature work + debug code, code + documentation, or unrelated edits inside the same file.
+
 ### Why it is different
 
 * **Uses native Git under the hood**
 
-  All operations are executed using standard Git commands itself.
+  All operations are executed using standard Git commands.
   No custom Git implementation or hidden logic.
 
   This also means that when Git itself improves or adds new capabilities, the tool automatically benefits from them.
@@ -84,6 +92,8 @@ This tool is designed as a lightweight visual helper around Git interactive reba
   * squash commits
   * split commits
   * rephrase commits
+  * refine file changes
+  * move changes to new commits
   * clean up history before PR creation
 
 **Key Strength:** Uses **native Git under the hood** — all operations are executed using standard Git commands.
