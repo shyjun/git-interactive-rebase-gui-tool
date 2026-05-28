@@ -1601,3 +1601,18 @@ class RefineChangesDialog(QDialog):
         """Returns a list of (hunk_header, hunk_text) for all hunks."""
         return [(hw.hunk_header, hw.get_current_text()) for hw in self.hunk_widgets]
 
+    def reject(self):
+        has_modified = any(hw.modified_label.isVisible() for hw in self.hunk_widgets)
+        if has_modified:
+            reply = QMessageBox.warning(
+                self,
+                "Unsaved Modifications",
+                "Some hunks are modified, are you sure you want to close?\n\n"
+                "If not, use Edit -> Apply changes, and apply changes in commit and exit.",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No
+            )
+            if reply != QMessageBox.Yes:
+                return
+        super().reject()
+
