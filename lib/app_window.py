@@ -15,7 +15,7 @@ import time
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QListWidget, QVBoxLayout, 
     QWidget, QMessageBox, QListWidgetItem, QMenu, QDialog,
-    QTextEdit, QPushButton, QHBoxLayout, QLabel, QRadioButton,
+    QTextEdit, QPlainTextEdit, QPushButton, QHBoxLayout, QLabel, QRadioButton,
     QLineEdit, QSplitter, QInputDialog, QGroupBox, QSizePolicy, QCheckBox,
     QStyledItemDelegate, QStyle, QStyleOptionViewItem, QTabWidget
 )
@@ -492,7 +492,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.diff_tab_widget.setMinimumHeight(150)
         
         # Page 0: Plain Diff
-        self.side_diff_view = QTextEdit()
+        self.side_diff_view = QPlainTextEdit()
         self.side_diff_view.setReadOnly(True)
         self.diff_tab_widget.addTab(self.side_diff_view, "Plain Diff")
         
@@ -511,7 +511,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.filewise_file_list.customContextMenuRequested.connect(self.show_filewise_context_menu)
         
         # File diff
-        self.filewise_diff_view = QTextEdit()
+        self.filewise_diff_view = QPlainTextEdit()
         self.filewise_diff_view.setReadOnly(True)
         self.filewise_diff_view.setMinimumHeight(100)
         

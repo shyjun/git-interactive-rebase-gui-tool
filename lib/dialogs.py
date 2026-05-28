@@ -4,11 +4,10 @@ if __name__ == "__main__":
     print("Please run the main app: git_interactive_rebase.py (git-interactive-rebase-gui-tool)")
     sys.exit(1)
 
-# pyrefly: ignore [missing-import]
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QListWidget, QVBoxLayout,
     QWidget, QMessageBox, QListWidgetItem, QMenu, QDialog,
-    QTextEdit, QPushButton, QHBoxLayout, QLabel, QRadioButton,
+    QTextEdit, QPlainTextEdit, QPushButton, QHBoxLayout, QLabel, QRadioButton,
     QLineEdit, QSplitter, QInputDialog, QProgressBar, QScrollArea,
     QFrame, QCheckBox, QSizePolicy
 )
@@ -56,7 +55,7 @@ class DiffViewerDialog(QDialog):
         self.setup_header(sha)
         
         # Diff View
-        self.diff_view = QTextEdit()
+        self.diff_view = QPlainTextEdit()
         self.diff_view.setReadOnly(True)
         self.diff_view.setFont(QFont("Courier New", self.font_size))
         self.diff_view.setPlainText(diff_text)
@@ -164,7 +163,7 @@ class SplitCommitDialog(QDialog):
         diff_layout.setContentsMargins(0, 5, 0, 0)
         diff_layout.addWidget(QLabel("<b>File Diff:</b>"))
         
-        self.diff_view = QTextEdit()
+        self.diff_view = QPlainTextEdit()
         self.diff_view.setMinimumHeight(100)
         self.diff_view.setReadOnly(True)
         self.diff_view.setFont(QFont("Courier New", font_size))
@@ -315,7 +314,7 @@ class DropFileFromCommitDialog(QDialog):
         diff_layout.setContentsMargins(0, 5, 0, 0)
         diff_layout.addWidget(QLabel("<b>File Diff:</b>"))
         
-        self.diff_view = QTextEdit()
+        self.diff_view = QPlainTextEdit()
         self.diff_view.setMinimumHeight(100)
         self.diff_view.setReadOnly(True)
         self.diff_view.setFont(QFont("Courier New", font_size))
@@ -514,7 +513,7 @@ class FileWiseViewDialog(QDialog):
         diff_layout.setContentsMargins(0, 5, 0, 0)
         diff_layout.addWidget(QLabel("<b>File Diff:</b>"))
         
-        self.diff_view = QTextEdit()
+        self.diff_view = QPlainTextEdit()
         self.diff_view.setMinimumHeight(100)
         self.diff_view.setReadOnly(True)
         self.diff_view.setFont(QFont("Courier New", font_size))
