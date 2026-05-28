@@ -12,7 +12,9 @@ from PySide6.QtWidgets import (
     QLineEdit, QSplitter, QInputDialog, QProgressBar, QScrollArea,
     QFrame, QCheckBox, QSizePolicy
 )
+# pyrefly: ignore [missing-import]
 from PySide6.QtCore import Qt, QSize, QSettings, QTimer, Signal
+# pyrefly: ignore [missing-import]
 from PySide6.QtGui import QFont, QFontMetrics, QSyntaxHighlighter, QTextCharFormat, QColor, QAction, QShortcut, QKeySequence, QPainter
 
 from lib.git_helpers import (
