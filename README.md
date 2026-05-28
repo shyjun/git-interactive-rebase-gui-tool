@@ -2,7 +2,7 @@
 
 🌐 **Live Demo / Project Page:** https://shyjun.github.io/git-interactive-rebase-gui-tool/
 
-**A clean visual GUI for `git rebase -i`** — reorder, squash, split, rephrase, and drop commits with an intuitive interface.
+**A clean visual GUI for `git rebase -i`** — reorder, squash, split, rephrase, drop, and refine commit history with an intuitive interface.
 
 A Python-based Git Interactive Rebase GUI tool to visually manage commit history. Built with **PySide6**, this tool simplifies the complex process of rewriting Git history with a faster and more visual workflow.
 
