@@ -2429,8 +2429,15 @@ if result_action == "move" and move_patch.strip():
                 print(f"Refine Changes: FAILED. {result.stderr}")
                 subprocess.run(["git", "rebase", "--abort"],
                                cwd=self.repo_path, capture_output=True)
-                QMessageBox.critical(self, "Refine Failed",
-                                     f"Could not refine changes.\n\nError: {result.stderr}")
+                QMessageBox.critical(
+                    self,
+                    "Refine Failed",
+                    f"Could not apply refined changes.\n\n"
+                    f"Patch failed to apply during rebase.\n\n"
+                    f"Error:\n{result.stderr}\n\n"
+                    f"If needed, resolve the issue manually and run:\n\n"
+                    f"git rebase --continue"
+                )
                 self.load_history()
                 break
 
