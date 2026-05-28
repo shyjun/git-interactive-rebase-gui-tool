@@ -945,17 +945,28 @@ class GitInteractiveRebaseApp(QMainWindow):
         )
         if reply == QMessageBox.Yes:
             old_head = self.get_head_sha()
-            try:
-                subprocess.run(["git", "reset", "--hard", self.last_head], cwd=self.repo_path, check=True, capture_output=True, text=True, encoding='utf-8', errors='replace')
-                self.load_history()
-                new_head = self.get_head_sha()
-                self.log_action(self.last_head, "undid last operation (reset hard to)", old_head, new_head)
-                QMessageBox.information(self, "Success", f"Successfully undid the last operation (reset to {self.last_head[:8]}).")
-                self.last_head = None
-                self.undo_btn.setEnabled(False)
-            except subprocess.CalledProcessError as e:
-                QMessageBox.critical(self, "Undo Failed", f"Could not perform undo.\n\nError: {e.stderr}")
-                self.load_history()
+            
+            self.progress_dialog = ProgressDialog("Undoing", f"Resetting hard to {self.last_head[:8]}...", self)
+            self.worker = GitWorker(["git", "reset", "--hard", self.last_head], self.repo_path)
+            
+            def on_undo_finished(success, stdout, stderr):
+                if hasattr(self, 'progress_dialog'):
+                    self.progress_dialog.close()
+                
+                if success:
+                    self.load_history()
+                    new_head = self.get_head_sha()
+                    self.log_action(self.last_head, "undid last operation (reset hard to)", old_head, new_head)
+                    QMessageBox.information(self, "Success", f"Successfully undid the last operation (reset to {self.last_head[:8]}).")
+                    self.last_head = None
+                    self.undo_btn.setEnabled(False)
+                else:
+                    QMessageBox.critical(self, "Undo Failed", f"Could not perform undo.\n\nError: {stderr}")
+                    self.load_history()
+
+            self.worker.finished.connect(on_undo_finished)
+            self.worker.start()
+            self.progress_dialog.exec()
 
     def handle_check_for_updates(self):
         """Checks for updates from the remote repository."""
@@ -1108,13 +1119,24 @@ class GitInteractiveRebaseApp(QMainWindow):
         if reply == QMessageBox.Yes:
             self.save_undo_state()
             print(f"Resetting hard to {origin_ref}...")
-            try:
-                subprocess.run(["git", "reset", "--hard", origin_ref], cwd=self.repo_path, check=True, capture_output=True, text=True, encoding='utf-8', errors='replace')
-                QMessageBox.information(self, "Success", f"Successfully reset --hard to {origin_ref}.")
-            except subprocess.CalledProcessError as e:
-                QMessageBox.critical(self, "Reset Failed", f"Could not perform reset to {origin_ref}.\n\nError: {e.stderr}")
-            finally:
+            
+            self.progress_dialog = ProgressDialog("Resetting", f"Resetting hard to {origin_ref}...", self)
+            self.worker = GitWorker(["git", "reset", "--hard", origin_ref], self.repo_path)
+            
+            def on_origin_reset_finished(success, stdout, stderr):
+                if hasattr(self, 'progress_dialog'):
+                    self.progress_dialog.close()
+                
+                if success:
+                    QMessageBox.information(self, "Success", f"Successfully reset --hard to {origin_ref}.")
+                else:
+                    QMessageBox.critical(self, "Reset Failed", f"Could not perform reset to {origin_ref}.\n\nError: {stderr}")
+                
                 self.load_history()
+
+            self.worker.finished.connect(on_origin_reset_finished)
+            self.worker.start()
+            self.progress_dialog.exec()
 
     def handle_git_push_force(self):
         """Runs git push --force."""
@@ -1817,14 +1839,26 @@ class GitInteractiveRebaseApp(QMainWindow):
         old_head = self.get_head_sha()
         print(f"Resetting hard to {sha}...")
         self.save_undo_state()
-        try:
-            subprocess.run(["git", "reset", "--hard", sha], cwd=self.repo_path, check=True, capture_output=True, text=True)
-            self.load_history()
-            new_head = self.get_head_sha()
-            self.log_action(sha, "reset hard to", old_head, new_head)
-            QMessageBox.information(self, "Success", f"Successfully reset --hard to {sha[:10]}.")
-        except subprocess.CalledProcessError as e:
-            QMessageBox.critical(self, "Reset Failed", f"Could not perform reset.\n\nError: {e.stderr}")
+        
+        self.progress_dialog = ProgressDialog("Resetting", f"Resetting hard to {sha[:10]}...", self)
+        
+        self.worker = GitWorker(["git", "reset", "--hard", sha], self.repo_path)
+        
+        def on_reset_finished(success, stdout, stderr):
+            if hasattr(self, 'progress_dialog'):
+                self.progress_dialog.close()
+            
+            if success:
+                self.load_history()
+                new_head = self.get_head_sha()
+                self.log_action(sha, "reset hard to", old_head, new_head)
+                QMessageBox.information(self, "Success", f"Successfully reset --hard to {sha[:10]}.")
+            else:
+                QMessageBox.critical(self, "Reset Failed", f"Could not perform reset.\n\nError: {stderr}")
+
+        self.worker.finished.connect(on_reset_finished)
+        self.worker.start()
+        self.progress_dialog.exec()
 
     def handle_squash_above(self, item):
         """Squashes the current commit with the one above it (newer)."""
