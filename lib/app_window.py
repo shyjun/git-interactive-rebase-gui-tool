@@ -11,6 +11,7 @@ import tempfile
 import stat
 import time
 
+# pyrefly: ignore [missing-import]
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QListWidget, QVBoxLayout, 
     QWidget, QMessageBox, QListWidgetItem, QMenu, QDialog,
@@ -18,7 +19,9 @@ from PySide6.QtWidgets import (
     QLineEdit, QSplitter, QInputDialog, QGroupBox, QSizePolicy, QCheckBox,
     QStyledItemDelegate, QStyle, QStyleOptionViewItem, QTabWidget
 )
+# pyrefly: ignore [missing-import]
 from PySide6.QtGui import QFont, QSyntaxHighlighter, QTextCharFormat, QColor, QAction, QShortcut, QKeySequence, QIcon, QBrush
+# pyrefly: ignore [missing-import]
 from PySide6.QtCore import Qt, QSize, QSettings, QThread, Signal, QRect
 
 from lib.git_helpers import (
