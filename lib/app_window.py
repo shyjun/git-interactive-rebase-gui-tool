@@ -34,7 +34,7 @@ from lib.dialogs import (
     DiffHighlighter, DiffViewerDialog, SplitCommitDialog, ViewCommitDialog,
     DropDialog, RephraseDialog, RevertCommitDialog, SquashDialog, FileWiseViewDialog,
     MultiSquashDialog, ProgressDialog, DropFileFromCommitDialog, ConfirmDropFileDialog,
-    ConfirmMoveFileDialog, RefineFileSelectDialog, RefineChangesDialog
+    ConfirmMoveFileDialog, RefineFileSelectDialog, RefineChangesDialog, NewCommitMessageDialog
 )
 from lib.utils import get_assets_path
 
@@ -2305,16 +2305,17 @@ class GitInteractiveRebaseApp(QMainWindow):
 
             move_msg = ""
             if result_action == "move":
-                from PySide6.QtWidgets import QInputDialog
                 default_msg = f"Change hunk from {sha[:8]} in {filepath}"
-                text, ok = QInputDialog.getMultiLineText(
-                    self, "New Commit Message",
+                dialog = NewCommitMessageDialog(
+                    "New Commit Message",
                     "Enter commit message for the new commit (containing moved hunks):",
-                    default_msg
+                    default_msg,
+                    self.current_font_size,
+                    self
                 )
-                if not ok:
+                if dialog.exec() != QDialog.Accepted:
                     break
-                move_msg = text
+                move_msg = dialog.get_message()
 
             self.save_undo_state()
             old_head = self.get_head_sha()
