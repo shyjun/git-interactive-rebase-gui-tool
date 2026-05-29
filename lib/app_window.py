@@ -1550,7 +1550,6 @@ class GitInteractiveRebaseApp(QMainWindow):
         
         mark_action = QAction(f"Mark / Unmark commit {sha}", self)
         view_action = QAction(f"Show / View commit {sha}", self)
-        move_action = QAction("Move (Drag item to reorder)", self)
         reset_action = QAction(f"Reset Hard to {sha}", self)
         set_best_action = QAction("set as BEST_COMMITID", self)
         drop_action = QAction("Drop", self)
@@ -1595,7 +1594,6 @@ class GitInteractiveRebaseApp(QMainWindow):
         view_action.triggered.connect(lambda: self.view_commit(item))
         view_filewise_action = QAction(f"Show / View commit {sha} -- file-wise", self)
         view_filewise_action.triggered.connect(lambda: self.handle_view_commit_file_wise(item))
-        move_action.triggered.connect(lambda: self.handle_move_info(item))
         reset_action.triggered.connect(lambda: self.handle_reset(item))
         set_best_action.triggered.connect(lambda: self.handle_set_best_commit(item))
         drop_action.triggered.connect(lambda: self.handle_drop(item))
@@ -1615,7 +1613,7 @@ class GitInteractiveRebaseApp(QMainWindow):
             drop_action.setEnabled(False)
             rephrase_action.setEnabled(False)
             revert_action.setEnabled(False)
-            move_action.setEnabled(False)
+            move_menu.setEnabled(False)
             copy_sha_action.setEnabled(False)
             copy_msg_action.setEnabled(False)
             copy_sha_msg_action.setEnabled(False)
@@ -1668,7 +1666,26 @@ class GitInteractiveRebaseApp(QMainWindow):
         squash_menu.addAction(squash_selected_action)
         squash_menu.addAction(cancel_multi_action)
         
-        menu.addAction(move_action)
+        # Move Commit submenu
+        move_menu = menu.addMenu("Move Commit")
+        move_menu.setFont(menu_font)
+        
+        move_up_action = QAction("Move Up (Swap with Next/Above commit)", self)
+        move_up_action.setEnabled(index > 0 and not self.multi_select_mode)
+        move_up_action.triggered.connect(lambda: self.handle_move_up(item))
+        
+        move_down_action = QAction("Move Down (Swap with Previous/Below commit)", self)
+        move_down_action.setEnabled(index < count - 1 and not self.multi_select_mode)
+        move_down_action.triggered.connect(lambda: self.handle_move_down(item))
+        
+        drag_info_action = QAction("Drag to Reorder", self)
+        drag_info_action.setEnabled(not self.multi_select_mode)
+        drag_info_action.triggered.connect(lambda: self.handle_move_info(item))
+        
+        move_menu.addAction(move_up_action)
+        move_menu.addAction(move_down_action)
+        move_menu.addSeparator()
+        move_menu.addAction(drag_info_action)
         
         # Split Commit submenu
         split_menu = menu.addMenu("Split Commit")
@@ -1715,6 +1732,42 @@ class GitInteractiveRebaseApp(QMainWindow):
             "Any commit can be dragged and dropped to a new position to reorder.\n\n"
             "Simply click and hold a commit, then drag it to where you want it."
         )
+
+    def handle_move_up(self, item):
+        """Swaps the selected commit with the one above it (Towards HEAD)."""
+        idx = self.list_widget.row(item)
+        if idx <= 0:
+            return
+        
+        old_head = self.get_head_sha()
+        current_shas = [self.list_widget.item(i).text().split()[0] for i in range(self.list_widget.count())]
+        # Swap with older (idx-1)
+        current_shas[idx], current_shas[idx-1] = current_shas[idx-1], current_shas[idx]
+        
+        sha = item.text().split()[0]
+        if self.run_interactive_rebase(current_shas, progress_title="Moving Commit", progress_text=f"Moving commit {sha} up..."):
+            self.load_history()
+            new_head = self.get_head_sha()
+            self.log_action(sha, "moved up", old_head, new_head)
+            QMessageBox.information(self, "Success", "Commit moved successfully.")
+
+    def handle_move_down(self, item):
+        """Swaps the selected commit with the one below it (Away from HEAD)."""
+        idx = self.list_widget.row(item)
+        if idx >= self.list_widget.count() - 1:
+            return
+            
+        old_head = self.get_head_sha()
+        current_shas = [self.list_widget.item(i).text().split()[0] for i in range(self.list_widget.count())]
+        # Swap with newer (idx+1)
+        current_shas[idx], current_shas[idx+1] = current_shas[idx+1], current_shas[idx]
+        
+        sha = item.text().split()[0]
+        if self.run_interactive_rebase(current_shas, progress_title="Moving Commit", progress_text=f"Moving commit {sha} down..."):
+            self.load_history()
+            new_head = self.get_head_sha()
+            self.log_action(sha, "moved down", old_head, new_head)
+            QMessageBox.information(self, "Success", "Commit moved successfully.")
 
     def handle_rephrase(self, item):
         """Handles the rephrase action."""
