@@ -2234,6 +2234,7 @@ class GitInteractiveRebaseApp(QMainWindow):
             
             # When user clicks "Apply modification" in a hunk menu, treat it as a final "Keep Selected" action
             dialog.apply_hunk_modification.connect(dialog._on_keep)
+            dialog.drop_hunk.connect(dialog._on_keep)
             
             if dialog.exec() != QDialog.Accepted:
                 break

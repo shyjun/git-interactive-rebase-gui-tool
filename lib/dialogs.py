@@ -1156,6 +1156,74 @@ class EditHunkDialog(QDialog):
         return self.editor.toPlainText()
 
 
+class DropHunkDialog(QDialog):
+    """A small lightweight dialog to confirm dropping a single diff hunk."""
+    def __init__(self, sha, filepath, hunk_index, hunk_text, font_size=10, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Drop Hunk")
+        self.setMinimumSize(800, 500)
+        
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(15, 15, 15, 15)
+        layout.setSpacing(12)
+        
+        # Header info
+        header_layout = QVBoxLayout()
+        header_layout.setSpacing(4)
+        
+        main_win = self.parent().parent() if self.parent() else None
+        header_color = main_win.colors['header'] if main_win and hasattr(main_win, 'colors') else '#66d9ef'
+        
+        commit_label = QLabel(f"<b>Commit:</b> <span style='color:{header_color};'>{sha}</span>&nbsp;&nbsp;changes in {filepath}")
+        commit_label.setTextFormat(Qt.RichText)
+        header_layout.addWidget(commit_label)
+        
+        file_label = QLabel(f"<b>File:</b> {filepath}")
+        file_label.setTextFormat(Qt.RichText)
+        header_layout.addWidget(file_label)
+        
+        msg_label = QLabel("<b>Are you sure you want to drop this hunk from the commit?</b><br><br>This hunk will be removed from the current commit. This action can be undone using app undo/reset mechanisms if needed.")
+        msg_label.setStyleSheet("color: #cc2200; font-size: 13px;")
+        msg_label.setWordWrap(True)
+        msg_label.setTextFormat(Qt.RichText)
+        header_layout.addWidget(msg_label)
+        
+        layout.addLayout(header_layout)
+        
+        # Viewer
+        viewer_label = QLabel("Hunk (read-only)")
+        viewer_label.setContentsMargins(2, 0, 0, 0)
+        layout.addWidget(viewer_label)
+        
+        self.viewer = QTextEdit()
+        self.viewer.setFont(QFont("Courier New", font_size))
+        self.viewer.setPlainText(hunk_text)
+        self.viewer.setReadOnly(True)
+        self.viewer.setAcceptRichText(False)
+        self.viewer.setLineWrapMode(QTextEdit.NoWrap)
+        layout.addWidget(self.viewer)
+        
+        # Buttons
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(10)
+        
+        self.drop_btn = QPushButton("Drop Hunk")
+        self.drop_btn.setMinimumHeight(32)
+        self.drop_btn.setMinimumWidth(100)
+        self.drop_btn.clicked.connect(self.accept)
+        self.drop_btn.setStyleSheet("color: #cc2200; font-weight: bold; border: 2px solid #cc2200; border-radius: 4px; padding: 5px;")
+        
+        self.cancel_btn = QPushButton("Cancel")
+        self.cancel_btn.setMinimumHeight(32)
+        self.cancel_btn.setMinimumWidth(100)
+        self.cancel_btn.clicked.connect(self.reject)
+        
+        btn_row.addStretch()
+        btn_row.addWidget(self.drop_btn)
+        btn_row.addWidget(self.cancel_btn)
+        layout.addLayout(btn_row)
+
+
 class ElidedLabel(QLabel):
     """A QLabel that strictly stays on one line and elides text with '...' when space is constrained."""
     def __init__(self, text, checkbox_to_toggle=None, parent=None):
@@ -1194,6 +1262,7 @@ class ElidedLabel(QLabel):
 class HunkWidget(QFrame):
     """A framed widget displaying a single diff hunk with a checkbox."""
     apply_hunk_modification = Signal(int)
+    drop_hunk = Signal(int)
 
     def __init__(self, hunk_index, hunk_header, hunk_text, colors, font_size, sha=None, filepath=None):
         super().__init__()
@@ -1330,6 +1399,9 @@ class HunkWidget(QFrame):
         if self.current_hunk_text == self.original_hunk_text:
             reset_action.setEnabled(False)
 
+        menu.addSeparator()
+        drop_action = menu.addAction("Drop Hunk")
+
         # Position menu below the edit button
         action = menu.exec(self.edit_btn.mapToGlobal(self.edit_btn.rect().bottomLeft()))
 
@@ -1346,6 +1418,15 @@ class HunkWidget(QFrame):
             self.diff_view.setPlainText(self.current_hunk_text)
             self._update_line_count()
             self.modified_label.setVisible(False)
+        elif action == drop_action:
+            self.open_drop_dialog()
+
+    def open_drop_dialog(self):
+        full_text = f"{self.hunk_header}\n{self.current_hunk_text}"
+        dlg = DropHunkDialog(self.sha, self.filepath, self.hunk_index, full_text, self.font_size, self)
+        if dlg.exec() == QDialog.Accepted:
+            self.set_selected(False)
+            self.drop_hunk.emit(self.hunk_index)
 
     def open_edit_dialog(self):
         full_text = f"{self.hunk_header}\n{self.current_hunk_text}"
@@ -1387,6 +1468,7 @@ class HunkWidget(QFrame):
 class RefineChangesDialog(QDialog):
     """Hunk selection dialog for Refine Changes in File feature."""
     apply_hunk_modification = Signal(int)
+    drop_hunk = Signal(int)
 
     def __init__(self, sha, filepath, commit_msg, hunks, font_size=10, parent=None):
         """
@@ -1447,6 +1529,7 @@ class RefineChangesDialog(QDialog):
         for i, (hdr, body) in enumerate(hunks):
             hw = HunkWidget(i + 1, hdr, body, colors, font_size, sha=sha, filepath=filepath)
             hw.apply_hunk_modification.connect(self.apply_hunk_modification.emit)
+            hw.drop_hunk.connect(self.drop_hunk.emit)
             hw.checkbox.stateChanged.connect(self._update_counter)
             self.hunk_widgets.append(hw)
             hunks_layout.addWidget(hw)
