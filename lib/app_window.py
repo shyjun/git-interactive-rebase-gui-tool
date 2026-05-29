@@ -2469,16 +2469,25 @@ if result_action == "move" and move_patch.strip():
             env["GIT_SEQUENCE_EDITOR"] = editor_script
             env["GIT_EDITOR"] = "true"
 
-            from PySide6.QtWidgets import QProgressDialog
-            progress = QProgressDialog(f"Applying refinement to {sha[:8]}...", None, 0, 0, self)
-            progress.setWindowModality(Qt.WindowModal)
+            progress = ProgressDialog(
+                f"Applying refinement to {sha[:8]}...", 
+                f"Processing changes in {filepath}. Please wait...",
+                self
+            )
             progress.show()
-            QApplication.processEvents()
+            # Force visibility and add a small delay for human perception
+            for _ in range(5):
+                QApplication.processEvents()
+                time.sleep(0.02)
 
             cmd = ["git", "rebase", "-i", upstream]
             result = subprocess.run(cmd, cwd=self.repo_path, env=env,
                                     capture_output=True, text=True)
             
+            # Ensure the user sees the progress before it closes
+            for _ in range(5):
+                QApplication.processEvents()
+                time.sleep(0.02)
             progress.close()
 
             try:
