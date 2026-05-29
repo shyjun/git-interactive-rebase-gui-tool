@@ -22,7 +22,7 @@ from PySide6.QtWidgets import (
 # pyrefly: ignore [missing-import]
 from PySide6.QtGui import QFont, QSyntaxHighlighter, QTextCharFormat, QColor, QAction, QShortcut, QKeySequence, QIcon, QBrush
 # pyrefly: ignore [missing-import]
-from PySide6.QtCore import Qt, QSize, QSettings, QThread, Signal, QRect
+from PySide6.QtCore import Qt, QSize, QSettings, QThread, Signal, QRect, QTimer
 
 from lib.git_helpers import (
     get_git_history, get_head_sha, get_full_head_sha, get_current_branch, get_commit_diff,
@@ -329,6 +329,8 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.base_branch = base_branch  # set only when auto-detected; None when SHA provided manually
         self.start_time_full_head = get_full_head_sha(self.repo_path)
         self.start_time_head = get_head_sha(self.repo_path)
+        self.cached_current_head_full_sha = self.start_time_full_head
+        self.cached_has_uncommitted = False
         self.last_head = None
         self.best_commit_sha = None
         self.marked_shas = set()
@@ -351,6 +353,15 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.setup_ui()
         self.load_settings()
         self.restore_visibility_settings()
+        
+        # Performance Cache
+        self.commit_cache = {} # sha -> {'meta': str, 'msg': str, 'diff': str, 'files': list}
+        
+        # Debounce timer for side diff updates
+        self.update_diff_timer = QTimer(self)
+        self.update_diff_timer.setSingleShot(True)
+        self.update_diff_timer.timeout.connect(self._do_update_side_diff)
+        
         self.load_history()
         self.update_rebase_buttons()
 
@@ -548,7 +559,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         layout.addWidget(self.main_splitter, 1)
         
         self.list_widget.itemDoubleClicked.connect(self.view_commit)
-        self.list_widget.itemSelectionChanged.connect(self.update_side_diff)
+        self.list_widget.itemSelectionChanged.connect(self.on_selection_changed)
         
         self.diff_tab_widget.currentChanged.connect(self.on_diff_tab_changed)
         
@@ -735,7 +746,15 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.f5_shortcut = QShortcut(QKeySequence("F5"), self)
         self.f5_shortcut.activated.connect(self.handle_manual_refresh)
 
+    def on_selection_changed(self):
+        """Triggered when list selection changes. Debounces the update."""
+        self.update_diff_timer.start(50) # 50ms debounce
+
     def update_side_diff(self):
+        """Synchronous version for immediate updates when needed."""
+        self._do_update_side_diff()
+
+    def _do_update_side_diff(self):
         item = self.list_widget.currentItem()
         if not item:
             if hasattr(self, 'side_commit_label'):
@@ -748,18 +767,35 @@ class GitInteractiveRebaseApp(QMainWindow):
             return
 
         sha = item.text().split()[0]
+        
+        # Check cache
+        cache_entry = self.commit_cache.get(sha, {})
+        
         try:
-            meta, msg = get_commit_metadata_and_message(self.repo_path, sha)
+            if 'meta' not in cache_entry:
+                meta, msg = get_commit_metadata_and_message(self.repo_path, sha)
+                cache_entry['meta'] = meta
+                cache_entry['msg'] = msg
+                self.commit_cache[sha] = cache_entry
+            
+            meta = cache_entry['meta']
+            msg = cache_entry['msg']
             
             self.side_commit_label.setText(f"Commit: <b>{sha}</b>  <span style='color:gray;'>({meta})</span>")
             self.side_commit_msg.setPlainText(msg)
             
             if self.diff_tab_widget.currentIndex() == 0:
-                diff_text = get_commit_diff(self.repo_path, sha)
-                self.side_diff_view.setPlainText(diff_text)
+                if 'diff' not in cache_entry:
+                    cache_entry['diff'] = get_commit_diff(self.repo_path, sha)
+                    self.commit_cache[sha] = cache_entry
+                self.side_diff_view.setPlainText(cache_entry['diff'])
             else:
                 self.side_diff_view.clear()
-                files = get_commit_files(self.repo_path, sha)
+                if 'files' not in cache_entry:
+                    cache_entry['files'] = get_commit_files(self.repo_path, sha)
+                    self.commit_cache[sha] = cache_entry
+                
+                files = cache_entry['files']
                 # Temporarily block signals to avoid triggering on_filewise_file_selected prematurely
                 self.filewise_file_list.blockSignals(True)
                 self.filewise_file_list.clear()
@@ -908,9 +944,9 @@ class GitInteractiveRebaseApp(QMainWindow):
             self.perform_reset(self.best_commit_sha)
 
     def handle_failsafe_reset(self):
-        current_full_head = get_full_head_sha(self.repo_path)
-        if current_full_head == self.start_time_full_head:
-            QMessageBox.warning(self, "No Changes", "HEAD is already at START_TIME_HEAD. No changes made in repo.")
+        # We use cached values from load_history for performance. 
+        if self.cached_current_head_full_sha == self.start_time_full_head and not self.cached_has_uncommitted:
+            QMessageBox.warning(self, "No Changes", "HEAD is already at START_TIME_HEAD and there are no uncommitted changes.")
             return
 
         reply = QMessageBox.question(
@@ -3236,13 +3272,10 @@ for i, filename in enumerate(files):
 
     def load_history(self):
         """Fetches git history and populates the list widget."""
+        # Invalidate cache as history might have changed
+        self.commit_cache = {}
+        
         # Clear search when reloading history
-        if hasattr(self, 'search_edit'):
-            self.search_edit.blockSignals(True)
-            self.search_edit.clear()
-            self.search_edit.blockSignals(False)
-
-        print("Refreshing...")
         self.update_window_title()
         
         current_branch = get_current_branch(self.repo_path)
@@ -3287,6 +3320,11 @@ for i, filename in enumerate(files):
         # Update Failsafe button state
         current_head = get_head_sha(self.repo_path)
         uncommitted = has_uncommitted_changes(self.repo_path)
+        
+        # Update cache
+        self.cached_current_head_full_sha = get_full_head_sha(self.repo_path)
+        self.cached_has_uncommitted = uncommitted
+
         if current_head == self.start_time_head[:8] and not uncommitted:
             self.failsafe_btn.setEnabled(False)
             self.failsafe_btn.setText(f"Reset Hard to START_TIME_HEAD (Already at {self.start_time_head[:8]})")
