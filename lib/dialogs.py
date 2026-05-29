@@ -1316,11 +1316,6 @@ class HunkWidget(QFrame):
         self.line_count_label.setStyleSheet("color: gray;")
         header_row.addWidget(self.line_count_label)
         
-        self.modified_label = QLabel(" (MODIFIED) ")
-        self.modified_label.setStyleSheet("color: #0055cc; font-weight: bold; font-family: monospace;")
-        self.modified_label.setVisible(False)
-        header_row.addWidget(self.modified_label)
-        
         self.edit_btn = QPushButton("Edit")
         self.edit_btn.setFixedWidth(70)
         self.edit_btn.setFixedHeight(26)
@@ -1387,20 +1382,9 @@ class HunkWidget(QFrame):
             parent = parent.parent() if not isinstance(parent, QScrollArea) else None
 
     def show_hunk_menu(self):
-
         menu = QMenu(self)
         edit_action = menu.addAction("Edit Hunk")
         copy_action = menu.addAction("Copy Hunk")
-
-        apply_mod_action = menu.addAction("Apply changes")
-        if not self.modified_label.isVisible():
-            apply_mod_action.setEnabled(False)
-
-        reset_action = menu.addAction("Reset Hunk (Revert to original)")
-
-        if self.current_hunk_text == self.original_hunk_text:
-            reset_action.setEnabled(False)
-
         menu.addSeparator()
         drop_action = menu.addAction("Drop Hunk")
 
@@ -1411,15 +1395,6 @@ class HunkWidget(QFrame):
             self.open_edit_dialog()
         elif action == copy_action:
             QApplication.clipboard().setText(self.current_hunk_text)
-        elif action == apply_mod_action:
-            self.apply_hunk_modification.emit(self.hunk_index)
-        elif action == reset_action:
-            self.current_hunk_text = self.original_hunk_text
-            self.hunk_header = self.original_hunk_header
-            self.hunk_header_label.setText(f"Change {self.hunk_index}   {self.hunk_header}")
-            self.diff_view.setPlainText(self.current_hunk_text)
-            self._update_line_count()
-            self.modified_label.setVisible(False)
         elif action == drop_action:
             self.open_drop_dialog()
 
@@ -1449,18 +1424,14 @@ class HunkWidget(QFrame):
             else:
                 self.hunk_header = new_full_text
                 self.current_hunk_text = ""
-            
+
             # Update the label text to show potentially new header
             self.hunk_header_label.setText(f"Change {self.hunk_index}   {self.hunk_header}")
             self.diff_view.setPlainText(self.current_hunk_text)
             self._update_line_count()
-            self.modified_label.setVisible(True)
-            
-            QMessageBox.information(
-                self,
-                "Hunk Edited",
-                "Hunk has been modified, go to edit menu and 'Apply Changes' to apply it to commit."
-            )
+
+            # Immediately apply the edited hunk — no intermediate MODIFIED state
+            self.apply_hunk_modification.emit(self.hunk_index)
 
     def _update_line_count(self):
         changed = sum(1 for l in self.current_hunk_text.splitlines() if l.startswith(('+', '-')) and not l.startswith(('+++', '---')))
@@ -1698,17 +1669,5 @@ class RefineChangesDialog(QDialog):
         return [(hw.hunk_header, hw.get_current_text()) for hw in self.hunk_widgets]
 
     def reject(self):
-        has_modified = any(hw.modified_label.isVisible() for hw in self.hunk_widgets)
-        if has_modified:
-            reply = QMessageBox.warning(
-                self,
-                "Unsaved Modifications",
-                "Some hunks are modified, are you sure you want to close?\n\n"
-                "If not, use Edit -> Apply changes, and apply changes in commit and exit.",
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.No
-            )
-            if reply != QMessageBox.Yes:
-                return
         super().reject()
 
