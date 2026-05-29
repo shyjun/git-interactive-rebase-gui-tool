@@ -1264,7 +1264,7 @@ class HunkWidget(QFrame):
     apply_hunk_modification = Signal(int)
     drop_hunk = Signal(int)
 
-    def __init__(self, hunk_index, hunk_header, hunk_text, colors, font_size, sha=None, filepath=None):
+    def __init__(self, hunk_index, hunk_header, hunk_text, colors, font_size, sha=None, filepath=None, is_only_hunk=False, is_only_file=False):
         super().__init__()
         self.hunk_index = hunk_index
         self.hunk_header = hunk_header
@@ -1275,6 +1275,8 @@ class HunkWidget(QFrame):
         self.font_size = font_size
         self.sha = sha
         self.filepath = filepath
+        self.is_only_hunk = is_only_hunk
+        self.is_only_file = is_only_file
 
         self.setFrameShape(QFrame.StyledPanel)
         self.setFrameShadow(QFrame.Raised)
@@ -1422,6 +1424,15 @@ class HunkWidget(QFrame):
             self.open_drop_dialog()
 
     def open_drop_dialog(self):
+        if self.is_only_hunk and self.is_only_file:
+            QMessageBox.information(
+                self,
+                "Cannot Drop Hunk",
+                "This is the only hunk in the entire commit.\n\n"
+                "Dropping this hunk would effectively remove the whole commit. Please use the regular \"Drop Commit\" feature instead."
+            )
+            return
+
         full_text = f"{self.hunk_header}\n{self.current_hunk_text}"
         dlg = DropHunkDialog(self.sha, self.filepath, self.hunk_index, full_text, self.font_size, self)
         if dlg.exec() == QDialog.Accepted:
@@ -1470,7 +1481,7 @@ class RefineChangesDialog(QDialog):
     apply_hunk_modification = Signal(int)
     drop_hunk = Signal(int)
 
-    def __init__(self, sha, filepath, commit_msg, hunks, font_size=10, parent=None):
+    def __init__(self, sha, filepath, commit_msg, hunks, font_size=10, parent=None, is_only_file=False):
         """
         hunks: list of (hunk_header_str, hunk_body_str)
         """
@@ -1527,7 +1538,8 @@ class RefineChangesDialog(QDialog):
         hunks_layout.setSpacing(8)
 
         for i, (hdr, body) in enumerate(hunks):
-            hw = HunkWidget(i + 1, hdr, body, colors, font_size, sha=sha, filepath=filepath)
+            hw = HunkWidget(i + 1, hdr, body, colors, font_size, sha=sha, filepath=filepath, 
+                            is_only_hunk=(len(hunks) == 1), is_only_file=is_only_file)
             hw.apply_hunk_modification.connect(self.apply_hunk_modification.emit)
             hw.drop_hunk.connect(self.drop_hunk.emit)
             hw.checkbox.stateChanged.connect(self._update_counter)

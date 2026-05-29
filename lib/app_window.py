@@ -2229,8 +2229,14 @@ class GitInteractiveRebaseApp(QMainWindow):
             except Exception:
                 commit_msg = ""
 
+            try:
+                all_files = get_commit_files(self.repo_path, sha)
+            except:
+                all_files = [filepath]
+            is_only_file = len(all_files) == 1
+
             dialog = RefineChangesDialog(sha, filepath, commit_msg,
-                                         hunks, self.current_font_size, self)
+                                         hunks, self.current_font_size, self, is_only_file=is_only_file)
             
             # When user clicks "Apply modification" in a hunk menu, treat it as a final "Keep Selected" action
             dialog.apply_hunk_modification.connect(dialog._on_keep)
@@ -2245,12 +2251,7 @@ class GitInteractiveRebaseApp(QMainWindow):
             moved_indices = getattr(dialog, 'moved_indices', [])
             
             # Bug fix: if it's the only file and we result in an empty commit, warn user
-            try:
-                all_files = get_commit_files(self.repo_path, sha)
-            except:
-                all_files = [filepath]
-
-            is_only_file = len(all_files) == 1
+            # (is_only_file already computed above)
 
             if not kept_indices:
                 if is_only_file:
