@@ -746,6 +746,9 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.f5_shortcut = QShortcut(QKeySequence("F5"), self)
         self.f5_shortcut.activated.connect(self.handle_manual_refresh)
 
+        self.ctrl_q_shortcut = QShortcut(QKeySequence("Ctrl+Q"), self)
+        self.ctrl_q_shortcut.activated.connect(self.close)
+
     def on_selection_changed(self):
         """Triggered when list selection changes. Debounces the update."""
         self.update_diff_timer.start(50) # 50ms debounce
@@ -1747,6 +1750,10 @@ class GitInteractiveRebaseApp(QMainWindow):
         sha = item.text().split()[0]
         if self.run_interactive_rebase(current_shas, progress_title="Moving Commit", progress_text=f"Moving commit {sha} up..."):
             self.load_history()
+            # Select the moved commit at its new index (idx - 1)
+            target_idx = max(0, idx - 1)
+            self.list_widget.setCurrentRow(target_idx)
+            
             new_head = self.get_head_sha()
             self.log_action(sha, "moved up", old_head, new_head)
             QMessageBox.information(self, "Success", "Commit moved successfully.")
@@ -1765,6 +1772,10 @@ class GitInteractiveRebaseApp(QMainWindow):
         sha = item.text().split()[0]
         if self.run_interactive_rebase(current_shas, progress_title="Moving Commit", progress_text=f"Moving commit {sha} down..."):
             self.load_history()
+            # Select the moved commit at its new index (idx + 1)
+            target_idx = min(self.list_widget.count() - 1, idx + 1)
+            self.list_widget.setCurrentRow(target_idx)
+            
             new_head = self.get_head_sha()
             self.log_action(sha, "moved down", old_head, new_head)
             QMessageBox.information(self, "Success", "Commit moved successfully.")
