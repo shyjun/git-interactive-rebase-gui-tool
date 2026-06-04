@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QSize, QSettings, QTimer, Signal, QRect, QEvent
 # pyrefly: ignore [missing-import]
 from PySide6.QtGui import QFont, QFontMetrics, QSyntaxHighlighter, QTextCharFormat, QColor, QAction, QShortcut, QKeySequence, QPainter, QTextFormat, QTextBlockFormat, QTextCursor, QTextDocument
+from PySide6.QtCore import QRegularExpression
 # pyrefly: ignore [missing-import]
 from PySide6.QtWidgets import QStyledItemDelegate, QStyle
 
@@ -234,6 +235,8 @@ class DiffSearchBar(QWidget):
         self.lbl_counter.setMinimumWidth(40)
         self.lbl_counter.setAlignment(Qt.AlignCenter)
 
+        self.whole_word_cb = QCheckBox("Whole word")
+
         self.separator = QFrame()
         self.separator.setFrameShape(QFrame.VLine)
         self.separator.setFrameShadow(QFrame.Sunken)
@@ -245,6 +248,7 @@ class DiffSearchBar(QWidget):
         layout.addWidget(self.btn_prev)
         layout.addWidget(self.btn_next)
         layout.addWidget(self.lbl_counter)
+        layout.addWidget(self.whole_word_cb)
         layout.addWidget(self.separator)
         layout.addWidget(self.line_num_cb)
 
@@ -252,6 +256,7 @@ class DiffSearchBar(QWidget):
         self.search_input.textChanged.connect(self._perform_search)
         self.search_input.returnPressed.connect(self.next_match)
         self.match_case_cb.toggled.connect(self._perform_search)
+        self.whole_word_cb.toggled.connect(self._perform_search)
         self.line_num_cb.toggled.connect(self.target_view.set_line_numbers_visible)
         self.btn_next.clicked.connect(self.next_match)
         self.btn_prev.clicked.connect(self.prev_match)
@@ -292,20 +297,18 @@ class DiffSearchBar(QWidget):
         self.matches.clear()
         self.current_match_idx = -1
         
-        cursor = QTextCursor(doc)
+        escaped = QRegularExpression.escape(query)
+        if self.whole_word_cb.isChecked():
+            pattern_text = r'\b' + escaped + r'\b'
+        else:
+            pattern_text = escaped
+        pattern = QRegularExpression(pattern_text)
+        if not self.match_case_cb.isChecked():
+            pattern.setPatternOptions(QRegularExpression.CaseInsensitiveOption)
         
-        # Check available version of flag for case sensitivity
-        find_flag_case = getattr(QTextDocument, 'FindCaseSensitively', None)
-        if find_flag_case is None and hasattr(QTextDocument, 'FindFlag'):
-            find_flag_case = QTextDocument.FindFlag.FindCaseSensitively
-            
+        cursor = QTextCursor(doc)
         while True:
-            # doc.find default flags are case insensitive
-            if self.match_case_cb.isChecked() and find_flag_case is not None:
-                cursor = doc.find(query, cursor, find_flag_case)
-            else:
-                cursor = doc.find(query, cursor)
-                
+            cursor = doc.find(pattern, cursor)
             if cursor.isNull():
                 break
             self.matches.append(QTextCursor(cursor))
