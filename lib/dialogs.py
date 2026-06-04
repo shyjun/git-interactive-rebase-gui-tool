@@ -9,12 +9,12 @@ from PySide6.QtWidgets import (
     QWidget, QMessageBox, QListWidgetItem, QMenu, QDialog,
     QTextEdit, QPlainTextEdit, QPushButton, QHBoxLayout, QLabel, QRadioButton,
     QLineEdit, QSplitter, QInputDialog, QProgressBar, QScrollArea,
-    QFrame, QCheckBox, QSizePolicy
+    QFrame, QCheckBox, QSizePolicy, QToolButton
 )
 # pyrefly: ignore [missing-import]
 from PySide6.QtCore import Qt, QSize, QSettings, QTimer, Signal, QRect
 # pyrefly: ignore [missing-import]
-from PySide6.QtGui import QFont, QFontMetrics, QSyntaxHighlighter, QTextCharFormat, QColor, QAction, QShortcut, QKeySequence, QPainter, QTextFormat, QTextBlockFormat, QTextCursor
+from PySide6.QtGui import QFont, QFontMetrics, QSyntaxHighlighter, QTextCharFormat, QColor, QAction, QShortcut, QKeySequence, QPainter, QTextFormat, QTextBlockFormat, QTextCursor, QTextDocument
 # pyrefly: ignore [missing-import]
 from PySide6.QtWidgets import QStyledItemDelegate, QStyle
 
@@ -94,6 +94,172 @@ class DiffView(QPlainTextEdit):
             # Move to the top of the next block
             top = bottom
             block = block.next()
+
+class DiffSearchBar(QWidget):
+    """A lightweight search toolbar for QPlainTextEdit with live highlighting."""
+    def __init__(self, target_view: QPlainTextEdit, parent=None):
+        super().__init__(parent)
+        self.target_view = target_view
+        self.matches = []
+        self.current_match_idx = -1
+        
+        # Colors for highlighting
+        self.highlight_color = QColor("#ffeb3b") # yellow
+        self.highlight_color.setAlpha(100)
+        self.active_highlight_color = QColor("#ff9800") # orange
+        self.active_highlight_color.setAlpha(150)
+
+        self._setup_ui()
+        self._connect_signals()
+
+    def _setup_ui(self):
+        # Prevent vertical stretching
+        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(5, 5, 5, 5)
+        layout.setSpacing(5)
+
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("Search in diff (Ctrl+F)...")
+        self.search_input.setMinimumHeight(28)
+        self.search_input.setClearButtonEnabled(True)
+
+        self.btn_prev = QToolButton()
+        self.btn_prev.setText("<")
+        self.btn_next = QToolButton()
+        self.btn_next.setText(">")
+        # Ensure buttons are square and compact
+        self.btn_prev.setFixedSize(28, 28)
+        self.btn_next.setFixedSize(28, 28)
+        self.btn_prev.setToolTip("Previous match (Up)")
+        self.btn_next.setToolTip("Next match (Down)")
+
+        self.lbl_counter = QLabel("0/0")
+        self.lbl_counter.setMinimumWidth(40)
+        self.lbl_counter.setAlignment(Qt.AlignCenter)
+
+        layout.addWidget(self.search_input)
+        layout.addWidget(self.btn_prev)
+        layout.addWidget(self.btn_next)
+        layout.addWidget(self.lbl_counter)
+
+    def _connect_signals(self):
+        self.search_input.textChanged.connect(self._perform_search)
+        self.search_input.returnPressed.connect(self.next_match)
+        self.btn_next.clicked.connect(self.next_match)
+        self.btn_prev.clicked.connect(self.prev_match)
+        
+        # Keyboard shortcuts when focused
+        self.shortcut_up = QShortcut(QKeySequence(Qt.Key_Up), self)
+        self.shortcut_up.setContext(Qt.WidgetWithChildrenShortcut)
+        self.shortcut_up.activated.connect(self.prev_match)
+        
+        self.shortcut_down = QShortcut(QKeySequence(Qt.Key_Down), self)
+        self.shortcut_down.setContext(Qt.WidgetWithChildrenShortcut)
+        self.shortcut_down.activated.connect(self.next_match)
+
+        self.shortcut_esc = QShortcut(QKeySequence(Qt.Key_Escape), self)
+        self.shortcut_esc.setContext(Qt.WidgetWithChildrenShortcut)
+        self.shortcut_esc.activated.connect(self.clear_search)
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Escape:
+            self.clear_search()
+        else:
+            super().keyPressEvent(event)
+
+    def _perform_search(self):
+        query = self.search_input.text()
+        if not query:
+            self.clear_search()
+            return
+            
+        doc = self.target_view.document()
+        self.matches.clear()
+        self.current_match_idx = -1
+        
+        cursor = QTextCursor(doc)
+        
+        while True:
+            # doc.find default flags are case insensitive
+            cursor = doc.find(query, cursor)
+            if cursor.isNull():
+                break
+            self.matches.append(QTextCursor(cursor))
+
+        self.update_highlights()
+
+    def update_highlights(self):
+        selections = []
+        
+        for i, cursor in enumerate(self.matches):
+            sel = QTextEdit.ExtraSelection()
+            sel.cursor = cursor
+            sel.format.setBackground(self.active_highlight_color if i == self.current_match_idx else self.highlight_color)
+            selections.append(sel)
+            
+        self.target_view.setExtraSelections(selections)
+        
+        count = len(self.matches)
+        if count == 0:
+            self.lbl_counter.setText("0/0")
+            # Clear native text selection to avoid ghost highlights
+            cursor = self.target_view.textCursor()
+            if cursor.hasSelection():
+                cursor.clearSelection()
+                self.target_view.setTextCursor(cursor)
+        else:
+            idx = self.current_match_idx + 1 if self.current_match_idx >= 0 else 1
+            self.lbl_counter.setText(f"{idx}/{count}")
+            # If no current match is selected but we have matches, auto-scroll to first
+            if self.current_match_idx == -1 and count > 0:
+                self.current_match_idx = 0
+                self.target_view.setTextCursor(self.matches[0])
+
+    def next_match(self):
+        if not self.matches:
+            return
+        self.current_match_idx = (self.current_match_idx + 1) % len(self.matches)
+        self.target_view.setTextCursor(self.matches[self.current_match_idx])
+        self.update_highlights()
+
+    def prev_match(self):
+        if not self.matches:
+            return
+        if self.current_match_idx <= 0:
+            self.current_match_idx = len(self.matches) - 1
+        else:
+            self.current_match_idx -= 1
+        self.target_view.setTextCursor(self.matches[self.current_match_idx])
+        self.update_highlights()
+
+    def clear_search(self):
+        self.matches.clear()
+        self.current_match_idx = -1
+        self.target_view.setExtraSelections([])
+        self.lbl_counter.setText("0/0")
+        
+        # Hand-in-hand with updating highlights: clear selection
+        cursor = self.target_view.textCursor()
+        if cursor.hasSelection():
+            cursor.clearSelection()
+            self.target_view.setTextCursor(cursor)
+
+    def hide_and_clear(self):
+        self.search_input.clear()
+        self.clear_search()
+        self.hide()
+        # Return focus to target view
+        self.target_view.setFocus()
+        
+    def show_and_focus(self):
+        self.show()
+        self.search_input.setFocus()
+        self.search_input.selectAll()
+        if self.search_input.text():
+            self._perform_search()
+
 
 class StatsItemDelegate(QStyledItemDelegate):
     """Custom delegate: filename left-aligned, +N -M stats right-aligned."""
@@ -201,7 +367,22 @@ class DiffViewerDialog(QDialog):
         
         self.diff_view.set_separator_color(colors.get("separator", "#444444"))
         
-        self.layout.addWidget(self.diff_view)
+        # Wrap search and diff view so they appear as one item in self.layout
+        diff_container = QWidget()
+        diff_container_layout = QVBoxLayout(diff_container)
+        diff_container_layout.setContentsMargins(0, 0, 0, 0)
+        diff_container_layout.setSpacing(0)
+
+        self.search_bar = DiffSearchBar(target_view=self.diff_view, parent=diff_container)
+        diff_container_layout.addWidget(self.search_bar)
+        
+        diff_container_layout.addWidget(self.diff_view)
+        
+        self.layout.addWidget(diff_container)
+
+        # Connect Ctrl+F explicitly just in case focus escapes
+        self.ctrl_f_shortcut = QShortcut(QKeySequence("Ctrl+F"), self)
+        self.ctrl_f_shortcut.activated.connect(self.search_bar.show_and_focus)
         
         # Buttons
         self.btn_layout = QHBoxLayout()
