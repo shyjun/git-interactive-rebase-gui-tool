@@ -462,13 +462,32 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.list_widget.setContextMenuPolicy(Qt.CustomContextMenu)
         self.list_widget.customContextMenuRequested.connect(self.show_context_menu)
         
-        # Search / Filter Bar
+        # Search / Filter Bar row
+        search_row_widget = QWidget()
+        search_row_layout = QHBoxLayout(search_row_widget)
+        search_row_layout.setContentsMargins(0, 0, 0, 0)
+        search_row_layout.setSpacing(6)
+
         self.search_edit = QLineEdit()
         self.search_edit.setPlaceholderText("Search commits (SHA or Message)...")
         self.search_edit.setClearButtonEnabled(True)
         self.search_edit.setMinimumHeight(35)
         self.search_edit.textChanged.connect(self.filter_commits)
-        layout.addWidget(self.search_edit)
+        search_row_layout.addWidget(self.search_edit, 1)  # stretch to fill
+
+        self.filter_by_msg_cb = QCheckBox("Commit Msgs")
+        self.filter_by_msg_cb.setChecked(True)
+        self.filter_by_msg_cb.setToolTip("Filter commits by commit message text")
+        self.filter_by_msg_cb.stateChanged.connect(lambda: self.filter_commits(self.search_edit.text()))
+        search_row_layout.addWidget(self.filter_by_msg_cb)
+
+        self.filter_by_files_cb = QCheckBox("Filenames")
+        self.filter_by_files_cb.setChecked(False)
+        self.filter_by_files_cb.setToolTip("Filter commits by modified filenames")
+        self.filter_by_files_cb.stateChanged.connect(lambda: self.filter_commits(self.search_edit.text()))
+        search_row_layout.addWidget(self.filter_by_files_cb)
+
+        layout.addWidget(search_row_widget)
 
         # Main Splitter
         self.main_splitter = QSplitter(Qt.Horizontal)
@@ -994,16 +1013,44 @@ class GitInteractiveRebaseApp(QMainWindow):
 
 
     def filter_commits(self, text):
-        """Live-filters the commits in the list based on search text."""
-        search_term = text.lower()
+        """Live-filters the commits in the list based on search text and active filter checkboxes."""
+        search_term = text.strip().lower()
+        
+        by_msg = self.filter_by_msg_cb.isChecked()
+        by_files = self.filter_by_files_cb.isChecked()
+        
+        # If no text or both disabled → show all
+        if not search_term or (not by_msg and not by_files):
+            for i in range(self.list_widget.count()):
+                self.list_widget.item(i).setHidden(False)
+            return
+        
         for i in range(self.list_widget.count()):
             item = self.list_widget.item(i)
-            # Match against SHA or Message
             item_text = item.text().lower()
-            if search_term in item_text:
-                item.setHidden(False)
-            else:
-                item.setHidden(True)
+            sha = item.text().split()[0]
+            
+            matched = False
+            
+            # Commit message / SHA match
+            if by_msg and search_term in item_text:
+                matched = True
+            
+            # Filename match — lazy-load via existing commit_cache
+            if not matched and by_files:
+                cache_entry = self.commit_cache.get(sha, {})
+                if 'files' not in cache_entry:
+                    try:
+                        cache_entry['files'] = get_commit_files(self.repo_path, sha)
+                        self.commit_cache[sha] = cache_entry
+                    except Exception:
+                        cache_entry['files'] = []
+                        self.commit_cache[sha] = cache_entry
+                files = cache_entry.get('files', [])
+                if any(search_term in f.lower() for f in files):
+                    matched = True
+            
+            item.setHidden(not matched)
 
     def handle_set_best_commit(self, item):
         sha = item.text().split()[0]
