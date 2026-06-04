@@ -234,6 +234,10 @@ class DiffSearchBar(QWidget):
         self.lbl_counter.setMinimumWidth(40)
         self.lbl_counter.setAlignment(Qt.AlignCenter)
 
+        self.separator = QFrame()
+        self.separator.setFrameShape(QFrame.VLine)
+        self.separator.setFrameShadow(QFrame.Sunken)
+
         self.line_num_cb = QCheckBox("Line-Num")
 
         layout.addWidget(self.search_input)
@@ -241,6 +245,7 @@ class DiffSearchBar(QWidget):
         layout.addWidget(self.btn_prev)
         layout.addWidget(self.btn_next)
         layout.addWidget(self.lbl_counter)
+        layout.addWidget(self.separator)
         layout.addWidget(self.line_num_cb)
 
     def _connect_signals(self):
