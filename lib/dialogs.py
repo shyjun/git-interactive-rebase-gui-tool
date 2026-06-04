@@ -125,6 +125,8 @@ class DiffSearchBar(QWidget):
         self.search_input.setMinimumHeight(28)
         self.search_input.setClearButtonEnabled(True)
 
+        self.match_case_cb = QCheckBox("Match Case")
+
         self.btn_prev = QToolButton()
         self.btn_prev.setText("<")
         self.btn_next = QToolButton()
@@ -140,6 +142,7 @@ class DiffSearchBar(QWidget):
         self.lbl_counter.setAlignment(Qt.AlignCenter)
 
         layout.addWidget(self.search_input)
+        layout.addWidget(self.match_case_cb)
         layout.addWidget(self.btn_prev)
         layout.addWidget(self.btn_next)
         layout.addWidget(self.lbl_counter)
@@ -147,6 +150,7 @@ class DiffSearchBar(QWidget):
     def _connect_signals(self):
         self.search_input.textChanged.connect(self._perform_search)
         self.search_input.returnPressed.connect(self.next_match)
+        self.match_case_cb.toggled.connect(self._perform_search)
         self.btn_next.clicked.connect(self.next_match)
         self.btn_prev.clicked.connect(self.prev_match)
         
@@ -188,9 +192,18 @@ class DiffSearchBar(QWidget):
         
         cursor = QTextCursor(doc)
         
+        # Check available version of flag for case sensitivity
+        find_flag_case = getattr(QTextDocument, 'FindCaseSensitively', None)
+        if find_flag_case is None and hasattr(QTextDocument, 'FindFlag'):
+            find_flag_case = QTextDocument.FindFlag.FindCaseSensitively
+            
         while True:
             # doc.find default flags are case insensitive
-            cursor = doc.find(query, cursor)
+            if self.match_case_cb.isChecked() and find_flag_case is not None:
+                cursor = doc.find(query, cursor, find_flag_case)
+            else:
+                cursor = doc.find(query, cursor)
+                
             if cursor.isNull():
                 break
             self.matches.append(QTextCursor(cursor))
