@@ -551,8 +551,18 @@ class GitInteractiveRebaseApp(QMainWindow):
         # Apply highlighter
         self.filewise_highlighter = DiffHighlighter(self.filewise_diff_view.document())
         
+        filewise_right_widget = QWidget()
+        filewise_right_layout = QVBoxLayout(filewise_right_widget)
+        filewise_right_layout.setContentsMargins(0, 0, 0, 0)
+        filewise_right_layout.setSpacing(0)
+        
+        self.filewise_diff_search = DiffSearchBar(target_view=self.filewise_diff_view, parent=filewise_right_widget)
+        
+        filewise_right_layout.addWidget(self.filewise_diff_search)
+        filewise_right_layout.addWidget(self.filewise_diff_view)
+
         self.filewise_splitter.addWidget(self.filewise_file_list)
-        self.filewise_splitter.addWidget(self.filewise_diff_view)
+        self.filewise_splitter.addWidget(filewise_right_widget)
         self.filewise_splitter.setCollapsible(0, False)
         self.filewise_splitter.setCollapsible(1, False)
         self.filewise_splitter.setSizes([100, 300]) # default split
@@ -783,8 +793,12 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.ctrl_q_shortcut.activated.connect(self.close)
 
     def show_search_bar(self):
-        if self.diff_tab_widget.currentIndex() == 0 and self.right_panel.isVisible():
+        if not self.right_panel.isVisible():
+            return
+        if self.diff_tab_widget.currentIndex() == 0:
             self.plain_diff_search.show_and_focus()
+        elif self.diff_tab_widget.currentIndex() == 1:
+            self.filewise_diff_search.show_and_focus()
 
     def on_selection_changed(self):
         """Triggered when list selection changes. Debounces the update."""
@@ -939,6 +953,7 @@ class GitInteractiveRebaseApp(QMainWindow):
             diff = get_file_diff_only_in_commit(self.repo_path, sha, filepath)
             self.filewise_diff_view.setPlainText(diff)
             self.filewise_diff_view.set_separator_color(self.current_theme_colors.get("separator", "#444444"))
+            self.filewise_diff_search._perform_search()
         except Exception as e:
             self.filewise_diff_view.setPlainText(f"Error loading diff: {e}")
 
@@ -961,6 +976,17 @@ class GitInteractiveRebaseApp(QMainWindow):
 
     def handle_esc_shortcut(self):
         """Clear filter and focus when Esc is pressed."""
+        # 1. Try to clear plain diff search if active and has content/focus
+        if self.diff_tab_widget.currentIndex() == 0 and (self.plain_diff_search.search_input.text() or self.plain_diff_search.search_input.hasFocus()):
+            self.plain_diff_search.escape_pressed()
+            return
+            
+        # 2. Try to clear filewise diff search if active and has content/focus
+        if self.diff_tab_widget.currentIndex() == 1 and hasattr(self, 'filewise_diff_search') and (self.filewise_diff_search.search_input.text() or self.filewise_diff_search.search_input.hasFocus()):
+            self.filewise_diff_search.escape_pressed()
+            return
+
+        # 3. Fallback to commit history search filter
         if self.search_edit.text() or self.search_edit.hasFocus():
             self.search_edit.clear()
             self.search_edit.clearFocus()
