@@ -28,14 +28,15 @@ from lib.git_helpers import (
     get_git_history, get_head_sha, get_full_head_sha, get_current_branch, get_commit_diff,
     get_full_commit_message, get_commit_metadata, get_commit_files,
     has_uncommitted_changes, branch_exists, get_local_branches_map, get_remote_head_sha,
-    get_file_diff_only_in_commit, get_revert_commit_message, get_commit_metadata_and_message
+    get_file_diff_only_in_commit, get_revert_commit_message, get_commit_metadata_and_message,
+    get_commit_file_stats
 )
 from lib.dialogs import (
     DiffHighlighter, DiffViewerDialog, SplitCommitDialog, ViewCommitDialog,
     DropDialog, RephraseDialog, RevertCommitDialog, SquashDialog, FileWiseViewDialog,
     MultiSquashDialog, ProgressDialog, DropFileFromCommitDialog, ConfirmDropFileDialog,
     ConfirmMoveFileDialog, RefineFileSelectDialog, RefineChangesDialog, NewCommitMessageDialog,
-    DiffView
+    DiffView, StatsItemDelegate
 )
 from lib.utils import get_assets_path
 
@@ -521,6 +522,14 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.filewise_file_list.currentTextChanged.connect(self.on_filewise_file_selected)
         self.filewise_file_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.filewise_file_list.customContextMenuRequested.connect(self.show_filewise_context_menu)
+        # Install stats delegate (colors updated when theme changes)
+        colors = self.current_theme_colors if hasattr(self, 'current_theme_colors') else {"added": "#22863a", "removed": "#cb2431"}
+        self.filewise_stats_delegate = StatsItemDelegate(
+            added_color=colors.get("added", "#22863a"),
+            removed_color=colors.get("removed", "#cb2431"),
+            parent=self.filewise_file_list
+        )
+        self.filewise_file_list.setItemDelegate(self.filewise_stats_delegate)
         
         # File diff
         self.filewise_diff_view = DiffView()
@@ -809,11 +818,22 @@ class GitInteractiveRebaseApp(QMainWindow):
                     self.commit_cache[sha] = cache_entry
                 
                 files = cache_entry['files']
+                # Fetch per-file stats (cached separately)
+                if 'file_stats' not in cache_entry:
+                    try:
+                        cache_entry['file_stats'] = get_commit_file_stats(self.repo_path, sha)
+                    except:
+                        cache_entry['file_stats'] = {}
+                    self.commit_cache[sha] = cache_entry
+                file_stats = cache_entry.get('file_stats', {})
+
                 # Temporarily block signals to avoid triggering on_filewise_file_selected prematurely
                 self.filewise_file_list.blockSignals(True)
                 self.filewise_file_list.clear()
                 for f in files:
-                    self.filewise_file_list.addItem(f)
+                    item = QListWidgetItem(f)
+                    item.setData(Qt.UserRole, file_stats.get(f))
+                    self.filewise_file_list.addItem(item)
                 self.filewise_file_list.blockSignals(False)
                 
                 if files:
