@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
     QFrame, QCheckBox, QSizePolicy, QToolButton
 )
 # pyrefly: ignore [missing-import]
-from PySide6.QtCore import Qt, QSize, QSettings, QTimer, Signal, QRect
+from PySide6.QtCore import Qt, QSize, QSettings, QTimer, Signal, QRect, QEvent
 # pyrefly: ignore [missing-import]
 from PySide6.QtGui import QFont, QFontMetrics, QSyntaxHighlighter, QTextCharFormat, QColor, QAction, QShortcut, QKeySequence, QPainter, QTextFormat, QTextBlockFormat, QTextCursor, QTextDocument
 # pyrefly: ignore [missing-import]
@@ -159,15 +159,22 @@ class DiffSearchBar(QWidget):
         self.shortcut_down.setContext(Qt.WidgetWithChildrenShortcut)
         self.shortcut_down.activated.connect(self.next_match)
 
-        self.shortcut_esc = QShortcut(QKeySequence(Qt.Key_Escape), self)
-        self.shortcut_esc.setContext(Qt.WidgetWithChildrenShortcut)
-        self.shortcut_esc.activated.connect(self.clear_search)
+        # Use robust EventFilters instead of QShortcut for Esc
+        for widget in (self.search_input, self.btn_prev, self.btn_next, self.target_view):
+            widget.installEventFilter(self)
 
-    def keyPressEvent(self, event):
-        if event.key() == Qt.Key_Escape:
-            self.clear_search()
-        else:
-            super().keyPressEvent(event)
+    def eventFilter(self, obj, event):
+        if event.type() == QEvent.KeyPress and event.key() == Qt.Key_Escape:
+            if obj in (self.search_input, self.btn_prev, self.btn_next, self.target_view):
+                if self.search_input.text() or self.search_input.hasFocus():
+                    self.escape_pressed()
+                    return True
+        return super().eventFilter(obj, event)
+
+    def escape_pressed(self):
+        self.search_input.clear()
+        self.clear_search()
+        self.target_view.setFocus()
 
     def _perform_search(self):
         query = self.search_input.text()
