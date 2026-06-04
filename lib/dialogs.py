@@ -44,6 +44,17 @@ class DiffHighlighter(QSyntaxHighlighter):
         elif text.startswith('commit') or text.startswith('diff') or text.startswith('index'):
             self.setFormat(0, len(text), self.header_format)
 
+class LineNumberArea(QWidget):
+    def __init__(self, editor):
+        super().__init__(editor)
+        self.code_editor = editor
+
+    def sizeHint(self):
+        return QSize(self.code_editor.line_number_area_width(), 0)
+
+    def paintEvent(self, event):
+        self.code_editor.line_number_area_paint_event(event)
+
 class DiffView(QPlainTextEdit):
     """A QPlainTextEdit that draws subtle 1px separators before file diffs."""
     def __init__(self, parent=None):
@@ -51,6 +62,87 @@ class DiffView(QPlainTextEdit):
         self.separator_color = QColor("#CCCCCC")
         self.draw_separators = True
         
+        self.line_number_area = LineNumberArea(self)
+        self.show_line_numbers = False
+        
+        self.blockCountChanged.connect(self.update_line_number_area_width)
+        self.updateRequest.connect(self.update_line_number_area)
+        self.update_line_number_area_width(0)
+        
+    def set_line_numbers_visible(self, visible):
+        self.show_line_numbers = visible
+        self.update_line_number_area_width(self.blockCount())
+        
+    def line_number_area_width(self):
+        if not self.show_line_numbers:
+            return 0
+        digits = 1
+        max_val = max(1, self.blockCount())
+        while max_val >= 10:
+            max_val //= 10
+            digits += 1
+        fm = self.fontMetrics()
+        space = 3 + fm.horizontalAdvance('9') * digits
+        return space
+
+    def update_line_number_area_width(self, _):
+        w = self.line_number_area_width()
+        self.setViewportMargins(w, 0, 0, 0)
+        if self.show_line_numbers:
+            self.line_number_area.show()
+        else:
+            self.line_number_area.hide()
+
+    def update_line_number_area(self, rect, dy):
+        if not self.show_line_numbers:
+            return
+        if dy:
+            self.line_number_area.scroll(0, dy)
+        else:
+            self.line_number_area.update(0, rect.y(), self.line_number_area.width(), rect.height())
+        
+        if rect.contains(self.viewport().rect()):
+            self.update_line_number_area_width(0)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        cr = self.contentsRect()
+        self.line_number_area.setGeometry(QRect(cr.left(), cr.top(), self.line_number_area_width(), cr.height()))
+
+    def event(self, event):
+        if event.type() == QEvent.FontChange and self.show_line_numbers:
+            self.update_line_number_area_width(0)
+        return super().event(event)
+
+    def wheelEvent(self, event):
+        super().wheelEvent(event)
+        if event.modifiers() & Qt.ControlModifier and self.show_line_numbers:
+            self.update_line_number_area_width(0)
+
+    def line_number_area_paint_event(self, event):
+        if not self.show_line_numbers:
+            return
+        painter = QPainter(self.line_number_area)
+        painter.fillRect(event.rect(), QColor("#f0f0f0"))
+        painter.setFont(self.font())
+
+        block = self.firstVisibleBlock()
+        block_number = block.blockNumber()
+        top = int(self.blockBoundingGeometry(block).translated(self.contentOffset()).top())
+        bottom = top + int(self.blockBoundingRect(block).height())
+
+        while block.isValid() and top <= event.rect().bottom():
+            if block.isVisible() and bottom >= event.rect().top():
+                number = str(block_number + 1)
+                painter.setPen(Qt.gray)
+                painter.drawText(0, top, self.line_number_area.width() - 2, self.fontMetrics().height(),
+                                 Qt.AlignRight, number)
+
+            block = block.next()
+            top = bottom
+            bottom = top + int(self.blockBoundingRect(block).height())
+            block_number += 1
+
     def set_separator_color(self, color):
         self.separator_color = QColor(color)
         self.viewport().update()
@@ -141,16 +233,20 @@ class DiffSearchBar(QWidget):
         self.lbl_counter.setMinimumWidth(40)
         self.lbl_counter.setAlignment(Qt.AlignCenter)
 
+        self.line_num_cb = QCheckBox("Line-Num")
+
         layout.addWidget(self.search_input)
         layout.addWidget(self.match_case_cb)
         layout.addWidget(self.btn_prev)
         layout.addWidget(self.btn_next)
         layout.addWidget(self.lbl_counter)
+        layout.addWidget(self.line_num_cb)
 
     def _connect_signals(self):
         self.search_input.textChanged.connect(self._perform_search)
         self.search_input.returnPressed.connect(self.next_match)
         self.match_case_cb.toggled.connect(self._perform_search)
+        self.line_num_cb.toggled.connect(self.target_view.set_line_numbers_visible)
         self.btn_next.clicked.connect(self.next_match)
         self.btn_prev.clicked.connect(self.prev_match)
         
