@@ -233,6 +233,30 @@ def get_commit_files(repo_path, commit_sha):
     except subprocess.CalledProcessError as e:
         raise Exception(f"Failed to list commit files: {e.stderr}")
 
+def get_commit_file_stats(repo_path, commit_sha):
+    """Returns a dict mapping filepath -> (added_lines, deleted_lines) for a commit.
+    Uses git show --numstat. Binary files are mapped to (0, 0)."""
+    try:
+        cmd = ["git", "show", "--numstat", "--format=", commit_sha]
+        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
+        stats = {}
+        for line in result.stdout.strip().split('\n'):
+            if not line.strip():
+                continue
+            parts = line.split('\t', 2)
+            if len(parts) == 3:
+                added_str, deleted_str, filepath = parts
+                try:
+                    added = int(added_str)
+                    deleted = int(deleted_str)
+                except ValueError:
+                    added, deleted = 0, 0  # binary file
+                stats[filepath.strip()] = (added, deleted)
+        return stats
+    except subprocess.CalledProcessError:
+        return {}
+
+
 def get_file_diff_in_commit(repo_path, commit_sha, filepath):
     """Returns the diff for a single file within a commit."""
     try:

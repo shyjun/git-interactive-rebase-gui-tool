@@ -12,13 +12,16 @@ from PySide6.QtWidgets import (
     QFrame, QCheckBox, QSizePolicy
 )
 # pyrefly: ignore [missing-import]
-from PySide6.QtCore import Qt, QSize, QSettings, QTimer, Signal
+from PySide6.QtCore import Qt, QSize, QSettings, QTimer, Signal, QRect
 # pyrefly: ignore [missing-import]
 from PySide6.QtGui import QFont, QFontMetrics, QSyntaxHighlighter, QTextCharFormat, QColor, QAction, QShortcut, QKeySequence, QPainter, QTextFormat, QTextBlockFormat, QTextCursor
+# pyrefly: ignore [missing-import]
+from PySide6.QtWidgets import QStyledItemDelegate, QStyle
 
 from lib.git_helpers import (
     get_file_diff_in_commit, get_file_diff_only_in_commit,
-    get_full_commit_message, get_commit_metadata, get_revert_commit_message
+    get_full_commit_message, get_commit_metadata, get_revert_commit_message,
+    get_commit_file_stats
 )
 
 class DiffHighlighter(QSyntaxHighlighter):
@@ -92,6 +95,77 @@ class DiffView(QPlainTextEdit):
             top = bottom
             block = block.next()
 
+class StatsItemDelegate(QStyledItemDelegate):
+    """Custom delegate: filename left-aligned, +N -M stats right-aligned."""
+    def __init__(self, added_color="#22863a", removed_color="#cb2431", parent=None):
+        super().__init__(parent)
+        self.added_color = QColor(added_color)
+        self.removed_color = QColor(removed_color)
+
+    def paint(self, painter, option, index):
+        from PySide6.QtWidgets import QStyleOptionViewItem, QApplication
+        from PySide6.QtWidgets import QStyle as _QStyle
+        # Step 1: Build a full style option (needed for correct highlight colour)
+        opt = QStyleOptionViewItem(option)
+        self.initStyleOption(opt, index)
+
+        # Step 2: Draw ONLY the background panel (selection highlight, hover, etc.)
+        # PE_PanelItemViewItem draws the background without any text.
+        style = opt.widget.style() if opt.widget else QApplication.style()
+        opt.text = ""   # make sure the style doesn't sneak text in
+        style.drawPrimitive(_QStyle.PrimitiveElement.PE_PanelItemViewItem, opt, painter, opt.widget)
+
+        # Step 3: Everything else is drawn by us
+        painter.save()
+        painter.setFont(opt.font)
+
+        is_selected = bool(option.state & QStyle.State_Selected)
+        text_color = QColor("white") if is_selected else option.palette.text().color()
+        rect = option.rect.adjusted(6, 0, -6, 0)
+        fm = QFontMetrics(opt.font)
+
+        stats = index.data(Qt.UserRole)
+        filename = index.data(Qt.DisplayRole) or ""
+
+        # Measure stats width so we can clip the filename safely
+        if stats and isinstance(stats, tuple) and len(stats) == 2:
+            added, deleted = stats
+            added_str = f"+{added}"
+            deleted_str = f" -{deleted}"
+            deleted_w = fm.horizontalAdvance(deleted_str)
+            added_w = fm.horizontalAdvance(added_str)
+            stats_total_w = added_w + deleted_w + 4
+
+            # Draw +N (green / white-on-select)
+            painter.setPen(QColor("white") if is_selected else self.added_color)
+            painter.drawText(
+                QRect(rect.right() - stats_total_w, rect.top(), added_w, rect.height()),
+                Qt.AlignLeft | Qt.AlignVCenter, added_str)
+
+            # Draw -M (red / white-on-select)
+            painter.setPen(QColor("white") if is_selected else self.removed_color)
+            painter.drawText(
+                QRect(rect.right() - deleted_w, rect.top(), deleted_w, rect.height()),
+                Qt.AlignLeft | Qt.AlignVCenter, deleted_str)
+
+            filename_rect = QRect(rect.left(), rect.top(),
+                                  rect.width() - stats_total_w - 8, rect.height())
+        else:
+            filename_rect = rect
+
+        # Draw filename, elided if too long
+        painter.setPen(text_color)
+        painter.drawText(filename_rect, Qt.AlignLeft | Qt.AlignVCenter,
+                         fm.elidedText(filename, Qt.ElideMiddle, filename_rect.width()))
+
+        painter.restore()
+
+    def sizeHint(self, option, index):
+        hint = super().sizeHint(option, index)
+        return QSize(hint.width(), max(hint.height(), 28))
+
+
+
 class DiffViewerDialog(QDialog):
     """Base dialog for viewing diffs with centered buttons."""
     def __init__(self, title, sha, diff_text, font_size=10, parent=None):
@@ -161,6 +235,12 @@ class SplitCommitDialog(QDialog):
             colors = {"added": "#a6e22e", "removed": "#f92672", "header": "#66d9ef", "separator": "#444444"}
         self.colors = colors
 
+        # Fetch per-file edit stats for display
+        try:
+            self.file_stats = get_commit_file_stats(repo_path, sha)
+        except:
+            self.file_stats = {}
+
         # Fetch commit details
         try:
             meta = get_commit_metadata(repo_path, sha)
@@ -202,7 +282,15 @@ class SplitCommitDialog(QDialog):
         self.file_list.setMinimumHeight(60)
         self.file_list.setFont(QFont("Courier New", font_size))
         for f in files:
-            self.file_list.addItem(f)
+            item = QListWidgetItem(f)
+            item.setData(Qt.UserRole, self.file_stats.get(f))
+            self.file_list.addItem(item)
+        stats_delegate = StatsItemDelegate(
+            added_color=colors.get("added", "#22863a"),
+            removed_color=colors.get("removed", "#cb2431"),
+            parent=self.file_list
+        )
+        self.file_list.setItemDelegate(stats_delegate)
         self.file_list.currentTextChanged.connect(self.on_file_selected)
         self.file_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.file_list.customContextMenuRequested.connect(self.show_file_context_menu)
@@ -313,6 +401,12 @@ class DropFileFromCommitDialog(QDialog):
             colors = {"added": "#a6e22e", "removed": "#f92672", "header": "#66d9ef", "separator": "#444444"}
         self.colors = colors
 
+        # Fetch per-file edit stats for display
+        try:
+            self.file_stats = get_commit_file_stats(repo_path, sha)
+        except:
+            self.file_stats = {}
+
         # Fetch commit details
         try:
             meta = get_commit_metadata(repo_path, sha)
@@ -354,7 +448,15 @@ class DropFileFromCommitDialog(QDialog):
         self.file_list.setMinimumHeight(60)
         self.file_list.setFont(QFont("Courier New", font_size))
         for f in files:
-            self.file_list.addItem(f)
+            item = QListWidgetItem(f)
+            item.setData(Qt.UserRole, self.file_stats.get(f))
+            self.file_list.addItem(item)
+        stats_delegate = StatsItemDelegate(
+            added_color=colors.get("added", "#22863a"),
+            removed_color=colors.get("removed", "#cb2431"),
+            parent=self.file_list
+        )
+        self.file_list.setItemDelegate(stats_delegate)
         self.file_list.currentTextChanged.connect(self.on_file_selected)
         self.file_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.file_list.customContextMenuRequested.connect(self.show_file_context_menu)
@@ -514,6 +616,12 @@ class FileWiseViewDialog(QDialog):
             colors = {"added": "#a6e22e", "removed": "#f92672", "header": "#66d9ef", "separator": "#444444"}
         self.colors = colors
 
+        # Fetch per-file edit stats for display
+        try:
+            self.file_stats = get_commit_file_stats(repo_path, sha)
+        except:
+            self.file_stats = {}
+
         # Fetch commit details
         try:
             meta = get_commit_metadata(repo_path, sha)
@@ -555,7 +663,15 @@ class FileWiseViewDialog(QDialog):
         self.file_list.setMinimumHeight(60)
         self.file_list.setFont(QFont("Courier New", font_size))
         for f in files:
-            self.file_list.addItem(f)
+            item = QListWidgetItem(f)
+            item.setData(Qt.UserRole, self.file_stats.get(f))
+            self.file_list.addItem(item)
+        stats_delegate = StatsItemDelegate(
+            added_color=colors.get("added", "#22863a"),
+            removed_color=colors.get("removed", "#cb2431"),
+            parent=self.file_list
+        )
+        self.file_list.setItemDelegate(stats_delegate)
         self.file_list.currentTextChanged.connect(self.on_file_selected)
         self.file_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.file_list.customContextMenuRequested.connect(self.show_file_context_menu)
