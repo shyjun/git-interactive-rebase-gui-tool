@@ -487,6 +487,18 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.filter_by_files_cb.stateChanged.connect(lambda: self.filter_commits(self.search_edit.text()))
         search_row_layout.addWidget(self.filter_by_files_cb)
 
+        self.filter_by_diff_cb = QCheckBox("Diff")
+        self.filter_by_diff_cb.setChecked(False)
+        self.filter_by_diff_cb.setToolTip("Filter commits by diff content (min 3 chars, debounced)")
+        self.filter_by_diff_cb.stateChanged.connect(lambda: self.filter_commits(self.search_edit.text()))
+        search_row_layout.addWidget(self.filter_by_diff_cb)
+
+        # Debounce timer for diff search (expensive)
+        self._diff_search_timer = QTimer(self)
+        self._diff_search_timer.setSingleShot(True)
+        self._diff_search_timer.setInterval(300)
+        self._diff_search_timer.timeout.connect(self._run_filter_with_diff)
+
         layout.addWidget(search_row_widget)
 
         # Main Splitter
@@ -1013,29 +1025,45 @@ class GitInteractiveRebaseApp(QMainWindow):
 
 
     def filter_commits(self, text):
-        """Live-filters the commits in the list based on search text and active filter checkboxes."""
+        """Live-filters commits. Diff search is debounced; msg/filename filtering is instant."""
         search_term = text.strip().lower()
-        
+        by_diff = self.filter_by_diff_cb.isChecked()
+
+        # Always run instant filters (msg + filenames) immediately
+        self._run_filter_no_diff(search_term)
+
+        # Trigger debounced diff search only when needed
+        if by_diff and len(search_term) >= 3:
+            self._diff_search_timer.start()  # restarts 300ms window each keystroke
+        else:
+            self._diff_search_timer.stop()
+
+    def _run_filter_no_diff(self, search_term=None):
+        """Instant filtering by commit message and filenames."""
+        if search_term is None:
+            search_term = self.search_edit.text().strip().lower()
+
         by_msg = self.filter_by_msg_cb.isChecked()
         by_files = self.filter_by_files_cb.isChecked()
-        
-        # If no text or both disabled → show all
-        if not search_term or (not by_msg and not by_files):
+        by_diff = self.filter_by_diff_cb.isChecked()
+
+        # If no text or all disabled → show all and clear any diff-pending markers
+        if not search_term or (not by_msg and not by_files and not by_diff):
             for i in range(self.list_widget.count()):
                 self.list_widget.item(i).setHidden(False)
             return
-        
+
         for i in range(self.list_widget.count()):
             item = self.list_widget.item(i)
             item_text = item.text().lower()
             sha = item.text().split()[0]
-            
+
             matched = False
-            
+
             # Commit message / SHA match
             if by_msg and search_term in item_text:
                 matched = True
-            
+
             # Filename match — lazy-load via existing commit_cache
             if not matched and by_files:
                 cache_entry = self.commit_cache.get(sha, {})
@@ -1049,8 +1077,53 @@ class GitInteractiveRebaseApp(QMainWindow):
                 files = cache_entry.get('files', [])
                 if any(search_term in f.lower() for f in files):
                     matched = True
-            
+
+            # When diff search is enabled keep items visible for now (diff pass will correct)
+            if not matched and by_diff and len(search_term) >= 3:
+                matched = True  # tentatively show — diff pass will hide non-matching ones
+
             item.setHidden(not matched)
+
+    def _run_filter_with_diff(self):
+        """Debounced diff search: hides commits already shown that do NOT match diff text."""
+        search_term = self.search_edit.text().strip().lower()
+        if len(search_term) < 3 or not self.filter_by_diff_cb.isChecked():
+            return
+
+        by_msg = self.filter_by_msg_cb.isChecked()
+        by_files = self.filter_by_files_cb.isChecked()
+
+        for i in range(self.list_widget.count()):
+            item = self.list_widget.item(i)
+            if item.isHidden():
+                continue  # already filtered out by faster passes
+
+            sha = item.text().split()[0]
+            item_text = item.text().lower()
+
+            # If already matched by msg or files, no need to check diff
+            already_matched = (by_msg and search_term in item_text)
+            if not already_matched and by_files:
+                cache_entry = self.commit_cache.get(sha, {})
+                files = cache_entry.get('files', [])
+                already_matched = any(search_term in f.lower() for f in files)
+
+            if already_matched:
+                continue
+
+            # Diff match — lazy-load and cache
+            cache_entry = self.commit_cache.get(sha, {})
+            if 'diff' not in cache_entry:
+                try:
+                    cache_entry['diff'] = get_commit_diff(self.repo_path, sha)
+                    self.commit_cache[sha] = cache_entry
+                except Exception:
+                    cache_entry['diff'] = ''
+                    self.commit_cache[sha] = cache_entry
+
+            diff_text = cache_entry.get('diff', '')
+            if search_term not in diff_text.lower():
+                item.setHidden(True)
 
     def handle_set_best_commit(self, item):
         sha = item.text().split()[0]
