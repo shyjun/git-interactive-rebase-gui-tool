@@ -16,7 +16,6 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QSize, QSettings, QTimer, Signal, QRect, QEvent
 # pyrefly: ignore [missing-import]
 from PySide6.QtGui import QFont, QFontMetrics, QSyntaxHighlighter, QTextCharFormat, QColor, QAction, QShortcut, QKeySequence, QPainter, QTextFormat, QTextBlockFormat, QTextCursor, QTextDocument
-from PySide6.QtCore import QRegularExpression
 # pyrefly: ignore [missing-import]
 from PySide6.QtWidgets import QStyledItemDelegate, QStyle
 
@@ -245,10 +244,10 @@ class DiffSearchBar(QWidget):
 
         layout.addWidget(self.search_input)
         layout.addWidget(self.match_case_cb)
+        layout.addWidget(self.whole_word_cb)
         layout.addWidget(self.btn_prev)
         layout.addWidget(self.btn_next)
         layout.addWidget(self.lbl_counter)
-        layout.addWidget(self.whole_word_cb)
         layout.addWidget(self.separator)
         layout.addWidget(self.line_num_cb)
 
@@ -296,21 +295,35 @@ class DiffSearchBar(QWidget):
         doc = self.target_view.document()
         self.matches.clear()
         self.current_match_idx = -1
-        
-        escaped = QRegularExpression.escape(query)
-        if self.whole_word_cb.isChecked():
-            pattern_text = r'\b' + escaped + r'\b'
-        else:
-            pattern_text = escaped
-        pattern = QRegularExpression(pattern_text)
-        if not self.match_case_cb.isChecked():
-            pattern.setPatternOptions(QRegularExpression.CaseInsensitiveOption)
-        
+
         cursor = QTextCursor(doc)
+
+        # Check available version of flag for case sensitivity
+        find_flag_case = getattr(QTextDocument, 'FindCaseSensitively', None)
+        if find_flag_case is None and hasattr(QTextDocument, 'FindFlag'):
+            find_flag_case = QTextDocument.FindFlag.FindCaseSensitively
+
         while True:
-            cursor = doc.find(pattern, cursor)
+            # doc.find default flags are case insensitive
+            if self.match_case_cb.isChecked() and find_flag_case is not None:
+                cursor = doc.find(query, cursor, find_flag_case)
+            else:
+                cursor = doc.find(query, cursor)
+
             if cursor.isNull():
                 break
+
+            # When whole-word is enabled, skip matches not on word boundaries
+            if self.whole_word_cb.isChecked():
+                start = cursor.selectionStart()
+                end = cursor.selectionEnd()
+                before = doc.characterAt(start - 1) if start > 0 else None
+                after = doc.characterAt(end)
+                if before is not None and (before.isalnum() or before == '_'):
+                    continue
+                if after is not None and (after.isalnum() or after == '_'):
+                    continue
+
             self.matches.append(QTextCursor(cursor))
 
         self.update_highlights()
