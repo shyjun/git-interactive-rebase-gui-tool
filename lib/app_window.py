@@ -36,7 +36,7 @@ from lib.dialogs import (
     DropDialog, RephraseDialog, RevertCommitDialog, SquashDialog, FileWiseViewDialog,
     MultiSquashDialog, ProgressDialog, DropFileFromCommitDialog, ConfirmDropFileDialog,
     ConfirmMoveFileDialog, RefineFileSelectDialog, RefineChangesDialog, NewCommitMessageDialog,
-    DiffView, StatsItemDelegate
+    DiffView, StatsItemDelegate, DiffSearchBar
 )
 from lib.utils import get_assets_path
 
@@ -505,9 +505,21 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.diff_tab_widget.setMinimumHeight(150)
         
         # Page 0: Plain Diff
+        plain_diff_widget = QWidget()
+        plain_diff_layout = QVBoxLayout(plain_diff_widget)
+        plain_diff_layout.setContentsMargins(0, 0, 0, 0)
+        plain_diff_layout.setSpacing(0)
+        
         self.side_diff_view = DiffView()
         self.side_diff_view.setReadOnly(True)
-        self.diff_tab_widget.addTab(self.side_diff_view, "Plain Diff")
+        
+        self.plain_diff_search = DiffSearchBar(target_view=self.side_diff_view, parent=plain_diff_widget)
+        # Search bar is visible by default now as requested
+        
+        plain_diff_layout.addWidget(self.plain_diff_search)
+        plain_diff_layout.addWidget(self.side_diff_view)
+
+        self.diff_tab_widget.addTab(plain_diff_widget, "Plain Diff")
         
         # Page 1: Filewise Diff
         filewise_widget = QWidget()
@@ -764,8 +776,15 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.f5_shortcut = QShortcut(QKeySequence("F5"), self)
         self.f5_shortcut.activated.connect(self.handle_manual_refresh)
 
+        self.ctrl_f_shortcut = QShortcut(QKeySequence("Ctrl+F"), self)
+        self.ctrl_f_shortcut.activated.connect(self.show_search_bar)
+
         self.ctrl_q_shortcut = QShortcut(QKeySequence("Ctrl+Q"), self)
         self.ctrl_q_shortcut.activated.connect(self.close)
+
+    def show_search_bar(self):
+        if self.diff_tab_widget.currentIndex() == 0 and self.right_panel.isVisible():
+            self.plain_diff_search.show_and_focus()
 
     def on_selection_changed(self):
         """Triggered when list selection changes. Debounces the update."""
@@ -811,6 +830,9 @@ class GitInteractiveRebaseApp(QMainWindow):
                     self.commit_cache[sha] = cache_entry
                 self.side_diff_view.setPlainText(cache_entry['diff'])
                 self.side_diff_view.set_separator_color(self.current_theme_colors.get("separator", "#444444"))
+                # Re-evaluate search if the search bar is visible
+                if self.plain_diff_search.isVisible():
+                    self.plain_diff_search._perform_search()
             else:
                 self.side_diff_view.clear()
                 if 'files' not in cache_entry:
