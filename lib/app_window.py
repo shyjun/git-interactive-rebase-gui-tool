@@ -34,7 +34,8 @@ from lib.dialogs import (
     DiffHighlighter, DiffViewerDialog, SplitCommitDialog, ViewCommitDialog,
     DropDialog, RephraseDialog, RevertCommitDialog, SquashDialog, FileWiseViewDialog,
     MultiSquashDialog, ProgressDialog, DropFileFromCommitDialog, ConfirmDropFileDialog,
-    ConfirmMoveFileDialog, RefineFileSelectDialog, RefineChangesDialog, NewCommitMessageDialog
+    ConfirmMoveFileDialog, RefineFileSelectDialog, RefineChangesDialog, NewCommitMessageDialog,
+    DiffView
 )
 from lib.utils import get_assets_path
 
@@ -503,7 +504,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.diff_tab_widget.setMinimumHeight(150)
         
         # Page 0: Plain Diff
-        self.side_diff_view = QPlainTextEdit()
+        self.side_diff_view = DiffView()
         self.side_diff_view.setReadOnly(True)
         self.diff_tab_widget.addTab(self.side_diff_view, "Plain Diff")
         
@@ -522,7 +523,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.filewise_file_list.customContextMenuRequested.connect(self.show_filewise_context_menu)
         
         # File diff
-        self.filewise_diff_view = QPlainTextEdit()
+        self.filewise_diff_view = DiffView()
         self.filewise_diff_view.setReadOnly(True)
         self.filewise_diff_view.setMinimumHeight(100)
         
@@ -539,6 +540,14 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.diff_tab_widget.addTab(filewise_widget, "File-wise Diff")
         
         self.right_splitter.addWidget(self.diff_tab_widget)
+        
+        # Determine highlighting colors and initialize highlighter
+        colors = self.current_theme_colors if hasattr(self, 'current_theme_colors') else {"added": "#a6e22e", "removed": "#f92672", "header": "#66d9ef", "separator": "#444444"}
+        self.side_diff_highlighter = DiffHighlighter(self.side_diff_view.document(),
+                                                   added_color=colors["added"],
+                                                   removed_color=colors["removed"],
+                                                   header_color=colors["header"])
+        self.side_diff_view.set_separator_color(colors["separator"])
         
         # Add the vertical splitter to the right panel's layout
         right_layout.addWidget(self.right_splitter)
@@ -792,6 +801,7 @@ class GitInteractiveRebaseApp(QMainWindow):
                     cache_entry['diff'] = get_commit_diff(self.repo_path, sha)
                     self.commit_cache[sha] = cache_entry
                 self.side_diff_view.setPlainText(cache_entry['diff'])
+                self.side_diff_view.set_separator_color(self.current_theme_colors.get("separator", "#444444"))
             else:
                 self.side_diff_view.clear()
                 if 'files' not in cache_entry:
@@ -886,6 +896,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         try:
             diff = get_file_diff_only_in_commit(self.repo_path, sha, filepath)
             self.filewise_diff_view.setPlainText(diff)
+            self.filewise_diff_view.set_separator_color(self.current_theme_colors.get("separator", "#444444"))
         except Exception as e:
             self.filewise_diff_view.setPlainText(f"Error loading diff: {e}")
 
@@ -1314,7 +1325,8 @@ class GitInteractiveRebaseApp(QMainWindow):
                 "header": "#569cd6",  # VS Code blue
                 "bg": "#1e1e1e",      # Main background
                 "fg": "#cccccc",      # Standard text
-                "accent": "#007acc"   # VS Code accent blue
+                "accent": "#007acc",  # VS Code accent blue
+                "separator": "#CCCCCC" # Neutral Slate Gray
             }
             qss = """
                 QMainWindow, QWidget {
@@ -1411,7 +1423,8 @@ class GitInteractiveRebaseApp(QMainWindow):
                 "header": "#00008b", # Darker blue for light bg
                 "bg": "#f5f5f7",
                 "fg": "#333333",
-                "accent": "#007aff"
+                "accent": "#007aff",
+                "separator": "#CCCCCC" # Neutral Slate Gray
             }
             qss = """
                 QMainWindow, QWidget {

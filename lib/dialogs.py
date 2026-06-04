@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
 # pyrefly: ignore [missing-import]
 from PySide6.QtCore import Qt, QSize, QSettings, QTimer, Signal
 # pyrefly: ignore [missing-import]
-from PySide6.QtGui import QFont, QFontMetrics, QSyntaxHighlighter, QTextCharFormat, QColor, QAction, QShortcut, QKeySequence, QPainter
+from PySide6.QtGui import QFont, QFontMetrics, QSyntaxHighlighter, QTextCharFormat, QColor, QAction, QShortcut, QKeySequence, QPainter, QTextFormat, QTextBlockFormat, QTextCursor
 
 from lib.git_helpers import (
     get_file_diff_in_commit, get_file_diff_only_in_commit,
@@ -41,6 +41,57 @@ class DiffHighlighter(QSyntaxHighlighter):
         elif text.startswith('commit') or text.startswith('diff') or text.startswith('index'):
             self.setFormat(0, len(text), self.header_format)
 
+class DiffView(QPlainTextEdit):
+    """A QPlainTextEdit that draws subtle 1px separators before file diffs."""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.separator_color = QColor("#CCCCCC")
+        self.draw_separators = True
+        
+    def set_separator_color(self, color):
+        self.separator_color = QColor(color)
+        self.viewport().update()
+        
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        if not self.draw_separators:
+            return
+            
+        painter = QPainter(self.viewport())
+        # Disable antialiasing for sharp 1px lines
+        painter.setRenderHint(QPainter.Antialiasing, False)
+        painter.setRenderHint(QPainter.Antialiasing, False)
+        
+        block = self.firstVisibleBlock()
+        # Find the top of the first visible block in viewport coordinates
+        offset = self.contentOffset()
+        top = int(offset.y())
+        
+        while block.isValid():
+            # If the block is below the visible area, we're done
+            if top > self.viewport().rect().bottom():
+                break
+            
+            block_height = int(self.blockBoundingRect(block).height())
+            bottom = top + block_height
+            
+            # If the block is at least partially visible
+            if bottom >= 0:
+                text = block.text().strip()
+                # Detection: An empty block followed by a 'diff --git' block
+                # was injected by git_helpers.py specifically for our separator.
+                if text == "" and block.next().isValid():
+                    next_text = block.next().text().strip()
+                    if next_text.startswith('diff --git '):
+                        # Center the line in this empty block height
+                        # Use 2px thickness for better visibility
+                        y = int(top + (block_height - 2) / 2)
+                        painter.fillRect(0, y, self.viewport().width(), 2, self.separator_color)
+            
+            # Move to the top of the next block
+            top = bottom
+            block = block.next()
+
 class DiffViewerDialog(QDialog):
     """Base dialog for viewing diffs with centered buttons."""
     def __init__(self, title, sha, diff_text, font_size=10, parent=None):
@@ -54,8 +105,8 @@ class DiffViewerDialog(QDialog):
         # Header info
         self.setup_header(sha)
         
-        # Diff View
-        self.diff_view = QPlainTextEdit()
+        # Full diff view
+        self.diff_view = DiffView()
         self.diff_view.setReadOnly(True)
         self.diff_view.setFont(QFont("Courier New", self.font_size))
         self.diff_view.setPlainText(diff_text)
@@ -73,6 +124,8 @@ class DiffViewerDialog(QDialog):
                                            added_color=colors["added"],
                                            removed_color=colors["removed"],
                                            header_color=colors["header"])
+        
+        self.diff_view.set_separator_color(colors.get("separator", "#444444"))
         
         self.layout.addWidget(self.diff_view)
         
@@ -105,7 +158,7 @@ class SplitCommitDialog(QDialog):
         if main_win and hasattr(main_win, 'current_theme_colors'):
             colors = main_win.current_theme_colors
         else:
-            colors = {"added": "#a6e22e", "removed": "#f92672", "header": "#66d9ef"}
+            colors = {"added": "#a6e22e", "removed": "#f92672", "header": "#66d9ef", "separator": "#444444"}
         self.colors = colors
 
         # Fetch commit details
@@ -163,7 +216,7 @@ class SplitCommitDialog(QDialog):
         diff_layout.setContentsMargins(0, 5, 0, 0)
         diff_layout.addWidget(QLabel("<b>File Diff:</b>"))
         
-        self.diff_view = QPlainTextEdit()
+        self.diff_view = DiffView()
         self.diff_view.setMinimumHeight(100)
         self.diff_view.setReadOnly(True)
         self.diff_view.setFont(QFont("Courier New", font_size))
@@ -234,6 +287,7 @@ class SplitCommitDialog(QDialog):
         try:
             diff = get_file_diff_only_in_commit(self.repo_path, self.sha, filepath)
             self.diff_view.setPlainText(diff)
+            self.diff_view.set_separator_color(self.colors.get("separator", "#444444"))
         except Exception as e:
             self.diff_view.setPlainText(f"Error loading diff: {e}")
 
@@ -256,7 +310,7 @@ class DropFileFromCommitDialog(QDialog):
         if main_win and hasattr(main_win, 'current_theme_colors'):
             colors = main_win.current_theme_colors
         else:
-            colors = {"added": "#a6e22e", "removed": "#f92672", "header": "#66d9ef"}
+            colors = {"added": "#a6e22e", "removed": "#f92672", "header": "#66d9ef", "separator": "#444444"}
         self.colors = colors
 
         # Fetch commit details
@@ -314,7 +368,7 @@ class DropFileFromCommitDialog(QDialog):
         diff_layout.setContentsMargins(0, 5, 0, 0)
         diff_layout.addWidget(QLabel("<b>File Diff:</b>"))
         
-        self.diff_view = QPlainTextEdit()
+        self.diff_view = DiffView()
         self.diff_view.setMinimumHeight(100)
         self.diff_view.setReadOnly(True)
         self.diff_view.setFont(QFont("Courier New", font_size))
@@ -385,6 +439,7 @@ class DropFileFromCommitDialog(QDialog):
         try:
             diff = get_file_diff_only_in_commit(self.repo_path, self.sha, filepath)
             self.diff_view.setPlainText(diff)
+            self.diff_view.set_separator_color(self.colors.get("separator", "#444444"))
         except Exception as e:
             self.diff_view.setPlainText(f"Error loading diff: {e}")
 
@@ -456,7 +511,8 @@ class FileWiseViewDialog(QDialog):
         if main_win and hasattr(main_win, 'current_theme_colors'):
             colors = main_win.current_theme_colors
         else:
-            colors = {"added": "#a6e22e", "removed": "#f92672", "header": "#66d9ef"}
+            colors = {"added": "#a6e22e", "removed": "#f92672", "header": "#66d9ef", "separator": "#444444"}
+        self.colors = colors
 
         # Fetch commit details
         try:
@@ -513,7 +569,7 @@ class FileWiseViewDialog(QDialog):
         diff_layout.setContentsMargins(0, 5, 0, 0)
         diff_layout.addWidget(QLabel("<b>File Diff:</b>"))
         
-        self.diff_view = QPlainTextEdit()
+        self.diff_view = DiffView()
         self.diff_view.setMinimumHeight(100)
         self.diff_view.setReadOnly(True)
         self.diff_view.setFont(QFont("Courier New", font_size))
@@ -602,6 +658,7 @@ class FileWiseViewDialog(QDialog):
         try:
             diff = get_file_diff_only_in_commit(self.repo_path, self.sha, filepath)
             self.diff_view.setPlainText(diff)
+            self.diff_view.set_separator_color(self.colors.get("separator", "#444444"))
         except Exception as e:
             self.diff_view.setPlainText(f"Error loading diff: {e}")
 
@@ -1516,7 +1573,7 @@ class RefineChangesDialog(QDialog):
         if main_win and hasattr(main_win, 'current_theme_colors'):
             colors = main_win.current_theme_colors
         else:
-            colors = {"added": "#a6e22e", "removed": "#f92672", "header": "#66d9ef"}
+            colors = {"added": "#a6e22e", "removed": "#f92672", "header": "#66d9ef", "separator": "#444444"}
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(10, 10, 10, 10)

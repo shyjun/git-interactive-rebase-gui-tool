@@ -181,7 +181,15 @@ def get_commit_diff(repo_path, commit_sha):
     try:
         cmd = ["git", "show", commit_sha, "--format="]
         result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
-        return result.stdout
+        
+        # Inject a newline before every 'diff --git' block (except the very first if it's at start)
+        diff_text = result.stdout
+        import re
+        # Inject a newline before every 'diff --git' block, but NOT if it's at the absolute start
+        # This prevents an extra empty line at the top of the diff viewer.
+        diff_text = re.sub(r'(\n)(diff --git )', r'\1\n\2', diff_text)
+        
+        return diff_text
     except subprocess.CalledProcessError as e:
         raise Exception(f"Failed to fetch diff: {e.stderr}")
 
@@ -230,17 +238,24 @@ def get_file_diff_in_commit(repo_path, commit_sha, filepath):
     try:
         cmd = ["git", "show", commit_sha, "--", filepath]
         result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
-        return result.stdout
+        diff_text = result.stdout
+        # Inject separator padding
+        import re
+        diff_text = re.sub(r'(\n)(diff --git )', r'\1\n\2', diff_text)
+        return diff_text
     except subprocess.CalledProcessError as e:
         raise Exception(f"Failed to get file diff: {e.stderr}")
 
 def get_file_diff_only_in_commit(repo_path, commit_sha, filepath):
     """Returns the diff for a single file within a commit, excluding the commit message header."""
     try:
-        # Use --format= to suppress the commit log/header
         cmd = ["git", "show", "--format=", commit_sha, "--", filepath]
         result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
-        return result.stdout.strip()
+        diff_text = result.stdout
+        # Inject separator padding
+        import re
+        diff_text = re.sub(r'(\n)(diff --git )', r'\1\n\2', diff_text)
+        return diff_text
     except subprocess.CalledProcessError as e:
         raise Exception(f"Failed to get file diff: {e.stderr}")
 
