@@ -4,6 +4,7 @@ if __name__ == "__main__":
     print("Please run the main app: git_interactive_rebase.py (git-interactive-rebase-gui-tool)")
     sys.exit(1)
 
+# pyrefly: ignore [missing-import]
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QListWidget, QVBoxLayout,
     QWidget, QMessageBox, QListWidgetItem, QMenu, QDialog,
@@ -385,7 +386,9 @@ class StatsItemDelegate(QStyledItemDelegate):
         self.removed_color = QColor(removed_color)
 
     def paint(self, painter, option, index):
+        # pyrefly: ignore [missing-import]
         from PySide6.QtWidgets import QStyleOptionViewItem, QApplication
+        # pyrefly: ignore [missing-import]
         from PySide6.QtWidgets import QStyle as _QStyle
         # Step 1: Build a full style option (needed for correct highlight colour)
         opt = QStyleOptionViewItem(option)
