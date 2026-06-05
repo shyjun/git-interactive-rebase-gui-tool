@@ -164,7 +164,9 @@ python3 git_interactive_rebase.py -C /path/to/repo
 
 ## 🔄 Staying Updated
 
-This project is actively under development.
+This project is actively under development, with new features and improvements added regularly.
+
+To get the latest enhancements and fixes, update your installation from time to time using the steps below.
 
 ### If installed via pip
 
