@@ -1952,13 +1952,25 @@ class GitInteractiveRebaseApp(QMainWindow):
         idx = self.list_widget.row(item)
         if idx <= 0:
             return
+            
+        sha = item.text().split()[0]
+        
+        reply = QMessageBox.question(
+            self,
+            "Confirm Move Up",
+            f"Are you sure you want to move commit <b>{sha}</b> up?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+        
+        if reply != QMessageBox.Yes:
+            return
         
         old_head = self.get_head_sha()
         current_shas = [self.list_widget.item(i).text().split()[0] for i in range(self.list_widget.count())]
         # Swap with older (idx-1)
         current_shas[idx], current_shas[idx-1] = current_shas[idx-1], current_shas[idx]
         
-        sha = item.text().split()[0]
         if self.run_interactive_rebase(current_shas, progress_title="Moving Commit", progress_text=f"Moving commit {sha} up..."):
             self.load_history()
             # Select the moved commit at its new index (idx - 1)
@@ -1975,12 +1987,24 @@ class GitInteractiveRebaseApp(QMainWindow):
         if idx >= self.list_widget.count() - 1:
             return
             
+        sha = item.text().split()[0]
+        
+        reply = QMessageBox.question(
+            self,
+            "Confirm Move Down",
+            f"Are you sure you want to move commit <b>{sha}</b> down?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+        
+        if reply != QMessageBox.Yes:
+            return
+            
         old_head = self.get_head_sha()
         current_shas = [self.list_widget.item(i).text().split()[0] for i in range(self.list_widget.count())]
         # Swap with newer (idx+1)
         current_shas[idx], current_shas[idx+1] = current_shas[idx+1], current_shas[idx]
         
-        sha = item.text().split()[0]
         if self.run_interactive_rebase(current_shas, progress_title="Moving Commit", progress_text=f"Moving commit {sha} down..."):
             self.load_history()
             # Select the moved commit at its new index (idx + 1)
