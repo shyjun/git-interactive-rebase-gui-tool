@@ -13,10 +13,11 @@ Visual documentation for the Git Interactive Rebase GUI Tool. Each section showc
 3. [Context Menu](#3-context-menu)
 4. [Search & Filter](#4-search--filter)
 5. [Diff Viewer](#5-diff-viewer)
+    - [5.1 Diff Search](#51-diff-search)
 6. [File-wise Diff Viewer](#6-file-wise-diff-viewer)
 7. [Rephrase Commit](#7-rephrase-commit)
 8. [Drop Commit](#8-drop-commit)
-9. [Drag to Reorder](#9-drag-to-reorder)
+9. [Reorder Commits](#9-reorder-commits)
 10. [Squash Commits](#10-squash-commits)
 11. [Split Dialog](#11-split-dialog)
 12. [Refine Changes in File](#12-refine-changes-in-file)
@@ -31,36 +32,42 @@ Visual documentation for the Git Interactive Rebase GUI Tool. Each section showc
 17. [Mark / Unmark Commit](#17-mark--unmark-commit)
 18. [Show Local Branches](#18-show-local-branches)
 19. [Copy to Clipboard](#19-copy-to-clipboard)
+20. [Unstaged Changes Handling](#20-unstaged-changes-handling)
+21. [Keyboard Shortcuts](#21-keyboard-shortcuts)
 
 ---
 
 ## 1. Launch
 
-Launch the application with options to choose the number of commits to view.
+Launch the application by specifying a commit range or let the tool automatically detect the branch base.
 
 ### Option 1: Show commits since a specific commit (provide SHA as argument)
 
-View only the most recent N commits in the current branch. You can specify the number of commits using `~N` or `^^^...` (each `^` represents one commit).
+View commits starting from a specific commit SHA or relative HEAD reference.
+
+You can specify commits using:
+
+- A specific commit SHA
+- `HEAD~N` to go back **N commits**
+- `HEAD^^^...` where each `^` represents one commit
 
 ```bash
 python3 git_interactive_rebase.py <commit-sha>
 python3 git_interactive_rebase.py HEAD~N
 python3 git_interactive_rebase.py HEAD^^^
-```
+````
+
+### Option 2: Auto-detect branch base
+
+When no commit SHA is provided, the tool automatically detects the base branch (for example, `main` or `master`) and shows commits from the branch divergence point.
+
+If detection fails, it falls back to displaying the **200 most recent commits from HEAD**.
 
 **Screenshot:** `screenshots/head-commits.png`
 
-![Launch with HEAD commits](screenshots/head-commits.png)
+![Launch Options](screenshots/head-commits.png)
 
-**Description:** The screenshot above shows the result of running `python3 git_interactive_rebase.py HEAD~6`.
-
-### Option 2: Auto-detect branch base (shows commits from where current branch diverged)
-
-When no commit SHA is provided, the tool automatically detects the base branch (e.g., main/master) and displays commits since that point. If detection fails, it falls back to showing the 200 most recent commits from HEAD.
-
-**Screenshot:** `screenshots/selected_commits_history.png`
-
-![Launch with Selected History](screenshots/selected_commits_history.png)
+**Description:** The screenshot above shows the application launched using `python3 git_interactive_rebase.py HEAD~6`.
 
 ---
 
@@ -99,13 +106,26 @@ Access all commit actions via right-click menu.
 
 ## 4. Search & Filter
 
-Instantly find commits by SHA or message.
+Quickly locate commits using live search and advanced filtering options.
 
 **Screenshot:** `screenshots/search-filter.png`
 
 ![Search & Filter](screenshots/search-filter.png)
 
-**Description:** Click the search bar or press `/` to focus it. Type to filter commits live. Press `Esc` to clear the search and return to the full history. Filtering works as you type.
+**Description:** Click the search bar or press `/` to focus it. Type to filter commits live. Matching commits are shown instantly as you type.
+
+Filtering supports the following modes:
+
+- **Commit SHA** → Find commits by SHA
+- **Commit Msgs** → Search commit messages
+- **Filenames** → Search commits that modified a specific file
+- **Diff** → Search inside commit diff/content
+
+You can enable one or multiple filter modes at the same time for more precise searching.
+
+This is especially useful when trying to locate where a change was introduced and you only remember a filename, symbol, function name, commit message, or code snippet.
+
+Press `Esc` to clear the search and return to the full commit history.
 
 ---
 
@@ -118,6 +138,27 @@ View code changes with syntax highlighting for added and removed lines.
 ![Diff Viewer](screenshots/diff-viewer.png)
 
 **Description:** Click any commit to view its diff in the right panel. Added lines are highlighted in green, removed lines in red. The diff is displayed in a scrollable view with line numbers.
+
+---
+
+### 5.1 Search in Diff
+
+Quickly search for text inside the displayed diff.
+
+**Screenshot:** `screenshots/diff-search.png`
+
+![Search in Diff](screenshots/diff-search.png)
+
+**Description:** Press `Ctrl+F` while viewing a diff to open the diff search bar.
+
+Search supports:
+
+- **Match Case** → Match exact letter case
+- **Whole Word** → Match complete words only
+- **Previous / Next navigation (`<` / `>`)** → Jump between matches
+- **Match counter** → Shows current match position (e.g., `2/10`)
+
+Press `Esc` to close the search bar.
 
 ---
 
@@ -157,15 +198,23 @@ Remove a commit entirely from the history.
 
 ---
 
-## 9. Drag to Reorder
+## 9. Reorder Commits
 
-Drag commits up or down to change their order in the history.
+Change commit order to organize history before rebasing.
 
 **Screenshot:** `screenshots/drag-reorder.png`
 
-![Drag to Reorder](screenshots/drag-reorder.png)
+![Reorder Commits](screenshots/drag-reorder.png)
 
-**Description:** Click and hold on any commit item, then drag it to a new position. A visual indicator shows where the commit will be placed. Drop to confirm the reorder.
+**Description:** Reorder commits using either drag-and-drop or quick move actions from the context menu.
+
+Available options include:
+
+- **Drag to Reorder** → Click and drag a commit to a new position in the history
+- **Move Up / Move Down** → Move a commit relative to nearby commits using the context menu
+- **Swap with Above / Below Commit** → Quickly exchange positions with adjacent commits
+
+A visual indicator shows where the commit will be placed before confirming the reorder.
 
 ---
 
@@ -245,13 +294,24 @@ Selectively refine changes/hunks inside a file within a commit.
 
 This is useful when a file accidentally contains mixed changes such as feature work, debug code, documentation updates, or unrelated edits.
 
+**Screenshot:** `screenshots/refine-changes-in-file.png`
+
+![Refine Changes in File](screenshots/refine-changes-in-file.png)
+
+**Description:** Select one or more hunks using the checkboxes. Use **Select All / Deselect All** to quickly adjust selection. Depending on the action chosen, selected or unselected hunks are retained, removed, or moved.
+
+---
+
 ### 12.1 Selectively Drop Changes / Hunks
 
 Drop only selected changes/hunks from a file while keeping the remaining changes in the commit intact.
 
-**Screenshot:** Coming soon
+**Description:** Select the hunks to remove and click **"Drop Selected Hunks"**.
 
-**Description:** Select specific hunks and choose **"Drop Selected Changes"** to remove only those changes from the commit.
+- **Checked hunks** → Removed from the commit
+- **Unchecked hunks** → Kept in the commit
+
+Useful for removing accidental debug code, temporary changes, or unrelated edits.
 
 ---
 
@@ -259,9 +319,12 @@ Drop only selected changes/hunks from a file while keeping the remaining changes
 
 Keep only selected changes/hunks and drop everything else from the file within the commit.
 
-**Screenshot:** Coming soon
+**Description:** Select the hunks you want to retain and click **"Apply Only Selected Hunks"**.
 
-**Description:** Select the required hunks and choose **"Keep Selected Changes"** to retain only the selected changes in the commit.
+- **Checked hunks** → Kept in the commit
+- **Unchecked hunks** → Dropped from the commit
+
+Useful when a commit contains mixed or unrelated changes and only part of it should remain.
 
 ---
 
@@ -269,9 +332,12 @@ Keep only selected changes/hunks and drop everything else from the file within t
 
 Move selected changes/hunks into a new separate commit.
 
-**Screenshot:** Coming soon
+**Description:** Select the hunks to move and click **"Move Selected Changes to New Commit"**.
 
-**Description:** Useful when a change accidentally landed in the wrong commit. Move it out, reorder the new commit to the correct place, and squash it with the intended commit.
+- **Checked hunks** → Moved to a new commit
+- **Unchecked hunks** → Remain in the current commit
+
+Useful when a change accidentally landed in the wrong commit. Move it out, reorder the new commit, and squash it with the intended commit later.
 
 ---
 
@@ -279,9 +345,24 @@ Move selected changes/hunks into a new separate commit.
 
 Edit a selected hunk using a lightweight patch editor.
 
-**Screenshot:** Coming soon
+**Screenshot:** `screenshots/edit-hunk.png`
 
-**Description:** Useful for quickly cleaning up accidental changes, temporary code, debug prints, or small mistakes before finalizing commit history.
+![Edit Hunk](screenshots/edit-hunk.png)
+
+**Description:** Right-click a hunk and choose **"Edit Hunk"** to manually modify the patch content before applying changes.
+
+The editor allows fine-grained cleanup of a hunk by directly editing the patch text.
+
+Features include:
+
+- **Editable patch content** → Modify added/removed lines directly
+- **Reset to Original Hunk** → Restore the original patch if needed
+- **Apply** → Save valid patch changes
+- **Cancel** → Discard edits
+
+> **Note:** Only valid patch/diff format edits are supported. Invalid edits may fail to apply.
+
+Useful for quickly cleaning up accidental changes, temporary code, debug prints, small formatting fixes, or unwanted lines before finalizing commit history.
 
 ---
 
@@ -323,15 +404,13 @@ The rebase runs in the background without blocking the UI.
 
 Toggle between light and dark themes for comfortable viewing.
 
-**Screenshot:** `screenshots/light-theme.png`
-
-![Light Theme](screenshots/light-theme.png)
+> **Note:** Most screenshots in this documentation use the **light theme (default)**.
 
 **Screenshot:** `screenshots/dark-theme.png`
 
 ![Dark Theme](screenshots/dark-theme.png)
 
-**Description:** Switch between light and dark themes to suit your preference. Light theme (default) provides a clean, high-contrast interface for daytime use. Dark theme features a VS Code-inspired charcoal palette that is easy on the eyes. Click the theme toggle (sun/moon icon) to switch. Theme preference is automatically saved across sessions.
+**Description:** Switch between light and dark themes to suit your preference. The light theme (default) provides a clean, high-contrast interface for daytime use, while the dark theme features a VS Code-inspired charcoal palette that is easy on the eyes during extended sessions. Click the theme toggle (sun/moon icon) to switch. Theme preference is automatically saved across sessions.
 
 ---
 
@@ -377,18 +456,60 @@ Display local and remote branch names alongside commits.
 
 ## 19. Copy to Clipboard
 
+Quickly copy commit details for sharing, debugging, or reference.
+
 **Screenshot:** `screenshots/copy-commit-details.png`
 
 ![Copy to Clipboard](screenshots/copy-commit-details.png)
 
-**Description:** Right-click any commit and select "Copy SHA", "Copy Message", or "Copy Both" to copy to clipboard. A "Copied!" notification appears briefly to confirm the action.
+**Description:** Right-click any commit and select one of the following options:
+
+- **Copy SHA** → Copy the commit SHA
+- **Copy Message** → Copy the commit message
+- **Copy Both** → Copy both SHA and commit message
+
+A brief **"Copied!"** notification appears to confirm the action.
 
 ---
 
-## Keyboard Shortcuts
+## 20. Unstaged Changes Handling
+
+Safely launch the application even when the repository contains unstaged or uncommitted changes.
+
+When unstaged changes are detected, the tool pauses startup and provides multiple safe options before continuing.
+
+**Screenshot:** `screenshots/unstaged-changes-warning.png`
+
+![Unstaged Changes Handling](screenshots/unstaged-changes-warning.png)
+
+**Description:** If unstaged or uncommitted changes are detected during launch, the tool shows a warning dialog and provides multiple ways to safely proceed.
+
+Available options include:
+
+- **Stash and proceed to app** → Temporarily stash current changes and launch the application. When exiting the app, if it was launched this way, you are prompted to directly **stash pop** and restore the changes.
+- **Commit each file changes separately and start app** → Automatically create one commit per modified file before launch
+- **Commit all unsaved changes to a single "bulk" commit** → Save all current changes into one temporary commit and continue
+- **Exit** → Cancel launch and resolve changes manually
+
+> **Note:** Untracked files are **not considered** during this process and are left untouched (not stashed or modified).
+
+This helps prevent accidental data loss or conflicts while rewriting commit history using interactive rebase operations.
+
+---
+
+## 21. Keyboard Shortcuts
+
+Keyboard shortcuts for faster navigation and workflow.
 
 | Shortcut | Action |
 |----------|--------|
-| `/` | Focus search bar |
-| `Esc` | Clear search / Close dialog |
+| `/` | Focus the commit search bar |
+| `Esc` | Clear search, close dialogs, or exit search mode |
+| `Ctrl+F` | Open search in diff viewer |
+| `Ctrl+Q` | Exit the application |
 | `F5` | Refresh commit list |
+
+**Notes:**
+
+- `Esc` behaves contextually and may close dialogs, clear filters, or exit search depending on the active view.
+- `Ctrl+F` works inside the diff viewer and opens the inline diff search bar.
