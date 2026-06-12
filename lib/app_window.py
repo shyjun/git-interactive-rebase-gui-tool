@@ -394,6 +394,7 @@ class CommitListWidget(QListWidget):
                 new_shas = [self.item(i).text().split()[0] for i in range(self.count())]
                 self.main_window.perform_move(new_shas, original_shas)
             else:
+                print(f"Cancelled reorder of {sha}.")
                 # If No, ignore the drop event completely so the list does not change
                 event.ignore()
         except Exception as e:
@@ -1333,6 +1334,8 @@ class GitInteractiveRebaseApp(QMainWindow):
         )
         if reply == QMessageBox.Yes:
             self.perform_reset(self.best_commit_sha)
+        else:
+            print(f"Cancelled reset to BEST_COMMITID ({self.best_commit_sha[:8]}).")
 
     def handle_failsafe_reset(self):
         # We use cached values from load_history for performance. 
@@ -1351,6 +1354,8 @@ class GitInteractiveRebaseApp(QMainWindow):
         if reply == QMessageBox.Yes:
             self.save_undo_state()
             self.perform_reset(self.start_time_head)
+        else:
+            print(f"Cancelled failsafe reset to {self.start_time_head[:8]}.")
 
     def save_undo_state(self):
         """Saves current HEAD to last_head and enables Undo button."""
@@ -1394,6 +1399,8 @@ class GitInteractiveRebaseApp(QMainWindow):
             self.worker.finished.connect(on_undo_finished)
             self.worker.start()
             self.progress_dialog.exec()
+        else:
+            print(f"Cancelled undo (reset to {self.last_head[:8]}).")
 
     def handle_check_for_updates(self):
         """Checks for updates from the remote repository."""
@@ -1497,6 +1504,8 @@ class GitInteractiveRebaseApp(QMainWindow):
             )
             if reply == QMessageBox.Yes:
                 self.perform_reset(sha)
+            else:
+                print(f"Cancelled custom reset to {sha}.")
 
     def handle_git_fetch(self):
         """Runs git fetch."""
@@ -1564,6 +1573,8 @@ class GitInteractiveRebaseApp(QMainWindow):
             self.worker.finished.connect(on_origin_reset_finished)
             self.worker.start()
             self.progress_dialog.exec()
+        else:
+            print(f"Cancelled reset hard to {origin_ref}.")
 
     def handle_git_push_force(self):
         """Runs git push --force."""
@@ -1584,6 +1595,8 @@ class GitInteractiveRebaseApp(QMainWindow):
             self.worker.start()
             
             self.progress_dialog.exec()
+        else:
+            print("Cancelled force push.")
 
     def on_push_finished(self, success, stdout, stderr):
         if hasattr(self, 'progress_dialog'):
@@ -2241,6 +2254,8 @@ class GitInteractiveRebaseApp(QMainWindow):
                 new_message = dialog.get_message()
                 if new_message != current_message:
                     self.perform_rephrase(sha, new_message)
+            else:
+                print(f"Cancelled rephrase {sha}.")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not fetch commit message: {str(e)}")
 
@@ -2275,6 +2290,8 @@ class GitInteractiveRebaseApp(QMainWindow):
             if dialog.exec() == QDialog.Accepted:
                 revert_message = dialog.get_message()
                 self.perform_revert_commit(sha, revert_message)
+            else:
+                print(f"Cancelled revert {sha}.")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not prepare revert: {str(e)}")
 
@@ -2384,6 +2401,8 @@ class GitInteractiveRebaseApp(QMainWindow):
         
         if reply == QMessageBox.Yes:
             self.perform_reset(sha)
+        else:
+            print(f"Cancelled reset to {sha}.")
 
     def perform_reset(self, sha):
         old_head = self.get_head_sha()
@@ -2428,6 +2447,8 @@ class GitInteractiveRebaseApp(QMainWindow):
                 final_msg = dialog.get_message()
                 print(f"Preparing to squash {sha_above} into {sha_current}...")
                 self.perform_squash(sha_above, final_msg)
+            else:
+                print(f"Cancelled squash {sha_above} into {sha_current}.")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not prepare squash: {str(e)}")
 
@@ -2449,6 +2470,8 @@ class GitInteractiveRebaseApp(QMainWindow):
                 final_msg = dialog.get_message()
                 print(f"Preparing to squash {sha_current} into {sha_below}...")
                 self.perform_squash(sha_current, final_msg)
+            else:
+                print(f"Cancelled squash {sha_current} into {sha_below}.")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not prepare squash: {str(e)}")
 
@@ -2608,6 +2631,8 @@ class GitInteractiveRebaseApp(QMainWindow):
             dialog = DropDialog(sha, diff_text, self.current_font_size, self)
             if dialog.exec() == QDialog.Accepted:
                 self.perform_drop(sha)
+            else:
+                print(f"Cancelled drop {sha}.")
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))
 
@@ -2652,6 +2677,8 @@ class GitInteractiveRebaseApp(QMainWindow):
                 selected_file = dialog.get_selected_file()
                 if selected_file:
                     self.perform_move_file_out(sha, selected_file)
+            else:
+                print(f"Cancelled split/move file from {sha}.")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not open split dialog: {str(e)}")
 
@@ -2675,6 +2702,8 @@ class GitInteractiveRebaseApp(QMainWindow):
                 selected_file = dialog.get_selected_file()
                 if selected_file:
                     self.perform_refine_changes(sha, selected_file)
+            else:
+                print(f"Cancelled refine {sha}.")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not open refine dialog: {str(e)}")
 
@@ -3203,6 +3232,8 @@ finally:
                 selected_file = dialog.get_selected_file()
                 if selected_file:
                     self.perform_drop_file_from_commit(sha, selected_file)
+            else:
+                print(f"Cancelled drop file from {sha}.")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not open drop file dialog: {str(e)}")
 
