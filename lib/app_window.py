@@ -3160,13 +3160,12 @@ subprocess.check_call(['git', 'clean', '-fd', '--', filepath])
             confirm_dialog = ConfirmRemoveFileOnwardsDialog(
                 sha, filepath, diff_text,
                 later_modifications_detected=later_modifications_detected,
-                has_empty_commits=has_empty_commits,
                 font_size=self.current_font_size, parent=self
             )
             if confirm_dialog.exec() != QDialog.Accepted:
                 return
                 
-            drop_empty_commits = confirm_dialog.drop_empty_checkbox.isChecked() if has_empty_commits else False
+            drop_empty_commits = False
 
             if later_modifications_detected:
                 future_commits = [(s, m) for s, m, _ in commits_to_drop if s != sha]
