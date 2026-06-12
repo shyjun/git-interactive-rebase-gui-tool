@@ -404,6 +404,8 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.show_rebase_options = self.settings.value("show_rebase_options", False, type=bool)
         self.show_squash_options = self.settings.value("show_squash_options", True, type=bool)
         self.show_local_branches = self.settings.value("show_local_branches", False, type=bool)
+        self.show_stats = self.settings.value("show_stats", True, type=bool)
+        self.show_date = self.settings.value("show_date", True, type=bool)
         
         self.setWindowTitle(f"git-interactive-rebase-gui-tool : branch=..., HEAD=..., path={self.repo_path}") # Temporary name until load_history updates it
         self.resize(1100, 800)
@@ -463,6 +465,8 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.settings.setValue("geometry", self.saveGeometry())
         self.settings.setValue("windowState", self.saveState())
         self.settings.setValue("isMaximized", self.isMaximized())
+        self.settings.setValue("show_stats", self.show_stats)
+        self.settings.setValue("show_date", self.show_date)
         super().closeEvent(event)
     def update_window_title(self):
         """Updates window title with branch, HEAD, and path."""
@@ -896,15 +900,11 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.show_stats_cb = QCheckBox("show stats")
         self.show_date_cb = QCheckBox("show date")
 
-        self.show_stats_cb.setChecked(True)
-        self.show_date_cb.setChecked(True)
-        self.show_stats = True
-        self.show_date = True
+        self.show_stats_cb.setChecked(self.show_stats)
+        self.show_date_cb.setChecked(self.show_date)
 
-        self.show_stats_cb.toggled.connect(lambda ctx: setattr(self, "show_stats", self.show_stats_cb.isChecked()))
-        self.show_stats_cb.toggled.connect(self.list_widget.viewport().update)
-        self.show_date_cb.toggled.connect(lambda ctx: setattr(self, "show_date", self.show_date_cb.isChecked()))
-        self.show_date_cb.toggled.connect(self.list_widget.viewport().update)
+        self.show_stats_cb.toggled.connect(lambda ctx: self._on_stats_toggled())
+        self.show_date_cb.toggled.connect(lambda ctx: self._on_date_toggled())
 
         status_layout.addWidget(self.show_stats_cb)
         status_layout.addWidget(self.show_date_cb)
@@ -1608,6 +1608,16 @@ class GitInteractiveRebaseApp(QMainWindow):
     def on_local_branches_visibility_toggled(self):
         self.show_local_branches = self.show_local_branches_cb.isChecked()
         self.settings.setValue("show_local_branches", self.show_local_branches)
+        self.list_widget.viewport().update()
+
+    def _on_stats_toggled(self):
+        self.show_stats = self.show_stats_cb.isChecked()
+        self.settings.setValue("show_stats", self.show_stats)
+        self.list_widget.viewport().update()
+
+    def _on_date_toggled(self):
+        self.show_date = self.show_date_cb.isChecked()
+        self.settings.setValue("show_date", self.show_date)
         self.list_widget.viewport().update()
 
     def force_window_resize(self):
