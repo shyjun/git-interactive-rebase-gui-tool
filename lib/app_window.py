@@ -61,6 +61,24 @@ class GitWorker(QThread):
             self.finished.emit(False, "", str(e))
 
 
+class SplitWorker(QThread):
+    """Worker for running the split rebase in a background thread. Emits (returncode, stdout, stderr)."""
+    finished = Signal(int, str, str)
+
+    def __init__(self, cmd, cwd, env=None):
+        super().__init__()
+        self.cmd = cmd
+        self.cwd = cwd
+        self.env = env
+
+    def run(self):
+        try:
+            result = subprocess.run(self.cmd, cwd=self.cwd, env=self.env, capture_output=True, text=True, encoding='utf-8', errors='replace')
+            self.finished.emit(result.returncode, result.stdout, result.stderr)
+        except Exception as e:
+            self.finished.emit(-1, "", str(e))
+
+
 class HelpDialog(QDialog):
     """Simple Help dialog with links to Video Demo, Readme, and Mail to Author."""
 
@@ -3032,31 +3050,42 @@ finally:
             else:
                 cmd = ["git", "rebase", "-i", upstream]
 
-            result = subprocess.run(cmd, cwd=self.repo_path, env=env,
-                                    capture_output=True, text=True)
-            
-            try:
-                os.unlink(editor_script)
-                os.unlink(action_path)
-            except:
-                pass
+            progress = ProgressDialog("Moving File Out", f"Moving '{filepath}' out of commit {short_sha}...", self)
+            self.split_worker = SplitWorker(cmd, self.repo_path, env)
 
-            if result.returncode == 0:
-                self.load_history()
-                new_head = self.get_head_sha()
-                self.log_action(sha, f"moved {filepath} out of", old_head, new_head)
-                QMessageBox.information(self, "Success",
-                    f"File '{filepath}' has been moved out of commit {short_sha}.\n\n"
-                    f"A new commit was created with message: \"{filepath} changes separated out from {short_sha}\"")
-            else:
-                subprocess.run(["git", "rebase", "--abort"],
-                               cwd=self.repo_path, capture_output=True)
-                QMessageBox.critical(self, "Split Failed",
-                    f"The split operation failed and has been aborted.\n\n"
-                    f"Error: {result.stderr}")
+            def on_split_finished(returncode, stdout, stderr):
+                try:
+                    if progress.isVisible():
+                        progress.close()
+                    try:
+                        os.unlink(editor_script)
+                        os.unlink(action_path)
+                    except:
+                        pass
+
+                    if returncode == 0:
+                        self.load_history()
+                        new_head = self.get_head_sha()
+                        self.log_action(sha, f"moved {filepath} out of", old_head, new_head)
+                        QMessageBox.information(self, "Success",
+                            f"File '{filepath}' has been moved out of commit {short_sha}.\n\n"
+                            f"A new commit was created with message: \"{filepath} changes separated out from {short_sha}\"")
+                    else:
+                        subprocess.run(["git", "rebase", "--abort"],
+                                       cwd=self.repo_path, capture_output=True)
+                        QMessageBox.critical(self, "Split Failed",
+                            f"The split operation failed and has been aborted.\n\n"
+                            f"Error: {stderr}")
+                except Exception as e:
+                    QMessageBox.critical(self, "Error", f"An error occurred during split: {str(e)}")
+                finally:
+                    self.load_history()
+
+            self.split_worker.finished.connect(on_split_finished)
+            self.split_worker.start()
+            progress.exec()
         except Exception as e:
             QMessageBox.critical(self, "Error", f"An error occurred during split: {str(e)}")
-        finally:
             self.load_history()
 
     def handle_split_drop_file(self, item):
@@ -3541,27 +3570,39 @@ if os.path.exists('temp.patch'):
 
             cmd = ["git", "rebase", "-i", upstream] if upstream != "--root" else ["git", "rebase", "-i", "--root"]
 
-            result = subprocess.run(cmd, cwd=self.repo_path, env=env, capture_output=True, text=True)
-            
-            try:
-                os.unlink(editor_script)
-                os.unlink(split_action_script)
-            except:
-                pass
+            progress = ProgressDialog("Splitting Changes", f"Splitting commit {short_sha} into separate commits...", self)
+            self.split_worker = SplitWorker(cmd, self.repo_path, env)
 
-            if result.returncode == 0:
-                self.load_history()
-                new_head = self.get_head_sha()
-                self.log_action(sha, f"split {filepath} in", old_head, new_head)
-                QMessageBox.information(self, "Success",
-                    f"Commit {short_sha} has been split into multiple commits for file '{filepath}'.")
-            else:
-                subprocess.run(["git", "rebase", "--abort"], cwd=self.repo_path, capture_output=True)
-                QMessageBox.critical(self, "Split Failed",
-                    f"The split operation failed and has been aborted.\n\nError: {result.stderr}\nOutput: {result.stdout}")
+            def on_split_finished(returncode, stdout, stderr):
+                try:
+                    if progress.isVisible():
+                        progress.close()
+                    try:
+                        os.unlink(editor_script)
+                        os.unlink(split_action_script)
+                    except:
+                        pass
+
+                    if returncode == 0:
+                        self.load_history()
+                        new_head = self.get_head_sha()
+                        self.log_action(sha, f"split {filepath} in", old_head, new_head)
+                        QMessageBox.information(self, "Success",
+                            f"Commit {short_sha} has been split into multiple commits for file '{filepath}'.")
+                    else:
+                        subprocess.run(["git", "rebase", "--abort"], cwd=self.repo_path, capture_output=True)
+                        QMessageBox.critical(self, "Split Failed",
+                            f"The split operation failed and has been aborted.\n\nError: {stderr}\nOutput: {stdout}")
+                except Exception as e:
+                    QMessageBox.critical(self, "Error", f"An error occurred during split: {str(e)}")
+                finally:
+                    self.load_history()
+
+            self.split_worker.finished.connect(on_split_finished)
+            self.split_worker.start()
+            progress.exec()
         except Exception as e:
             QMessageBox.critical(self, "Error", f"An error occurred during split: {str(e)}")
-        finally:
             self.load_history()
 
     def handle_split_per_file(self, item):
@@ -3691,24 +3732,39 @@ for i, filename in enumerate(files):
 
             cmd = ["git", "rebase", "-i", upstream] if upstream != "--root" else ["git", "rebase", "-i", "--root"]
 
-            result = subprocess.run(cmd, cwd=self.repo_path, env=env, capture_output=True, text=True)
-            
-            try:
-                os.unlink(editor_script)
-                os.unlink(action_path) # Clean up the action script as well
-            except:
-                pass
+            progress = ProgressDialog("Splitting Changes", f"Splitting commit {short_sha} into {len(files)} separate commits...", self)
+            self.split_worker = SplitWorker(cmd, self.repo_path, env)
 
-            if result.returncode == 0:
-                QMessageBox.information(self, "Success",
-                    f"Commit {short_sha} has been split into {len(files)} commits.")
-            else:
-                subprocess.run(["git", "rebase", "--abort"], cwd=self.repo_path, capture_output=True)
-                QMessageBox.critical(self, "Split Failed",
-                    f"The split operation failed and has been aborted.\n\nError: {result.stderr}")
+            def on_split_finished(returncode, stdout, stderr):
+                try:
+                    if progress.isVisible():
+                        progress.close()
+                    try:
+                        os.unlink(editor_script)
+                        os.unlink(action_path)
+                    except:
+                        pass
+
+                    if returncode == 0:
+                        self.load_history()
+                        new_head = self.get_head_sha()
+                        self.log_action(sha, f"split per-file", old_head, new_head)
+                        QMessageBox.information(self, "Success",
+                            f"Commit {short_sha} has been split into {len(files)} commits.")
+                    else:
+                        subprocess.run(["git", "rebase", "--abort"], cwd=self.repo_path, capture_output=True)
+                        QMessageBox.critical(self, "Split Failed",
+                            f"The split operation failed and has been aborted.\n\nError: {stderr}")
+                except Exception as e:
+                    QMessageBox.critical(self, "Error", f"An error occurred during split: {str(e)}")
+                finally:
+                    self.load_history()
+
+            self.split_worker.finished.connect(on_split_finished)
+            self.split_worker.start()
+            progress.exec()
         except Exception as e:
             QMessageBox.critical(self, "Error", f"An error occurred during split: {str(e)}")
-        finally:
             self.load_history()
 
     def perform_move(self, new_shas, original_shas=None):
