@@ -3394,7 +3394,25 @@ except Exception as e:
                     "2. Split each file changes to separate commits, and then select the file and split its changes to separate commits."
                 )
                 return
-            self.perform_split_all_commits(sha, files[0])
+            filepath = files[0]
+            # Count hunks for the confirmation dialog
+            diff_text = subprocess.check_output(
+                ["git", "log", "-p", "-1", sha, "--", filepath],
+                cwd=self.repo_path, encoding='utf-8', errors='replace'
+            )
+            n_hunks = sum(1 for line in diff_text.split('\n') if line.startswith('@@'))
+            reply = QMessageBox.question(
+                self,
+                "Confirm Split All Changes",
+                f"File <b>{filepath}</b> in commit <b>{sha}</b> has <b>{n_hunks}</b> hunk(s).<br><br>"
+                f"This will split it into <b>{n_hunks}</b> separate commits (one per hunk).<br><br>"
+                "Proceed?",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No
+            )
+            if reply != QMessageBox.Yes:
+                return
+            self.perform_split_all_commits(sha, filepath)
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not check commit files: {str(e)}")
 
