@@ -1221,9 +1221,10 @@ class ConfirmMoveFileDialog(DiffViewerDialog):
 
 class ConfirmRemoveFileOnwardsDialog(DiffViewerDialog):
     """Confirmation dialog for removing a file from a commit and all subsequent commits."""
-    def __init__(self, sha, filepath, diff_text, later_modifications_detected=False, font_size=10, parent=None):
+    def __init__(self, sha, filepath, diff_text, later_modifications_detected=False, has_empty_commits=False, font_size=10, parent=None):
         self.filepath = filepath
         self.later_modifications_detected = later_modifications_detected
+        self.has_empty_commits = has_empty_commits
         super().__init__("Remove File from This Commit Onwards?", sha, diff_text, font_size, parent)
 
     def setup_header(self, sha):
@@ -1287,6 +1288,21 @@ class ConfirmRemoveFileOnwardsDialog(DiffViewerDialog):
             self.yes_btn.setProperty("class", "dialog-btn")
             self.no_btn.setProperty("class", "dialog-btn")
 
+        self.drop_empty_checkbox = QCheckBox("Drop commits that become empty")
+        self.drop_empty_checkbox.setToolTip("Commits containing only changes to the selected file will be removed if they become empty.")
+        if self.has_empty_commits:
+            self.drop_empty_checkbox.setChecked(True)
+        else:
+            self.drop_empty_checkbox.setChecked(False)
+            self.drop_empty_checkbox.setEnabled(False)
+            self.drop_empty_checkbox.setStyleSheet("color: gray;")
+            
+        check_layout = QHBoxLayout()
+        check_layout.addStretch()
+        check_layout.addWidget(self.drop_empty_checkbox)
+        check_layout.addStretch()
+        self.layout.addLayout(check_layout)
+
         self.yes_btn.setMinimumWidth(260)
         self.no_btn.setMinimumWidth(120)
 
@@ -1301,11 +1317,12 @@ class AggressiveRemoveConfirmationDialog(QDialog):
     Second confirmation dialog when a user chooses to remove a file from history
     and that file is modified in future commits.
     """
-    def __init__(self, filepath, commits_modifying_file, font_size=10, parent=None):
+    def __init__(self, filepath, commits_modifying_file, has_empty_commits=False, font_size=10, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Proceed with aggressive file removal?")
-        self.setMinimumSize(600, 450)
+        self.setMinimumSize(600, 480)
         self.font_size = font_size
+        self.has_empty_commits = has_empty_commits
 
         layout = QVBoxLayout(self)
 
@@ -1345,6 +1362,21 @@ class AggressiveRemoveConfirmationDialog(QDialog):
         label_warning = QLabel("Do this only if you understand the implications of rewriting commit history.")
         label_warning.setStyleSheet(f"color: {warning_color}; font-weight: bold;")
         layout.addWidget(label_warning)
+
+        self.drop_empty_checkbox = QCheckBox("Drop commits that become empty")
+        self.drop_empty_checkbox.setToolTip("Commits containing only changes to the selected file will be removed if they become empty.")
+        if self.has_empty_commits:
+            self.drop_empty_checkbox.setChecked(True)
+        else:
+            self.drop_empty_checkbox.setChecked(False)
+            self.drop_empty_checkbox.setEnabled(False)
+            self.drop_empty_checkbox.setStyleSheet("color: gray;")
+            
+        check_layout = QHBoxLayout()
+        check_layout.addStretch()
+        check_layout.addWidget(self.drop_empty_checkbox)
+        check_layout.addStretch()
+        layout.addLayout(check_layout)
 
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
