@@ -29,7 +29,7 @@ from lib.git_helpers import (
     get_full_commit_message, get_commit_metadata, get_commit_files,
     has_uncommitted_changes, branch_exists, get_local_branches_map, get_remote_head_sha,
     get_file_diff_only_in_commit, get_revert_commit_message, get_commit_metadata_and_message,
-    get_commit_file_stats
+    get_commit_file_stats, get_unstaged_files, stash_changes, commit_file, bulk_commit_all
 )
 from lib.dialogs import (
     DiffHighlighter, DiffViewerDialog, SplitCommitDialog, ViewCommitDialog,
@@ -37,7 +37,7 @@ from lib.dialogs import (
     MultiSquashDialog, ProgressDialog, DropFileFromCommitDialog, ConfirmDropFileDialog,
     ConfirmMoveFileDialog, ConfirmRemoveFileOnwardsDialog, AggressiveRemoveConfirmationDialog,
     RefineFileSelectDialog, RefineChangesDialog, NewCommitMessageDialog,
-    DiffView, StatsItemDelegate, DiffSearchBar
+    DiffView, StatsItemDelegate, DiffSearchBar, UnstagedChangesDialog
 )
 from lib.utils import get_assets_path
 
@@ -651,6 +651,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.zoom_out_btn = QPushButton("Zoom Out (-)")
         self.toggle_diff_btn = QPushButton("Hide/Show diffs")
         self.help_btn = QPushButton("Help")
+        self.rescan_btn = QPushButton("Rescan Repo")
         self.undo_btn = QPushButton("Undo")
         self.undo_btn.setEnabled(False)
         self.check_update_btn = QPushButton("Check for Updates")
@@ -685,7 +686,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.best_commit_btn.setEnabled(False)
         self.custom_reset_btn = QPushButton("Enter commit id to reset hard to")
         
-        for btn in [self.zoom_in_btn, self.zoom_out_btn, self.toggle_diff_btn, self.help_btn, self.check_update_btn, self.undo_btn, self.refresh_btn, self.exit_btn]:
+        for btn in [self.zoom_in_btn, self.zoom_out_btn, self.toggle_diff_btn, self.help_btn, self.rescan_btn, self.check_update_btn, self.undo_btn, self.refresh_btn, self.exit_btn]:
             btn.setMinimumHeight(40)
             btn.setMinimumWidth(120)
         self.failsafe_btn.setMinimumHeight(40)
@@ -696,6 +697,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.zoom_out_btn.clicked.connect(self.handle_zoom_out)
         self.toggle_diff_btn.clicked.connect(self.toggle_side_diff_visibility)
         self.help_btn.clicked.connect(self._show_help_dialog)
+        self.rescan_btn.clicked.connect(self.handle_rescan_repo)
         self.undo_btn.clicked.connect(self.handle_undo)
         self.check_update_btn.clicked.connect(self.handle_check_for_updates)
         self.refresh_btn.clicked.connect(self.handle_manual_refresh)
@@ -715,6 +717,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         main_btns_layout.addWidget(self.help_btn)
         main_btns_layout.addWidget(self.check_update_btn)
         main_btns_layout.addStretch()
+        main_btns_layout.addWidget(self.rescan_btn)
         main_btns_layout.addWidget(self.undo_btn)
         main_btns_layout.addWidget(self.refresh_btn)
         main_btns_layout.addWidget(self.exit_btn)
@@ -3759,6 +3762,55 @@ for i, filename in enumerate(files):
             return False
 
 
+
+    def handle_rescan_repo(self):
+        """Safely rescan repository state, prompting user for unstaged changes identically to app startup if found."""
+        unstaged_files = get_unstaged_files(self.repo_path, ignore_submodules=True)
+        if unstaged_files:
+            dialog = UnstagedChangesDialog(len(unstaged_files), parent=self)
+            result = dialog.exec()
+            
+            if result == UnstagedChangesDialog.Accepted:
+                created_stash_sha = stash_changes(self.repo_path)
+                if created_stash_sha:
+                    QMessageBox.information(self, "Stash Successful", f"Changes stashed successfully (SHA: {created_stash_sha[:7]}).")
+                else:
+                    QMessageBox.critical(self, "Error", "Failed to stash changes. Please stash or commit manually.")
+                    return
+            elif result == UnstagedChangesDialog.CommitEachResult:
+                progress = ProgressDialog("Committing Changes", f"Committing {len(unstaged_files)} files individually...", self)
+                progress.show()
+                for _ in range(3): QApplication.processEvents()
+
+                success_count = 0
+                for i, f in enumerate(unstaged_files):
+                    progress.label.setText(f"Committing ({i+1}/{len(unstaged_files)}): {f}")
+                    for _ in range(2): QApplication.processEvents()
+                    if commit_file(self.repo_path, f, f"changes in {f}"):
+                        success_count += 1
+                
+                progress.close()
+                QMessageBox.information(self, "Commit Successful", f"Successfully committed {success_count} isolated files.")
+            elif result == UnstagedChangesDialog.BulkCommitResult:
+                msg = f"bulk commit (Number of modified files: {len(unstaged_files)})"
+                progress = ProgressDialog("Bulk Committing", f"Committing {len(unstaged_files)} files at once...", self)
+                progress.show()
+                for _ in range(3): QApplication.processEvents()
+                
+                success = bulk_commit_all(self.repo_path, msg)
+                progress.close()
+                
+                if success:
+                    QMessageBox.information(self, "Commit Successful", "Bulk commit successful.")
+                else:
+                    QMessageBox.critical(self, "Error", "Bulk commit failed.")
+                    return
+            else:
+                # Cancel/Rejected: Just return successfully and quietly drop the window.
+                return
+        
+        # Finally, we reload the tree to correctly align matching local state
+        self.load_history()
 
     def handle_manual_refresh(self):
         """Shows a progress dialog during manual refresh."""
