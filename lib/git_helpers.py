@@ -7,7 +7,7 @@ if __name__ == "__main__":
 import subprocess
 
 def get_git_history(repo_path, commit_sha):
-    """Fetches git history from HEAD down to commit_sha inclusive."""
+    """Fetches git history from HEAD down to commit_sha inclusive, yielding parsed objects."""
     try:
         # Check if commit_sha has a parent
         has_parent = False
@@ -19,14 +19,58 @@ def get_git_history(repo_path, commit_sha):
             has_parent = False
 
         if has_parent:
-            # Exclusive range: commit_sha..HEAD shows only commits after commit_sha (not including it)
-            cmd = ["git", "log", f"{commit_sha}..HEAD", "--oneline"]
+            cmd = ["git", "log", f"{commit_sha}..HEAD", "--format=%h|%cd|%s", "--date=format:%d %b %Y", "--shortstat"]
         else:
-            # Root commit case: show everything reachable from HEAD
-            cmd = ["git", "log", "HEAD", "--oneline"]
+            cmd = ["git", "log", "HEAD", "--format=%h|%cd|%s", "--date=format:%d %b %Y", "--shortstat"]
         
         result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
-        return [line for line in result.stdout.strip().split('\n') if line.strip()]
+        
+        import re
+        stat_pattern = re.compile(r'\s*\d+\s+files?\s+changed,\s+(\d+)\s+insertions?\(\+\),\s+(\d+)\s+deletions?\(-\)')
+        stat_pattern_ins_only = re.compile(r'\s*\d+\s+files?\s+changed,\s+(\d+)\s+insertions?\(\+\)')
+        stat_pattern_del_only = re.compile(r'\s*\d+\s+files?\s+changed,\s+(\d+)\s+deletions?\(-\)')
+
+        commits = []
+        current_commit = None
+
+        for line in result.stdout.split('\n'):
+            line = line.strip()
+            if not line:
+                continue
+            
+            # format pipe boundary: shastring|datestring|messagestring
+            if '|' in line and (line.split('|', 2)[0].isalnum() and len(line.split('|', 2)[0]) >= 7):
+                parts = line.split('|', 2)
+                if current_commit:
+                    commits.append(current_commit)
+                current_commit = {
+                    "sha": parts[0],
+                    "date": parts[1],
+                    "message": parts[2] if len(parts) > 2 else "",
+                    "added": 0,
+                    "deleted": 0,
+                    "raw_text": f"{parts[0]} {parts[2] if len(parts) > 2 else ''}"
+                }
+            else:
+                # It must be a shortstat line
+                if current_commit:
+                    m = stat_pattern.search(line)
+                    if m:
+                        current_commit["added"] = int(m.group(1))
+                        current_commit["deleted"] = int(m.group(2))
+                    else:
+                        m2 = stat_pattern_ins_only.search(line)
+                        if m2:
+                            current_commit["added"] = int(m2.group(1))
+                        else:
+                            m3 = stat_pattern_del_only.search(line)
+                            if m3:
+                                current_commit["deleted"] = int(m3.group(1))
+        
+        if current_commit:
+            commits.append(current_commit)
+            
+        return commits
     except subprocess.CalledProcessError as e:
         raise Exception(f"Failed to fetch git history: {e.stderr}")
 

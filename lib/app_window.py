@@ -243,23 +243,60 @@ class CommitItemDelegate(QStyledItemDelegate):
                                  Qt.AlignLeft | Qt.AlignVCenter, br_box)
                 
                 current_x += fm_bold.horizontalAdvance(br_box)
-            
-            # Setup normal font and draw the rest of the text
-            painter.setFont(opt.font)
-            if opt.state & QStyle.State_Selected:
-                painter.setPen(opt.palette.highlightedText().color())
-            else:
-                painter.setPen(opt.palette.text().color())
-                
-            fm_normal = painter.fontMetrics()
-            main_rect = text_rect.adjusted(current_x - text_rect.left(), 0, 0, 0)
-            elided_main = fm_normal.elidedText(main_text, Qt.ElideRight, main_rect.width())
-            painter.drawText(main_rect, Qt.AlignLeft | Qt.AlignVCenter, elided_main)
         else:
-            painter.setFont(opt.font)
-            fm = painter.fontMetrics()
-            elided_main = fm.elidedText(main_text, Qt.ElideRight, text_rect.width())
-            painter.drawText(text_rect, Qt.AlignLeft | Qt.AlignVCenter, elided_main)
+            current_x = text_rect.left()
+            
+        # Configure rest of text styling correctly
+        painter.setFont(opt.font)
+        fm_normal = painter.fontMetrics()
+        
+        show_stats = getattr(main_win, "show_stats", True)
+        show_date = getattr(main_win, "show_date", True)
+        date_str = index.data(Qt.UserRole + 2)
+        stats = index.data(Qt.UserRole + 3)
+        right_boundary = text_rect.right()
+        
+        if show_date and date_str:
+            date_w = fm_normal.horizontalAdvance(date_str)
+            date_rect = QRect(right_boundary - date_w, text_rect.top(), date_w, text_rect.height())
+            painter.save()
+            painter.setPen(QColor("#888888") if not (opt.state & QStyle.State_Selected) else opt.palette.highlightedText().color())
+            painter.drawText(date_rect, Qt.AlignRight | Qt.AlignVCenter, date_str)
+            painter.restore()
+            right_boundary -= (date_w + 8)
+            
+        if show_stats and stats and isinstance(stats, tuple) and len(stats) == 2:
+            added, deleted = stats
+            added_str = f"+{added}"
+            deleted_str = f" -{deleted}"
+            deleted_w = fm_normal.horizontalAdvance(deleted_str)
+            added_w = fm_normal.horizontalAdvance(added_str)
+            
+            painter.save()
+            is_dark = getattr(main_win, 'is_dark_theme', True) if main_win else True
+            green_col = QColor("#81c784") if is_dark else QColor("#22863a")
+            red_col = QColor("#e57373") if is_dark else QColor("#cb2431")
+            
+            painter.setPen(QColor("white") if (opt.state & QStyle.State_Selected) else red_col)
+            painter.drawText(QRect(right_boundary - deleted_w, text_rect.top(), deleted_w, text_rect.height()), Qt.AlignLeft | Qt.AlignVCenter, deleted_str)
+            right_boundary -= deleted_w
+            
+            painter.setPen(QColor("white") if (opt.state & QStyle.State_Selected) else green_col)
+            painter.drawText(QRect(right_boundary - added_w, text_rect.top(), added_w, text_rect.height()), Qt.AlignLeft | Qt.AlignVCenter, added_str)
+            right_boundary -= (added_w + 8)
+            painter.restore()
+
+        left_boundary = current_x
+        painter.save()
+        if opt.state & QStyle.State_Selected:
+            painter.setPen(opt.palette.highlightedText().color())
+        else:
+            painter.setPen(opt.palette.text().color())
+        
+        main_rect = text_rect.adjusted(left_boundary - text_rect.left(), 0, right_boundary - text_rect.right() - 8, 0)
+        elided_main = fm_normal.elidedText(main_text, Qt.ElideRight, main_rect.width())
+        painter.drawText(main_rect, Qt.AlignLeft | Qt.AlignVCenter, elided_main)
+        painter.restore()
             
         painter.restore()
 
@@ -512,7 +549,43 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.main_splitter = QSplitter(Qt.Horizontal)
         self.main_splitter.setChildrenCollapsible(False)
         self.list_widget.setMinimumWidth(150)
-        self.main_splitter.addWidget(self.list_widget)
+        
+        # Insert Left Panel logic embedding explicit Checkboxes
+        left_panel = QWidget()
+        left_layout = QVBoxLayout(left_panel)
+        left_layout.setContentsMargins(0, 0, 0, 0)
+        left_layout.setSpacing(0)
+        left_layout.addWidget(self.list_widget, 1)
+        
+        list_options_widget = QWidget()
+        list_options_layout = QHBoxLayout(list_options_widget)
+        list_options_layout.setContentsMargins(4, 4, 4, 4)
+        list_options_layout.setSpacing(8)
+        
+        self.show_stats_cb = QCheckBox("show stats")
+        self.show_date_cb = QCheckBox("show date")
+        
+        self.show_stats_cb.setChecked(True)
+        self.show_date_cb.setChecked(True)
+        self.show_stats = True
+        self.show_date = True
+        
+        self.show_stats_cb.toggled.connect(lambda ctx: setattr(self, "show_stats", self.show_stats_cb.isChecked()))
+        self.show_stats_cb.toggled.connect(self.list_widget.viewport().update)
+        self.show_date_cb.toggled.connect(lambda ctx: setattr(self, "show_date", self.show_date_cb.isChecked()))
+        self.show_date_cb.toggled.connect(self.list_widget.viewport().update)
+        
+        separator = QLabel("|")
+        separator.setStyleSheet("color: gray;")
+        
+        list_options_layout.addWidget(self.show_stats_cb)
+        list_options_layout.addWidget(separator)
+        list_options_layout.addWidget(self.show_date_cb)
+        list_options_layout.addStretch()
+        
+        left_layout.addWidget(list_options_widget)
+        
+        self.main_splitter.addWidget(left_panel)
         
         # Right Side Panel
         self.right_panel = QWidget()
@@ -3846,9 +3919,18 @@ for i, filename in enumerate(files):
             history = get_git_history(self.repo_path, self.commit_sha)
             branch_map = get_local_branches_map(self.repo_path, current_branch=current_branch)
             
-            for line in history:
-                item = QListWidgetItem(line)
-                sha = line.split()[0]
+            for entry in history:
+                if isinstance(entry, dict):
+                    line = entry["raw_text"]
+                    sha = entry["sha"]
+                    item = QListWidgetItem(line)
+                    item.setData(Qt.UserRole + 2, entry.get("date", ""))
+                    item.setData(Qt.UserRole + 3, (entry.get("added", 0), entry.get("deleted", 0)))
+                else:
+                    line = entry
+                    sha = line.split()[0]
+                    item = QListWidgetItem(line)
+                
                 if sha in branch_map:
                     branches_str = ", ".join(branch_map[sha])
                     item.setData(Qt.UserRole + 1, branches_str)
