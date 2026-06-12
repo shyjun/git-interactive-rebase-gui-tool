@@ -836,11 +836,13 @@ class GitInteractiveRebaseApp(QMainWindow):
         zoom_label = QLabel("Zoom:")
         self.sb_zoom_out_btn = QPushButton("–")
         self.sb_zoom_out_btn.setFixedSize(26, 22)
+        self.sb_zoom_out_btn.setStyleSheet("padding: 0px;")
         self.zoom_percent_label = QLabel("100%")
         self.zoom_percent_label.setFixedWidth(40)
         self.zoom_percent_label.setAlignment(Qt.AlignCenter)
         self.sb_zoom_in_btn = QPushButton("+")
         self.sb_zoom_in_btn.setFixedSize(26, 22)
+        self.sb_zoom_in_btn.setStyleSheet("padding: 0px;")
         self.sb_zoom_in_btn.clicked.connect(self.handle_zoom_in)
         self.sb_zoom_out_btn.clicked.connect(self.handle_zoom_out)
 
