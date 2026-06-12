@@ -558,34 +558,6 @@ class GitInteractiveRebaseApp(QMainWindow):
         left_layout.setSpacing(0)
         left_layout.addWidget(self.list_widget, 1)
         
-        list_options_widget = QWidget()
-        list_options_layout = QHBoxLayout(list_options_widget)
-        list_options_layout.setContentsMargins(4, 4, 4, 4)
-        list_options_layout.setSpacing(8)
-        
-        self.show_stats_cb = QCheckBox("show stats")
-        self.show_date_cb = QCheckBox("show date")
-        
-        self.show_stats_cb.setChecked(True)
-        self.show_date_cb.setChecked(True)
-        self.show_stats = True
-        self.show_date = True
-        
-        self.show_stats_cb.toggled.connect(lambda ctx: setattr(self, "show_stats", self.show_stats_cb.isChecked()))
-        self.show_stats_cb.toggled.connect(self.list_widget.viewport().update)
-        self.show_date_cb.toggled.connect(lambda ctx: setattr(self, "show_date", self.show_date_cb.isChecked()))
-        self.show_date_cb.toggled.connect(self.list_widget.viewport().update)
-        
-        separator = QLabel("|")
-        separator.setStyleSheet("color: gray;")
-        
-        list_options_layout.addWidget(self.show_stats_cb)
-        list_options_layout.addWidget(separator)
-        list_options_layout.addWidget(self.show_date_cb)
-        list_options_layout.addStretch()
-        
-        left_layout.addWidget(list_options_widget)
-        
         self.main_splitter.addWidget(left_panel)
         
         # Right Side Panel
@@ -896,6 +868,26 @@ class GitInteractiveRebaseApp(QMainWindow):
         status_layout.addWidget(self.show_rebase_cb)
         status_layout.addWidget(self.show_squash_cb)
         status_layout.addWidget(self.show_local_branches_cb)
+
+        sep2 = QLabel("|")
+        sep2.setStyleSheet("color: gray;")
+        status_layout.addWidget(sep2)
+
+        self.show_stats_cb = QCheckBox("show stats")
+        self.show_date_cb = QCheckBox("show date")
+
+        self.show_stats_cb.setChecked(True)
+        self.show_date_cb.setChecked(True)
+        self.show_stats = True
+        self.show_date = True
+
+        self.show_stats_cb.toggled.connect(lambda ctx: setattr(self, "show_stats", self.show_stats_cb.isChecked()))
+        self.show_stats_cb.toggled.connect(self.list_widget.viewport().update)
+        self.show_date_cb.toggled.connect(lambda ctx: setattr(self, "show_date", self.show_date_cb.isChecked()))
+        self.show_date_cb.toggled.connect(self.list_widget.viewport().update)
+
+        status_layout.addWidget(self.show_stats_cb)
+        status_layout.addWidget(self.show_date_cb)
 
         status_layout.addStretch()
         status_bar.addPermanentWidget(status_widget, 1)
