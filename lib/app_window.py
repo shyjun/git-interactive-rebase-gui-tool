@@ -3140,7 +3140,8 @@ subprocess.check_call(['git', 'clean', '-fd', '--', filepath])
                         c_files = get_commit_files(self.repo_path, c_sha)
                         if filepath in c_files:
                             c_msg = get_full_commit_message(self.repo_path, c_sha)
-                            commits_to_drop.append((c_sha, c_msg))
+                            will_be_empty = (len(c_files) == 1)
+                            commits_to_drop.append((c_sha, c_msg, will_be_empty))
                     except Exception:
                         pass
             else:
@@ -3148,6 +3149,7 @@ subprocess.check_call(['git', 'clean', '-fd', '--', filepath])
                 return
 
             later_modifications_detected = len(commits_to_drop) > 1
+            has_empty_commits = any(w for _, _, w in commits_to_drop)
 
             # Show file diff for context
             try:
@@ -3158,18 +3160,22 @@ subprocess.check_call(['git', 'clean', '-fd', '--', filepath])
             confirm_dialog = ConfirmRemoveFileOnwardsDialog(
                 sha, filepath, diff_text,
                 later_modifications_detected=later_modifications_detected,
+                has_empty_commits=has_empty_commits,
                 font_size=self.current_font_size, parent=self
             )
             if confirm_dialog.exec() != QDialog.Accepted:
                 return
                 
+            drop_empty_commits = confirm_dialog.drop_empty_checkbox.isChecked() if has_empty_commits else False
+
             if later_modifications_detected:
-                future_commits = [(s, m) for s, m in commits_to_drop if s != sha]
+                future_commits = [(s, m) for s, m, _ in commits_to_drop if s != sha]
                 agg_dialog = AggressiveRemoveConfirmationDialog(
-                    filepath, future_commits, self.current_font_size, self
+                    filepath, future_commits, has_empty_commits=has_empty_commits, font_size=self.current_font_size, parent=self
                 )
                 if agg_dialog.exec() != QDialog.Accepted:
                     return
+                drop_empty_commits = agg_dialog.drop_empty_checkbox.isChecked() if has_empty_commits else False
 
             progress = ProgressDialog(
                 f"Removing {filepath}", 
@@ -3181,7 +3187,9 @@ subprocess.check_call(['git', 'clean', '-fd', '--', filepath])
                 QApplication.processEvents()
                 time.sleep(0.02)
 
-            for index, (drop_sha, msg) in enumerate(commits_to_drop):
+            empty_commits_dropped_count = 0
+
+            for index, (drop_sha, msg, will_be_empty) in enumerate(commits_to_drop):
                 progress.label.setText(f"Rewriting commit {index+1}/{len(commits_to_drop)}...\n({drop_sha[:8]})")
                 for _ in range(3):
                     QApplication.processEvents()
@@ -3194,6 +3202,11 @@ subprocess.check_call(['git', 'clean', '-fd', '--', filepath])
                 except:
                     pass
                 upstream = f"{drop_sha}^" if has_parent else "--root"
+                
+                # Setup skip variables logic
+                should_drop_entirely = drop_empty_commits and will_be_empty
+                if should_drop_entirely:
+                    empty_commits_dropped_count += 1
                 
                 action_script_content = f"""#!/usr/bin/env python3
 import subprocess, sys
@@ -3227,15 +3240,19 @@ except Exception as e:
                     f.write("#!/usr/bin/env python3\n")
                     f.write("import sys\n")
                     f.write(f"target_sha = {repr(drop_sha)}\n")
+                    f.write(f"should_drop_entirely = {repr(should_drop_entirely)}\n")
                     f.write(f"single_exec = {repr(single_exec)}\n")
                     f.write("todo_path = sys.argv[1]\n")
                     f.write("with open(todo_path, 'r') as tf:\n")
                     f.write("    lines = tf.readlines()\n")
                     f.write("output = []\n")
                     f.write("for line in lines:\n")
-                    f.write("    output.append(line)\n")
                     f.write("    stripped = line.strip()\n")
-                    f.write("    if not stripped.startswith('#') and len(stripped.split()) >= 2 and stripped.split()[1].startswith(target_sha):\n")
+                    f.write("    is_target = not stripped.startswith('#') and len(stripped.split()) >= 2 and stripped.split()[1].startswith(target_sha)\n")
+                    f.write("    if is_target and should_drop_entirely:\n")
+                    f.write("        continue\n")
+                    f.write("    output.append(line)\n")
+                    f.write("    if is_target and not should_drop_entirely:\n")
                     f.write("        output.append(single_exec + '\\n')\n")
                     f.write("with open(todo_path, 'w') as tf:\n")
                     f.write("    tf.writelines(output)\n")
@@ -3266,7 +3283,12 @@ except Exception as e:
             self.load_history()
             new_head = self.get_head_sha()
             self.log_action(sha, f"removed {filepath} onwards completely", old_head, new_head)
-            QMessageBox.information(self, "Success", f"File '{filepath}' has been perfectly removed from history from {short_sha} onwards.")
+            
+            success_msg = f"File '{filepath}' has been perfectly removed from history from {short_sha} onwards."
+            if empty_commits_dropped_count > 0:
+                success_msg += f"\n\n{empty_commits_dropped_count} empty commit(s) were automatically dropped."
+                
+            QMessageBox.information(self, "Success", success_msg)
         except Exception as e:
             QMessageBox.critical(self, "Error", f"An error occurred: {str(e)}")
         finally:
