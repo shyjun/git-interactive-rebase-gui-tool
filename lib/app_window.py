@@ -547,14 +547,18 @@ class GitInteractiveRebaseApp(QMainWindow):
         search_row_widget = QWidget()
         search_row_layout = QHBoxLayout(search_row_widget)
         search_row_layout.setContentsMargins(0, 0, 0, 0)
-        search_row_layout.setSpacing(6)
+        search_row_layout.setSpacing(4)
 
         self.search_edit = QLineEdit()
         self.search_edit.setPlaceholderText("Search commits (SHA or Message)...")
         self.search_edit.setClearButtonEnabled(True)
-        self.search_edit.setMinimumHeight(35)
         self.search_edit.textChanged.connect(self.filter_commits)
         search_row_layout.addWidget(self.search_edit, 1)  # stretch to fill
+
+        # Compact filter controls: "Filter:" label + three checkboxes
+        filter_label = QLabel("Filter:")
+        filter_label.setStyleSheet("font-size: 11px; color: gray;")
+        search_row_layout.addWidget(filter_label)
 
         self.filter_by_msg_cb = QCheckBox("Commit Msgs")
         self.filter_by_msg_cb.setChecked(True)
