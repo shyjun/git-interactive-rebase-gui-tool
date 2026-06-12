@@ -35,7 +35,8 @@ from lib.dialogs import (
     DiffHighlighter, DiffViewerDialog, SplitCommitDialog, ViewCommitDialog,
     DropDialog, RephraseDialog, RevertCommitDialog, SquashDialog, FileWiseViewDialog,
     MultiSquashDialog, ProgressDialog, DropFileFromCommitDialog, ConfirmDropFileDialog,
-    ConfirmMoveFileDialog, RefineFileSelectDialog, RefineChangesDialog, NewCommitMessageDialog,
+    ConfirmMoveFileDialog, ConfirmRemoveFileOnwardsDialog, RefineFileSelectDialog,
+    RefineChangesDialog, NewCommitMessageDialog,
     DiffView, StatsItemDelegate, DiffSearchBar
 )
 from lib.utils import get_assets_path
@@ -946,6 +947,10 @@ class GitInteractiveRebaseApp(QMainWindow):
         drop_action.setEnabled(not is_only_file)
         menu.addAction(drop_action)
 
+        remove_onwards_action = QAction("Remove file from this commit onwards", self)
+        remove_onwards_action.triggered.connect(lambda checked=False, text=item.text(): self.handle_context_remove_file_onwards(text))
+        menu.addAction(remove_onwards_action)
+
         menu.addSeparator()
         refine_action = QAction("Refine/Edit changes in selected file", self)
         refine_action.triggered.connect(lambda checked=False, text=item.text(): self.handle_context_refine_changes(text))
@@ -966,6 +971,13 @@ class GitInteractiveRebaseApp(QMainWindow):
             return
         sha = current_commit_item.text().split()[0]
         self.perform_drop_file_from_commit(sha, filepath)
+
+    def handle_context_remove_file_onwards(self, filepath):
+        current_commit_item = self.list_widget.currentItem()
+        if not current_commit_item:
+            return
+        sha = current_commit_item.text().split()[0]
+        self.perform_remove_file_from_commit_onwards(sha, filepath)
 
     def handle_context_refine_changes(self, filepath):
         current_commit_item = self.list_widget.currentItem()
@@ -3099,6 +3111,159 @@ subprocess.check_call(['git', 'clean', '-fd', '--', filepath])
                     f"Error: {result.stderr}")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"An error occurred during drop: {str(e)}")
+        finally:
+            self.load_history()
+
+    def perform_remove_file_from_commit_onwards(self, sha, filepath):
+        """
+        Removes a file from the selected commit and ensures it stays removed
+        in all subsequent commits. Useful for cleaning accidentally committed files.
+        """
+        print(f"[{time.strftime('%H:%M:%S')}] Remove file onwards: starting for file='{filepath}' commit={sha}")
+        old_head = self.get_head_sha()
+        print(f"[{time.strftime('%H:%M:%S')}] Remove file onwards: starting SHA={self.commit_sha}, selected commit={sha}, HEAD before={old_head}")
+        self.save_undo_state()
+        try:
+            short_sha = sha[:8]
+
+            # Pre-check: scan later commits for modifications to this file
+            current_shas = [self.list_widget.item(i).text().split()[0]
+                            for i in range(self.list_widget.count())]
+            sha_idx = current_shas.index(sha) if sha in current_shas else -1
+            later_modifications_detected = False
+            later_commit_shas = []
+
+            if sha_idx > 0:
+                # Items before sha_idx are newer commits (list is newest-first)
+                for i in range(sha_idx):
+                    later_sha = current_shas[i]
+                    later_commit_shas.append(later_sha)
+                    try:
+                        later_files = get_commit_files(self.repo_path, later_sha)
+                        if filepath in later_files:
+                            later_modifications_detected = True
+                            print(f"[{time.strftime('%H:%M:%S')}] Remove file onwards: file '{filepath}' is modified in later commit {later_sha}")
+                    except Exception:
+                        pass
+
+            print(f"[{time.strftime('%H:%M:%S')}] Remove file onwards: later modifications detected={later_modifications_detected}")
+
+            # Show file diff for context
+            try:
+                diff_text = get_file_diff_only_in_commit(self.repo_path, sha, filepath)
+            except Exception:
+                diff_text = "Could not load diff for this file."
+
+            # Show confirmation dialog
+            confirm_dialog = ConfirmRemoveFileOnwardsDialog(
+                sha, filepath, diff_text,
+                later_modifications_detected=later_modifications_detected,
+                font_size=self.current_font_size, parent=self
+            )
+            if confirm_dialog.exec() != QDialog.Accepted:
+                print(f"[{time.strftime('%H:%M:%S')}] Remove file onwards: cancelled by user")
+                return
+
+            # Build action script: removes the file and amends the commit
+            action_script_content = f"""#!/usr/bin/env python3
+import subprocess, sys
+
+filepath = {repr(filepath)}
+
+# Remove the file (handles both tracked and untracked)
+try:
+    subprocess.check_call(['git', 'rm', '-f', '--ignore-unmatch', '--', filepath])
+except subprocess.CalledProcessError:
+    pass
+
+# Amend the current commit to include the removal
+subprocess.check_call(['git', 'commit', '--amend', '--no-edit', '--allow-empty'])
+"""
+            action_fd, action_path = tempfile.mkstemp(prefix='git_remove_onwards_', suffix='.py', text=True)
+            with os.fdopen(action_fd, 'w', encoding='utf-8') as f:
+                f.write(action_script_content)
+            os.chmod(action_path, os.stat(action_path).st_mode | stat.S_IEXEC)
+
+            single_exec = f"exec python3 {action_path}"
+
+            # Build sequence editor script:
+            # For the target commit AND all commits after it, inject an exec line
+            # to remove the file from each commit.
+            with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.py') as f:
+                f.write("#!/usr/bin/env python3\n")
+                f.write("import sys\n")
+                f.write(f"target_sha = {repr(sha)}\n")
+                f.write(f"single_exec = {repr(single_exec)}\n")
+                f.write("todo_path = sys.argv[1]\n")
+                f.write("with open(todo_path, 'r') as tf:\n")
+                f.write("    lines = tf.readlines()\n")
+                f.write("found_target = False\n")
+                f.write("output = []\n")
+                f.write("for line in lines:\n")
+                f.write("    stripped = line.strip()\n")
+                f.write("    is_pick = not stripped.startswith('#') and len(stripped.split()) >= 2\n")
+                f.write("    if is_pick:\n")
+                f.write("        todo_sha = stripped.split()[1]\n")
+                f.write(f"        if target_sha.startswith(todo_sha) or todo_sha.startswith(target_sha[:4]):\n")
+                f.write("            found_target = True\n")
+                f.write("    output.append(line)\n")
+                f.write("    if is_pick and found_target:\n")
+                f.write("        output.append(single_exec + '\\n')\n")
+                f.write("with open(todo_path, 'w') as tf:\n")
+                f.write("    tf.writelines(output)\n")
+                editor_script = f.name
+
+            os.chmod(editor_script, os.stat(editor_script).st_mode | stat.S_IEXEC)
+
+            # Determine upstream for rebase
+            if sha_idx == len(current_shas) - 1:
+                has_parent = False
+                try:
+                    subprocess.run(["git", "rev-parse", f"{sha}^"],
+                                   cwd=self.repo_path, check=True, capture_output=True)
+                    has_parent = True
+                except Exception:
+                    pass
+                upstream = f"{sha}^" if has_parent else "--root"
+            else:
+                upstream = current_shas[sha_idx + 1]
+
+            env = os.environ.copy()
+            env["GIT_SEQUENCE_EDITOR"] = editor_script
+            env["GIT_EDITOR"] = "true"
+
+            if upstream == "--root":
+                cmd = ["git", "rebase", "-i", "--root"]
+            else:
+                cmd = ["git", "rebase", "-i", upstream]
+
+            print(f"[{time.strftime('%H:%M:%S')}] Remove file onwards: running rebase with upstream={upstream}")
+            result = subprocess.run(cmd, cwd=self.repo_path, env=env,
+                                    capture_output=True, text=True)
+
+            try:
+                os.unlink(editor_script)
+                os.unlink(action_path)
+            except Exception:
+                pass
+
+            if result.returncode == 0:
+                self.load_history()
+                new_head = self.get_head_sha()
+                self.log_action(sha, f"removed {filepath} from commit onwards", old_head, new_head)
+                print(f"[{time.strftime('%H:%M:%S')}] Remove file onwards: SUCCESS, HEAD after={new_head}")
+                QMessageBox.information(self, "Success",
+                    f"File '{filepath}' has been removed from commit {short_sha} and all subsequent commits.")
+            else:
+                print(f"[{time.strftime('%H:%M:%S')}] Remove file onwards: FAILED. stderr={result.stderr}")
+                subprocess.run(["git", "rebase", "--abort"],
+                               cwd=self.repo_path, capture_output=True)
+                QMessageBox.critical(self, "Remove File Failed",
+                    f"The operation failed and has been aborted.\n\n"
+                    f"Error: {result.stderr}")
+        except Exception as e:
+            print(f"[{time.strftime('%H:%M:%S')}] Remove file onwards: EXCEPTION: {str(e)}")
+            QMessageBox.critical(self, "Error", f"An error occurred during file removal: {str(e)}")
         finally:
             self.load_history()
 
