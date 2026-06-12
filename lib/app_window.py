@@ -434,8 +434,8 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.setMinimumWidth(1100)
 
         self.setup_ui()
-        self.load_settings()
         self.restore_visibility_settings()
+        self.load_settings()
         
         # Performance Cache
         self.commit_cache = {} # sha -> {'meta': str, 'msg': str, 'diff': str, 'files': list}
@@ -530,8 +530,6 @@ class GitInteractiveRebaseApp(QMainWindow):
         
         # Local Branches Visibility
         self.show_local_branches_cb.setChecked(self.show_local_branches)
-        
-        self.force_window_resize()
 
     def setup_ui(self):
         central_widget = QWidget()
