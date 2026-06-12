@@ -1653,6 +1653,8 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.is_dark_theme = (theme == "dark")
         self.apply_theme(theme)
         self.settings.setValue("theme", theme)
+        if self.theme_menu_btn.menu():
+            self.theme_menu_btn.menu().close()
 
     def on_origin_visibility_toggled(self):
         visible = self.show_origin_cb.isChecked()
