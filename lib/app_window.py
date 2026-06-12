@@ -698,7 +698,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         
         self.right_panel.setVisible(self.show_diffs)
         if hasattr(self, 'toggle_diff_btn'):
-            self.toggle_diff_btn.setText("⊞ Hide Diffs" if self.show_diffs else "⊞ Show Diffs")
+            self.toggle_diff_btn.setText("Hide Diffs" if self.show_diffs else "Show Diffs")
         
         self.main_splitter.addWidget(self.right_panel)
         # default split ratio: history 60%, diff 40%
@@ -718,7 +718,8 @@ class GitInteractiveRebaseApp(QMainWindow):
         controls_layout.setAlignment(Qt.AlignTop)
 
         # Theme dropdown menu button
-        self.theme_menu_btn = QPushButton("⚙ Theme")
+        self.theme_menu_btn = QPushButton("Theme")
+        self._set_icon(self.theme_menu_btn, QStyle.SP_TitleBarMaxButton)
         theme_menu = QMenu(self.theme_menu_btn)
         self.dark_radio = QRadioButton("Dark Theme")
         self.light_radio = QRadioButton("Light Theme")
@@ -732,14 +733,21 @@ class GitInteractiveRebaseApp(QMainWindow):
         theme_menu.addAction(light_action)
         self.theme_menu_btn.setMenu(theme_menu)
 
-        self.toggle_diff_btn = QPushButton("⊞ Hide Diffs")
-        self.help_btn = QPushButton("⊙ Help")
-        self.rescan_btn = QPushButton("⟳ Rescan Repo")
-        self.undo_btn = QPushButton("↩ Undo")
+        self.toggle_diff_btn = QPushButton("Hide Diffs")
+        self._set_icon(self.toggle_diff_btn, QStyle.SP_FileDialogDetailedView, "view-visible")
+        self.help_btn = QPushButton("Help")
+        self._set_icon(self.help_btn, QStyle.SP_MessageBoxQuestion, "help-about")
+        self.rescan_btn = QPushButton("Rescan Repo")
+        self._set_icon(self.rescan_btn, QStyle.SP_BrowserReload, "view-refresh")
+        self.undo_btn = QPushButton("Undo")
+        self._set_icon(self.undo_btn, QStyle.SP_ArrowBack, "edit-undo")
         self.undo_btn.setEnabled(False)
-        self.check_update_btn = QPushButton("⊙ Check Updates")
-        self.refresh_btn = QPushButton("⟳ Refresh")
-        self.exit_btn = QPushButton("✕ Exit")
+        self.check_update_btn = QPushButton("Check Updates")
+        self._set_icon(self.check_update_btn, QStyle.SP_MessageBoxInformation)
+        self.refresh_btn = QPushButton("Refresh")
+        self._set_icon(self.refresh_btn, QStyle.SP_BrowserReload, "view-refresh")
+        self.exit_btn = QPushButton("Exit")
+        self._set_icon(self.exit_btn, QStyle.SP_DialogCloseButton, "application-exit")
         self.exit_btn.setStyleSheet("color: red; font-weight: bold;")
 
         self.failsafe_btn = QPushButton("")
@@ -1127,7 +1135,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.right_panel.setVisible(new_visibility)
         self.show_diffs = new_visibility
         self.settings.setValue("show_diffs", self.show_diffs)
-        self.toggle_diff_btn.setText("⊞ Hide Diffs" if new_visibility else "⊞ Show Diffs")
+        self.toggle_diff_btn.setText("Hide Diffs" if new_visibility else "Show Diffs")
 
     def _show_help_dialog(self):
         """Opens the Help dialog."""
@@ -1272,6 +1280,17 @@ class GitInteractiveRebaseApp(QMainWindow):
         total = self.list_widget.count()
         showing = sum(1 for i in range(total) if not self.list_widget.item(i).isHidden())
         self.showing_commits_label.setText(f"Showing: {showing}")
+
+    def _set_icon(self, button, fallback_icon, theme_name=None):
+        if theme_name:
+            icon = QIcon.fromTheme(theme_name)
+            if not icon.isNull():
+                button.setIcon(icon)
+                button.setIconSize(QSize(16, 16))
+                return
+        icon = self.style().standardIcon(fallback_icon)
+        button.setIcon(icon)
+        button.setIconSize(QSize(16, 16))
 
     def handle_set_best_commit(self, item):
         sha = item.text().split()[0]
