@@ -1755,6 +1755,9 @@ class GitInteractiveRebaseApp(QMainWindow):
                     border-radius: 5px;
                     font-weight: bold;
                 }
+                QDialog QPushButton {
+                    font-weight: normal;
+                }
                 QPushButton:hover {
                     background-color: #444444;
                 }
@@ -1771,7 +1774,7 @@ class GitInteractiveRebaseApp(QMainWindow):
                     color: white;
                 }
                 QLabel {
-                    font-weight: bold;
+                    color: #cccccc;
                 }
                 QDialog, QMenu {
                     background-color: #1e1e1e;
@@ -1853,6 +1856,9 @@ class GitInteractiveRebaseApp(QMainWindow):
                     border-radius: 5px;
                     font-weight: bold;
                 }
+                QDialog QPushButton {
+                    font-weight: normal;
+                }
                 QPushButton:hover {
                     background-color: #f0f0f0;
                 }
@@ -1868,7 +1874,6 @@ class GitInteractiveRebaseApp(QMainWindow):
                     color: white;
                 }
                 QLabel {
-                    font-weight: bold;
                     color: #333;
                 }
                 QDialog, QMenu {
