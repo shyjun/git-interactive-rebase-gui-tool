@@ -3557,7 +3557,20 @@ if os.path.exists('temp.patch'):
             if len(files) == 1:
                 QMessageBox.information(self, "Info", "This commit only has 1 file changed. Nothing to split.")
                 return
-            
+
+            n = len(files)
+            reply = QMessageBox.question(
+                self,
+                "Confirm Split Per File",
+                f"Commit <b>{sha}</b> has <b>{n}</b> file(s) changed.<br><br>"
+                f"This will split it into <b>{n}</b> separate commits (one per file).<br><br>"
+                "Proceed?",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No
+            )
+            if reply != QMessageBox.Yes:
+                return
+
             self.perform_split_per_file(sha, files)
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not check commit files: {str(e)}")
