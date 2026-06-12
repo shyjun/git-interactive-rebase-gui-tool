@@ -1230,9 +1230,11 @@ class ConfirmRemoveFileOnwardsDialog(DiffViewerDialog):
         msg = (
             f"<b>File:</b><br>{self.filepath}<br><br>"
             f"This will remove the file from:<br><br>"
-            f"✓ Selected commit ({sha})<br>"
-            f"✓ All commits after it"
+            f"✓ Selected commit ({sha})"
         )
+        if self.later_modifications_detected:
+            msg += f"<br>✓ All following commits that modify it"
+        
         label = QLabel(msg)
         label.setWordWrap(True)
         label.setTextFormat(Qt.RichText)
@@ -1329,7 +1331,7 @@ class AggressiveRemoveConfirmationDialog(QDialog):
         label_explain = QLabel(
             "<br><b>This operation will:</b><br><br>"
             "✓ Remove file changes from the above commits<br>"
-            "✓ Remove file introduction from selected commit<br>"
+            "✓ Remove file changes from currently selected commit<br>"
             "✓ Rewrite commit history<br>"
         )
         label_explain.setTextFormat(Qt.RichText)

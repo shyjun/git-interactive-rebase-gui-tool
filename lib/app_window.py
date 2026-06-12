@@ -3182,7 +3182,7 @@ subprocess.check_call(['git', 'clean', '-fd', '--', filepath])
                 time.sleep(0.02)
 
             for index, (drop_sha, msg) in enumerate(commits_to_drop):
-                progress.set_text(f"Rewriting commit {index+1}/{len(commits_to_drop)}...\n({drop_sha[:8]})")
+                progress.label.setText(f"Rewriting commit {index+1}/{len(commits_to_drop)}...\n({drop_sha[:8]})")
                 for _ in range(3):
                     QApplication.processEvents()
                 
