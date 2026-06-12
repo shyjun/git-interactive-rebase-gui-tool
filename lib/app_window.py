@@ -721,8 +721,6 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.right_panel.setMinimumWidth(150)
         
         self.right_panel.setVisible(self.show_diffs)
-        if hasattr(self, 'toggle_diff_btn'):
-            self.toggle_diff_btn.setText("Hide Diffs" if self.show_diffs else "Show Diffs")
         
         self.main_splitter.addWidget(self.right_panel)
         # default split ratio: history 60%, diff 40%
@@ -757,7 +755,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         theme_menu.addAction(light_action)
         self.theme_menu_btn.setMenu(theme_menu)
 
-        self.toggle_diff_btn = QPushButton("Hide Diffs")
+        self.toggle_diff_btn = QPushButton("Hide Diffs" if self.show_diffs else "Show Diffs")
         self._set_icon(self.toggle_diff_btn, QStyle.SP_FileDialogDetailedView, "view-visible")
         self.help_btn = QPushButton("Help")
         self._set_icon(self.help_btn, QStyle.SP_MessageBoxQuestion, "help-about")
