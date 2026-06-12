@@ -844,11 +844,21 @@ class DropFileFromCommitDialog(QDialog):
         drop_action.triggered.connect(lambda checked=False, text=item.text(): self.drop_file(text))
         menu.addAction(drop_action)
 
+        remove_onwards_action = QAction("Remove file from this commit onwards", self)
+        remove_onwards_action.triggered.connect(lambda checked=False, text=item.text(): self.remove_file_onwards(text))
+        menu.addAction(remove_onwards_action)
+
         menu.exec(self.file_list.mapToGlobal(pos))
 
     def drop_file(self, filepath):
         self.selected_file = filepath
         self.accept()
+
+    def remove_file_onwards(self, filepath):
+        main_win = self.parent() if isinstance(self.parent(), QMainWindow) else None
+        if main_win and hasattr(main_win, 'perform_remove_file_from_commit_onwards'):
+            self.accept()
+            QTimer.singleShot(0, lambda: main_win.perform_remove_file_from_commit_onwards(self.sha, filepath))
 
     def copy_filename_to_clipboard(self, filename):
         QApplication.clipboard().setText(filename)
@@ -1067,6 +1077,10 @@ class FileWiseViewDialog(QDialog):
         drop_action.setEnabled(not is_only_file)
         menu.addAction(drop_action)
 
+        remove_onwards_action = QAction("Remove file from this commit onwards", self)
+        remove_onwards_action.triggered.connect(lambda checked=False, text=item.text(): self.remove_file_onwards(text))
+        menu.addAction(remove_onwards_action)
+
         menu.addSeparator()
         refine_action = QAction("Refine/Edit changes in selected file", self)
         refine_action.triggered.connect(lambda checked=False, text=item.text(): self.refine_file(text))
@@ -1085,6 +1099,12 @@ class FileWiseViewDialog(QDialog):
         if main_win and hasattr(main_win, 'perform_drop_file_from_commit'):
             self.accept()
             QTimer.singleShot(0, lambda: main_win.perform_drop_file_from_commit(self.sha, filepath))
+
+    def remove_file_onwards(self, filepath):
+        main_win = self.parent() if isinstance(self.parent(), QMainWindow) else None
+        if main_win and hasattr(main_win, 'perform_remove_file_from_commit_onwards'):
+            self.accept()
+            QTimer.singleShot(0, lambda: main_win.perform_remove_file_from_commit_onwards(self.sha, filepath))
 
     def refine_file(self, filepath):
         main_win = self.parent() if isinstance(self.parent(), QMainWindow) else None
@@ -1188,6 +1208,57 @@ class ConfirmMoveFileDialog(DiffViewerDialog):
         self.no_btn = QPushButton("No, Cancel")
 
         self.yes_btn.setMinimumWidth(180)
+        self.no_btn.setMinimumWidth(120)
+
+        self.yes_btn.setProperty("class", "dialog-btn")
+        self.no_btn.setProperty("class", "dialog-btn")
+
+        self.yes_btn.clicked.connect(self.accept)
+        self.no_btn.clicked.connect(self.reject)
+
+        self.btn_layout.addWidget(self.yes_btn)
+        self.btn_layout.addWidget(self.no_btn)
+
+class ConfirmRemoveFileOnwardsDialog(DiffViewerDialog):
+    """Confirmation dialog for removing a file from a commit and all subsequent commits."""
+    def __init__(self, sha, filepath, diff_text, later_modifications_detected=False, font_size=10, parent=None):
+        self.filepath = filepath
+        self.later_modifications_detected = later_modifications_detected
+        super().__init__("Remove File from This Commit Onwards?", sha, diff_text, font_size, parent)
+
+    def setup_header(self, sha):
+        msg = (
+            f"<b>File:</b><br>{self.filepath}<br><br>"
+            f"This will remove the file from:<br><br>"
+            f"✓ Selected commit ({sha})<br>"
+            f"✓ All commits after it"
+        )
+        label = QLabel(msg)
+        label.setWordWrap(True)
+        label.setTextFormat(Qt.RichText)
+        self.layout.addWidget(label)
+
+        if self.later_modifications_detected:
+            # Use theme-aware warning color
+            main_win = self.parent() if isinstance(self.parent(), QMainWindow) else None
+            warning_color = "#f92672"
+            if main_win and hasattr(main_win, 'current_theme_colors'):
+                warning_color = main_win.current_theme_colors["removed"]
+            warning_label = QLabel(
+                "<b>Warning:</b><br>"
+                "This file is modified in later commits.<br><br>"
+                "The operation may fail or stop during rebase and require manual conflict resolution."
+            )
+            warning_label.setWordWrap(True)
+            warning_label.setTextFormat(Qt.RichText)
+            warning_label.setStyleSheet(f"color: {warning_color}; padding: 6px; border: 1px solid {warning_color}; border-radius: 4px;")
+            self.layout.addWidget(warning_label)
+
+    def setup_buttons(self):
+        self.yes_btn = QPushButton("Yes, Remove from this commit onwards")
+        self.no_btn = QPushButton("No, Cancel")
+
+        self.yes_btn.setMinimumWidth(260)
         self.no_btn.setMinimumWidth(120)
 
         self.yes_btn.setProperty("class", "dialog-btn")
