@@ -17,7 +17,8 @@ from PySide6.QtWidgets import (
     QWidget, QMessageBox, QListWidgetItem, QMenu, QDialog,
     QTextEdit, QPlainTextEdit, QPushButton, QHBoxLayout, QLabel, QRadioButton,
     QLineEdit, QSplitter, QInputDialog, QGroupBox, QSizePolicy, QCheckBox,
-    QStyledItemDelegate, QStyle, QStyleOptionViewItem, QTabWidget
+    QStyledItemDelegate, QStyle, QStyleOptionViewItem, QTabWidget, QWidgetAction,
+    QStatusBar
 )
 # pyrefly: ignore [missing-import]
 from PySide6.QtGui import QFont, QSyntaxHighlighter, QTextCharFormat, QColor, QAction, QShortcut, QKeySequence, QIcon, QBrush
@@ -702,6 +703,8 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.right_panel.setMinimumWidth(150)
         
         self.right_panel.setVisible(self.show_diffs)
+        if hasattr(self, 'toggle_diff_btn'):
+            self.toggle_diff_btn.setText("⊞ Hide Diffs" if self.show_diffs else "⊞ Show Diffs")
         
         self.main_splitter.addWidget(self.right_panel)
         # default split ratio: history 60%, diff 40%
@@ -716,58 +719,47 @@ class GitInteractiveRebaseApp(QMainWindow):
         
         self.update_window_title()
 
-        # Bottom Control Bar
+        # Top Control Bar (single row of buttons)
         controls_layout = QHBoxLayout()
         controls_layout.setAlignment(Qt.AlignTop)
-        
-        self.zoom_in_btn = QPushButton("Zoom In (+)")
-        self.zoom_out_btn = QPushButton("Zoom Out (-)")
-        self.toggle_diff_btn = QPushButton("Hide/Show diffs")
-        self.help_btn = QPushButton("Help")
-        self.rescan_btn = QPushButton("Rescan Repo")
-        self.undo_btn = QPushButton("Undo")
-        self.undo_btn.setEnabled(False)
-        self.check_update_btn = QPushButton("Check for Updates")
-        self.refresh_btn = QPushButton("Refresh")
 
-        # Zoom group box
-        zoom_group = QGroupBox("Zoom")
-        zoom_group.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        zoom_layout = QHBoxLayout()
-        zoom_layout.addWidget(self.zoom_in_btn)
-        zoom_layout.addWidget(self.zoom_out_btn)
-        zoom_group.setLayout(zoom_layout)
-
-        # Theme controls
-        theme_group = QGroupBox("Theme")
-        theme_layout = QHBoxLayout()
+        # Theme dropdown menu button
+        self.theme_menu_btn = QPushButton("⚙ Theme")
+        theme_menu = QMenu(self.theme_menu_btn)
         self.dark_radio = QRadioButton("Dark Theme")
         self.light_radio = QRadioButton("Light Theme")
         self.dark_radio.toggled.connect(lambda: self.on_theme_toggled())
         self.light_radio.toggled.connect(lambda: self.on_theme_toggled())
-        theme_layout.addWidget(self.dark_radio)
-        theme_layout.addWidget(self.light_radio)
-        theme_group.setLayout(theme_layout)
-        
-        controls_layout.addWidget(zoom_group)
-        controls_layout.addWidget(theme_group)
-        controls_layout.addSpacing(20)
+        dark_action = QWidgetAction(theme_menu)
+        dark_action.setDefaultWidget(self.dark_radio)
+        light_action = QWidgetAction(theme_menu)
+        light_action.setDefaultWidget(self.light_radio)
+        theme_menu.addAction(dark_action)
+        theme_menu.addAction(light_action)
+        self.theme_menu_btn.setMenu(theme_menu)
 
-        self.exit_btn = QPushButton("Exit")
+        self.toggle_diff_btn = QPushButton("⊞ Hide Diffs")
+        self.help_btn = QPushButton("⊙ Help")
+        self.rescan_btn = QPushButton("⟳ Rescan Repo")
+        self.undo_btn = QPushButton("↩ Undo")
+        self.undo_btn.setEnabled(False)
+        self.check_update_btn = QPushButton("⊙ Check Updates")
+        self.refresh_btn = QPushButton("⟳ Refresh")
+        self.exit_btn = QPushButton("✕ Exit")
+        self.exit_btn.setStyleSheet("color: red; font-weight: bold;")
+
         self.failsafe_btn = QPushButton("")
         self.best_commit_btn = QPushButton("Reset Hard to BEST_COMMITID (Not Set)")
         self.best_commit_btn.setEnabled(False)
         self.custom_reset_btn = QPushButton("Enter commit id to reset hard to")
-        
-        for btn in [self.zoom_in_btn, self.zoom_out_btn, self.toggle_diff_btn, self.help_btn, self.rescan_btn, self.check_update_btn, self.undo_btn, self.refresh_btn, self.exit_btn]:
+
+        for btn in [self.toggle_diff_btn, self.help_btn, self.rescan_btn, self.check_update_btn, self.undo_btn, self.refresh_btn, self.exit_btn, self.theme_menu_btn]:
             btn.setMinimumHeight(40)
-            btn.setMinimumWidth(120)
+            btn.setMinimumWidth(100)
         self.failsafe_btn.setMinimumHeight(40)
         self.best_commit_btn.setMinimumHeight(40)
         self.custom_reset_btn.setMinimumHeight(40)
 
-        self.zoom_in_btn.clicked.connect(self.handle_zoom_in)
-        self.zoom_out_btn.clicked.connect(self.handle_zoom_out)
         self.toggle_diff_btn.clicked.connect(self.toggle_side_diff_visibility)
         self.help_btn.clicked.connect(self._show_help_dialog)
         self.rescan_btn.clicked.connect(self.handle_rescan_repo)
@@ -779,45 +771,17 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.custom_reset_btn.clicked.connect(self.handle_custom_reset)
         self.exit_btn.clicked.connect(self.close)
 
-        # Right side controls (aligned top)
-        right_controls_layout = QVBoxLayout()
-        right_controls_layout.setContentsMargins(0, 0, 0, 0)
-        right_controls_layout.setAlignment(Qt.AlignTop)
-        
-        # Row 1 of right side: Main buttons
-        main_btns_layout = QHBoxLayout()
-        main_btns_layout.addWidget(self.toggle_diff_btn)
-        main_btns_layout.addWidget(self.help_btn)
-        main_btns_layout.addWidget(self.check_update_btn)
-        main_btns_layout.addStretch()
-        main_btns_layout.addWidget(self.rescan_btn)
-        main_btns_layout.addWidget(self.undo_btn)
-        main_btns_layout.addWidget(self.refresh_btn)
-        main_btns_layout.addWidget(self.exit_btn)
-        
-        # Row 2 of right side: Visibility Checkboxes
-        checkboxes_layout = QHBoxLayout()
-        self.show_origin_cb = QCheckBox("show origin options")
-        self.show_rebase_cb = QCheckBox("show rebase options")
-        self.show_squash_cb = QCheckBox("show squash options")
-        self.show_local_branches_cb = QCheckBox("show local branches")
-        
-        self.show_origin_cb.toggled.connect(self.on_origin_visibility_toggled)
-        self.show_rebase_cb.toggled.connect(self.on_rebase_visibility_toggled)
-        self.show_squash_cb.toggled.connect(self.on_squash_visibility_toggled)
-        self.show_local_branches_cb.toggled.connect(self.on_local_branches_visibility_toggled)
-        
-        checkboxes_layout.addWidget(self.show_origin_cb)
-        checkboxes_layout.addWidget(self.show_rebase_cb)
-        checkboxes_layout.addWidget(self.show_squash_cb)
-        checkboxes_layout.addWidget(self.show_local_branches_cb)
-        checkboxes_layout.addStretch()
+        # Single row of main buttons
+        controls_layout.addWidget(self.theme_menu_btn)
+        controls_layout.addWidget(self.toggle_diff_btn)
+        controls_layout.addWidget(self.help_btn)
+        controls_layout.addWidget(self.check_update_btn)
+        controls_layout.addStretch()
+        controls_layout.addWidget(self.rescan_btn)
+        controls_layout.addWidget(self.undo_btn)
+        controls_layout.addWidget(self.refresh_btn)
+        controls_layout.addWidget(self.exit_btn)
 
-        right_controls_layout.addLayout(main_btns_layout)
-        right_controls_layout.addLayout(checkboxes_layout)
-
-        controls_layout.addLayout(right_controls_layout)
-        
         layout.addLayout(controls_layout)
         
         # Add failsafe options as a distinct row below the other controls
@@ -888,6 +852,53 @@ class GitInteractiveRebaseApp(QMainWindow):
         rebase_layout.addWidget(self.rebase_custom_btn)
         self.rebase_group.setLayout(rebase_layout)
         layout.addWidget(self.rebase_group)
+
+        # ── Status Bar ──
+        status_bar = self.statusBar()
+        status_widget = QWidget()
+        status_layout = QHBoxLayout(status_widget)
+        status_layout.setContentsMargins(4, 0, 4, 0)
+        status_layout.setSpacing(6)
+
+        # Zoom controls
+        zoom_label = QLabel("Zoom:")
+        self.sb_zoom_out_btn = QPushButton("–")
+        self.sb_zoom_out_btn.setFixedSize(26, 22)
+        self.zoom_percent_label = QLabel("100%")
+        self.zoom_percent_label.setFixedWidth(40)
+        self.zoom_percent_label.setAlignment(Qt.AlignCenter)
+        self.sb_zoom_in_btn = QPushButton("+")
+        self.sb_zoom_in_btn.setFixedSize(26, 22)
+        self.sb_zoom_in_btn.clicked.connect(self.handle_zoom_in)
+        self.sb_zoom_out_btn.clicked.connect(self.handle_zoom_out)
+
+        status_layout.addWidget(zoom_label)
+        status_layout.addWidget(self.sb_zoom_out_btn)
+        status_layout.addWidget(self.zoom_percent_label)
+        status_layout.addWidget(self.sb_zoom_in_btn)
+
+        sep1 = QLabel("|")
+        sep1.setStyleSheet("color: gray;")
+        status_layout.addWidget(sep1)
+
+        # Visibility checkboxes
+        self.show_origin_cb = QCheckBox("Show Origin")
+        self.show_rebase_cb = QCheckBox("Show Rebase")
+        self.show_squash_cb = QCheckBox("Show Squash")
+        self.show_local_branches_cb = QCheckBox("Show Local Branches")
+
+        self.show_origin_cb.toggled.connect(self.on_origin_visibility_toggled)
+        self.show_rebase_cb.toggled.connect(self.on_rebase_visibility_toggled)
+        self.show_squash_cb.toggled.connect(self.on_squash_visibility_toggled)
+        self.show_local_branches_cb.toggled.connect(self.on_local_branches_visibility_toggled)
+
+        status_layout.addWidget(self.show_origin_cb)
+        status_layout.addWidget(self.show_rebase_cb)
+        status_layout.addWidget(self.show_squash_cb)
+        status_layout.addWidget(self.show_local_branches_cb)
+
+        status_layout.addStretch()
+        status_bar.addPermanentWidget(status_widget, 1)
 
 
         # Keyboard Shortcuts
@@ -1087,6 +1098,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.right_panel.setVisible(new_visibility)
         self.show_diffs = new_visibility
         self.settings.setValue("show_diffs", self.show_diffs)
+        self.toggle_diff_btn.setText("⊞ Hide Diffs" if new_visibility else "⊞ Show Diffs")
 
     def _show_help_dialog(self):
         """Opens the Help dialog."""
@@ -1836,6 +1848,11 @@ class GitInteractiveRebaseApp(QMainWindow):
             self.filewise_file_list.setFont(font)
         # Save persistence
         self.settings.setValue("font_size", self.current_font_size)
+        # Update status bar zoom label
+        if hasattr(self, 'zoom_percent_label'):
+            default_size = 10
+            pct = int(self.current_font_size / default_size * 100)
+            self.zoom_percent_label.setText(f"{pct}%")
 
     def show_context_menu(self, position):
         # Allow context menu in multi-select mode, but we will restrict it later
