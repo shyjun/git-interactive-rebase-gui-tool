@@ -1255,20 +1255,115 @@ class ConfirmRemoveFileOnwardsDialog(DiffViewerDialog):
             self.layout.addWidget(warning_label)
 
     def setup_buttons(self):
-        self.yes_btn = QPushButton("Yes, Remove from this commit onwards")
-        self.no_btn = QPushButton("No, Cancel")
+        if self.later_modifications_detected:
+            self.yes_btn = QPushButton("Yes, Remove from Future Commits Too")
+            self.no_btn = QPushButton("Cancel")
+            
+            # Make the yes button red to indicate destructive action
+            # We use an inline style that mimics dialog-btn but overrides colors
+            main_win = self.parent() if isinstance(self.parent(), QMainWindow) else None
+            warning_color = "#f92672" # default red
+            if main_win and hasattr(main_win, 'current_theme_colors'):
+                warning_color = main_win.current_theme_colors.get("removed", "#f92672")
+                
+            self.yes_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: transparent;
+                    color: {warning_color};
+                    border: 1px solid {warning_color};
+                    border-radius: 4px;
+                    padding: 8px 16px;
+                }}
+                QPushButton:hover {{
+                    background-color: rgba(249, 38, 114, 0.1);
+                }}
+            """)
+            self.no_btn.setProperty("class", "dialog-btn")
+        else:
+            self.yes_btn = QPushButton("Yes, Remove from this commit onwards")
+            self.no_btn = QPushButton("No, Cancel")
+            self.yes_btn.setProperty("class", "dialog-btn")
+            self.no_btn.setProperty("class", "dialog-btn")
 
         self.yes_btn.setMinimumWidth(260)
         self.no_btn.setMinimumWidth(120)
-
-        self.yes_btn.setProperty("class", "dialog-btn")
-        self.no_btn.setProperty("class", "dialog-btn")
 
         self.yes_btn.clicked.connect(self.accept)
         self.no_btn.clicked.connect(self.reject)
 
         self.btn_layout.addWidget(self.yes_btn)
         self.btn_layout.addWidget(self.no_btn)
+
+class AggressiveRemoveConfirmationDialog(QDialog):
+    """
+    Second confirmation dialog when a user chooses to remove a file from history
+    and that file is modified in future commits.
+    """
+    def __init__(self, filepath, commits_modifying_file, font_size=10, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Proceed with aggressive file removal?")
+        self.setMinimumSize(600, 450)
+        self.font_size = font_size
+
+        layout = QVBoxLayout(self)
+
+        label_file = QLabel(f"<b>File:</b><br>{filepath}<br>")
+        label_file.setTextFormat(Qt.RichText)
+        layout.addWidget(label_file)
+
+        label_desc = QLabel("The following commits modify this file and will also be updated:")
+        layout.addWidget(label_desc)
+
+        # List of future commits
+        commit_list = QTextEdit()
+        commit_list.setReadOnly(True)
+        commit_list.setFont(QFont("Courier New", self.font_size))
+        
+        # Display each commit
+        commits_text = ""
+        for sha, msg in commits_modifying_file:
+            commits_text += f"{sha[:8]}  {msg.splitlines()[0] if msg else ''}\n"
+        commit_list.setPlainText(commits_text)
+        layout.addWidget(commit_list)
+
+        label_explain = QLabel(
+            "<br><b>This operation will:</b><br><br>"
+            "✓ Remove file changes from the above commits<br>"
+            "✓ Remove file introduction from selected commit<br>"
+            "✓ Rewrite commit history<br>"
+        )
+        label_explain.setTextFormat(Qt.RichText)
+        layout.addWidget(label_explain)
+
+        main_win = parent if isinstance(parent, QMainWindow) else None
+        warning_color = "#f92672"
+        if main_win and hasattr(main_win, 'current_theme_colors'):
+            warning_color = main_win.current_theme_colors.get("removed", "#f92672")
+
+        label_warning = QLabel("Do this only if you understand the implications of rewriting commit history.")
+        label_warning.setStyleSheet(f"color: {warning_color}; font-weight: bold;")
+        layout.addWidget(label_warning)
+
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+
+        self.proceed_btn = QPushButton("Proceed Anyway")
+        self.cancel_btn = QPushButton("Cancel")
+
+        self.proceed_btn.setMinimumWidth(160)
+        self.cancel_btn.setMinimumWidth(100)
+
+        self.proceed_btn.setProperty("class", "dialog-btn")
+        self.cancel_btn.setProperty("class", "dialog-btn-secondary")
+
+        self.proceed_btn.clicked.connect(self.accept)
+        self.cancel_btn.clicked.connect(self.reject)
+
+        btn_layout.addWidget(self.proceed_btn)
+        btn_layout.addWidget(self.cancel_btn)
+        btn_layout.addStretch()
+
+        layout.addLayout(btn_layout)
 
 class RephraseDialog(QDialog):
     """Dialog for editing commit message."""
