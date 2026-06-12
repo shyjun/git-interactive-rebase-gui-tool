@@ -636,8 +636,14 @@ class SplitCommitDialog(QDialog):
             removed_color=colors["removed"],
             header_color=colors["header"]
         )
+        
+        self.search_bar = DiffSearchBar(target_view=self.diff_view, parent=diff_widget)
+        diff_layout.addWidget(self.search_bar)
         diff_layout.addWidget(self.diff_view)
         
+        self.ctrl_f_shortcut = QShortcut(QKeySequence("Ctrl+F"), self)
+        self.ctrl_f_shortcut.activated.connect(self.search_bar.show_and_focus)
+
         self.main_splitter.addWidget(diff_widget)
 
         # Initial sizes for [Message, File List, Diff View]
@@ -802,8 +808,14 @@ class DropFileFromCommitDialog(QDialog):
             removed_color=colors["removed"],
             header_color=colors["header"]
         )
+        
+        self.search_bar = DiffSearchBar(target_view=self.diff_view, parent=diff_widget)
+        diff_layout.addWidget(self.search_bar)
         diff_layout.addWidget(self.diff_view)
         
+        self.ctrl_f_shortcut = QShortcut(QKeySequence("Ctrl+F"), self)
+        self.ctrl_f_shortcut.activated.connect(self.search_bar.show_and_focus)
+
         self.main_splitter.addWidget(diff_widget)
 
         # Initial sizes for [Message, File List, Diff View]
