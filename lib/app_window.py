@@ -910,6 +910,23 @@ class GitInteractiveRebaseApp(QMainWindow):
         status_layout.addWidget(self.show_date_cb)
 
         status_layout.addStretch()
+
+        sep3 = QLabel("|")
+        sep3.setStyleSheet("color: gray;")
+        status_layout.addWidget(sep3)
+
+        self.total_commits_label = QLabel("Total: 0")
+        self.total_commits_label.setStyleSheet("font-weight: bold;")
+        status_layout.addWidget(self.total_commits_label)
+
+        sep4 = QLabel("|")
+        sep4.setStyleSheet("color: gray;")
+        status_layout.addWidget(sep4)
+
+        self.showing_commits_label = QLabel("Showing: 0")
+        self.showing_commits_label.setStyleSheet("font-weight: bold;")
+        status_layout.addWidget(self.showing_commits_label)
+
         status_bar.addPermanentWidget(status_widget, 1)
 
 
@@ -1171,6 +1188,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         if not search_term or (not by_msg and not by_files and not by_diff):
             for i in range(self.list_widget.count()):
                 self.list_widget.item(i).setHidden(False)
+            self._update_commit_counts()
             return
 
         for i in range(self.list_widget.count()):
@@ -1203,6 +1221,8 @@ class GitInteractiveRebaseApp(QMainWindow):
                 matched = True  # tentatively show — diff pass will hide non-matching ones
 
             item.setHidden(not matched)
+
+        self._update_commit_counts()
 
     def _run_filter_with_diff(self):
         """Debounced diff search: hides commits already shown that do NOT match diff text."""
@@ -1246,6 +1266,12 @@ class GitInteractiveRebaseApp(QMainWindow):
                 item.setHidden(True)
 
         self._diff_status_label.setVisible(False)
+        self._update_commit_counts()
+
+    def _update_commit_counts(self):
+        total = self.list_widget.count()
+        showing = sum(1 for i in range(total) if not self.list_widget.item(i).isHidden())
+        self.showing_commits_label.setText(f"Showing: {showing}")
 
     def handle_set_best_commit(self, item):
         sha = item.text().split()[0]
@@ -4066,6 +4092,13 @@ for i, filename in enumerate(files):
         # Update cache
         self.cached_current_head_full_sha = get_full_head_sha(self.repo_path)
         self.cached_has_uncommitted = uncommitted
+
+        try:
+            total_repo = subprocess.check_output(["git", "rev-list", "--count", "HEAD"], cwd=self.repo_path, encoding='utf-8', errors='replace').strip()
+            self.total_commits_label.setText(f"Total: {total_repo}")
+        except Exception:
+            self.total_commits_label.setText("Total: ?")
+        self._update_commit_counts()
 
         if current_head == self.start_time_head[:8] and not uncommitted:
             self.failsafe_btn.setEnabled(False)
