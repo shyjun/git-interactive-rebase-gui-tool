@@ -1779,6 +1779,13 @@ class GitInteractiveRebaseApp(QMainWindow):
                     color: #d4d4d4;
                     border: 1px solid #3c3c3c;
                 }
+                QStatusBar {
+                    background-color: #1e1e1e;
+                    border-top: 1px solid #3c3c3c;
+                }
+                QStatusBar::item {
+                    border: none;
+                }
                 QMenu::item:selected {
                     background-color: #007acc;
                     color: white;
@@ -1878,6 +1885,13 @@ class GitInteractiveRebaseApp(QMainWindow):
                     background-color: #f5f5f7;
                     color: #333;
                     border: 1px solid #ccc;
+                }
+                QStatusBar {
+                    background-color: #f5f5f7;
+                    border-top: 1px solid #ccc;
+                }
+                QStatusBar::item {
+                    border: none;
                 }
                 QMenu::item:selected {
                     background-color: #007aff;
