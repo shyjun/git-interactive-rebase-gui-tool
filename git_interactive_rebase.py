@@ -15,6 +15,7 @@ from datetime import datetime
 
 from PySide6.QtWidgets import QApplication, QMessageBox
 from PySide6.QtGui import QIcon
+from PySide6.QtCore import QSettings
 import tempfile
 import stat
 
@@ -24,7 +25,7 @@ from lib.git_helpers import (
     has_uncommitted_changes, stash_changes, get_unstaged_files, commit_file,
     bulk_commit_all, stash_pop, get_full_head_sha
 )
-from lib.app_window import GitInteractiveRebaseApp
+from lib.app_window import GitInteractiveRebaseApp, get_theme_stylesheet
 from lib.dialogs import UnstagedChangesDialog, ProgressDialog
 
 import shutil
@@ -97,6 +98,11 @@ def main():
         except Exception:
             QMessageBox.critical(None, "Error", f"Invalid commit reference: {commit_sha}")
             sys.exit(1)
+
+    # Apply global stylesheet before any dialog, so the startup unstaged-changes
+    # dialog matches the themed look of the rest of the app.
+    theme_name = QSettings("git-interactive-rebase-gui-tool", "settings").value("theme", "light", type=str)
+    QApplication.instance().setStyleSheet(get_theme_stylesheet(theme_name))
 
     # Check for unstaged changes (ignoring submodules as per design)
     created_stash_sha = None
