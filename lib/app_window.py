@@ -1137,6 +1137,10 @@ class GitInteractiveRebaseApp(QMainWindow):
         status_layout.addWidget(self.show_stats_cb)
         status_layout.addWidget(self.show_date_cb)
 
+        sep_date = QLabel("|")
+        sep_date.setStyleSheet("color: gray;")
+        status_layout.addWidget(sep_date)
+
         status_layout.addStretch()
 
         sep3 = QLabel("|")
