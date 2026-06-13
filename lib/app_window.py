@@ -486,6 +486,9 @@ def get_theme_stylesheet(theme_name):
                 background-color: #007acc;
                 color: white;
             }
+            QMenu::item:disabled {
+                color: #666666;
+            }
             QTextEdit {
                 background-color: #1e1e1e;
                 color: #d4d4d4;
@@ -586,6 +589,9 @@ def get_theme_stylesheet(theme_name):
             QMenu::item:selected {
                 background-color: #007aff;
                 color: white;
+            }
+            QMenu::item:disabled {
+                color: #aaaaaa;
             }
             QTextEdit {
                 background-color: #ffffff;
