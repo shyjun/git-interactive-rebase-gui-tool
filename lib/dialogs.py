@@ -1761,7 +1761,7 @@ class UnstagedChangesDialog(QDialog):
         
         self.label = QLabel(message)
         self.label.setWordWrap(True)
-        self.label.setStyleSheet("font-size: 13px;")
+        self.label.setStyleSheet("font-size: 13px; font-weight: normal;")
         layout.addWidget(self.label)
         
         btn_layout = QVBoxLayout()

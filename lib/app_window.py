@@ -405,6 +405,200 @@ class CommitListWidget(QListWidget):
             import traceback
             traceback.print_exc()
 
+def get_theme_stylesheet(theme_name):
+    """Return the QSS stylesheet for the given theme name (\"dark\" or \"light\")."""
+    if theme_name == "dark":
+        return """
+            QMainWindow, QWidget {
+                background-color: #1e1e1e;
+                color: #cccccc;
+            }
+            QListWidget {
+                background-color: #252526;
+                border: 1px solid #3c3c3c;
+                border-radius: 8px;
+                padding: 5px;
+                color: #cccccc;
+            }
+            QListWidget::item {
+                padding: 8px;
+                border-bottom: 1px solid #333333;
+            }
+            QListWidget::item:selected {
+                background-color: #37373d;
+                color: #ffffff;
+            }
+            QGroupBox {
+                border: 1px solid #3c3c3c;
+                border-radius: 5px;
+                margin-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 3px 0 3px;
+            }
+            QPushButton {
+                background-color: #333333;
+                color: #cccccc;
+                border: 1px solid #3c3c3c;
+                padding: 8px 15px;
+                border-radius: 5px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #444444;
+            }
+            QPushButton:pressed {
+                background-color: #007acc;
+                color: white;
+            }
+            QPushButton.dialog-btn {
+                background-color: #333333;
+                border: 1px solid #444444;
+            }
+            QPushButton.dialog-btn:hover {
+                background-color: #007acc;
+                color: white;
+            }
+            QLabel {
+                font-weight: bold;
+                color: #cccccc;
+            }
+            QDialog, QMenu {
+                background-color: #1e1e1e;
+                color: #d4d4d4;
+                border: 1px solid #3c3c3c;
+            }
+            QStatusBar {
+                background-color: #1e1e1e;
+                border-top: 1px solid #3c3c3c;
+            }
+            QStatusBar::item {
+                border: none;
+            }
+            QMenu::item:selected {
+                background-color: #007acc;
+                color: white;
+            }
+            QTextEdit {
+                background-color: #1e1e1e;
+                color: #d4d4d4;
+                border: 1px solid #3c3c3c;
+                border-radius: 4px;
+            }
+            QScrollBar:vertical {
+                background: #1e1e1e;
+                width: 12px;
+                margin: 0px;
+            }
+            QScrollBar::handle:vertical {
+                background: #37373d;
+                min-height: 20px;
+                border-radius: 6px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: #4f4f4f;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+        """
+    else:
+        return """
+            QMainWindow, QWidget {
+                background-color: #f5f5f7;
+                color: #333;
+            }
+            QListWidget {
+                background-color: #ffffff;
+                border: 1px solid #ddd;
+                border-radius: 8px;
+                padding: 5px;
+                color: #333;
+            }
+            QListWidget::item {
+                padding: 8px;
+                border-bottom: 1px solid #eee;
+            }
+            QListWidget::item:selected {
+                background-color: #007aff;
+                color: white;
+            }
+            QGroupBox {
+                border: 1px solid #ccc;
+                border-radius: 5px;
+                margin-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 3px 0 3px;
+            }
+            QPushButton {
+                background-color: #ffffff;
+                color: #333;
+                border: 1px solid #ccc;
+                padding: 8px 15px;
+                border-radius: 5px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #f0f0f0;
+            }
+            QPushButton:pressed {
+                background-color: #d0d0d0;
+            }
+            QPushButton.dialog-btn {
+                background-color: #e1e1e1;
+                border: 1px solid #bbb;
+            }
+            QPushButton.dialog-btn:hover {
+                background-color: #007aff;
+                color: white;
+            }
+            QLabel {
+                font-weight: bold;
+                color: #333;
+            }
+            QDialog, QMenu {
+                background-color: #f5f5f7;
+                color: #333;
+                border: 1px solid #ccc;
+            }
+            QStatusBar {
+                background-color: #f5f5f7;
+                border-top: 1px solid #ccc;
+            }
+            QStatusBar::item {
+                border: none;
+            }
+            QMenu::item:selected {
+                background-color: #007aff;
+                color: white;
+            }
+            QTextEdit {
+                background-color: #ffffff;
+                color: #333;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+            }
+            QScrollBar:vertical {
+                background: #f5f5f7;
+                width: 12px;
+                margin: 0px;
+            }
+            QScrollBar::handle:vertical {
+                background: #ccc;
+                min-height: 20px;
+                border-radius: 6px;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+        """
+
+
 class GitInteractiveRebaseApp(QMainWindow):
     def __init__(self, repo_path, commit_sha, app_start_time, base_branch=None):
         super().__init__()
@@ -1771,9 +1965,6 @@ class GitInteractiveRebaseApp(QMainWindow):
                     border-radius: 5px;
                     font-weight: bold;
                 }
-                QDialog QPushButton {
-                    font-weight: normal;
-                }
                 QPushButton:hover {
                     background-color: #444444;
                 }
@@ -1790,6 +1981,7 @@ class GitInteractiveRebaseApp(QMainWindow):
                     color: white;
                 }
                 QLabel {
+                    font-weight: bold;
                     color: #cccccc;
                 }
                 QDialog, QMenu {
@@ -1879,9 +2071,6 @@ class GitInteractiveRebaseApp(QMainWindow):
                     border-radius: 5px;
                     font-weight: bold;
                 }
-                QDialog QPushButton {
-                    font-weight: normal;
-                }
                 QPushButton:hover {
                     background-color: #f0f0f0;
                 }
@@ -1897,6 +2086,7 @@ class GitInteractiveRebaseApp(QMainWindow):
                     color: white;
                 }
                 QLabel {
+                    font-weight: bold;
                     color: #333;
                 }
                 QDialog, QMenu {
