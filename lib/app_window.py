@@ -655,6 +655,7 @@ class GitInteractiveRebaseApp(QMainWindow):
 
         self.load_history()
         self.update_rebase_buttons()
+        self.list_widget.setFocus()
 
     def load_settings(self):
         """Loads persistent user settings like font size and theme."""
