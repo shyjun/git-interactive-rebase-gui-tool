@@ -793,6 +793,12 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.filter_by_diff_cb.stateChanged.connect(lambda: self.filter_commits(self.search_edit.text()))
         search_row_layout.addWidget(self.filter_by_diff_cb)
 
+        self.filter_by_author_cb = QCheckBox("Author")
+        self.filter_by_author_cb.setChecked(False)
+        self.filter_by_author_cb.setToolTip("Filter commits by author name or email")
+        self.filter_by_author_cb.stateChanged.connect(lambda: self.filter_commits(self.search_edit.text()))
+        search_row_layout.addWidget(self.filter_by_author_cb)
+
         # Debounce timer for diff search (expensive)
         self._diff_search_timer = QTimer(self)
         self._diff_search_timer.setSingleShot(True)
@@ -1433,16 +1439,17 @@ class GitInteractiveRebaseApp(QMainWindow):
             self._diff_status_label.setVisible(False)
 
     def _run_filter_no_diff(self, search_term=None):
-        """Instant filtering by commit message and filenames."""
+        """Instant filtering by commit message, filenames, and author."""
         if search_term is None:
             search_term = self.search_edit.text().strip().lower()
 
         by_msg = self.filter_by_msg_cb.isChecked()
         by_files = self.filter_by_files_cb.isChecked()
         by_diff = self.filter_by_diff_cb.isChecked()
+        by_author = self.filter_by_author_cb.isChecked()
 
         # If no text or all disabled → show all and clear any diff-pending markers
-        if not search_term or (not by_msg and not by_files and not by_diff):
+        if not search_term or (not by_msg and not by_files and not by_diff and not by_author):
             for i in range(self.list_widget.count()):
                 self.list_widget.item(i).setHidden(False)
             self._update_commit_counts()
@@ -1471,6 +1478,12 @@ class GitInteractiveRebaseApp(QMainWindow):
                         self.commit_cache[sha] = cache_entry
                 files = cache_entry.get('files', [])
                 if any(search_term in f.lower() for f in files):
+                    matched = True
+
+            # Author match (name or email) — stored at init, instant
+            if not matched and by_author:
+                author = item.data(Qt.UserRole + 4) or ""
+                if search_term in author.lower():
                     matched = True
 
             # When diff search is enabled keep items visible for now (diff pass will correct)
@@ -4232,6 +4245,7 @@ for i, filename in enumerate(files):
                     item = QListWidgetItem(line)
                     item.setData(Qt.UserRole + 2, entry.get("date", ""))
                     item.setData(Qt.UserRole + 3, (entry.get("added", 0), entry.get("deleted", 0)))
+                    item.setData(Qt.UserRole + 4, entry.get("author", ""))
                 else:
                     line = entry
                     sha = line.split()[0]

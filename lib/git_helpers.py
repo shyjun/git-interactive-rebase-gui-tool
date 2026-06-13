@@ -19,9 +19,9 @@ def get_git_history(repo_path, commit_sha):
             has_parent = False
 
         if has_parent:
-            cmd = ["git", "log", f"{commit_sha}..HEAD", "--format=%h|%cd|%s", "--date=format:%d %b %Y", "--shortstat"]
+            cmd = ["git", "log", f"{commit_sha}..HEAD", "--format=%h|%cd|%an <%ae>|%s", "--date=format:%d %b %Y", "--shortstat"]
         else:
-            cmd = ["git", "log", "HEAD", "--format=%h|%cd|%s", "--date=format:%d %b %Y", "--shortstat"]
+            cmd = ["git", "log", "HEAD", "--format=%h|%cd|%an <%ae>|%s", "--date=format:%d %b %Y", "--shortstat"]
         
         result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
         
@@ -38,18 +38,19 @@ def get_git_history(repo_path, commit_sha):
             if not line:
                 continue
             
-            # format pipe boundary: shastring|datestring|messagestring
-            if '|' in line and (line.split('|', 2)[0].isalnum() and len(line.split('|', 2)[0]) >= 7):
-                parts = line.split('|', 2)
+            # format pipe boundary: shastring|datestring|authorstring|messagestring
+            if '|' in line and (line.split('|', 3)[0].isalnum() and len(line.split('|', 3)[0]) >= 7):
+                parts = line.split('|', 3)
                 if current_commit:
                     commits.append(current_commit)
                 current_commit = {
                     "sha": parts[0],
                     "date": parts[1],
-                    "message": parts[2] if len(parts) > 2 else "",
+                    "author": parts[2] if len(parts) > 2 else "",
+                    "message": parts[3] if len(parts) > 3 else "",
                     "added": 0,
                     "deleted": 0,
-                    "raw_text": f"{parts[0]} {parts[2] if len(parts) > 2 else ''}"
+                    "raw_text": f"{parts[0]} {parts[3] if len(parts) > 3 else ''}"
                 }
             else:
                 # It must be a shortstat line
