@@ -1158,6 +1158,14 @@ class GitInteractiveRebaseApp(QMainWindow):
         sep_date.setStyleSheet("color: gray;")
         status_layout.addWidget(sep_date)
 
+        self.always_on_top_cb = QCheckBox("Always On Top")
+        self.always_on_top_cb.toggled.connect(self._on_always_on_top_toggled)
+        status_layout.addWidget(self.always_on_top_cb)
+
+        sep_ontop = QLabel("|")
+        sep_ontop.setStyleSheet("color: gray;")
+        status_layout.addWidget(sep_ontop)
+
         status_layout.addStretch()
 
         sep3 = QLabel("|")
@@ -1950,6 +1958,13 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.show_date = self.show_date_cb.isChecked()
         self.settings.setValue("show_date", self.show_date)
         self.list_widget.viewport().update()
+
+    def _on_always_on_top_toggled(self, checked):
+        if checked:
+            self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
+        else:
+            self.setWindowFlags(self.windowFlags() & ~Qt.WindowStaysOnTopHint)
+        self.show()
 
     def force_window_resize(self):
         """Forces the window to shrink to its minimum size hint if not maximized."""
