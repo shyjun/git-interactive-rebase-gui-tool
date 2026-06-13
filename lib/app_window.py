@@ -217,32 +217,35 @@ class CommitItemDelegate(QStyledItemDelegate):
         style = widget.style() if widget else QApplication.style()
         style.drawControl(QStyle.CE_ItemViewItem, opt, painter, widget)
 
-        # Draw commit graph node (circle + connecting line)
+        # Draw commit graph node (circle + connecting line) - skip during multi-select mode
         GRAPH_WIDTH = 22
-        is_dark = getattr(main_win, 'is_dark_theme', True) if main_win else True
-        painter.save()
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        center_x = option.rect.left() + GRAPH_WIDTH // 2
-        center_y = option.rect.center().y()
-        rad = 5
-        total = self.parent().count() if hasattr(self, 'parent') and self.parent() else 0
-        if index.row() > 0:
-            painter.setPen(QPen(QColor("#555555" if is_dark else "#aaaaaa"), 1.5))
-            painter.drawLine(center_x, option.rect.top(), center_x, center_y - rad)
-        if index.row() < total - 1:
-            painter.setPen(QPen(QColor("#555555" if is_dark else "#aaaaaa"), 1.5))
-            painter.drawLine(center_x, center_y + rad, center_x, option.rect.bottom())
-        node_color = QColor("#ffd700") if index.row() == 0 else (QColor("#4fc3f7") if is_dark else QColor("#1565c0"))
-        painter.setBrush(node_color)
-        painter.setPen(QPen(node_color.darker(130), 1))
-        painter.drawEllipse(center_x - rad, center_y - rad, rad * 2, rad * 2)
-        painter.restore()
+        is_multi = main_win and getattr(main_win, 'multi_select_mode', False)
+        if not is_multi:
+            is_dark = getattr(main_win, 'is_dark_theme', True) if main_win else True
+            painter.save()
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            center_x = option.rect.left() + GRAPH_WIDTH // 2
+            center_y = option.rect.center().y()
+            rad = 5
+            total = self.parent().count() if hasattr(self, 'parent') and self.parent() else 0
+            if index.row() > 0:
+                painter.setPen(QPen(QColor("#555555" if is_dark else "#aaaaaa"), 1.5))
+                painter.drawLine(center_x, option.rect.top(), center_x, center_y - rad)
+            if index.row() < total - 1:
+                painter.setPen(QPen(QColor("#555555" if is_dark else "#aaaaaa"), 1.5))
+                painter.drawLine(center_x, center_y + rad, center_x, option.rect.bottom())
+            node_color = QColor("#ffd700") if index.row() == 0 else (QColor("#4fc3f7") if is_dark else QColor("#1565c0"))
+            painter.setBrush(node_color)
+            painter.setPen(QPen(node_color.darker(130), 1))
+            painter.drawEllipse(center_x - rad, center_y - rad, rad * 2, rad * 2)
+            painter.restore()
 
         show_branches = getattr(main_win, "show_local_branches", False)
 
         branch_text = index.data(Qt.UserRole + 1) if show_branches else None
         text_rect = style.subElementRect(QStyle.SE_ItemViewItemText, opt, widget)
-        text_rect = text_rect.adjusted(GRAPH_WIDTH, 0, 0, 0)
+        if not is_multi:
+            text_rect = text_rect.adjusted(GRAPH_WIDTH, 0, 0, 0)
 
         painter.save()
         if opt.state & QStyle.State_Selected:
