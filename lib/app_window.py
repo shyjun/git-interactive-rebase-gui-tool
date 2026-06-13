@@ -23,7 +23,7 @@ from PySide6.QtWidgets import (
 # pyrefly: ignore [missing-import]
 from PySide6.QtGui import QFont, QSyntaxHighlighter, QTextCharFormat, QColor, QAction, QShortcut, QKeySequence, QIcon, QBrush, QPainter, QPen
 # pyrefly: ignore [missing-import]
-from PySide6.QtCore import Qt, QSize, QSettings, QThread, Signal, QRect, QTimer
+from PySide6.QtCore import Qt, QSize, QSettings, QThread, Signal, QRect, QTimer, Slot
 
 from lib.git_helpers import (
     get_git_history, get_head_sha, get_full_head_sha, get_current_branch, get_commit_diff,
@@ -1514,6 +1514,37 @@ class GitInteractiveRebaseApp(QMainWindow):
         total = self.list_widget.count()
         showing = sum(1 for i in range(total) if not self.list_widget.item(i).isHidden())
         self.showing_commits_label.setText(f"Showing: {showing}")
+
+    def _count_total_commits_async(self):
+        """Count total commits in repo in background thread to avoid blocking startup."""
+        import threading
+        def worker():
+            try:
+                total = subprocess.check_output(
+                    ["git", "rev-list", "--count", "HEAD"],
+                    cwd=self.repo_path, encoding='utf-8', errors='replace'
+                ).strip()
+                from PySide6.QtCore import QMetaObject, Qt, Q_ARG
+                print(f"Total commits in repo: {total}")
+                QMetaObject.invokeMethod(
+                    self, "_set_total_commit_count",
+                    Qt.QueuedConnection,
+                    Q_ARG(str, total)
+                )
+            except Exception:
+                from PySide6.QtCore import QMetaObject, Qt, Q_ARG
+                QMetaObject.invokeMethod(
+                    self, "_set_total_commit_count",
+                    Qt.QueuedConnection,
+                    Q_ARG(str, "?")
+                )
+        print("Spawning thread to find total commit count ...")
+        thread = threading.Thread(target=worker, daemon=True)
+        thread.start()
+
+    @Slot(str)
+    def _set_total_commit_count(self, count_str):
+        self.total_commits_label.setText(f"Total commits in repo: {count_str}")
 
     def _set_icon(self, button, fallback_icon, theme_name=None):
         if theme_name:
@@ -4205,11 +4236,8 @@ for i, filename in enumerate(files):
         self.cached_current_head_full_sha = get_full_head_sha(self.repo_path)
         self.cached_has_uncommitted = uncommitted
 
-        try:
-            total_repo = subprocess.check_output(["git", "rev-list", "--count", "HEAD"], cwd=self.repo_path, encoding='utf-8', errors='replace').strip()
-            self.total_commits_label.setText(f"Total commits in repo: {total_repo}")
-        except Exception:
-            self.total_commits_label.setText("Total: ?")
+        self.total_commits_label.setText("Total: counting...")
+        self._count_total_commits_async()
         self._update_commit_counts()
 
         if current_head == self.start_time_head[:8] and not uncommitted:
