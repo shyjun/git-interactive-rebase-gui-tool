@@ -453,6 +453,11 @@ def get_theme_stylesheet(theme_name):
                 background-color: #007acc;
                 color: white;
             }
+            QPushButton:disabled {
+                background-color: #2a2a2a;
+                color: #666666;
+                border: 1px solid #444444;
+            }
             QPushButton.dialog-btn {
                 background-color: #333333;
                 border: 1px solid #444444;
@@ -548,6 +553,11 @@ def get_theme_stylesheet(theme_name):
             }
             QPushButton:pressed {
                 background-color: #d0d0d0;
+            }
+            QPushButton:disabled {
+                background-color: #f0f0f0;
+                color: #aaaaaa;
+                border: 1px solid #e0e0e0;
             }
             QPushButton.dialog-btn {
                 background-color: #e1e1e1;
