@@ -2371,6 +2371,9 @@ class GitInteractiveRebaseApp(QMainWindow):
         """Executes git revert --no-commit then commits with the edited message."""
         self.save_undo_state()
         old_head = self.get_head_sha()
+        progress = ProgressDialog("Reverting Commit", f"Reverting {sha}...", self)
+        progress.show()
+        QApplication.processEvents()
         try:
             # Revert without auto-committing so we can supply our own message
             subprocess.run(
@@ -2378,15 +2381,19 @@ class GitInteractiveRebaseApp(QMainWindow):
                 cwd=self.repo_path, check=True, capture_output=True, text=True
             )
             # Commit with the (possibly edited) revert message
+            progress.label.setText("Committing revert...")
+            QApplication.processEvents()
             subprocess.run(
                 ["git", "commit", "-m", revert_message],
                 cwd=self.repo_path, check=True, capture_output=True, text=True
             )
+            progress.close()
             self.load_history()
             new_head = self.get_head_sha()
             self.log_action(sha, "reverted", old_head, new_head)
             QMessageBox.information(self, "Success", f"Commit {sha} reverted successfully.")
         except subprocess.CalledProcessError as e:
+            progress.close()
             # Abort any lingering revert state so the repo stays clean
             subprocess.run(["git", "revert", "--abort"], cwd=self.repo_path, capture_output=True)
             QMessageBox.critical(self, "Revert Failed",
