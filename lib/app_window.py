@@ -13,7 +13,7 @@ import time
 
 # pyrefly: ignore [missing-import]
 from PySide6.QtWidgets import (
-    QApplication, QMainWindow, QListWidget, QVBoxLayout, 
+    QApplication, QMainWindow, QListWidget, QVBoxLayout,
     QWidget, QMessageBox, QListWidgetItem, QMenu, QDialog,
     QTextEdit, QPlainTextEdit, QPushButton, QHBoxLayout, QLabel, QRadioButton,
     QLineEdit, QSplitter, QInputDialog, QGroupBox, QSizePolicy, QCheckBox,
@@ -144,21 +144,21 @@ class HelpDialog(QDialog):
             # Create an icon label and overlay it or use layout
             btn_layout = QHBoxLayout(btn)
             btn_layout.setContentsMargins(15, 0, 15, 0)
-            
+
             icon_label = QLabel()
             if os.path.exists(icon_path):
                 pixmap = QIcon(icon_path).pixmap(32, 32)
                 icon_label.setPixmap(pixmap)
             icon_label.setFixedSize(32, 32)
             icon_label.setStyleSheet("background: transparent;")
-            
+
             text_label = QLabel(text)
             text_label.setStyleSheet("font-size: 15px; color: #444; background: transparent;")
-            
+
             btn_layout.addWidget(icon_label)
             btn_layout.addWidget(text_label)
             btn_layout.addStretch()
-            
+
             btn.clicked.connect(slot)
             return btn
 
@@ -166,13 +166,13 @@ class HelpDialog(QDialog):
             base_path = get_assets_path()
         except Exception:
             base_path = ""
-        
+
         layout.addWidget(make_help_button("View Video Demo", os.path.join(base_path, "youtube_icon.png"), self._open_video))
         layout.addWidget(make_help_button("View Readme", os.path.join(base_path, "readme_icon.png"), self._open_readme))
         layout.addWidget(make_help_button("Mail to Author (n.shyju@gmail.com)", os.path.join(base_path, "mail_icon.png"), self._open_mail))
 
         layout.addSpacing(10)
-        
+
         bottom_layout = QHBoxLayout()
         bottom_layout.addStretch()
         close_btn = QPushButton("Close")
@@ -182,7 +182,7 @@ class HelpDialog(QDialog):
         close_btn.clicked.connect(self.accept)
         bottom_layout.addWidget(close_btn)
         bottom_layout.addStretch()
-        
+
         layout.addLayout(bottom_layout)
 
     def _open_video(self):
@@ -198,22 +198,22 @@ class CommitItemDelegate(QStyledItemDelegate):
     def paint(self, painter, option, index):
         opt = QStyleOptionViewItem(option)
         self.initStyleOption(opt, index)
-        
+
         main_text = opt.text
         opt.text = ""  # Hide text so super() doesn't draw it
-        
+
         widget = option.widget
         main_win = widget.window() if widget else None
         sha = index.data(Qt.DisplayRole).split()[0] if index.data(Qt.DisplayRole) else ""
         is_marked = main_win and getattr(main_win, 'marked_shas', None) and sha in main_win.marked_shas
-        
+
         painter.save()
         if is_marked and not (opt.state & QStyle.State_Selected):
             is_dark = getattr(main_win, 'is_dark_theme', True) if main_win else True
             marked_bg = QColor("#000000") if is_dark else QColor("#e0e0e0")
             painter.fillRect(option.rect, marked_bg)
         painter.restore()
-        
+
         style = widget.style() if widget else QApplication.style()
         style.drawControl(QStyle.CE_ItemViewItem, opt, painter, widget)
 
@@ -237,66 +237,66 @@ class CommitItemDelegate(QStyledItemDelegate):
         painter.setPen(QPen(node_color.darker(130), 1))
         painter.drawEllipse(center_x - rad, center_y - rad, rad * 2, rad * 2)
         painter.restore()
-        
+
         show_branches = getattr(main_win, "show_local_branches", False)
-        
+
         branch_text = index.data(Qt.UserRole + 1) if show_branches else None
         text_rect = style.subElementRect(QStyle.SE_ItemViewItemText, opt, widget)
         text_rect = text_rect.adjusted(GRAPH_WIDTH, 0, 0, 0)
-        
+
         painter.save()
         if opt.state & QStyle.State_Selected:
             painter.setPen(opt.palette.highlightedText().color())
         else:
             painter.setPen(opt.palette.text().color())
-            
+
         if branch_text:
             branches = branch_text.split(", ")
             current_x = text_rect.left()
             is_dark = getattr(main_win, 'is_dark_theme', True) if main_win else True
-            
+
             # Setup bold font lazily and cache it
             if not hasattr(self, '_bold_font') or getattr(self, '_base_font', None) != opt.font:
                 self._base_font = QFont(opt.font)
                 self._bold_font = QFont(opt.font)
                 self._bold_font.setBold(True)
                 # fm_bold will be recreated dynamically when painter.setFont is called
-                
+
             painter.setFont(self._bold_font)
             fm_bold = painter.fontMetrics()
-            
+
             for br in branches:
                 is_remote = br.startswith("origin/")
-                
+
                 # Determine colors based on branch type and theme
                 if is_remote:
                     color = QColor("#ffb74d") if is_dark else QColor("#e65100") # Amber/Orange
                 else:
                     color = QColor("#81c784") if is_dark else QColor("#2e7d32") # Green
-                
+
                 # If selected, use highlighted text color to ensure readability
                 if opt.state & QStyle.State_Selected:
                     color = opt.palette.highlightedText().color()
-                
+
                 painter.setPen(color)
                 br_box = f"[{br}] "
-                painter.drawText(QRect(current_x, text_rect.top(), text_rect.width() - (current_x - text_rect.left()), text_rect.height()), 
+                painter.drawText(QRect(current_x, text_rect.top(), text_rect.width() - (current_x - text_rect.left()), text_rect.height()),
                                  Qt.AlignLeft | Qt.AlignVCenter, br_box)
-                
+
                 current_x += fm_bold.horizontalAdvance(br_box)
         else:
             current_x = text_rect.left()
-            
+
         # Configure rest of text styling correctly
         painter.setFont(opt.font)
         fm_normal = painter.fontMetrics()
-        
+
         show_stats = getattr(main_win, "show_stats", True)
         show_date = getattr(main_win, "show_date", True)
         date_str = index.data(Qt.UserRole + 2)
         stats = index.data(Qt.UserRole + 3)
         right_boundary = text_rect.right()
-        
+
         if show_date and date_str:
             date_w = fm_normal.horizontalAdvance(date_str)
             date_rect = QRect(right_boundary - date_w, text_rect.top(), date_w, text_rect.height())
@@ -305,23 +305,23 @@ class CommitItemDelegate(QStyledItemDelegate):
             painter.drawText(date_rect, Qt.AlignRight | Qt.AlignVCenter, date_str)
             painter.restore()
             right_boundary -= (date_w + 8)
-            
+
         if show_stats and stats and isinstance(stats, tuple) and len(stats) == 2:
             added, deleted = stats
             added_str = f"+{added}"
             deleted_str = f" -{deleted}"
             deleted_w = fm_normal.horizontalAdvance(deleted_str)
             added_w = fm_normal.horizontalAdvance(added_str)
-            
+
             painter.save()
             is_dark = getattr(main_win, 'is_dark_theme', True) if main_win else True
             green_col = QColor("#81c784") if is_dark else QColor("#22863a")
             red_col = QColor("#e57373") if is_dark else QColor("#cb2431")
-            
+
             painter.setPen(QColor("white") if (opt.state & QStyle.State_Selected) else red_col)
             painter.drawText(QRect(right_boundary - deleted_w, text_rect.top(), deleted_w, text_rect.height()), Qt.AlignLeft | Qt.AlignVCenter, deleted_str)
             right_boundary -= deleted_w
-            
+
             painter.setPen(QColor("white") if (opt.state & QStyle.State_Selected) else green_col)
             painter.drawText(QRect(right_boundary - added_w, text_rect.top(), added_w, text_rect.height()), Qt.AlignLeft | Qt.AlignVCenter, added_str)
             right_boundary -= (added_w + 8)
@@ -333,12 +333,12 @@ class CommitItemDelegate(QStyledItemDelegate):
             painter.setPen(opt.palette.highlightedText().color())
         else:
             painter.setPen(opt.palette.text().color())
-        
+
         main_rect = text_rect.adjusted(left_boundary - text_rect.left(), 0, right_boundary - text_rect.right() - 8, 0)
         elided_main = fm_normal.elidedText(main_text, Qt.ElideRight, main_rect.width())
         painter.drawText(main_rect, Qt.AlignLeft | Qt.AlignVCenter, elided_main)
         painter.restore()
-            
+
         painter.restore()
 
 class CommitListWidget(QListWidget):
@@ -362,7 +362,7 @@ class CommitListWidget(QListWidget):
                 return
 
             sha = dragged_item.text().split()[0]
-            
+
             # Identify the target location to give a more descriptive message
             # event.position() returns QPointF, indexAt() needs QPoint
             target_index = self.indexAt(event.position().toPoint())
@@ -376,20 +376,20 @@ class CommitListWidget(QListWidget):
 
             # Ask for confirmation BEFORE any visual change in the list
             reply = QMessageBox.question(
-                self, 
+                self,
                 "Confirm Reorder",
                 f"Do you want to move commit <b>{sha}</b> {target_msg}?",
-                QMessageBox.Yes | QMessageBox.No, 
+                QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No
             )
-            
+
             if reply == QMessageBox.Yes:
                 # Capture the original order BEFORE the move
                 original_shas = [self.item(i).text().split()[0] for i in range(self.count())]
-                
+
                 # Now perform the visual move
                 super().dropEvent(event)
-                
+
                 # Capture the new order and perform rebase
                 new_shas = [self.item(i).text().split()[0] for i in range(self.count())]
                 self.main_window.perform_move(new_shas, original_shas)
@@ -416,9 +416,9 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.last_head = None
         self.best_commit_sha = None
         self.marked_shas = set()
-        
+
         # Global application icon is handled in the main entry point
-        
+
         # Persistence
         self.settings = QSettings("shyjun", "GitInteractiveRebase")
         self.current_font_size = int(self.settings.value("font_size", 10))
@@ -429,7 +429,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.show_local_branches = self.settings.value("show_local_branches", False, type=bool)
         self.show_stats = self.settings.value("show_stats", True, type=bool)
         self.show_date = self.settings.value("show_date", True, type=bool)
-        
+
         self.setWindowTitle(f"git-interactive-rebase-gui-tool : branch=..., HEAD=..., path={self.repo_path}") # Temporary name until load_history updates it
         self.resize(1100, 800)
         self.setMinimumWidth(1100)
@@ -437,15 +437,15 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.setup_ui()
         self.restore_visibility_settings()
         self.load_settings()
-        
+
         # Performance Cache
         self.commit_cache = {} # sha -> {'meta': str, 'msg': str, 'diff': str, 'files': list}
-        
+
         # Debounce timer for side diff updates
         self.update_diff_timer = QTimer(self)
         self.update_diff_timer.setSingleShot(True)
         self.update_diff_timer.timeout.connect(self._do_update_side_diff)
-        
+
         self.load_history()
         self.update_rebase_buttons()
 
@@ -455,12 +455,12 @@ class GitInteractiveRebaseApp(QMainWindow):
         diff_tab_index = self.settings.value("diff_tab_index", 0, type=int)
         if hasattr(self, 'diff_tab_widget'):
             self.diff_tab_widget.setCurrentIndex(diff_tab_index)
-            
+
         # Font Size
         size = self.settings.value("font_size", 10, type=int)
         self.current_font_size = size
         self.update_font()
-        
+
         # Theme
         theme = self.settings.value("theme", "light", type=str)
         self.is_dark_theme = (theme == "dark")
@@ -469,20 +469,20 @@ class GitInteractiveRebaseApp(QMainWindow):
         else:
             self.light_radio.setChecked(True)
         self.apply_theme(theme)
-        
+
         # Window Geometry and State
         geometry = self.settings.value("geometry")
         if geometry:
             self.restoreGeometry(geometry)
-        
+
         window_state = self.settings.value("windowState")
         if window_state:
             self.restoreState(window_state)
-            
+
         is_maximized = self.settings.value("isMaximized", False, type=bool)
         if is_maximized:
             self.showMaximized()
-            
+
     def closeEvent(self, event):
         """Save settings before exiting."""
         self.settings.setValue("geometry", self.saveGeometry())
@@ -501,7 +501,7 @@ class GitInteractiveRebaseApp(QMainWindow):
     def get_head_sha(self):
         """Returns the current HEAD SHA of the repository."""
         try:
-            return subprocess.check_output(['git', 'rev-parse', 'HEAD'], 
+            return subprocess.check_output(['git', 'rev-parse', 'HEAD'],
                                           cwd=self.repo_path).decode().strip()
         except:
             return "unknown"
@@ -512,7 +512,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         s_sha = sha[:8] if sha and len(sha) > 8 else (sha or "N/A")
         s_old = old_head[:8] if len(old_head) > 8 else old_head
         s_new = new_head[:8] if len(new_head) > 8 else new_head
-        
+
         print(f"[{time.strftime('%H:%M:%S')}] {s_sha} {action}, HEAD before={s_old}, HEAD after={s_new}")
 
     def restore_visibility_settings(self):
@@ -520,15 +520,15 @@ class GitInteractiveRebaseApp(QMainWindow):
         # Origin Options Visibility
         self.show_origin_cb.setChecked(self.show_origin_options)
         self.origin_group.setVisible(self.show_origin_options)
-        
+
         # Rebase Options Visibility
         self.show_rebase_cb.setChecked(self.show_rebase_options)
         self.rebase_group.setVisible(self.show_rebase_options)
-        
+
         # Squash Options Visibility
         self.show_squash_cb.setChecked(self.show_squash_options)
         self.squash_group.setVisible(self.show_squash_options)
-        
+
         # Local Branches Visibility
         self.show_local_branches_cb.setChecked(self.show_local_branches)
 
@@ -536,14 +536,14 @@ class GitInteractiveRebaseApp(QMainWindow):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         layout = QVBoxLayout(central_widget)
-        
+
         # Use our custom list widget
         self.list_widget = CommitListWidget(self)
         self.list_widget.setItemDelegate(CommitItemDelegate(self.list_widget))
         self.update_font()
         self.list_widget.setContextMenuPolicy(Qt.CustomContextMenu)
         self.list_widget.customContextMenuRequested.connect(self.show_context_menu)
-        
+
         # Search / Filter Bar row
         search_row_widget = QWidget()
         search_row_layout = QHBoxLayout(search_row_widget)
@@ -597,68 +597,68 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.main_splitter = QSplitter(Qt.Horizontal)
         self.main_splitter.setChildrenCollapsible(False)
         self.list_widget.setMinimumWidth(150)
-        
+
         # Insert Left Panel logic embedding explicit Checkboxes
         left_panel = QWidget()
         left_layout = QVBoxLayout(left_panel)
         left_layout.setContentsMargins(0, 0, 0, 0)
         left_layout.setSpacing(0)
         left_layout.addWidget(self.list_widget, 1)
-        
+
         self.main_splitter.addWidget(left_panel)
-        
+
         # Right Side Panel
         self.right_panel = QWidget()
         right_layout = QVBoxLayout(self.right_panel)
         right_layout.setContentsMargins(0, 0, 0, 0)
-        
+
         # Right Side Splitter (Vertical)
         self.right_splitter = QSplitter(Qt.Vertical)
-        
+
         # Top half: Header + Message
         self.right_top_widget = QWidget()
         right_top_layout = QVBoxLayout(self.right_top_widget)
         right_top_layout.setContentsMargins(0, 0, 0, 0)
-        
+
         self.side_commit_label = QLabel("Select a commit to view details")
         self.side_commit_label.setTextFormat(Qt.RichText)
         right_top_layout.addWidget(self.side_commit_label)
-        
+
         self.side_commit_msg = QTextEdit()
         self.side_commit_msg.setReadOnly(True)
         self.side_commit_msg.setMinimumHeight(60)
         right_top_layout.addWidget(self.side_commit_msg)
-        
+
         self.right_splitter.addWidget(self.right_top_widget)
 
         # Bottom half: Diff Tab Widget
         self.diff_tab_widget = QTabWidget()
         self.diff_tab_widget.setMinimumHeight(150)
-        
+
         # Page 0: Plain Diff
         plain_diff_widget = QWidget()
         plain_diff_layout = QVBoxLayout(plain_diff_widget)
         plain_diff_layout.setContentsMargins(0, 0, 0, 0)
         plain_diff_layout.setSpacing(0)
-        
+
         self.side_diff_view = DiffView()
         self.side_diff_view.setReadOnly(True)
-        
+
         self.plain_diff_search = DiffSearchBar(target_view=self.side_diff_view, parent=plain_diff_widget)
         # Search bar is visible by default now as requested
-        
+
         plain_diff_layout.addWidget(self.plain_diff_search)
         plain_diff_layout.addWidget(self.side_diff_view)
 
         self.diff_tab_widget.addTab(plain_diff_widget, "Plain Diff")
-        
+
         # Page 1: Filewise Diff
         filewise_widget = QWidget()
         filewise_layout = QVBoxLayout(filewise_widget)
         filewise_layout.setContentsMargins(0, 0, 0, 0)
-        
+
         self.filewise_splitter = QSplitter(Qt.Vertical)
-        
+
         # File list
         self.filewise_file_list = QListWidget()
         self.filewise_file_list.setMinimumHeight(60)
@@ -673,22 +673,22 @@ class GitInteractiveRebaseApp(QMainWindow):
             parent=self.filewise_file_list
         )
         self.filewise_file_list.setItemDelegate(self.filewise_stats_delegate)
-        
+
         # File diff
         self.filewise_diff_view = DiffView()
         self.filewise_diff_view.setReadOnly(True)
         self.filewise_diff_view.setMinimumHeight(100)
-        
+
         # Apply highlighter
         self.filewise_highlighter = DiffHighlighter(self.filewise_diff_view.document())
-        
+
         filewise_right_widget = QWidget()
         filewise_right_layout = QVBoxLayout(filewise_right_widget)
         filewise_right_layout.setContentsMargins(0, 0, 0, 0)
         filewise_right_layout.setSpacing(0)
-        
+
         self.filewise_diff_search = DiffSearchBar(target_view=self.filewise_diff_view, parent=filewise_right_widget)
-        
+
         filewise_right_layout.addWidget(self.filewise_diff_search)
         filewise_right_layout.addWidget(self.filewise_diff_view)
 
@@ -697,12 +697,12 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.filewise_splitter.setCollapsible(0, False)
         self.filewise_splitter.setCollapsible(1, False)
         self.filewise_splitter.setSizes([100, 300]) # default split
-        
+
         filewise_layout.addWidget(self.filewise_splitter)
         self.diff_tab_widget.addTab(filewise_widget, "File-wise Diff")
-        
+
         self.right_splitter.addWidget(self.diff_tab_widget)
-        
+
         # Determine highlighting colors and initialize highlighter
         colors = self.current_theme_colors if hasattr(self, 'current_theme_colors') else {"added": "#a6e22e", "removed": "#f92672", "header": "#66d9ef", "separator": "#444444"}
         self.side_diff_highlighter = DiffHighlighter(self.side_diff_view.document(),
@@ -710,30 +710,30 @@ class GitInteractiveRebaseApp(QMainWindow):
                                                    removed_color=colors["removed"],
                                                    header_color=colors["header"])
         self.side_diff_view.set_separator_color(colors["separator"])
-        
+
         # Add the vertical splitter to the right panel's layout
         right_layout.addWidget(self.right_splitter)
-        
+
         # Set initial split sizes for top (message) and bottom (diff)
         self.right_splitter.setCollapsible(0, False)
         self.right_splitter.setCollapsible(1, False)
         self.right_splitter.setSizes([150, 650])
-        
+
         self.right_panel.setMinimumWidth(150)
-        
+
         self.right_panel.setVisible(self.show_diffs)
-        
+
         self.main_splitter.addWidget(self.right_panel)
         # default split ratio: history 60%, diff 40%
         self.main_splitter.setSizes([600, 400])
-        
+
         layout.addWidget(self.main_splitter, 1)
-        
+
         self.list_widget.itemDoubleClicked.connect(self.view_commit)
         self.list_widget.itemSelectionChanged.connect(self.on_selection_changed)
-        
+
         self.diff_tab_widget.currentChanged.connect(self.on_diff_tab_changed)
-        
+
         self.update_window_title()
 
         # Top Control Bar (single row of buttons)
@@ -808,7 +808,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         controls_layout.addWidget(self.exit_btn)
 
         layout.addLayout(controls_layout)
-        
+
         # Add failsafe options as a distinct row below the other controls
         failsafe_group = QGroupBox("Fail-safe")
         failsafe_group.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
@@ -964,7 +964,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         # Keyboard Shortcuts
         self.slash_shortcut = QShortcut(QKeySequence("/"), self)
         self.slash_shortcut.activated.connect(self.handle_slash_shortcut)
-        
+
         self.esc_shortcut = QShortcut(QKeySequence("Esc"), self)
         self.esc_shortcut.activated.connect(self.handle_esc_shortcut)
 
@@ -1006,23 +1006,23 @@ class GitInteractiveRebaseApp(QMainWindow):
             return
 
         sha = item.text().split()[0]
-        
+
         # Check cache
         cache_entry = self.commit_cache.get(sha, {})
-        
+
         try:
             if 'meta' not in cache_entry:
                 meta, msg = get_commit_metadata_and_message(self.repo_path, sha)
                 cache_entry['meta'] = meta
                 cache_entry['msg'] = msg
                 self.commit_cache[sha] = cache_entry
-            
+
             meta = cache_entry['meta']
             msg = cache_entry['msg']
-            
+
             self.side_commit_label.setText(f"Commit: <b>{sha}</b>  <span style='color:gray;'>({meta})</span>")
             self.side_commit_msg.setPlainText(msg)
-            
+
             if self.diff_tab_widget.currentIndex() == 0:
                 if 'diff' not in cache_entry:
                     cache_entry['diff'] = get_commit_diff(self.repo_path, sha)
@@ -1037,7 +1037,7 @@ class GitInteractiveRebaseApp(QMainWindow):
                 if 'files' not in cache_entry:
                     cache_entry['files'] = get_commit_files(self.repo_path, sha)
                     self.commit_cache[sha] = cache_entry
-                
+
                 files = cache_entry['files']
                 # Fetch per-file stats (cached separately)
                 if 'file_stats' not in cache_entry:
@@ -1056,7 +1056,7 @@ class GitInteractiveRebaseApp(QMainWindow):
                     item.setData(Qt.UserRole, file_stats.get(f))
                     self.filewise_file_list.addItem(item)
                 self.filewise_file_list.blockSignals(False)
-                
+
                 if files:
                     self.filewise_file_list.setCurrentRow(0)
                 else:
@@ -1081,9 +1081,9 @@ class GitInteractiveRebaseApp(QMainWindow):
         copy_action = QAction("Copy filename to clipboard", self)
         copy_action.triggered.connect(lambda checked=False, text=item.text(): self.copy_filename_to_clipboard(text))
         menu.addAction(copy_action)
-        
+
         is_only_file = self.filewise_file_list.count() <= 1
-        
+
         move_action = QAction("Move file changes out of this commit", self)
         move_action.triggered.connect(lambda checked=False, text=item.text(): self.handle_context_move_file_out(text))
         move_action.setEnabled(not is_only_file)
@@ -1177,7 +1177,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         if self.diff_tab_widget.currentIndex() == 0 and (self.plain_diff_search.search_input.text() or self.plain_diff_search.search_input.hasFocus()):
             self.plain_diff_search.escape_pressed()
             return
-            
+
         # 2. Try to clear filewise diff search if active and has content/focus
         if self.diff_tab_widget.currentIndex() == 1 and hasattr(self, 'filewise_diff_search') and (self.filewise_diff_search.search_input.text() or self.filewise_diff_search.search_input.hasFocus()):
             self.filewise_diff_search.escape_pressed()
@@ -1325,11 +1325,11 @@ class GitInteractiveRebaseApp(QMainWindow):
         if not self.best_commit_sha:
             return
         reply = QMessageBox.question(
-            self, 
+            self,
             "Confirm BEST_COMMITID Reset",
             f"Are you sure you want to <b>reset --hard</b> to BEST_COMMITID (<b>{self.best_commit_sha[:8]}</b>)?<br><br>"
             "This will discard all uncommitted changes and move your branch to this state.",
-            QMessageBox.Yes | QMessageBox.No, 
+            QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No
         )
         if reply == QMessageBox.Yes:
@@ -1338,17 +1338,17 @@ class GitInteractiveRebaseApp(QMainWindow):
             print(f"Cancelled reset to BEST_COMMITID ({self.best_commit_sha[:8]}).")
 
     def handle_failsafe_reset(self):
-        # We use cached values from load_history for performance. 
+        # We use cached values from load_history for performance.
         if self.cached_current_head_full_sha == self.start_time_full_head and not self.cached_has_uncommitted:
             QMessageBox.warning(self, "No Changes", "HEAD is already at START_TIME_HEAD and there are no uncommitted changes.")
             return
 
         reply = QMessageBox.question(
-            self, 
+            self,
             "Confirm Failsafe Reset",
             f"Are you sure you want to <b>reset --hard</b> to START_TIME_HEAD (<b>{self.start_time_head[:8]}</b>)?<br><br>"
             "This will discard all uncommitted changes and move your branch to this state.",
-            QMessageBox.Yes | QMessageBox.No, 
+            QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No
         )
         if reply == QMessageBox.Yes:
@@ -1366,25 +1366,25 @@ class GitInteractiveRebaseApp(QMainWindow):
         """Handles the Undo action by resetting hard to last_head."""
         if not self.last_head:
             return
-            
+
         reply = QMessageBox.question(
-            self, 
+            self,
             "Confirm Undo",
             f"Are you sure you want to <b>reset --hard</b> to the state before the last operation (<b>{self.last_head[:8]}</b>)?<br><br>"
             "This will discard all uncommitted changes and move your branch to this state.",
-            QMessageBox.Yes | QMessageBox.No, 
+            QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No
         )
         if reply == QMessageBox.Yes:
             old_head = self.get_head_sha()
-            
+
             self.progress_dialog = ProgressDialog("Undoing", f"Resetting hard to {self.last_head[:8]}...", self)
             self.worker = GitWorker(["git", "reset", "--hard", self.last_head], self.repo_path)
-            
+
             def on_undo_finished(success, stdout, stderr):
                 if hasattr(self, 'progress_dialog'):
                     self.progress_dialog.close()
-                
+
                 if success:
                     self.load_history()
                     new_head = self.get_head_sha()
@@ -1406,12 +1406,12 @@ class GitInteractiveRebaseApp(QMainWindow):
         """Checks for updates from the remote repository."""
         REPO_URL = "https://github.com/shyjun/git-interactive-rebase-gui-tool.git"
         UPDATE_URL = "https://github.com/shyjun/git-interactive-rebase-gui-tool?tab=readme-ov-file#-staying-updated"
-        
+
         # 1. Find the tool's own directory
         tool_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
         local_sha = "Unknown"
         is_git_install = os.path.exists(os.path.join(tool_dir, ".git"))
-        
+
         # 2. Extract local SHA
         if is_git_install:
             try:
@@ -1454,22 +1454,22 @@ class GitInteractiveRebaseApp(QMainWindow):
 
         # 4. Proceed with Remote check
         self.progress_dialog = ProgressDialog("Checking for Updates", "Connecting to GitHub...", self)
-        
+
         self.worker = GitWorker(["git", "ls-remote", REPO_URL, "HEAD"], self.repo_path)
-        
+
         def on_check_finished(success, stdout, stderr):
             if hasattr(self, 'progress_dialog'):
                 self.progress_dialog.close()
-            
+
             if not success or not stdout.strip():
                 QMessageBox.warning(self, "Check Failed", "Could not check for updates. Please check your internet connection.")
                 return
-            
+
             remote_sha = stdout.split()[0]
-            
+
             # Debug prints
             pass
-            
+
             if remote_sha == local_sha:
                 QMessageBox.information(self, "No Updates", "You are already using the latest version.")
             else:
@@ -1495,11 +1495,11 @@ class GitInteractiveRebaseApp(QMainWindow):
         if ok and commit_id.strip():
             sha = commit_id.strip()
             reply = QMessageBox.question(
-                self, 
+                self,
                 "Confirm Custom Reset",
                 f"Are you sure you want to <b>reset --hard</b> to <b>{sha}</b>?<br><br>"
                 "This will discard all uncommitted changes and move your branch to this state.",
-                QMessageBox.Yes | QMessageBox.No, 
+                QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No
             )
             if reply == QMessageBox.Yes:
@@ -1511,17 +1511,17 @@ class GitInteractiveRebaseApp(QMainWindow):
         """Runs git fetch."""
         print("Running git fetch...")
         self.progress_dialog = ProgressDialog("Git Fetching", "git fetch in progress...", self)
-        
+
         self.worker = GitWorker(["git", "fetch"], self.repo_path)
         self.worker.finished.connect(self.on_fetch_finished)
         self.worker.start()
-        
+
         self.progress_dialog.exec()
 
     def on_fetch_finished(self, success, stdout, stderr):
         if hasattr(self, 'progress_dialog'):
             self.progress_dialog.close()
-            
+
         if success:
             QMessageBox.information(self, "Success", "Successfully ran 'git fetch'.")
             self.load_history()
@@ -1533,7 +1533,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         """Runs git reset --hard origin/<current_branch>."""
         branch = get_current_branch(self.repo_path)
         origin_ref = f"origin/{branch}"
-        
+
         # Check if HEAD is already at origin_ref
         try:
             head_sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=self.repo_path).decode('utf-8').strip()
@@ -1543,31 +1543,31 @@ class GitInteractiveRebaseApp(QMainWindow):
                 return
         except Exception:
             pass # Probably origin_ref doesn't exist, proceed to confirmation which will fail naturally if so
-            
+
         reply = QMessageBox.question(
-            self, 
+            self,
             "Confirm Reset to Origin",
             f"Are you sure you want to <b>reset --hard {origin_ref}</b>?<br><br>"
             f"This will discard all uncommitted changes and move your branch to '{origin_ref}'.",
-            QMessageBox.Yes | QMessageBox.No, 
+            QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No
         )
         if reply == QMessageBox.Yes:
             self.save_undo_state()
             print(f"Resetting hard to {origin_ref}...")
-            
+
             self.progress_dialog = ProgressDialog("Resetting", f"Resetting hard to {origin_ref}...", self)
             self.worker = GitWorker(["git", "reset", "--hard", origin_ref], self.repo_path)
-            
+
             def on_origin_reset_finished(success, stdout, stderr):
                 if hasattr(self, 'progress_dialog'):
                     self.progress_dialog.close()
-                
+
                 if success:
                     QMessageBox.information(self, "Success", f"Successfully reset --hard to {origin_ref}.")
                 else:
                     QMessageBox.critical(self, "Reset Failed", f"Could not perform reset to {origin_ref}.\n\nError: {stderr}")
-                
+
                 self.load_history()
 
             self.worker.finished.connect(on_origin_reset_finished)
@@ -1579,21 +1579,21 @@ class GitInteractiveRebaseApp(QMainWindow):
     def handle_git_push_force(self):
         """Runs git push --force."""
         reply = QMessageBox.question(
-            self, 
+            self,
             "Confirm Force Push",
             "Are you sure you want to <b>push --force</b>?<br><br>"
             "This can overwrite history on the remote repository. Proceed with caution.",
-            QMessageBox.Yes | QMessageBox.No, 
+            QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No
         )
         if reply == QMessageBox.Yes:
             print("Performing git push --force...")
             self.progress_dialog = ProgressDialog("Git Pushing", "git push --force in progress...", self)
-            
+
             self.worker = GitWorker(["git", "push", "--force"], self.repo_path)
             self.worker.finished.connect(self.on_push_finished)
             self.worker.start()
-            
+
             self.progress_dialog.exec()
         else:
             print("Cancelled force push.")
@@ -1601,7 +1601,7 @@ class GitInteractiveRebaseApp(QMainWindow):
     def on_push_finished(self, success, stdout, stderr):
         if hasattr(self, 'progress_dialog'):
             self.progress_dialog.close()
-            
+
         if success:
             QMessageBox.information(self, "Success", "Successfully ran 'git push --force'.")
         else:
@@ -1612,10 +1612,10 @@ class GitInteractiveRebaseApp(QMainWindow):
         """Updates the enabled state of rebase buttons based on branch existence."""
         has_master = branch_exists(self.repo_path, "master")
         has_main = branch_exists(self.repo_path, "main")
-        
+
         self.rebase_master_btn.setEnabled(has_master)
         self.rebase_master_btn.setText("git rebase master" if has_master else "git rebase master (NA)")
-        
+
         self.rebase_main_btn.setEnabled(has_main)
         self.rebase_main_btn.setText("git rebase main" if has_main else "git rebase main (NA)")
 
@@ -1633,10 +1633,10 @@ class GitInteractiveRebaseApp(QMainWindow):
     def perform_rebase(self, target):
         """Performs git rebase <target> with confirmation."""
         reply = QMessageBox.question(
-            self, 
+            self,
             "Confirm Rebase",
             f"Are you sure you want to <b>rebase</b> current branch on top of <b>{target}</b>?",
-            QMessageBox.Yes | QMessageBox.No, 
+            QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No
         )
         if reply == QMessageBox.Yes:
@@ -1712,7 +1712,7 @@ class GitInteractiveRebaseApp(QMainWindow):
             self.update()
             return
 
-        # A common trick to force a window to shrink in Qt is to 
+        # A common trick to force a window to shrink in Qt is to
         # resize it to a very small height and then call adjustSize()
         self.resize(self.width(), 1)
         self.adjustSize()
@@ -1742,9 +1742,9 @@ class GitInteractiveRebaseApp(QMainWindow):
                     padding: 5px;
                     color: #cccccc;
                 }
-                QListWidget::item { 
-                    padding: 8px; 
-                    border-bottom: 1px solid #333333; 
+                QListWidget::item {
+                    padding: 8px;
+                    border-bottom: 1px solid #333333;
                 }
                 QListWidget::item:selected {
                     background-color: #37373d;
@@ -1850,9 +1850,9 @@ class GitInteractiveRebaseApp(QMainWindow):
                     padding: 5px;
                     color: #333;
                 }
-                QListWidget::item { 
-                    padding: 8px; 
-                    border-bottom: 1px solid #eee; 
+                QListWidget::item {
+                    padding: 8px;
+                    border-bottom: 1px solid #eee;
                 }
                 QListWidget::item:selected {
                     background-color: #007aff;
@@ -1932,9 +1932,9 @@ class GitInteractiveRebaseApp(QMainWindow):
                     height: 0px;
                 }
             """
-        
+
         QApplication.instance().setStyleSheet(qss)
-        
+
         # Update highlighter colors according to the theme
         if hasattr(self, 'side_diff_view'):
             if hasattr(self, 'side_highlighter') and self.side_highlighter is not None:
@@ -1945,7 +1945,7 @@ class GitInteractiveRebaseApp(QMainWindow):
                 removed_color=self.current_theme_colors["removed"],
                 header_color=self.current_theme_colors["header"]
             )
-            
+
         if hasattr(self, 'filewise_diff_view'):
             if hasattr(self, 'filewise_highlighter') and self.filewise_highlighter is not None:
                 self.filewise_highlighter.setDocument(None)
@@ -1955,9 +1955,9 @@ class GitInteractiveRebaseApp(QMainWindow):
                 removed_color=self.current_theme_colors["removed"],
                 header_color=self.current_theme_colors["header"]
             )
-        
+
         self.update_font()
-        
+
     def update_font(self):
         font = QFont("Monospace", self.current_font_size)
         self.list_widget.setFont(font)
@@ -1984,12 +1984,12 @@ class GitInteractiveRebaseApp(QMainWindow):
         item = self.list_widget.itemAt(position)
         if not item:
             return
-            
+
         sha = item.text().split()[0]
         menu = QMenu()
         menu_font = QFont("Monospace", max(8, self.current_font_size - 2))
         menu.setFont(menu_font)
-        
+
         mark_action = QAction(f"Mark / Unmark commit {sha}", self)
         view_action = QAction(f"Show / View commit {sha}", self)
         reset_action = QAction(f"Reset Hard to {sha}", self)
@@ -1997,16 +1997,16 @@ class GitInteractiveRebaseApp(QMainWindow):
         drop_action = QAction("Drop", self)
         rephrase_action = QAction("Rephrase", self)
         revert_action = QAction("Revert", self)
-        
+
         # Clipboard items
         copy_sha_action = QAction("Copy SHA to clipboard", self)
         copy_msg_action = QAction("Copy commit msg to clipboard", self)
         copy_sha_msg_action = QAction("Copy SHA and commit msg to clipboard", self)
-        
+
         # Squash items
         index = self.list_widget.row(item)
         count = self.list_widget.count()
-        
+
         def format_squash_label(neighbor_item):
             parts = neighbor_item.text().split(maxsplit=1)
             n_sha = parts[0]
@@ -2044,7 +2044,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         copy_sha_action.triggered.connect(lambda: self.handle_copy_sha(item))
         copy_msg_action.triggered.connect(lambda: self.handle_copy_message(item))
         copy_sha_msg_action.triggered.connect(lambda: self.handle_copy_sha_and_message(item))
-        
+
         # Disable most actions if in multi-select mode
         if self.multi_select_mode:
             mark_action.setEnabled(False)
@@ -2062,7 +2062,7 @@ class GitInteractiveRebaseApp(QMainWindow):
             if squash_above_action: squash_above_action.setEnabled(False)
             if squash_below_action: squash_below_action.setEnabled(False)
         # Construct the menu
-        
+
         menu.addAction(mark_action)
         menu.addSeparator()
         menu.addAction(view_action)
@@ -2075,60 +2075,60 @@ class GitInteractiveRebaseApp(QMainWindow):
         menu.addAction(drop_action)
         menu.addAction(revert_action)
         menu.addSeparator()
-        
+
         # Squash commits submenu
         squash_menu = menu.addMenu("Squash commits")
         squash_menu.setFont(menu_font)
-        
+
         # Move individual squash actions here
         if squash_above_action:
             squash_menu.addAction(squash_above_action)
         if squash_below_action:
             squash_menu.addAction(squash_below_action)
-        
+
         squash_menu.addSeparator()
 
         select_multi_action = QAction("Select commits to squash", self)
         select_multi_action.setEnabled(not self.multi_select_mode)
         select_multi_action.triggered.connect(self.enter_multi_select_mode)
-        
+
         squash_selected_action = QAction("Squash selected commits", self)
         checked_count = 0
         if self.multi_select_mode:
-            checked_count = sum(1 for i in range(self.list_widget.count()) 
+            checked_count = sum(1 for i in range(self.list_widget.count())
                                 if self.list_widget.item(i).checkState() == Qt.Checked)
         squash_selected_action.setEnabled(self.multi_select_mode and checked_count >= 2)
         squash_selected_action.triggered.connect(self.handle_squash_selected)
-        
+
         cancel_multi_action = QAction("Cancel multi selection", self)
         cancel_multi_action.setEnabled(self.multi_select_mode)
         cancel_multi_action.triggered.connect(self.handle_cancel_multi_select)
-        
+
         squash_menu.addAction(select_multi_action)
         squash_menu.addAction(squash_selected_action)
         squash_menu.addAction(cancel_multi_action)
-        
+
         # Move Commit submenu
         move_menu = menu.addMenu("Move Commit")
         move_menu.setFont(menu_font)
-        
+
         move_up_action = QAction("Move Up (Swap with Next/Above commit)", self)
         move_up_action.setEnabled(index > 0 and not self.multi_select_mode)
         move_up_action.triggered.connect(lambda: self.handle_move_up(item))
-        
+
         move_down_action = QAction("Move Down (Swap with Previous/Below commit)", self)
         move_down_action.setEnabled(index < count - 1 and not self.multi_select_mode)
         move_down_action.triggered.connect(lambda: self.handle_move_down(item))
-        
+
         drag_info_action = QAction("Drag to Reorder", self)
         drag_info_action.setEnabled(not self.multi_select_mode)
         drag_info_action.triggered.connect(lambda: self.handle_move_info(item))
-        
+
         move_menu.addAction(move_up_action)
         move_menu.addAction(move_down_action)
         move_menu.addSeparator()
         move_menu.addAction(drag_info_action)
-        
+
         # Split Commit submenu
         split_menu = menu.addMenu("Split Commit")
         split_menu.setFont(menu_font)
@@ -2147,7 +2147,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         split_move_out_action = QAction("move one file changes out of this commit", self)
         split_move_out_action.triggered.connect(lambda: self.handle_split_commit(item))
         split_menu.addAction(split_move_out_action)
-        
+
         split_all_action = QAction("split all changes to separate commits", self)
         split_all_action.triggered.connect(lambda: self.handle_split_all_commits(item))
         split_menu.addAction(split_all_action)
@@ -2160,7 +2160,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         split_refine_action = QAction("Refine/Edit changes in selected file", self)
         split_refine_action.triggered.connect(lambda: self.handle_refine_changes(item))
         split_menu.addAction(split_refine_action)
-        
+
         menu.addSeparator()
         menu.addAction(copy_sha_action)
         menu.addAction(copy_msg_action)
@@ -2180,9 +2180,9 @@ class GitInteractiveRebaseApp(QMainWindow):
         idx = self.list_widget.row(item)
         if idx <= 0:
             return
-            
+
         sha = item.text().split()[0]
-        
+
         reply = QMessageBox.question(
             self,
             "Confirm Move Up",
@@ -2190,21 +2190,21 @@ class GitInteractiveRebaseApp(QMainWindow):
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No
         )
-        
+
         if reply != QMessageBox.Yes:
             return
-        
+
         old_head = self.get_head_sha()
         current_shas = [self.list_widget.item(i).text().split()[0] for i in range(self.list_widget.count())]
         # Swap with older (idx-1)
         current_shas[idx], current_shas[idx-1] = current_shas[idx-1], current_shas[idx]
-        
+
         if self.run_interactive_rebase(current_shas, progress_title="Moving Commit", progress_text=f"Moving commit {sha} up..."):
             self.load_history()
             # Select the moved commit at its new index (idx - 1)
             target_idx = max(0, idx - 1)
             self.list_widget.setCurrentRow(target_idx)
-            
+
             new_head = self.get_head_sha()
             self.log_action(sha, "moved up", old_head, new_head)
             QMessageBox.information(self, "Success", "Commit moved successfully.")
@@ -2214,9 +2214,9 @@ class GitInteractiveRebaseApp(QMainWindow):
         idx = self.list_widget.row(item)
         if idx >= self.list_widget.count() - 1:
             return
-            
+
         sha = item.text().split()[0]
-        
+
         reply = QMessageBox.question(
             self,
             "Confirm Move Down",
@@ -2224,21 +2224,21 @@ class GitInteractiveRebaseApp(QMainWindow):
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No
         )
-        
+
         if reply != QMessageBox.Yes:
             return
-            
+
         old_head = self.get_head_sha()
         current_shas = [self.list_widget.item(i).text().split()[0] for i in range(self.list_widget.count())]
         # Swap with newer (idx+1)
         current_shas[idx], current_shas[idx+1] = current_shas[idx+1], current_shas[idx]
-        
+
         if self.run_interactive_rebase(current_shas, progress_title="Moving Commit", progress_text=f"Moving commit {sha} down..."):
             self.load_history()
             # Select the moved commit at its new index (idx + 1)
             target_idx = min(self.list_widget.count() - 1, idx + 1)
             self.list_widget.setCurrentRow(target_idx)
-            
+
             new_head = self.get_head_sha()
             self.log_action(sha, "moved down", old_head, new_head)
             QMessageBox.information(self, "Success", "Commit moved successfully.")
@@ -2267,14 +2267,14 @@ class GitInteractiveRebaseApp(QMainWindow):
             current_shas = []
             for i in range(self.list_widget.count()):
                 current_shas.append(self.list_widget.item(i).text().split()[0])
-            
+
             if self.run_interactive_rebase(current_shas, rephrase_map={sha: new_message}, progress_title="Rephrasing Commit", progress_text=f"Rephrasing commit {sha}. Please wait..."):
                 self.load_history()
                 new_head = self.get_head_sha()
                 self.log_action(sha, "rephrased", old_head, new_head)
                 QMessageBox.information(self, "Success", f"Commit {sha} rephrased successfully.")
                 return
-            
+
             self.load_history()
         except Exception as e:
             QMessageBox.critical(self, "Error", f"An error occurred while rephrasing: {str(e)}")
@@ -2379,26 +2379,26 @@ class GitInteractiveRebaseApp(QMainWindow):
 
     def toggle_mark_commit(self, item):
         sha = item.text().split()[0]
-        
+
         if sha in self.marked_shas:
             self.marked_shas.remove(sha)
         else:
             self.marked_shas.add(sha)
-            
+
         # Repaint to immediately apply the delegate's background fill
         self.list_widget.viewport().update()
 
     def handle_reset(self, item):
         sha = item.text().split()[0]
         reply = QMessageBox.question(
-            self, 
+            self,
             "Confirm Reset Hard",
             f"Are you sure you want to <b>reset --hard</b> to commit <b>{sha}</b>?<br><br>"
             "This will discard all uncommitted changes and move your branch to this state.",
-            QMessageBox.Yes | QMessageBox.No, 
+            QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No
         )
-        
+
         if reply == QMessageBox.Yes:
             self.perform_reset(sha)
         else:
@@ -2408,15 +2408,15 @@ class GitInteractiveRebaseApp(QMainWindow):
         old_head = self.get_head_sha()
         print(f"Resetting hard to {sha}...")
         self.save_undo_state()
-        
+
         self.progress_dialog = ProgressDialog("Resetting", f"Resetting hard to {sha[:10]}...", self)
-        
+
         self.worker = GitWorker(["git", "reset", "--hard", sha], self.repo_path)
-        
+
         def on_reset_finished(success, stdout, stderr):
             if hasattr(self, 'progress_dialog'):
                 self.progress_dialog.close()
-            
+
             if success:
                 self.load_history()
                 new_head = self.get_head_sha()
@@ -2433,15 +2433,15 @@ class GitInteractiveRebaseApp(QMainWindow):
         """Squashes the current commit with the one above it (newer)."""
         index = self.list_widget.row(item)
         if index <= 0: return
-        
+
         above_item = self.list_widget.item(index - 1)
         sha_above = above_item.text().split()[0]
         sha_current = item.text().split()[0]
-        
+
         try:
             msg_above = get_full_commit_message(self.repo_path, sha_above)
             msg_current = get_full_commit_message(self.repo_path, sha_current)
-            
+
             dialog = SquashDialog(sha_above, msg_above, sha_current, msg_current, self.current_font_size, self)
             if dialog.exec() == QDialog.Accepted:
                 final_msg = dialog.get_message()
@@ -2456,15 +2456,15 @@ class GitInteractiveRebaseApp(QMainWindow):
         """Squashes the current commit with the one below it (older)."""
         index = self.list_widget.row(item)
         if index >= self.list_widget.count() - 1: return
-        
+
         sha_current = item.text().split()[0]
         below_item = self.list_widget.item(index + 1)
         sha_below = below_item.text().split()[0]
-        
+
         try:
             msg_current = get_full_commit_message(self.repo_path, sha_current)
             msg_below = get_full_commit_message(self.repo_path, sha_below)
-            
+
             dialog = SquashDialog(sha_current, msg_current, sha_below, msg_below, self.current_font_size, self)
             if dialog.exec() == QDialog.Accepted:
                 final_msg = dialog.get_message()
@@ -2483,17 +2483,17 @@ class GitInteractiveRebaseApp(QMainWindow):
             current_shas = []
             for i in range(self.list_widget.count()):
                 current_shas.append(self.list_widget.item(i).text().split()[0])
-            
+
             # Use final_msg for the rebase - we associate it with the SHA being squashed
             # so the amend happens right after the squash command in the todo list.
-            if self.run_interactive_rebase(current_shas, squash_shas=[sha_to_squash], 
+            if self.run_interactive_rebase(current_shas, squash_shas=[sha_to_squash],
                                           rephrase_map={sha_to_squash: final_msg}):
                 self.load_history()
                 new_head = self.get_head_sha()
                 self.log_action(sha_to_squash, "squashed", old_head, new_head)
                 QMessageBox.information(self, "Success", "Commits squashed successfully.")
                 return
-            
+
             self.load_history()
         except Exception as e:
             QMessageBox.critical(self, "Error", f"An error occurred while squashing: {str(e)}")
@@ -2644,17 +2644,17 @@ class GitInteractiveRebaseApp(QMainWindow):
             current_shas = []
             for i in range(self.list_widget.count()):
                 current_shas.append(self.list_widget.item(i).text().split()[0])
-            
+
             # New list without the dropped SHA
             new_shas = [s for s in current_shas if s != sha]
-            
+
             if self.run_interactive_rebase(new_shas, progress_title="Dropping Commit", progress_text=f"Dropping commit {sha}. Please wait..."):
                 self.load_history()
                 new_head = self.get_head_sha()
                 self.log_action(sha, "dropped", old_head, new_head)
                 QMessageBox.information(self, "Success", f"Commit {sha} dropped successfully.")
                 return
-            
+
             self.load_history()
         except Exception as e:
             QMessageBox.critical(self, "Error", f"An error occurred while dropping: {str(e)}")
@@ -2671,7 +2671,7 @@ class GitInteractiveRebaseApp(QMainWindow):
             if len(files) == 1:
                 QMessageBox.warning(self, "Warning", "This commit has changes only in 1 file.")
                 return
-                
+
             dialog = SplitCommitDialog(self.repo_path, sha, files, self.current_font_size, self)
             if dialog.exec() == QDialog.Accepted:
                 selected_file = dialog.get_selected_file()
@@ -2801,7 +2801,7 @@ class GitInteractiveRebaseApp(QMainWindow):
                 QMessageBox.information(self, "No Hunks",
                                         f"No individual hunks found for {filepath} in commit {sha}.")
                 break
-            
+
 
             try:
                 commit_msg = get_full_commit_message(self.repo_path, sha)
@@ -2816,11 +2816,11 @@ class GitInteractiveRebaseApp(QMainWindow):
 
             dialog = RefineChangesDialog(sha, filepath, commit_msg,
                                          hunks, self.current_font_size, self, is_only_file=is_only_file)
-            
+
             # When user clicks "Apply modification" in a hunk menu, treat it as a final "Keep Selected" action
             dialog.apply_hunk_modification.connect(dialog._on_keep)
             dialog.drop_hunk.connect(dialog._on_keep)
-            
+
             if dialog.exec() != QDialog.Accepted:
                 break
 
@@ -2828,7 +2828,7 @@ class GitInteractiveRebaseApp(QMainWindow):
             all_hunks = dialog.get_hunk_data() if hasattr(dialog, 'get_hunk_data') else hunks
             kept_indices = dialog.kept_indices
             moved_indices = getattr(dialog, 'moved_indices', [])
-            
+
             # Bug fix: if it's the only file and we result in an empty commit, warn user
             # (is_only_file already computed above)
 
@@ -2943,7 +2943,7 @@ if result_action == "move" and move_patch.strip():
             os.unlink(patch_path)
         except:
             pass
-    
+
     msg_fd, msg_path = tempfile.mkstemp(prefix='git_msg_move_', text=True)
     with os.fdopen(msg_fd, 'w', encoding='utf-8') as f:
         f.write(move_msg)
@@ -3014,7 +3014,7 @@ if result_action == "move" and move_patch.strip():
             env["GIT_EDITOR"] = "true"
 
             progress = ProgressDialog(
-                f"Applying refinement to {sha[:8]}...", 
+                f"Applying refinement to {sha[:8]}...",
                 f"Processing changes in {filepath}. Please wait...",
                 self
             )
@@ -3027,7 +3027,7 @@ if result_action == "move" and move_patch.strip():
             cmd = ["git", "rebase", "-i", upstream]
             result = subprocess.run(cmd, cwd=self.repo_path, env=env,
                                     capture_output=True, text=True)
-            
+
             # Ensure the user sees the progress before it closes
             for _ in range(5):
                 QApplication.processEvents()
@@ -3049,7 +3049,7 @@ if result_action == "move" and move_patch.strip():
                             for i in range(self.list_widget.count())]
                 if sha_idx >= 0 and sha_idx < len(new_shas):
                     sha = new_shas[sha_idx]
-                
+
                 QMessageBox.information(self, "Success",
                                         f"Successfully refined changes for '{filepath}' in commit {sha[:8]}.\n\n"
                                         "The Refine/Edit window will now refresh.")
@@ -3096,7 +3096,7 @@ if result_action == "move" and move_patch.strip():
 
             original_msg = get_full_commit_message(self.repo_path, sha)
             new_msg = f"{filepath} changes separated out from {short_sha}\n\n{original_msg}"
-            
+
             # Action script content
             action_script_content = f"""#!/usr/bin/env python3
 import subprocess, os, tempfile, sys
@@ -3129,7 +3129,7 @@ finally:
             with os.fdopen(action_fd, 'w', encoding='utf-8') as f:
                 f.write(action_script_content)
             os.chmod(action_path, os.stat(action_path).st_mode | stat.S_IEXEC)
-            
+
             single_exec = f"exec python3 {action_path}"
 
             current_shas = [self.list_widget.item(i).text().split()[0]
@@ -3226,7 +3226,7 @@ finally:
             if len(files) == 1:
                 QMessageBox.warning(self, "Warning", "This commit has changes only in 1 file.")
                 return
-                
+
             dialog = DropFileFromCommitDialog(self.repo_path, sha, files, self.current_font_size, self)
             if dialog.exec() == QDialog.Accepted:
                 selected_file = dialog.get_selected_file()
@@ -3285,7 +3285,7 @@ subprocess.check_call(['git', 'clean', '-fd', '--', filepath])
             with os.fdopen(action_fd, 'w', encoding='utf-8') as f:
                 f.write(action_script_content)
             os.chmod(action_path, os.stat(action_path).st_mode | stat.S_IEXEC)
-            
+
             single_exec = f"exec python3 {action_path}"
 
             current_shas = [self.list_widget.item(i).text().split()[0]
@@ -3335,7 +3335,7 @@ subprocess.check_call(['git', 'clean', '-fd', '--', filepath])
 
             result = subprocess.run(cmd, cwd=self.repo_path, env=env,
                                     capture_output=True, text=True)
-            
+
             try:
                 os.unlink(editor_script)
                 os.unlink(action_path)
@@ -3374,7 +3374,7 @@ subprocess.check_call(['git', 'clean', '-fd', '--', filepath])
             current_shas = [self.list_widget.item(i).text().split()[0]
                             for i in range(self.list_widget.count())]
             sha_idx = current_shas.index(sha) if sha in current_shas else -1
-            
+
             commits_to_drop = []
             if sha_idx >= 0:
                 # Items before sha_idx are newer commits (since list is newest-first)
@@ -3409,7 +3409,7 @@ subprocess.check_call(['git', 'clean', '-fd', '--', filepath])
             )
             if confirm_dialog.exec() != QDialog.Accepted:
                 return
-                
+
             drop_empty_commits = False
 
             if later_modifications_detected:
@@ -3422,7 +3422,7 @@ subprocess.check_call(['git', 'clean', '-fd', '--', filepath])
                 drop_empty_commits = agg_dialog.drop_empty_checkbox.isChecked() if has_empty_commits else False
 
             progress = ProgressDialog(
-                f"Removing {filepath}", 
+                f"Removing {filepath}",
                 "Preparing history rewrite...",
                 self
             )
@@ -3437,7 +3437,7 @@ subprocess.check_call(['git', 'clean', '-fd', '--', filepath])
                 progress.label.setText(f"Rewriting commit {index+1}/{len(commits_to_drop)}...\n({drop_sha[:8]})")
                 for _ in range(3):
                     QApplication.processEvents()
-                
+
                 # drop_sha is correctly the original SHA because we are rebasing backward
                 has_parent = False
                 try:
@@ -3446,12 +3446,12 @@ subprocess.check_call(['git', 'clean', '-fd', '--', filepath])
                 except:
                     pass
                 upstream = f"{drop_sha}^" if has_parent else "--root"
-                
+
                 # Setup skip variables logic
                 should_drop_entirely = drop_empty_commits and will_be_empty
                 if should_drop_entirely:
                     empty_commits_dropped_count += 1
-                
+
                 action_script_content = f"""#!/usr/bin/env python3
 import subprocess, sys
 
@@ -3477,7 +3477,7 @@ except Exception as e:
                 with os.fdopen(action_fd, 'w', encoding='utf-8') as f:
                     f.write(action_script_content)
                 os.chmod(action_path, os.stat(action_path).st_mode | stat.S_IEXEC)
-                
+
                 single_exec = f"exec python3 {action_path}"
 
                 with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.py') as f:
@@ -3509,13 +3509,13 @@ except Exception as e:
 
                 cmd = ["git", "rebase", "-i", upstream] if upstream != "--root" else ["git", "rebase", "-i", "--root"]
                 result = subprocess.run(cmd, cwd=self.repo_path, env=env, capture_output=True, text=True)
-                
+
                 try:
                     os.unlink(editor_script)
                     os.unlink(action_path)
                 except:
                     pass
-                    
+
                 if result.returncode != 0:
                     subprocess.run(["git", "rebase", "--abort"], cwd=self.repo_path, capture_output=True)
                     progress.close()
@@ -3527,11 +3527,11 @@ except Exception as e:
             self.load_history()
             new_head = self.get_head_sha()
             self.log_action(sha, f"removed {filepath} onwards completely", old_head, new_head)
-            
+
             success_msg = f"File '{filepath}' has been perfectly removed from history from {short_sha} onwards."
             if empty_commits_dropped_count > 0:
                 success_msg += f"\n\n{empty_commits_dropped_count} empty commit(s) were automatically dropped."
-                
+
             QMessageBox.information(self, "Success", success_msg)
         except Exception as e:
             QMessageBox.critical(self, "Error", f"An error occurred: {str(e)}")
@@ -3580,7 +3580,7 @@ except Exception as e:
         try:
             short_sha = sha[:8]
             original_msg = get_full_commit_message(self.repo_path, sha)
-            
+
             # The script will be executed when the sequence editor sees 'exec python3 <script>'
             split_script_content = f"""#!/usr/bin/env python3
 import sys, subprocess, os, tempfile
@@ -3628,13 +3628,13 @@ for i, hunk in enumerate(hunks):
     patch_content = '\\n'.join(header) + '\\n' + '\\n'.join(hunk) + '\\n'
     with open('temp.patch', 'w', encoding='utf-8') as f:
         f.write(patch_content)
-    
+
     # Apply patch. --no-backup-if-mismatch ignores minor offset issues.
     subprocess.check_call(['patch', '-p1', '-i', 'temp.patch', '--no-backup-if-mismatch'])
     subprocess.check_call(['git', 'add', filepath])
-    
+
     new_msg = f"change-{{i+1}} of {{target_sha[:8]}}\\n\\n{{original_msg}}"
-    
+
     # Use temp file for multiline message
     with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt', encoding='utf-8') as mf:
         mf.write(new_msg)
@@ -3648,7 +3648,7 @@ for i, hunk in enumerate(hunks):
 if os.path.exists('temp.patch'):
     os.unlink('temp.patch')
 """
-            
+
             # Write the action script
             with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.py', encoding='utf-8') as sf:
                 sf.write(split_script_content)
@@ -3774,7 +3774,7 @@ if os.path.exists('temp.patch'):
         try:
             short_sha = sha[:8]
             original_msg = get_full_commit_message(self.repo_path, sha)
-            
+
             # Action script content for splitting each file
             action_script_content = f"""#!/usr/bin/env python3
 import subprocess, os, tempfile, sys
@@ -3791,14 +3791,14 @@ subprocess.check_call(['git', 'reset', '--hard', 'HEAD~1'])
 for i, filename in enumerate(files):
     # checkout file from original commit to stage it
     subprocess.check_call(['git', 'checkout', sha, '--', filename])
-    
+
     if i == 0:
         # First file gets original commit message
         subprocess.check_call(['git', 'commit', '-C', sha])
     else:
         # Others get "filename changes separated out from short_sha" + original_msg
         msg = f"{{filename}} changes separated out from {{short_sha}}\\n\\n{{original_msg}}"
-        
+
         # Use temp file for multiline message
         msg_fd, msg_path = tempfile.mkstemp(prefix='git_msg_split_', text=True)
         with os.fdopen(msg_fd, 'w', encoding='utf-8') as f:
@@ -3815,7 +3815,7 @@ for i, filename in enumerate(files):
             with os.fdopen(action_fd, 'w', encoding='utf-8') as f:
                 f.write(action_script_content)
             os.chmod(action_path, os.stat(action_path).st_mode | stat.S_IEXEC)
-            
+
             single_exec = f"exec python3 {action_path}"
 
             current_shas = [self.list_widget.item(i).text().split()[0]
@@ -3926,7 +3926,7 @@ for i, filename in enumerate(files):
                 display_shas = [self.list_widget.item(i).text().split()[0] for i in range(self.list_widget.count())]
             old_order = list(reversed(display_shas))
             proposed_order = list(reversed(new_shas))
-            
+
             common_count = 0
             for old, new in zip(old_order, proposed_order):
                 # A commit is only "common" if it's the same SHA AND not being modified
@@ -3934,12 +3934,12 @@ for i, filename in enumerate(files):
                     common_count += 1
                 else:
                     break
-            
+
             # Determine upstream and suffix to re-process
             if common_count > 0:
                 upstream = old_order[common_count - 1]
                 todo_shas = proposed_order[common_count:]
-                
+
                 # SQUASH FIX: If the first commit to reprocess is a squash,
                 # we MUST include at least one commit before it (the pick target)
                 if todo_shas and squash_shas and todo_shas[0] in squash_shas:
@@ -3950,12 +3950,12 @@ for i, filename in enumerate(files):
                     else:
                         # We are squashing into the very first commit of our visible range
                         common_count = 0 # Fall back to full rebase logic below
-            
+
             if common_count == 0:
                 # Check root status
                 has_parent = False
                 try:
-                    subprocess.run(["git", "rev-parse", f"{self.commit_sha}^"], 
+                    subprocess.run(["git", "rev-parse", f"{self.commit_sha}^"],
                                    cwd=self.repo_path, check=True, capture_output=True)
                     has_parent = True
                 except:
@@ -3972,16 +3972,16 @@ for i, filename in enumerate(files):
                 # Feature: Fast-track top-drops (reset --hard)
                 if not todo_shas and common_count > 0:
                     print(f"Fast-tracking drop via reset --hard to {upstream}")
-                    process = subprocess.Popen(["git", "reset", "--hard", upstream], 
+                    process = subprocess.Popen(["git", "reset", "--hard", upstream],
                                                cwd=self.repo_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
                     while process.poll() is None:
                         QApplication.processEvents()
                         time.sleep(0.05)
-                    
+
                     if process.returncode != 0:
                         stdout, stderr = process.communicate()
                         raise Exception(f"Fast-track reset failed: {stderr}")
-                    
+
                     # Small non-blocking delay to ensure the progress window is seen by the user
                     # and has a chance to paint correctly if the operation was near-instant.
                     for _ in range(10):
@@ -4069,7 +4069,7 @@ for i, filename in enumerate(files):
         if unstaged_files:
             dialog = UnstagedChangesDialog(len(unstaged_files), parent=self)
             result = dialog.exec()
-            
+
             if result == UnstagedChangesDialog.Accepted:
                 created_stash_sha = stash_changes(self.repo_path)
                 if created_stash_sha:
@@ -4088,7 +4088,7 @@ for i, filename in enumerate(files):
                     for _ in range(2): QApplication.processEvents()
                     if commit_file(self.repo_path, f, f"changes in {f}"):
                         success_count += 1
-                
+
                 progress.close()
                 QMessageBox.information(self, "Commit Successful", f"Successfully committed {success_count} isolated files.")
             elif result == UnstagedChangesDialog.BulkCommitResult:
@@ -4096,10 +4096,10 @@ for i, filename in enumerate(files):
                 progress = ProgressDialog("Bulk Committing", f"Committing {len(unstaged_files)} files at once...", self)
                 progress.show()
                 for _ in range(3): QApplication.processEvents()
-                
+
                 success = bulk_commit_all(self.repo_path, msg)
                 progress.close()
-                
+
                 if success:
                     QMessageBox.information(self, "Commit Successful", "Bulk commit successful.")
                 else:
@@ -4108,7 +4108,7 @@ for i, filename in enumerate(files):
             else:
                 # Cancel/Rejected: Just return successfully and quietly drop the window.
                 return
-        
+
         # Finally, we reload the tree to correctly align matching local state
         self.load_history()
 
@@ -4126,26 +4126,26 @@ for i, filename in enumerate(files):
         """Fetches git history and populates the list widget."""
         # Invalidate cache as history might have changed
         self.commit_cache = {}
-        
+
         # Clear search when reloading history
         self.update_window_title()
-        
+
         current_branch = get_current_branch(self.repo_path)
-        
+
         # Update origin reset button label with current branch
         if hasattr(self, 'reset_origin_btn'):
             self.reset_origin_btn.setText(f"git reset --hard origin/{current_branch}")
-        
+
         # Save current row to restore selection
         old_row = self.list_widget.currentRow()
-        
+
         self.list_widget.clear()
         self.list_widget.setUpdatesEnabled(False)
         self.list_widget.blockSignals(True)
         try:
             history = get_git_history(self.repo_path, self.commit_sha)
             branch_map = get_local_branches_map(self.repo_path, current_branch=current_branch)
-            
+
             for entry in history:
                 if isinstance(entry, dict):
                     line = entry["raw_text"]
@@ -4157,13 +4157,13 @@ for i, filename in enumerate(files):
                     line = entry
                     sha = line.split()[0]
                     item = QListWidgetItem(line)
-                
+
                 if sha in branch_map:
                     branches_str = ", ".join(branch_map[sha])
                     item.setData(Qt.UserRole + 1, branches_str)
-                    
+
                 self.list_widget.addItem(item)
-            
+
             if self.list_widget.count() > 0:
                 # If nothing was selected before (-1), default to topmost commit (0)
                 # Otherwise, bound it to the new list size
@@ -4177,18 +4177,18 @@ for i, filename in enumerate(files):
             self.list_widget.setUpdatesEnabled(True)
             self.list_widget.blockSignals(False)
             self.update_side_diff()
-            
+
         # Update Failsafe button state
         current_head = get_head_sha(self.repo_path)
         uncommitted = has_uncommitted_changes(self.repo_path)
-        
+
         # Update cache
         self.cached_current_head_full_sha = get_full_head_sha(self.repo_path)
         self.cached_has_uncommitted = uncommitted
 
         try:
             total_repo = subprocess.check_output(["git", "rev-list", "--count", "HEAD"], cwd=self.repo_path, encoding='utf-8', errors='replace').strip()
-            self.total_commits_label.setText(f"Total: {total_repo}")
+            self.total_commits_label.setText(f"Total commits in repo: {total_repo}")
         except Exception:
             self.total_commits_label.setText("Total: ?")
         self._update_commit_counts()
