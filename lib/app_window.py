@@ -1566,7 +1566,7 @@ class GitInteractiveRebaseApp(QMainWindow):
                     Qt.QueuedConnection,
                     Q_ARG(str, "?")
                 )
-        print("Spawning thread to find total commit count ...")
+        print("Trying to find out total commit count ...")
         thread = threading.Thread(target=worker, daemon=True)
         thread.start()
 
