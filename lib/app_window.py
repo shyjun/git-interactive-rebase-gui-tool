@@ -21,7 +21,7 @@ from PySide6.QtWidgets import (
     QStatusBar
 )
 # pyrefly: ignore [missing-import]
-from PySide6.QtGui import QFont, QSyntaxHighlighter, QTextCharFormat, QColor, QAction, QShortcut, QKeySequence, QIcon, QBrush, QPainter, QPen
+from PySide6.QtGui import QFont, QSyntaxHighlighter, QTextCharFormat, QColor, QAction, QShortcut, QKeySequence, QIcon, QBrush, QPainter, QPainterPath, QPen, QPixmap, QPalette
 # pyrefly: ignore [missing-import]
 from PySide6.QtCore import Qt, QSize, QSettings, QThread, Signal, QRect, QTimer, Slot
 
@@ -967,7 +967,7 @@ class GitInteractiveRebaseApp(QMainWindow):
 
         # Theme dropdown menu button
         self.theme_menu_btn = QPushButton("Theme")
-        self._set_icon(self.theme_menu_btn, QStyle.SP_TitleBarMaxButton)
+        self._set_theme_icon(self.theme_menu_btn)
         theme_menu = QMenu(self.theme_menu_btn)
         self.dark_radio = QRadioButton("Dark Theme")
         self.light_radio = QRadioButton("Light Theme")
@@ -1612,6 +1612,36 @@ class GitInteractiveRebaseApp(QMainWindow):
         button.setIcon(icon)
         button.setIconSize(QSize(16, 16))
 
+    def _set_theme_icon(self, button):
+        import math
+        pixmap = QPixmap(16, 16)
+        pixmap.fill(Qt.transparent)
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        color = self.palette().color(QPalette.ButtonText)
+        pen = QPen(color, 1.0)
+        painter.setPen(pen)
+        painter.setBrush(Qt.NoBrush)
+
+        # Artist palette body with thumb hole cutout
+        body = QPainterPath()
+        body.addEllipse(1.5, 3, 11, 9)
+        hole = QPainterPath()
+        hole.addEllipse(9, 8, 4, 4)
+        palette_path = body.subtracted(hole)
+        painter.drawPath(palette_path)
+
+        # Paint blobs
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(QBrush(color))
+        painter.drawEllipse(4, 4.5, 2.0, 2.0)
+        painter.drawEllipse(7, 4.0, 2.0, 2.0)
+        painter.drawEllipse(5.5, 7.5, 2.0, 2.0)
+
+        painter.end()
+        button.setIcon(QIcon(pixmap))
+        button.setIconSize(QSize(16, 16))
+
     def handle_set_best_commit(self, item):
         sha = item.text().split()[0]
         self.best_commit_sha = sha
@@ -1963,6 +1993,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.is_dark_theme = (theme == "dark")
         self.apply_theme(theme)
         self.settings.setValue("theme", theme)
+        self._set_theme_icon(self.theme_menu_btn)
         if self.theme_menu_btn.menu():
             self.theme_menu_btn.menu().close()
 
