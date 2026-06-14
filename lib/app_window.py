@@ -1190,6 +1190,14 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.showing_commits_label.setStyleSheet("font-weight: bold;")
         status_layout.addWidget(self.showing_commits_label)
 
+        sep_merge = QLabel("|")
+        sep_merge.setStyleSheet("color: gray;")
+        status_layout.addWidget(sep_merge)
+
+        self.merge_commits_label = QLabel("Merge: 0")
+        self.merge_commits_label.setStyleSheet("font-weight: bold;")
+        status_layout.addWidget(self.merge_commits_label)
+
         status_bar.addPermanentWidget(status_widget, 1)
 
 
@@ -1540,8 +1548,16 @@ class GitInteractiveRebaseApp(QMainWindow):
 
     def _update_commit_counts(self):
         total = self.list_widget.count()
-        showing = sum(1 for i in range(total) if not self.list_widget.item(i).isHidden())
+        showing = 0
+        merge_showing = 0
+        for i in range(total):
+            item = self.list_widget.item(i)
+            if not item.isHidden():
+                showing += 1
+                if item.data(Qt.UserRole + 5):
+                    merge_showing += 1
         self.showing_commits_label.setText(f"Showing: {showing}")
+        self.merge_commits_label.setText(f"Merge: {merge_showing}")
 
     def _count_total_commits_async(self):
         """Count total commits in repo in background thread to avoid blocking startup."""
@@ -4246,6 +4262,8 @@ for i, filename in enumerate(files):
                     item.setData(Qt.UserRole + 2, entry.get("date", ""))
                     item.setData(Qt.UserRole + 3, (entry.get("added", 0), entry.get("deleted", 0)))
                     item.setData(Qt.UserRole + 4, entry.get("author", ""))
+                    parents = entry.get("parents", "")
+                    item.setData(Qt.UserRole + 5, " " in parents)
                 else:
                     line = entry
                     sha = line.split()[0]
