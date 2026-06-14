@@ -1190,12 +1190,14 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.showing_commits_label.setStyleSheet("font-weight: bold;")
         status_layout.addWidget(self.showing_commits_label)
 
-        sep_merge = QLabel("|")
-        sep_merge.setStyleSheet("color: gray;")
-        status_layout.addWidget(sep_merge)
+        self.sep_merge = QLabel("|")
+        self.sep_merge.setStyleSheet("color: gray;")
+        self.sep_merge.setVisible(False)
+        status_layout.addWidget(self.sep_merge)
 
         self.merge_commits_label = QLabel("Merge: 0")
         self.merge_commits_label.setStyleSheet("font-weight: bold;")
+        self.merge_commits_label.setVisible(False)
         status_layout.addWidget(self.merge_commits_label)
 
         status_bar.addPermanentWidget(status_widget, 1)
@@ -1557,7 +1559,11 @@ class GitInteractiveRebaseApp(QMainWindow):
                 if item.data(Qt.UserRole + 5):
                     merge_showing += 1
         self.showing_commits_label.setText(f"Showing: {showing}")
-        self.merge_commits_label.setText(f"Merge: {merge_showing}")
+        has_merges = merge_showing > 0
+        self.sep_merge.setVisible(has_merges)
+        self.merge_commits_label.setVisible(has_merges)
+        if has_merges:
+            self.merge_commits_label.setText(f"Merge: {merge_showing}")
 
     def _count_total_commits_async(self):
         """Count total commits in repo in background thread to avoid blocking startup."""
