@@ -238,6 +238,11 @@ class CommitItemDelegate(QStyledItemDelegate):
             painter.setBrush(node_color)
             painter.setPen(QPen(node_color.darker(130), 1))
             painter.drawEllipse(center_x - rad, center_y - rad, rad * 2, rad * 2)
+            is_merge = index.data(Qt.UserRole + 5)
+            if is_merge:
+                painter.setPen(QPen(Qt.white, 1.5))
+                painter.drawText(QRect(center_x - rad, center_y - rad, rad * 2, rad * 2),
+                                 Qt.AlignCenter, "M")
             painter.restore()
 
         show_branches = getattr(main_win, "show_local_branches", False)
