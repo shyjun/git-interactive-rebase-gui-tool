@@ -982,20 +982,20 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.theme_menu_btn.setMenu(theme_menu)
 
         self.toggle_diff_btn = QPushButton("Hide Diffs" if self.show_diffs else "Show Diffs")
-        self._set_icon(self.toggle_diff_btn, QStyle.SP_FileDialogDetailedView, "view-visible")
+        self._set_toggle_diff_icon(self.toggle_diff_btn)
         self.help_btn = QPushButton("Help")
-        self._set_icon(self.help_btn, QStyle.SP_MessageBoxQuestion, "help-about")
+        self._set_help_icon(self.help_btn)
         self.rescan_btn = QPushButton("Rescan Repo")
-        self._set_icon(self.rescan_btn, QStyle.SP_BrowserReload, "view-refresh")
+        self._set_rescan_icon(self.rescan_btn)
         self.undo_btn = QPushButton("Undo")
-        self._set_icon(self.undo_btn, QStyle.SP_ArrowBack, "edit-undo")
+        self._set_undo_icon(self.undo_btn)
         self.undo_btn.setEnabled(False)
         self.check_update_btn = QPushButton("Check Updates")
-        self._set_icon(self.check_update_btn, QStyle.SP_MessageBoxInformation)
+        self._set_check_update_icon(self.check_update_btn)
         self.refresh_btn = QPushButton("Refresh")
-        self._set_icon(self.refresh_btn, QStyle.SP_BrowserReload, "view-refresh")
+        self._set_refresh_icon(self.refresh_btn)
         self.exit_btn = QPushButton("Exit")
-        self._set_icon(self.exit_btn, QStyle.SP_DialogCloseButton, "application-exit")
+        self._set_exit_icon(self.exit_btn)
         self.exit_btn.setStyleSheet("color: red; font-weight: bold;")
 
         self.failsafe_btn = QPushButton("")
@@ -1642,6 +1642,162 @@ class GitInteractiveRebaseApp(QMainWindow):
         button.setIcon(QIcon(pixmap))
         button.setIconSize(QSize(16, 16))
 
+    def _make_icon_pixmap(self, draw_func):
+        pixmap = QPixmap(16, 16)
+        pixmap.fill(Qt.transparent)
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        draw_func(painter)
+        painter.end()
+        return QIcon(pixmap)
+
+    def _toolbar_icon_color(self, color=None):
+        return color if color is not None else self.palette().color(QPalette.ButtonText)
+
+    def _apply_toolbar_icon(self, button, draw_func, color=None):
+        icon_color = self._toolbar_icon_color(color)
+        button.setIcon(self._make_icon_pixmap(lambda painter: draw_func(painter, icon_color)))
+        button.setIconSize(QSize(16, 16))
+
+    def _set_toggle_diff_icon(self, button):
+        self._apply_toolbar_icon(button, self._draw_eye_slash)
+
+    def _set_help_icon(self, button):
+        self._apply_toolbar_icon(button, self._draw_help)
+
+    def _set_rescan_icon(self, button):
+        self._apply_toolbar_icon(button, self._draw_rescan)
+
+    def _set_undo_icon(self, button):
+        self._apply_toolbar_icon(button, self._draw_undo)
+
+    def _set_check_update_icon(self, button):
+        self._apply_toolbar_icon(button, self._draw_cloud_download)
+
+    def _set_refresh_icon(self, button):
+        self._apply_toolbar_icon(button, self._draw_refresh)
+
+    def _set_exit_icon(self, button):
+        self._apply_toolbar_icon(button, self._draw_exit, QColor("red"))
+
+    def _refresh_toolbar_icons(self):
+        self._set_theme_icon(self.theme_menu_btn)
+        self._set_toggle_diff_icon(self.toggle_diff_btn)
+        self._set_help_icon(self.help_btn)
+        self._set_rescan_icon(self.rescan_btn)
+        self._set_undo_icon(self.undo_btn)
+        self._set_check_update_icon(self.check_update_btn)
+        self._set_refresh_icon(self.refresh_btn)
+        self._set_exit_icon(self.exit_btn)
+
+    def _draw_eye_slash(self, painter, color):
+        pen = QPen(color, 1.7)
+        pen.setCapStyle(Qt.RoundCap)
+        pen.setJoinStyle(Qt.RoundJoin)
+        painter.setPen(pen)
+        painter.setBrush(Qt.NoBrush)
+
+        eye = QPainterPath()
+        eye.moveTo(1.5, 8)
+        eye.cubicTo(4.0, 3.8, 12.0, 3.8, 14.5, 8)
+        eye.cubicTo(12.0, 12.2, 4.0, 12.2, 1.5, 8)
+        painter.drawPath(eye)
+        painter.drawEllipse(6.0, 6.0, 4.0, 4.0)
+        painter.drawLine(2.0, 14.0, 14.0, 2.0)
+
+    def _draw_help(self, painter, color):
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(QBrush(color))
+        painter.drawEllipse(2.0, 2.0, 12.0, 12.0)
+
+        painter.setPen(QPen(Qt.white, 1.7, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+        painter.setBrush(Qt.NoBrush)
+        question = QPainterPath()
+        question.moveTo(5.8, 6.0)
+        question.cubicTo(5.9, 4.6, 7.0, 4.0, 8.1, 4.0)
+        question.cubicTo(9.5, 4.0, 10.3, 4.8, 10.3, 5.9)
+        question.cubicTo(10.3, 7.0, 9.4, 7.5, 8.6, 8.0)
+        question.cubicTo(8.0, 8.4, 7.8, 8.8, 7.8, 9.6)
+        painter.drawPath(question)
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(QBrush(Qt.white))
+        painter.drawEllipse(7.25, 11.1, 1.5, 1.5)
+
+    def _draw_cloud_download(self, painter, color):
+        pen = QPen(color, 1.5)
+        pen.setCapStyle(Qt.RoundCap)
+        pen.setJoinStyle(Qt.RoundJoin)
+        painter.setPen(pen)
+        painter.setBrush(Qt.NoBrush)
+
+        cloud = QPainterPath()
+        cloud.moveTo(5.1, 12.0)
+        cloud.lineTo(4.3, 12.0)
+        cloud.cubicTo(2.4, 12.0, 1.3, 10.8, 1.3, 9.3)
+        cloud.cubicTo(1.3, 7.9, 2.2, 6.9, 3.7, 6.6)
+        cloud.cubicTo(4.0, 4.5, 5.6, 3.2, 7.6, 3.2)
+        cloud.cubicTo(9.4, 3.2, 10.8, 4.2, 11.4, 5.8)
+        cloud.cubicTo(13.3, 5.9, 14.7, 7.3, 14.7, 9.0)
+        cloud.cubicTo(14.7, 10.8, 13.3, 12.0, 11.5, 12.0)
+        cloud.lineTo(10.7, 12.0)
+        painter.drawPath(cloud)
+        painter.drawLine(8.0, 6.6, 8.0, 11.0)
+        painter.drawLine(5.9, 8.9, 8.0, 11.0)
+        painter.drawLine(10.1, 8.9, 8.0, 11.0)
+
+    def _draw_rescan(self, painter, color):
+        pen = QPen(color, 1.8)
+        pen.setCapStyle(Qt.RoundCap)
+        pen.setJoinStyle(Qt.RoundJoin)
+        painter.setPen(pen)
+        painter.setBrush(Qt.NoBrush)
+
+        painter.drawEllipse(2.0, 2.0, 8.8, 8.8)
+        painter.drawLine(9.4, 9.4, 14.0, 14.0)
+
+    def _draw_undo(self, painter, color):
+        pen = QPen(color, 1.8)
+        pen.setCapStyle(Qt.RoundCap)
+        pen.setJoinStyle(Qt.RoundJoin)
+        painter.setPen(pen)
+        painter.setBrush(Qt.NoBrush)
+
+        painter.drawLine(6.6, 4.0, 2.8, 7.4)
+        painter.drawLine(2.8, 7.4, 6.6, 10.8)
+        path = QPainterPath()
+        path.moveTo(3.2, 7.4)
+        path.lineTo(9.4, 7.4)
+        path.cubicTo(12.0, 7.4, 13.4, 8.9, 13.4, 11.5)
+        painter.drawPath(path)
+
+    def _draw_refresh(self, painter, color):
+        pen = QPen(color, 2.2)
+        pen.setCapStyle(Qt.FlatCap)
+        pen.setJoinStyle(Qt.MiterJoin)
+        painter.setPen(pen)
+        painter.setBrush(Qt.NoBrush)
+
+        painter.drawArc(2.5, 2.4, 11.0, 11.0, 150 * 16, -120 * 16)
+        painter.drawArc(2.5, 2.4, 11.0, 11.0, 330 * 16, -120 * 16)
+
+        painter.drawLine(12.8, 3.4, 12.8, 6.7)
+        painter.drawLine(12.8, 6.7, 9.6, 6.7)
+        painter.drawLine(3.2, 12.6, 3.2, 9.3)
+        painter.drawLine(3.2, 9.3, 6.4, 9.3)
+
+    def _draw_exit(self, painter, color):
+        pen = QPen(color, 1.6)
+        pen.setCapStyle(Qt.RoundCap)
+        pen.setJoinStyle(Qt.RoundJoin)
+        painter.setPen(pen)
+        painter.setBrush(Qt.NoBrush)
+
+        painter.drawRoundedRect(2.4, 3.0, 6.6, 10.0, 0.8, 0.8)
+        painter.drawLine(9.8, 8.0, 14.0, 8.0)
+        painter.drawLine(12.0, 5.9, 14.0, 8.0)
+        painter.drawLine(12.0, 10.1, 14.0, 8.0)
+        painter.drawLine(6.6, 5.0, 6.6, 11.0)
+
     def handle_set_best_commit(self, item):
         sha = item.text().split()[0]
         self.best_commit_sha = sha
@@ -1993,7 +2149,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.is_dark_theme = (theme == "dark")
         self.apply_theme(theme)
         self.settings.setValue("theme", theme)
-        self._set_theme_icon(self.theme_menu_btn)
+        self._refresh_toolbar_icons()
         if self.theme_menu_btn.menu():
             self.theme_menu_btn.menu().close()
 
