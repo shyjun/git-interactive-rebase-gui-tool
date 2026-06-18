@@ -23,7 +23,7 @@ from lib.utils import get_assets_path
 from lib.git_helpers import (
     get_root_commit, get_recent_history_start, get_branch_base_info,
     has_uncommitted_changes, stash_changes, get_unstaged_files, commit_file,
-    bulk_commit_all, stash_pop, get_full_head_sha
+    bulk_commit_all, amend_with_head, stash_pop, get_full_head_sha
 )
 from lib.app_window import GitInteractiveRebaseApp, get_theme_stylesheet
 from lib.dialogs import UnstagedChangesDialog, ProgressDialog
@@ -145,6 +145,17 @@ def main():
                 print("Bulk commit successful.")
             else:
                 print("Bulk commit failed.")
+
+            progress.close()
+        elif result == UnstagedChangesDialog.AmendResult:
+            progress = ProgressDialog("Amending", "Amending all changes into HEAD commit...", None)
+            progress.show()
+            QApplication.processEvents()
+
+            if amend_with_head(repo_path):
+                print("Amend successful.")
+            else:
+                print("Amend failed.")
 
             progress.close()
         else:

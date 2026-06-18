@@ -492,3 +492,16 @@ def bulk_commit_all(repo_path, message):
         return True
     except subprocess.CalledProcessError:
         return False
+
+
+def amend_with_head(repo_path):
+    """Stages all modified files and amends them into the current HEAD commit."""
+    try:
+        before = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo_path, capture_output=True, text=True, check=True).stdout.strip()
+        subprocess.run(["git", "add", "-u"], cwd=repo_path, check=True, capture_output=True)
+        subprocess.run(["git", "commit", "--amend", "--no-edit"], cwd=repo_path, check=True, capture_output=True)
+        after = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo_path, capture_output=True, text=True, check=True).stdout.strip()
+        print(f"Amended HEAD: {before[:8]} -> {after[:8]}")
+        return True
+    except subprocess.CalledProcessError:
+        return False
