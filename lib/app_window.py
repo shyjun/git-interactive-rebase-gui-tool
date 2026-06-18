@@ -30,7 +30,7 @@ from lib.git_helpers import (
     get_full_commit_message, get_commit_metadata, get_commit_files,
     has_uncommitted_changes, branch_exists, get_local_branches_map, get_remote_head_sha,
     get_file_diff_only_in_commit, get_revert_commit_message, get_commit_metadata_and_message,
-    get_commit_file_stats, get_unstaged_files, stash_changes, commit_file, bulk_commit_all
+    get_commit_file_stats,     get_unstaged_files, stash_changes, commit_file, bulk_commit_all, amend_with_head
 )
 from lib.dialogs import (
     DiffHighlighter, DiffViewerDialog, SplitCommitDialog, ViewCommitDialog,
@@ -4410,6 +4410,19 @@ for i, filename in enumerate(files):
                     QMessageBox.information(self, "Commit Successful", "Bulk commit successful.")
                 else:
                     QMessageBox.critical(self, "Error", "Bulk commit failed.")
+                    return
+            elif result == UnstagedChangesDialog.AmendResult:
+                progress = ProgressDialog("Amending", "Amending all changes into HEAD commit...", self)
+                progress.show()
+                for _ in range(3): QApplication.processEvents()
+
+                success = amend_with_head(self.repo_path)
+                progress.close()
+
+                if success:
+                    QMessageBox.information(self, "Amend Successful", "Changes amended into HEAD commit.")
+                else:
+                    QMessageBox.critical(self, "Error", "Amend failed.")
                     return
             else:
                 # Cancel/Rejected: Just return successfully and quietly drop the window.
