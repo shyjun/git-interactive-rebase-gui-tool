@@ -4258,7 +4258,12 @@ for i, filename in enumerate(files):
                         common_count = 0 # Fall back to full rebase logic below
 
             if common_count == 0:
-                # Check root status
+                # Check root status (self.commit_sha is the branch base / the last commit NOT shown)
+                # We use self.commit_sha directly as upstream, NOT self.commit_sha^.
+                # self.commit_sha is already the parent of the first local commit, so only
+                # local commits fall in the rebase range. Using self.commit_sha^ would pull
+                # the branch-base commit into the rebase range, causing it to be dropped or
+                # squashed because it doesn't appear in the todo list.
                 has_parent = False
                 try:
                     subprocess.run(["git", "rev-parse", f"{self.commit_sha}^"],
@@ -4266,7 +4271,7 @@ for i, filename in enumerate(files):
                     has_parent = True
                 except:
                     has_parent = False
-                upstream = f"{self.commit_sha}^" if has_parent else "--root"
+                upstream = self.commit_sha if has_parent else "--root"
                 todo_shas = proposed_order
 
             # Show progress dialog
