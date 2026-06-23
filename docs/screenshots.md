@@ -25,15 +25,16 @@ Visual documentation for the Git Interactive Rebase GUI Tool. Each section showc
     - [12.2 Keep Only Selected Changes / Hunks](#122-keep-only-selected-changes--hunks)
     - [12.3 Move Selected Changes to a Separate Commit](#123-move-selected-changes-to-a-separate-commit)
     - [12.4 Edit Hunk](#124-edit-hunk)
-13. [Reset Options](#13-reset-options)
-14. [Rebase Options](#14-rebase-options)
-15. [Themes (Light / Dark)](#15-themes-light--dark)
-16. [Zoom Controls](#16-zoom-controls)
-17. [Mark / Unmark Commit](#17-mark--unmark-commit)
-18. [Show Local Branches](#18-show-local-branches)
-19. [Copy to Clipboard](#19-copy-to-clipboard)
-20. [Unstaged Changes Handling](#20-unstaged-changes-handling)
-21. [Keyboard Shortcuts](#21-keyboard-shortcuts)
+13. [Rescan Repository for Changes](#13-rescan-repository-for-changes)
+14. [Reset Options](#14-reset-options)
+15. [Rebase Options](#15-rebase-options)
+16. [Themes (Light / Dark)](#16-themes-light--dark)
+17. [Zoom Controls](#17-zoom-controls)
+18. [Mark / Unmark Commit](#18-mark--unmark-commit)
+19. [Show Local Branches](#19-show-local-branches)
+20. [Copy to Clipboard](#20-copy-to-clipboard)
+21. [Unstaged Changes Handling](#21-unstaged-changes-handling)
+22. [Keyboard Shortcuts](#22-keyboard-shortcuts)
 
 ---
 
@@ -366,7 +367,29 @@ Useful for quickly cleaning up accidental changes, temporary code, debug prints,
 
 ---
 
-## 13. Reset Options
+## 13. Rescan Repository for Changes
+
+Detect newly introduced unstaged or uncommitted changes while the application is already running.
+
+**Screenshot:** `screenshots/rescan-repository.png`
+
+![Rescan Repository for Changes](screenshots/rescan-repository.png)
+
+**Description:** The application can remain open while you continue working in your editor or terminal. If new unstaged or uncommitted changes are introduced outside the tool, use **Rescan Repository** to re-evaluate the repository state.
+
+When changes are detected, the tool provides the same safe handling options available during startup, allowing you to:
+
+- Stash changes and continue
+- Commit each file separately
+- Commit all changes into a single bulk commit
+- Amend all changes to the current `HEAD` commit
+- Cancel and resolve changes manually
+
+This makes it easy to keep the application open throughout a development session while safely incorporating newly created changes into your interactive rebase workflow.
+
+---
+
+## 14. Reset Options
 
 Fail-safe options to reset your branch to a safe state.
 
@@ -382,7 +405,7 @@ Fail-safe options to reset your branch to a safe state.
 
 ---
 
-## 14. Rebase Options
+## 15. Rebase Options
 
 Rebase your commits onto a different branch.
 
@@ -400,7 +423,7 @@ The rebase runs in the background without blocking the UI.
 
 ---
 
-## 15. Themes (Light / Dark)
+## 16. Themes (Light / Dark)
 
 Toggle between light and dark themes for comfortable viewing.
 
@@ -414,7 +437,7 @@ Toggle between light and dark themes for comfortable viewing.
 
 ---
 
-## 16. Zoom Controls
+## 17. Zoom Controls
 
 Adjust the font size for better readability.
 
@@ -426,7 +449,7 @@ Adjust the font size for better readability.
 
 ---
 
-## 17. Mark / Unmark Commit
+## 18. Mark / Unmark Commit
 
 Mark commits for easy identification.
 
@@ -440,7 +463,7 @@ Mark commits for easy identification.
 
 ---
 
-## 18. Show Local Branches
+## 19. Show Local Branches
 
 Display local and remote branch names alongside commits.
 
@@ -454,7 +477,7 @@ Display local and remote branch names alongside commits.
 
 ---
 
-## 19. Copy to Clipboard
+## 20. Copy to Clipboard
 
 Quickly copy commit details for sharing, debugging, or reference.
 
@@ -472,7 +495,7 @@ A brief **"Copied!"** notification appears to confirm the action.
 
 ---
 
-## 20. Unstaged Changes Handling
+## 21. Unstaged Changes Handling
 
 Safely launch the application even when the repository contains unstaged or uncommitted changes.
 
@@ -489,6 +512,7 @@ Available options include:
 - **Stash and proceed to app** → Temporarily stash current changes and launch the application. When exiting the app, if it was launched this way, you are prompted to directly **stash pop** and restore the changes.
 - **Commit each file changes separately and start app** → Automatically create one commit per modified file before launch
 - **Commit all unsaved changes to a single "bulk" commit** → Save all current changes into one temporary commit and continue
+- **Amend all changes to the current `HEAD` commit** → Ament HEAD commit with the unstaged changes
 - **Exit** → Cancel launch and resolve changes manually
 
 > **Note:** Untracked files are **not considered** during this process and are left untouched (not stashed or modified).
@@ -497,7 +521,7 @@ This helps prevent accidental data loss or conflicts while rewriting commit hist
 
 ---
 
-## 21. Keyboard Shortcuts
+## 22. Keyboard Shortcuts
 
 Keyboard shortcuts for faster navigation and workflow.
 

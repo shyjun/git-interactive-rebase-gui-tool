@@ -17,22 +17,29 @@ A Python-based Git Interactive Rebase GUI tool to visually manage commit history
 * **Smart Rephrase**: Effortlessly update commit messages without leaving the app.
 * **Instant Drop**: Remove unwanted commits with a single click.
 * **Reset Hard**: Quickly reset your branch to a specific commit.
-* **Refine Changes in File**: Selectively keep or drop specific changes/hunks inside a single file within a commit before finalizing commit history.
-* **Move Changes to New Commit**: Move selected changes/hunks from a single file within a commit into a separate commit. Useful when a change accidentally landed in the wrong commit — move it out, place it correctly, and squash it with the intended commit.
-* **Edit Hunk**: Edit a selected hunk inside a single file within a commit using a lightweight patch editor.
-* **Copy Hunk**: Quickly copy a hunk patch to clipboard.
+* **Hunk-Level Commit Refinement**: Selectively manipulate individual hunks within a commit.
+  * Keep only selected hunks
+  * Drop selected hunks
+  * Move selected hunks to a new commit
+  * Edit hunks using a lightweight patch editor
+  * Copy hunk patches to clipboard
 
 ### 🔍 Discovery & Navigation
 
-* **Live Search & Filter**: Instantly find any commit by searching its **SHA** or **Message**. Filtering is live while you type.
+* **Live Search & Filter**: Instantly find commits while you type.
+* **Advanced Commit Filtering**: Search commits by **SHA**, **Commit Message**, **Filename**, or **Diff Content**.
+* **Search Inside Diffs**: Use **Ctrl+F** to quickly search within the currently displayed diff, with support for match case, whole word matching, and next/previous navigation.
+* **File-wise Diff Viewer**: Browse commit changes file by file for easier review.
 
 ### ⌨️ Keyboard Shortcuts
 
-| Shortcut | Action                      |
-| -------- | --------------------------- |
-| `/`      | Focus search bar            |
-| `Esc`    | Clear search / Close dialog |
-| `F5`     | Refresh commit history      |
+| Shortcut | Action |
+|-----------|----------|
+| `/` | Focus search bar |
+| `Esc` | Clear search / Close dialog |
+| `Ctrl+F` | Search inside diff viewer |
+| `Ctrl+Q` | Exit application |
+| `F5` | Refresh / Rescan commit history |
 
 ### 🎨 Premium User Experience
 
@@ -46,8 +53,9 @@ A Python-based Git Interactive Rebase GUI tool to visually manage commit history
 * **Inclusive Range History**: View and edit history all the way down to the root commit or a specific parent.
 * **Headless Execution**: Rebase operations run in the background without blocking or spawning external editors.
 * **Clean Startup**: Defaults to Light Theme on the first run with optimized loading to prevent flickering.
+* **Safe Unstaged Changes Handling**: Detects unstaged changes at startup and offers options to stash them, commit them automatically, or exit safely before proceeding.
+* **Rescan for Working Tree Changes**: Keep the application open while developing. If new unstaged changes are introduced outside the tool, use **Rescan Repository** to detect them and safely decide whether to stash, commit, or continue working.
 * **Recovery Friendly**: Operations log important commit SHAs, making it easy to reset back to earlier states if needed.
-
 ---
 
 ## 📸 Screenshots
