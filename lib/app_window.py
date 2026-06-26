@@ -82,7 +82,7 @@ class SplitWorker(QThread):
 class HelpDialog(QDialog):
     """Simple Help dialog with links to Video Demo, Readme, and Mail to Author."""
 
-    YOUTUBE_URL = "https://www.youtube.com"  # Placeholder – update when demo video is ready
+    YOUTUBE_URL = "https://www.youtube.com/watch?v=JlV4O1C3uPU"
     README_URL = "https://github.com/shyjun/git-interactive-rebase-gui-tool/blob/master/README.md"
     MAILTO = "mailto:n.shyju@gmail.com"
 

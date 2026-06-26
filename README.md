@@ -66,7 +66,7 @@ See the [Screenshots & Feature Guide](docs/screenshots.md) for visual documentat
 
 ## 🎥 Demo Video
 
-Coming soon... (Recording in progress)
+[![Demo Video](https://img.youtube.com/vi/JlV4O1C3uPU/0.jpg)](https://www.youtube.com/watch?v=JlV4O1C3uPU)
 
 ---
 
