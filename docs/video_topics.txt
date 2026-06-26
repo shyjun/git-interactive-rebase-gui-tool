@@ -1,0 +1,45 @@
+Git Interactive Rebase GUI Tool
+
+Launch tool(with no args) and show the structure
+	diff pane, diff viewer, file-wise diff viewer
+	search diff, line numbers
+	show stats, dates, always on top
+	commit counts
+	Theme Dark/Light
+	Zoom
+Launch the tool with num commits arg specified
+------
+Launch the tool with unstaged changes
+search/filter commits
+mark/unmark commits
+Rephrase a commit
+Drop a commit
+Reorder commits
+Squash commits:
+	with above/below
+	selective squash
+------
+Split commits:
+	drop changes from 1 file from this commit
+	move one file change out of this commit
+	split all changes in one file to separate commits
+	split each file changes to separate commits
+------
+Refine Changes
+	keep/drop hunks
+	move selected hunks to separate commits
+	edit hunk
+------
+Rescan repo for changes
+Reset options:
+	Reset to start time HEAD
+	Reset to best commitid
+	Enter commit id to reset to
+Rebase options:
+	show rebase tick
+	git rebase master
+	git rebase main
+	Enter branch/sha to rebase on top of
+------
+show local branches
+copy to clipboard
