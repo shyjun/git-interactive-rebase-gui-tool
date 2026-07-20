@@ -10,6 +10,19 @@ import webbrowser
 import tempfile
 import stat
 import time
+import pathlib
+
+
+def _posix_path(p: str) -> str:
+    """Return *p* with all backslashes replaced by forward slashes.
+
+    Git's rebase todo-file parser (and the underlying shell exec) do not
+    understand Windows backslash path separators.  Normalising every
+    temp-script path to POSIX form before embedding it in a todo-line or
+    in GIT_SEQUENCE_EDITOR fixes the 'CWindowsUsers…' corruption that
+    occurs on Windows.
+    """
+    return pathlib.Path(p).as_posix()
 
 # pyrefly: ignore [missing-import]
 from PySide6.QtWidgets import (
@@ -3266,7 +3279,7 @@ if result_action == "move" and move_patch.strip():
                 f.write(action_script_content)
             os.chmod(action_path, os.stat(action_path).st_mode | stat.S_IEXEC)
 
-            single_exec = f"exec python3 {action_path}"
+            single_exec = f"exec python3 {_posix_path(action_path)}"
 
             current_shas = [self.list_widget.item(i).text().split()[0]
                             for i in range(self.list_widget.count())]
@@ -3436,7 +3449,7 @@ finally:
                 f.write(action_script_content)
             os.chmod(action_path, os.stat(action_path).st_mode | stat.S_IEXEC)
 
-            single_exec = f"exec python3 {action_path}"
+            single_exec = f"exec python3 {_posix_path(action_path)}"
 
             current_shas = [self.list_widget.item(i).text().split()[0]
                             for i in range(self.list_widget.count())]
@@ -3592,7 +3605,7 @@ subprocess.check_call(['git', 'clean', '-fd', '--', filepath])
                 f.write(action_script_content)
             os.chmod(action_path, os.stat(action_path).st_mode | stat.S_IEXEC)
 
-            single_exec = f"exec python3 {action_path}"
+            single_exec = f"exec python3 {_posix_path(action_path)}"
 
             current_shas = [self.list_widget.item(i).text().split()[0]
                             for i in range(self.list_widget.count())]
@@ -3784,7 +3797,7 @@ except Exception as e:
                     f.write(action_script_content)
                 os.chmod(action_path, os.stat(action_path).st_mode | stat.S_IEXEC)
 
-                single_exec = f"exec python3 {action_path}"
+                single_exec = f"exec python3 {_posix_path(action_path)}"
 
                 with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.py') as f:
                     f.write("#!/usr/bin/env python3\n")
@@ -3961,7 +3974,7 @@ if os.path.exists('temp.patch'):
                 split_action_script = sf.name
             os.chmod(split_action_script, os.stat(split_action_script).st_mode | stat.S_IEXEC)
 
-            single_exec = f"exec python3 {split_action_script}"
+            single_exec = f"exec python3 {_posix_path(split_action_script)}"
 
             current_shas = [self.list_widget.item(i).text().split()[0] for i in range(self.list_widget.count())]
 
@@ -4122,7 +4135,7 @@ for i, filename in enumerate(files):
                 f.write(action_script_content)
             os.chmod(action_path, os.stat(action_path).st_mode | stat.S_IEXEC)
 
-            single_exec = f"exec python3 {action_path}"
+            single_exec = f"exec python3 {_posix_path(action_path)}"
 
             current_shas = [self.list_widget.item(i).text().split()[0]
                             for i in range(self.list_widget.count())]
