@@ -405,7 +405,10 @@ class CommitListWidget(QListWidget):
             )
 
             if reply == QMessageBox.Yes:
-                # Safety check: abort if HEAD has changed since last scan or there are unstaged changes
+                # Safety check: abort if Viewer Mode is enabled, HEAD has changed, or there are unstaged changes
+                if not self.main_window._check_not_viewer_mode():
+                    event.ignore()
+                    return
                 if not self.main_window._check_head_unchanged():
                     event.ignore()
                     return
@@ -642,12 +645,13 @@ def get_theme_stylesheet(theme_name):
 
 
 class GitInteractiveRebaseApp(QMainWindow):
-    def __init__(self, repo_path, commit_sha, app_start_time, base_branch=None):
+    def __init__(self, repo_path, commit_sha, app_start_time, base_branch=None, viewer_mode=False):
         super().__init__()
         self.repo_path = repo_path
         self.commit_sha = commit_sha
         self.app_start_time = app_start_time
         self.base_branch = base_branch  # set only when auto-detected; None when SHA provided manually
+        self.viewer_mode = viewer_mode
         self.start_time_full_head = get_full_head_sha(self.repo_path)
         self.start_time_head = get_head_sha(self.repo_path)
         self.cached_current_head_full_sha = self.start_time_full_head
@@ -735,7 +739,8 @@ class GitInteractiveRebaseApp(QMainWindow):
         """Updates window title with branch, HEAD, and path."""
         branch = get_current_branch(self.repo_path)
         app_time = self.app_start_time if self.app_start_time else "N/A"
-        title = f"git-interactive-rebase-gui-tool : branch={branch}, path={self.repo_path}, app_start_time={app_time}"
+        mode_str = " [VIEWER MODE]" if self.viewer_mode else ""
+        title = f"git-interactive-rebase-gui-tool{mode_str} : branch={branch}, path={self.repo_path}, app_start_time={app_time}"
         self.setWindowTitle(title)
 
     def get_head_sha(self):
@@ -793,6 +798,24 @@ class GitInteractiveRebaseApp(QMainWindow):
             "Unstaged Changes Detected",
             "There are unstaged changes in the repository.\n\n"
             "Please use 'Rescan Repo' to handle the unstaged changes."
+        )
+        return False
+
+    def _check_not_viewer_mode(self):
+        """
+        Checks whether Viewer Mode is enabled. Returns True if Viewer Mode is disabled,
+        False otherwise.
+
+        When Viewer Mode is enabled, displays a message informing the user to restart
+        without --viewer-mode to perform history-modifying operations.
+        """
+        if not self.viewer_mode:
+            return True
+        QMessageBox.information(
+            self,
+            "Viewer Mode",
+            "git-interactive-rebase-gui-tool is running in Viewer Mode. "
+            "Please restart the tool without --viewer-mode to perform history-modifying operations."
         )
         return False
 
@@ -1909,6 +1932,8 @@ class GitInteractiveRebaseApp(QMainWindow):
 
     def handle_undo(self):
         """Handles the Undo action by resetting hard to last_head."""
+        if not self._check_not_viewer_mode():
+            return
         if not self.last_head:
             return
 
@@ -2076,6 +2101,8 @@ class GitInteractiveRebaseApp(QMainWindow):
 
     def handle_git_reset_hard_origin(self):
         """Runs git reset --hard origin/<current_branch>."""
+        if not self._check_not_viewer_mode():
+            return
         branch = get_current_branch(self.repo_path)
         origin_ref = f"origin/{branch}"
 
@@ -2123,6 +2150,8 @@ class GitInteractiveRebaseApp(QMainWindow):
 
     def handle_git_push_force(self):
         """Runs git push --force."""
+        if not self._check_not_viewer_mode():
+            return
         reply = QMessageBox.question(
             self,
             "Confirm Force Push",
@@ -2557,6 +2586,8 @@ class GitInteractiveRebaseApp(QMainWindow):
         if reply != QMessageBox.Yes:
             return
 
+        if not self._check_not_viewer_mode():
+            return
         if not self._check_head_unchanged():
             return
         if not self._check_no_unstaged_changes():
@@ -2596,6 +2627,8 @@ class GitInteractiveRebaseApp(QMainWindow):
         if reply != QMessageBox.Yes:
             return
 
+        if not self._check_not_viewer_mode():
+            return
         if not self._check_head_unchanged():
             return
         if not self._check_no_unstaged_changes():
@@ -2634,6 +2667,8 @@ class GitInteractiveRebaseApp(QMainWindow):
 
     def perform_rephrase(self, sha, new_message):
         """Executes the rephrase using unified rebase logic."""
+        if not self._check_not_viewer_mode():
+            return
         if not self._check_head_unchanged():
             return
         if not self._check_no_unstaged_changes():
@@ -2674,6 +2709,8 @@ class GitInteractiveRebaseApp(QMainWindow):
 
     def perform_revert_commit(self, sha, revert_message):
         """Executes git revert --no-commit then commits with the edited message."""
+        if not self._check_not_viewer_mode():
+            return
         if not self._check_head_unchanged():
             return
         if not self._check_no_unstaged_changes():
@@ -2793,6 +2830,8 @@ class GitInteractiveRebaseApp(QMainWindow):
             print(f"Cancelled reset to {sha}.")
 
     def perform_reset(self, sha):
+        if not self._check_not_viewer_mode():
+            return
         old_head = self.get_head_sha()
         print(f"Resetting hard to {sha}...")
         self.save_undo_state()
@@ -2865,6 +2904,8 @@ class GitInteractiveRebaseApp(QMainWindow):
 
     def perform_squash(self, sha_to_squash, final_msg):
         """Executes the squash using unified rebase logic."""
+        if not self._check_not_viewer_mode():
+            return
         if not self._check_head_unchanged():
             return
         if not self._check_no_unstaged_changes():
@@ -2968,6 +3009,8 @@ class GitInteractiveRebaseApp(QMainWindow):
 
     def perform_multi_squash(self, selected_shas):
         """Squashes multiple adjacent commits into the topmost selected commit."""
+        if not self._check_not_viewer_mode():
+            return
         if not self._check_head_unchanged():
             return
         if not self._check_no_unstaged_changes():
@@ -3034,6 +3077,8 @@ class GitInteractiveRebaseApp(QMainWindow):
 
     def perform_drop(self, sha):
         """Drops a commit using our unified rebase logic."""
+        if not self._check_not_viewer_mode():
+            return
         if not self._check_head_unchanged():
             return
         if not self._check_no_unstaged_changes():
@@ -3189,6 +3234,8 @@ class GitInteractiveRebaseApp(QMainWindow):
         so that only the selected hunks of `filepath` are kept.
         Keeps the dialog open and refreshes it until the user cancels.
         """
+        if not self._check_not_viewer_mode():
+            return
         if not self._check_head_unchanged():
             return
         if not self._check_no_unstaged_changes():
@@ -3477,6 +3524,8 @@ if result_action == "move" and move_patch.strip():
         """
         Moves a single file's changes out of a commit into a new commit after it.
         """
+        if not self._check_not_viewer_mode():
+            return
         if not self._check_head_unchanged():
             return
         if not self._check_no_unstaged_changes():
@@ -3649,6 +3698,8 @@ finally:
         """
         Drops a single file's changes from a commit without moving it to a new one.
         """
+        if not self._check_not_viewer_mode():
+            return
         if not self._check_head_unchanged():
             return
         if not self._check_no_unstaged_changes():
@@ -3776,6 +3827,8 @@ subprocess.check_call(['git', 'clean', '-fd', '--', filepath])
         Removes a file from the selected commit and ensures it stays removed
         in all subsequent commits. Useful for cleaning accidentally committed files.
         """
+        if not self._check_not_viewer_mode():
+            return
         if not self._check_head_unchanged():
             return
         if not self._check_no_unstaged_changes():
@@ -3991,6 +4044,8 @@ except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not check commit files: {str(e)}")
 
     def perform_split_all_commits(self, sha, filepath):
+        if not self._check_not_viewer_mode():
+            return
         if not self._check_head_unchanged():
             return
         if not self._check_no_unstaged_changes():
@@ -4187,6 +4242,8 @@ if os.path.exists('temp.patch'):
         """
         Splits each file in a commit into its own separate commit.
         """
+        if not self._check_not_viewer_mode():
+            return
         if not self._check_head_unchanged():
             return
         if not self._check_no_unstaged_changes():
@@ -4322,6 +4379,8 @@ for i, filename in enumerate(files):
 
     def perform_move(self, new_shas, original_shas=None):
         """Performs commit reordering using our unified rebase logic."""
+        if not self._check_not_viewer_mode():
+            return
         if not self._check_head_unchanged():
             return
         if not self._check_no_unstaged_changes():
