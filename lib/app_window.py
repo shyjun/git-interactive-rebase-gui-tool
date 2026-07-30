@@ -4621,6 +4621,7 @@ for i, filename in enumerate(files):
                     return
             elif result == UnstagedChangesDialog.ViewerModeResult:
                 self.viewer_mode = True
+                self.exit_viewer_mode_btn.setVisible(True)
                 self.update_window_title()
             else:
                 # Cancel/Rejected: Just return successfully and quietly drop the window.
