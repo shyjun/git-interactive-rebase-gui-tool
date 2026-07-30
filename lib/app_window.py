@@ -820,15 +820,6 @@ class GitInteractiveRebaseApp(QMainWindow):
         return False
 
     def handle_exit_viewer_mode(self):
-        """
-        Attempts to exit Viewer Mode after validating safety conditions.
-        If validations pass, disables Viewer Mode and hides the Exit Viewer Mode button.
-        """
-        if not self._check_head_unchanged():
-            return
-        if not self._check_no_unstaged_changes():
-            return
-
         self.viewer_mode = False
         self.exit_viewer_mode_btn.setVisible(False)
         self.update_window_title()
