@@ -405,6 +405,11 @@ class CommitListWidget(QListWidget):
             )
 
             if reply == QMessageBox.Yes:
+                # Safety check: abort if HEAD has changed since last scan
+                if not self.main_window._check_head_unchanged():
+                    event.ignore()
+                    return
+
                 # Capture the original order BEFORE the move
                 original_shas = [self.item(i).text().split()[0] for i in range(self.count())]
 
@@ -746,6 +751,27 @@ class GitInteractiveRebaseApp(QMainWindow):
         s_new = new_head[:8] if len(new_head) > 8 else new_head
 
         print(f"[{time.strftime('%H:%M:%S')}] {s_sha} {action}, HEAD before={s_old}, HEAD after={s_new}")
+
+    def _check_head_unchanged(self):
+        """
+        Checks that the repository HEAD has not changed since the commit graph
+        was last loaded/refreshed. Returns True if it is safe to proceed,
+        False otherwise.
+
+        When the HEAD has drifted this method shows a user-friendly informational
+        dialog (OK-only) and returns False so every caller can abort immediately
+        without performing any history-modifying operation.
+        """
+        current = get_full_head_sha(self.repo_path)
+        if current == self.cached_current_head_full_sha:
+            return True
+        QMessageBox.information(
+            self,
+            "Repository Changed",
+            "The repository has changed since it was last scanned.\n\n"
+            "Please refresh the repository before performing this operation."
+        )
+        return False
 
     def restore_visibility_settings(self):
         """Restores visibility and checkbox states for optional groups."""
@@ -2136,6 +2162,8 @@ class GitInteractiveRebaseApp(QMainWindow):
             QMessageBox.No
         )
         if reply == QMessageBox.Yes:
+            if not self._check_head_unchanged():
+                return
             self.save_undo_state()
             old_head = self.get_head_sha()
             print(f"Rebasing onto {target}...")
@@ -2506,6 +2534,9 @@ class GitInteractiveRebaseApp(QMainWindow):
         if reply != QMessageBox.Yes:
             return
 
+        if not self._check_head_unchanged():
+            return
+
         old_head = self.get_head_sha()
         current_shas = [self.list_widget.item(i).text().split()[0] for i in range(self.list_widget.count())]
         # Swap with older (idx-1)
@@ -2538,6 +2569,9 @@ class GitInteractiveRebaseApp(QMainWindow):
         )
 
         if reply != QMessageBox.Yes:
+            return
+
+        if not self._check_head_unchanged():
             return
 
         old_head = self.get_head_sha()
@@ -2573,6 +2607,8 @@ class GitInteractiveRebaseApp(QMainWindow):
 
     def perform_rephrase(self, sha, new_message):
         """Executes the rephrase using unified rebase logic."""
+        if not self._check_head_unchanged():
+            return
         old_head = self.get_head_sha()
         try:
             # Current list of SHAs in UI
@@ -2609,6 +2645,8 @@ class GitInteractiveRebaseApp(QMainWindow):
 
     def perform_revert_commit(self, sha, revert_message):
         """Executes git revert --no-commit then commits with the edited message."""
+        if not self._check_head_unchanged():
+            return
         self.save_undo_state()
         old_head = self.get_head_sha()
         progress = ProgressDialog("Reverting Commit", f"Reverting {sha}...", self)
@@ -2796,6 +2834,8 @@ class GitInteractiveRebaseApp(QMainWindow):
 
     def perform_squash(self, sha_to_squash, final_msg):
         """Executes the squash using unified rebase logic."""
+        if not self._check_head_unchanged():
+            return
         old_head = self.get_head_sha()
         try:
             # Current list of SHAs in UI
@@ -2895,6 +2935,8 @@ class GitInteractiveRebaseApp(QMainWindow):
 
     def perform_multi_squash(self, selected_shas):
         """Squashes multiple adjacent commits into the topmost selected commit."""
+        if not self._check_head_unchanged():
+            return
         try:
             # Collect (sha, message) pairs preserving order
             sha_msg_pairs = [(sha, get_full_commit_message(self.repo_path, sha)) for sha in selected_shas]
@@ -2957,6 +2999,8 @@ class GitInteractiveRebaseApp(QMainWindow):
 
     def perform_drop(self, sha):
         """Drops a commit using our unified rebase logic."""
+        if not self._check_head_unchanged():
+            return
         old_head = self.get_head_sha()
         try:
             # Current list of SHAs in UI
@@ -3108,6 +3152,8 @@ class GitInteractiveRebaseApp(QMainWindow):
         so that only the selected hunks of `filepath` are kept.
         Keeps the dialog open and refreshes it until the user cancels.
         """
+        if not self._check_head_unchanged():
+            return
         while True:
             try:
                 raw_diff = get_file_diff_only_in_commit(self.repo_path, sha, filepath)
@@ -3392,6 +3438,8 @@ if result_action == "move" and move_patch.strip():
         """
         Moves a single file's changes out of a commit into a new commit after it.
         """
+        if not self._check_head_unchanged():
+            return
         old_head = self.get_head_sha()
         self.save_undo_state()
         try:
@@ -3560,6 +3608,8 @@ finally:
         """
         Drops a single file's changes from a commit without moving it to a new one.
         """
+        if not self._check_head_unchanged():
+            return
         old_head = self.get_head_sha()
         self.save_undo_state()
         try:
@@ -3683,6 +3733,8 @@ subprocess.check_call(['git', 'clean', '-fd', '--', filepath])
         Removes a file from the selected commit and ensures it stays removed
         in all subsequent commits. Useful for cleaning accidentally committed files.
         """
+        if not self._check_head_unchanged():
+            return
         print(f"[{time.strftime('%H:%M:%S')}] Remove file onwards: starting for file='{filepath}' commit={sha}")
         old_head = self.get_head_sha()
         print(f"[{time.strftime('%H:%M:%S')}] Remove file onwards: starting SHA={self.commit_sha}, selected commit={sha}, HEAD before={old_head}")
@@ -3894,6 +3946,8 @@ except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not check commit files: {str(e)}")
 
     def perform_split_all_commits(self, sha, filepath):
+        if not self._check_head_unchanged():
+            return
         old_head = self.get_head_sha()
         self.save_undo_state()
         try:
@@ -4086,6 +4140,8 @@ if os.path.exists('temp.patch'):
         """
         Splits each file in a commit into its own separate commit.
         """
+        if not self._check_head_unchanged():
+            return
         old_head = self.get_head_sha()
         self.save_undo_state()
         """Executes splitting each file into its own commit using rebase exec."""
@@ -4217,6 +4273,8 @@ for i, filename in enumerate(files):
 
     def perform_move(self, new_shas, original_shas=None):
         """Performs commit reordering using our unified rebase logic."""
+        if not self._check_head_unchanged():
+            return
         old_head = self.get_head_sha()
         print("Performing commit reorder...")
         if self.run_interactive_rebase(new_shas, original_shas=original_shas, progress_title="Moving Commits", progress_text="Reordering commits. Please wait..."):
