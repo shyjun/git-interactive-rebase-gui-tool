@@ -1742,7 +1742,7 @@ class UnstagedChangesDialog(QDialog):
     AmendResult = 4
     ViewerModeResult = 5
 
-    def __init__(self, num_files, parent=None):
+    def __init__(self, num_files, parent=None, from_rescan=False):
         super().__init__(parent)
         self.setWindowTitle("Unstaged Changes Warning")
         self.setMinimumWidth(600)
@@ -1780,7 +1780,8 @@ class UnstagedChangesDialog(QDialog):
         amend_text = "Amend all changes into the HEAD commit (--amend --no-edit)"
         self.amend_btn = QPushButton(amend_text)
         
-        self.viewer_mode_btn = QPushButton("Start in Viewer Mode (No history-modifying operations will be allowed)")
+        viewer_label = "Switch to" if from_rescan else "Start in"
+        self.viewer_mode_btn = QPushButton(f"{viewer_label} Viewer Mode (No history-modifying operations will be allowed)")
 
         self.exit_btn = QPushButton("Exit")
         
