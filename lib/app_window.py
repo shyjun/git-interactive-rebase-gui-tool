@@ -814,8 +814,9 @@ class GitInteractiveRebaseApp(QMainWindow):
         QMessageBox.information(
             self,
             "Viewer Mode",
-            "git-interactive-rebase-gui-tool is running in Viewer Mode. "
-            "Please restart the tool without --viewer-mode to perform history-modifying operations."
+            "git-interactive-rebase-gui-tool is running in Viewer Mode.\n\n"
+            "Please press the 'Exit Viewer Mode' button or restart the tool without --viewer-mode "
+            "to perform history-modifying operations."
         )
         return False
 
