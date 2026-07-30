@@ -37,6 +37,7 @@ def main():
 
     parser = argparse.ArgumentParser(description="git-interactive-rebase-gui-tool: A premium PySide6 GUI for interactive git rebasing.")
     parser.add_argument("-C", "--location", type=str, default=os.getcwd())
+    parser.add_argument("--viewer-mode", action="store_true", help="Run in read-only viewer mode.")
     parser.add_argument("commit_sha", type=str, nargs="?", help="Starting commit SHA (optional, defaults to root)")
     args = parser.parse_args()
 
@@ -107,7 +108,7 @@ def main():
     # Check for unstaged changes (ignoring submodules as per design)
     created_stash_sha = None
     unstaged_files = get_unstaged_files(repo_path, ignore_submodules=True)
-    if unstaged_files:
+    if unstaged_files and not args.viewer_mode:
         dialog = UnstagedChangesDialog(len(unstaged_files))
         result = dialog.exec()
 
@@ -162,7 +163,7 @@ def main():
             print("Exiting as requested by the user.")
             sys.exit(0)
 
-    window = GitInteractiveRebaseApp(repo_path, commit_sha, app_start_time, base_branch=base_branch)
+    window = GitInteractiveRebaseApp(repo_path, commit_sha, app_start_time, base_branch=base_branch, viewer_mode=args.viewer_mode)
     window.show()
 
     exit_code = app.exec()
