@@ -1076,6 +1076,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.help_btn = QPushButton("Help")
         self._set_help_icon(self.help_btn)
         self.exit_viewer_mode_btn = QPushButton("Exit Viewer Mode")
+        self._set_exit_viewer_mode_icon(self.exit_viewer_mode_btn)
         self.exit_viewer_mode_btn.setVisible(self.viewer_mode)
         self.rescan_btn = QPushButton("Rescan Repo")
         self._set_rescan_icon(self.rescan_btn)
@@ -1774,6 +1775,9 @@ class GitInteractiveRebaseApp(QMainWindow):
     def _set_exit_icon(self, button):
         self._apply_toolbar_icon(button, self._draw_exit, QColor("red"))
 
+    def _set_exit_viewer_mode_icon(self, button):
+        self._apply_toolbar_icon(button, self._draw_edit)
+
     def _refresh_toolbar_icons(self):
         self._set_theme_icon(self.theme_menu_btn)
         self._set_toggle_diff_icon(self.toggle_diff_btn)
@@ -1783,6 +1787,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self._set_check_update_icon(self.check_update_btn)
         self._set_refresh_icon(self.refresh_btn)
         self._set_exit_icon(self.exit_btn)
+        self._set_exit_viewer_mode_icon(self.exit_viewer_mode_btn)
 
     def _draw_eye_slash(self, painter, color):
         pen = QPen(color, 1.7)
@@ -1891,6 +1896,20 @@ class GitInteractiveRebaseApp(QMainWindow):
         painter.drawLine(12.0, 5.9, 14.0, 8.0)
         painter.drawLine(12.0, 10.1, 14.0, 8.0)
         painter.drawLine(6.6, 5.0, 6.6, 11.0)
+
+    def _draw_edit(self, painter, color):
+        pen = QPen(color, 1.5)
+        pen.setCapStyle(Qt.RoundCap)
+        pen.setJoinStyle(Qt.RoundJoin)
+        painter.setPen(pen)
+        painter.setBrush(Qt.NoBrush)
+
+        painter.drawLine(12, 2, 7, 7)
+        painter.drawLine(14, 4, 9, 9)
+        painter.drawLine(12, 2, 14, 4)
+        painter.drawLine(7, 7, 3, 11)
+        painter.drawLine(9, 9, 3, 11)
+        painter.drawLine(11, 3, 13, 5)
 
     def handle_set_best_commit(self, item):
         sha = item.text().split()[0]
