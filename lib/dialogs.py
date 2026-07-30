@@ -1740,6 +1740,7 @@ class UnstagedChangesDialog(QDialog):
     CommitEachResult = 2
     BulkCommitResult = 3
     AmendResult = 4
+    ViewerModeResult = 5
 
     def __init__(self, num_files, parent=None):
         super().__init__(parent)
@@ -1779,22 +1780,26 @@ class UnstagedChangesDialog(QDialog):
         amend_text = "Amend all changes into the HEAD commit (--amend --no-edit)"
         self.amend_btn = QPushButton(amend_text)
         
+        self.viewer_mode_btn = QPushButton("Start in Viewer Mode (No history-modifying operations will be allowed)")
+
         self.exit_btn = QPushButton("Exit")
         
         # Style buttons a bit
-        for btn in [self.stash_btn, self.commit_each_btn, self.bulk_commit_btn, self.amend_btn, self.exit_btn]:
+        for btn in [self.stash_btn, self.commit_each_btn, self.bulk_commit_btn, self.amend_btn, self.viewer_mode_btn, self.exit_btn]:
             btn.setMinimumHeight(35)
         
         self.stash_btn.clicked.connect(self.accept)
         self.commit_each_btn.clicked.connect(lambda: self.done(self.CommitEachResult))
         self.bulk_commit_btn.clicked.connect(lambda: self.done(self.BulkCommitResult))
         self.amend_btn.clicked.connect(lambda: self.done(self.AmendResult))
+        self.viewer_mode_btn.clicked.connect(lambda: self.done(self.ViewerModeResult))
         self.exit_btn.clicked.connect(self.reject)
         
         btn_layout.addWidget(self.stash_btn)
         btn_layout.addWidget(self.commit_each_btn)
         btn_layout.addWidget(self.bulk_commit_btn)
         btn_layout.addWidget(self.amend_btn)
+        btn_layout.addWidget(self.viewer_mode_btn)
         btn_layout.addWidget(self.exit_btn)
         
         layout.addLayout(btn_layout)

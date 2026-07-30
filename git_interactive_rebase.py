@@ -159,6 +159,8 @@ def main():
                 print("Amend failed.")
 
             progress.close()
+        elif result == UnstagedChangesDialog.ViewerModeResult:
+            args.viewer_mode = True
         else:
             print("Exiting as requested by the user.")
             sys.exit(0)

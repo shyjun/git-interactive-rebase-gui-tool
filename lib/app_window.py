@@ -819,6 +819,20 @@ class GitInteractiveRebaseApp(QMainWindow):
         )
         return False
 
+    def handle_exit_viewer_mode(self):
+        """
+        Attempts to exit Viewer Mode after validating safety conditions.
+        If validations pass, disables Viewer Mode and hides the Exit Viewer Mode button.
+        """
+        if not self._check_head_unchanged():
+            return
+        if not self._check_no_unstaged_changes():
+            return
+
+        self.viewer_mode = False
+        self.exit_viewer_mode_btn.setVisible(False)
+        self.update_window_title()
+
     def restore_visibility_settings(self):
         """Restores visibility and checkbox states for optional groups."""
         # Origin Options Visibility
@@ -1070,6 +1084,8 @@ class GitInteractiveRebaseApp(QMainWindow):
         self._set_toggle_diff_icon(self.toggle_diff_btn)
         self.help_btn = QPushButton("Help")
         self._set_help_icon(self.help_btn)
+        self.exit_viewer_mode_btn = QPushButton("Exit Viewer Mode")
+        self.exit_viewer_mode_btn.setVisible(self.viewer_mode)
         self.rescan_btn = QPushButton("Rescan Repo")
         self._set_rescan_icon(self.rescan_btn)
         self.undo_btn = QPushButton("Undo")
@@ -1088,7 +1104,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.best_commit_btn.setEnabled(False)
         self.custom_reset_btn = QPushButton("Enter commit id to reset hard to")
 
-        for btn in [self.toggle_diff_btn, self.help_btn, self.rescan_btn, self.check_update_btn, self.undo_btn, self.refresh_btn, self.exit_btn, self.theme_menu_btn]:
+        for btn in [self.toggle_diff_btn, self.help_btn, self.exit_viewer_mode_btn, self.rescan_btn, self.check_update_btn, self.undo_btn, self.refresh_btn, self.exit_btn, self.theme_menu_btn]:
             btn.setMinimumHeight(40)
             btn.setMinimumWidth(100)
         self.failsafe_btn.setMinimumHeight(40)
@@ -1097,6 +1113,7 @@ class GitInteractiveRebaseApp(QMainWindow):
 
         self.toggle_diff_btn.clicked.connect(self.toggle_side_diff_visibility)
         self.help_btn.clicked.connect(self._show_help_dialog)
+        self.exit_viewer_mode_btn.clicked.connect(self.handle_exit_viewer_mode)
         self.rescan_btn.clicked.connect(self.handle_rescan_repo)
         self.undo_btn.clicked.connect(self.handle_undo)
         self.check_update_btn.clicked.connect(self.handle_check_for_updates)
@@ -1112,6 +1129,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         controls_layout.addWidget(self.help_btn)
         controls_layout.addWidget(self.check_update_btn)
         controls_layout.addStretch()
+        controls_layout.addWidget(self.exit_viewer_mode_btn)
         controls_layout.addWidget(self.rescan_btn)
         controls_layout.addWidget(self.undo_btn)
         controls_layout.addWidget(self.refresh_btn)
@@ -4610,6 +4628,9 @@ for i, filename in enumerate(files):
                 else:
                     QMessageBox.critical(self, "Error", "Amend failed.")
                     return
+            elif result == UnstagedChangesDialog.ViewerModeResult:
+                self.viewer_mode = True
+                self.update_window_title()
             else:
                 # Cancel/Rejected: Just return successfully and quietly drop the window.
                 return
