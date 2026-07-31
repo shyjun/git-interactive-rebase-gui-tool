@@ -917,6 +917,7 @@ class GitInteractiveRebaseApp(QMainWindow):
 
         self.search_edit = QLineEdit()
         self.search_edit.setPlaceholderText("Search commits (SHA or Message)...")
+        self.search_edit.setToolTip("Search commits by SHA or message.")
         self.search_edit.setClearButtonEnabled(True)
         self.search_edit.textChanged.connect(self.filter_commits)
         search_row_layout.addWidget(self.search_edit, 1)  # stretch to fill
@@ -1113,6 +1114,7 @@ class GitInteractiveRebaseApp(QMainWindow):
 
         # Theme dropdown menu button
         self.theme_menu_btn = QPushButton("Theme")
+        self.theme_menu_btn.setToolTip("Switch between Dark and Light theme.")
         self._set_theme_icon(self.theme_menu_btn)
         theme_menu = QMenu(self.theme_menu_btn)
         self.dark_radio = QRadioButton("Dark Theme")
@@ -1128,31 +1130,43 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.theme_menu_btn.setMenu(theme_menu)
 
         self.toggle_diff_btn = QPushButton("Hide Diffs" if self.show_diffs else "Show Diffs")
+        self.toggle_diff_btn.setToolTip("Show or hide the right-side diff panel.")
         self._set_toggle_diff_icon(self.toggle_diff_btn)
         self.help_btn = QPushButton("Help")
+        self.help_btn.setToolTip("Show usage help.")
         self._set_help_icon(self.help_btn)
         self.exit_viewer_mode_btn = QPushButton("Exit Viewer Mode")
+        self.exit_viewer_mode_btn.setToolTip("Re-enable history-modifying operations.")
         self._set_exit_viewer_mode_icon(self.exit_viewer_mode_btn)
         self.exit_viewer_mode_btn.setVisible(self.viewer_mode)
         self.rescan_btn = QPushButton("Rescan Repo")
+        self.rescan_btn.setToolTip("Re-scan the repository and rebuild the commit list.")
         self._set_rescan_icon(self.rescan_btn)
         self.pr_diff_btn = QPushButton("View PR Diff")
+        self.pr_diff_btn.setToolTip("View the branch diff vs its base.")
         self._set_pr_diff_icon(self.pr_diff_btn)
         self.undo_btn = QPushButton("Undo")
+        self.undo_btn.setToolTip("Undo the last operation.")
         self._set_undo_icon(self.undo_btn)
         self.undo_btn.setEnabled(False)
         self.check_update_btn = QPushButton("Check Updates")
+        self.check_update_btn.setToolTip("Check for a newer version online.")
         self._set_check_update_icon(self.check_update_btn)
         self.refresh_btn = QPushButton("Refresh")
+        self.refresh_btn.setToolTip("Reload the commit history from git.")
         self._set_refresh_icon(self.refresh_btn)
         self.exit_btn = QPushButton("Exit")
+        self.exit_btn.setToolTip("Close the application.")
         self._set_exit_icon(self.exit_btn)
         self.exit_btn.setStyleSheet("color: red; font-weight: bold;")
 
         self.failsafe_btn = QPushButton("")
+        self.failsafe_btn.setToolTip("Reset hard to START_TIME_HEAD.")
         self.best_commit_btn = QPushButton("Reset Hard to BEST_COMMITID (Not Set)")
+        self.best_commit_btn.setToolTip("Reset hard to the marked BEST_COMMITID.")
         self.best_commit_btn.setEnabled(False)
         self.custom_reset_btn = QPushButton("Enter commit id to reset hard to")
+        self.custom_reset_btn.setToolTip("Reset hard to a commit id you enter.")
 
         for btn in [self.toggle_diff_btn, self.help_btn, self.exit_viewer_mode_btn, self.rescan_btn, self.pr_diff_btn, self.check_update_btn, self.undo_btn, self.refresh_btn, self.exit_btn, self.theme_menu_btn]:
             btn.setMinimumHeight(40)
@@ -1205,8 +1219,11 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.squash_group.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
         squash_layout = QHBoxLayout()
         self.multi_select_btn = QPushButton("Select multiple commits to squash")
+        self.multi_select_btn.setToolTip("Select multiple commits to squash.")
         self.squash_selected_btn = QPushButton("Squash selected commits")
+        self.squash_selected_btn.setToolTip("Squash the selected commits into one.")
         self.cancel_multi_btn = QPushButton("Cancel multi selection")
+        self.cancel_multi_btn.setToolTip("Cancel multi-select mode.")
         self.squash_selected_btn.setEnabled(False)
         self.cancel_multi_btn.setEnabled(False)
         for btn in [self.multi_select_btn, self.squash_selected_btn, self.cancel_multi_btn]:
@@ -1225,8 +1242,11 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.origin_group.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
         origin_layout = QHBoxLayout()
         self.fetch_btn = QPushButton("git fetch")
+        self.fetch_btn.setToolTip("git fetch from the remote.")
         self.reset_origin_btn = QPushButton("git reset --hard origin")
+        self.reset_origin_btn.setToolTip("Reset hard to the remote-tracking branch.")
         self.push_force_btn = QPushButton("git push --force")
+        self.push_force_btn.setToolTip("Force-push the branch to the remote.")
         for btn in [self.fetch_btn, self.reset_origin_btn, self.push_force_btn]:
             btn.setMinimumHeight(40)
             btn.setMinimumWidth(120)
@@ -1244,8 +1264,11 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.rebase_group.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
         rebase_layout = QHBoxLayout()
         self.rebase_master_btn = QPushButton("git rebase master")
+        self.rebase_master_btn.setToolTip("Rebase the current branch onto master.")
         self.rebase_main_btn = QPushButton("git rebase main")
+        self.rebase_main_btn.setToolTip("Rebase the current branch onto main.")
         self.rebase_custom_btn = QPushButton("Enter branch/sha to rebase on top of")
+        self.rebase_custom_btn.setToolTip("Rebase onto a branch/sha you enter.")
         for btn in [self.rebase_master_btn, self.rebase_main_btn, self.rebase_custom_btn]:
             btn.setMinimumHeight(40)
             btn.setMinimumWidth(120)
@@ -1269,12 +1292,14 @@ class GitInteractiveRebaseApp(QMainWindow):
         zoom_label = QLabel("Zoom:")
         self.sb_zoom_out_btn = QPushButton("–")
         self.sb_zoom_out_btn.setFixedSize(26, 22)
+        self.sb_zoom_out_btn.setToolTip("Zoom out.")
         self.sb_zoom_out_btn.setStyleSheet("padding: 0px;")
         self.zoom_percent_label = QLabel("100%")
         self.zoom_percent_label.setFixedWidth(40)
         self.zoom_percent_label.setAlignment(Qt.AlignCenter)
         self.sb_zoom_in_btn = QPushButton("+")
         self.sb_zoom_in_btn.setFixedSize(26, 22)
+        self.sb_zoom_in_btn.setToolTip("Zoom in.")
         self.sb_zoom_in_btn.setStyleSheet("padding: 0px;")
         self.sb_zoom_in_btn.clicked.connect(self.handle_zoom_in)
         self.sb_zoom_out_btn.clicked.connect(self.handle_zoom_out)
@@ -1290,9 +1315,13 @@ class GitInteractiveRebaseApp(QMainWindow):
 
         # Visibility checkboxes
         self.show_origin_cb = QCheckBox("Show Origin")
+        self.show_origin_cb.setToolTip("Show origin markers.")
         self.show_rebase_cb = QCheckBox("Show Rebase")
+        self.show_rebase_cb.setToolTip("Show rebase markers.")
         self.show_squash_cb = QCheckBox("Show Squash")
+        self.show_squash_cb.setToolTip("Show squash markers.")
         self.show_local_branches_cb = QCheckBox("Show Local Branches")
+        self.show_local_branches_cb.setToolTip("Show local branch markers.")
 
         self.show_origin_cb.toggled.connect(self.on_origin_visibility_toggled)
         self.show_rebase_cb.toggled.connect(self.on_rebase_visibility_toggled)
@@ -1309,7 +1338,9 @@ class GitInteractiveRebaseApp(QMainWindow):
         status_layout.addWidget(sep2)
 
         self.show_stats_cb = QCheckBox("show stats")
+        self.show_stats_cb.setToolTip("Show per-commit line stats.")
         self.show_date_cb = QCheckBox("show date")
+        self.show_date_cb.setToolTip("Show commit dates.")
 
         self.show_stats_cb.setChecked(self.show_stats)
         self.show_date_cb.setChecked(self.show_date)
@@ -1325,6 +1356,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         status_layout.addWidget(sep_date)
 
         self.always_on_top_cb = QCheckBox("Always On Top")
+        self.always_on_top_cb.setToolTip("Keep the window on top.")
         self.always_on_top_cb.toggled.connect(self._on_always_on_top_toggled)
         status_layout.addWidget(self.always_on_top_cb)
 
