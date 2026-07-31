@@ -536,3 +536,50 @@ def get_diff_stat_between(repo_path, base_sha):
         return result.stdout.strip()
     except subprocess.CalledProcessError as e:
         raise Exception(f"Failed to fetch branch diff stats: {e.stderr}")
+
+
+def get_files_between(repo_path, base_sha):
+    """Returns the list of file paths changed between *base_sha* and HEAD."""
+    try:
+        cmd = ["git", "diff", "--name-only", base_sha, "HEAD"]
+        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
+        return [f for f in result.stdout.strip().split('\n') if f.strip()]
+    except subprocess.CalledProcessError as e:
+        raise Exception(f"Failed to list changed files: {e.stderr}")
+
+
+def get_file_diff_between(repo_path, base_sha, filepath):
+    """Returns the diff for a single file between *base_sha* and HEAD."""
+    try:
+        cmd = ["git", "diff", base_sha, "HEAD", "--", filepath]
+        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
+        diff_text = result.stdout
+        # Inject separator padding
+        import re
+        diff_text = re.sub(r'(\n)(diff --git )', r'\1\n\2', diff_text)
+        return diff_text
+    except subprocess.CalledProcessError as e:
+        raise Exception(f"Failed to get file diff: {e.stderr}")
+
+
+def get_file_stats_between(repo_path, base_sha):
+    """Returns a dict mapping filepath -> (added_lines, deleted_lines) between *base_sha* and HEAD."""
+    try:
+        cmd = ["git", "diff", "--numstat", base_sha, "HEAD"]
+        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
+        stats = {}
+        for line in result.stdout.strip().split('\n'):
+            if not line.strip():
+                continue
+            parts = line.split('\t', 2)
+            if len(parts) == 3:
+                added_str, deleted_str, filepath = parts
+                try:
+                    added = int(added_str)
+                    deleted = int(deleted_str)
+                except ValueError:
+                    added, deleted = 0, 0  # binary file
+                stats[filepath.strip()] = (added, deleted)
+        return stats
+    except subprocess.CalledProcessError:
+        return {}

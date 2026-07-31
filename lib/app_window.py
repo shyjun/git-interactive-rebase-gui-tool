@@ -44,7 +44,8 @@ from lib.git_helpers import (
     has_uncommitted_changes, branch_exists, get_local_branches_map, get_remote_head_sha,
     get_file_diff_only_in_commit, get_revert_commit_message, get_commit_metadata_and_message,
     get_commit_file_stats,     get_unstaged_files, stash_changes, commit_file, bulk_commit_all, amend_with_head,
-    get_merge_base, get_diff_between, get_diff_stat_between
+    get_merge_base, get_diff_between, get_diff_stat_between,
+    get_files_between, get_file_stats_between
 )
 from lib.dialogs import (
     DiffHighlighter, DiffViewerDialog, SplitCommitDialog, ViewCommitDialog,
@@ -4740,13 +4741,14 @@ for i, filename in enumerate(files):
             QApplication.processEvents()
             try:
                 diff_text = get_diff_between(self.repo_path, base_sha)
-                stat_text = get_diff_stat_between(self.repo_path, base_sha)
+                files = get_files_between(self.repo_path, base_sha)
+                file_stats = get_file_stats_between(self.repo_path, base_sha)
                 num_commits = len(get_git_history(self.repo_path, base_sha))
                 branch = get_current_branch(self.repo_path) or "HEAD"
             finally:
                 progress.close()
 
-            dialog = BranchDiffDialog(branch, base_sha, num_commits, stat_text, diff_text, self.current_font_size, self)
+            dialog = BranchDiffDialog(self.repo_path, branch, base_sha, num_commits, diff_text, files, file_stats, self.current_font_size, self)
             dialog.exec()
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not fetch branch diff: {str(e)}")
