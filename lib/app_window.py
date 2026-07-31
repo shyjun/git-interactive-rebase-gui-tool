@@ -644,6 +644,54 @@ def get_theme_stylesheet(theme_name):
         """
 
 
+def highlight_button_temporarily(button, duration_ms=3000, blinks=0, color=None):
+    """Temporarily highlight a button with a colored border and bold text.
+
+    Uses only Qt APIs so it works across platforms. *color* defaults to the
+    widget's theme highlight color so the current theme is preserved.
+
+    When *blinks* is 0 (default), the highlight is applied once and the button's
+    original appearance is restored after *duration_ms* milliseconds.
+
+    When *blinks* is greater than 0, the button is highlighted and unhighlighted
+    every 500 ms for *blinks* cycles (e.g. 3 = 3 highlight/unhighlight pairs),
+    restoring the original appearance afterwards.
+    """
+    if color is None:
+        color = QColor(255, 140, 0)
+    original_stylesheet = button.styleSheet()
+    highlight = (
+        f"border: 3px solid {color.name()}; "
+        f"background-color: rgba({color.red()}, {color.green()}, {color.blue()}, 90); "
+        f"font-weight: bold; {original_stylesheet}"
+    )
+
+    def set_stylesheet(sheet):
+        try:
+            button.setStyleSheet(sheet)
+        except RuntimeError:
+            pass
+
+    if blinks <= 0:
+        set_stylesheet(highlight)
+        QTimer.singleShot(duration_ms, lambda: set_stylesheet(original_stylesheet))
+        return
+
+    total_ticks = blinks * 2
+    state = {"tick": 0}
+
+    def toggle():
+        state["tick"] += 1
+        if state["tick"] >= total_ticks:
+            set_stylesheet(original_stylesheet)
+            return
+        set_stylesheet(original_stylesheet if state["tick"] % 2 == 1 else highlight)
+        QTimer.singleShot(400, toggle)
+
+    set_stylesheet(highlight)
+    QTimer.singleShot(400, toggle)
+
+
 class GitInteractiveRebaseApp(QMainWindow):
     def __init__(self, repo_path, commit_sha, app_start_time, base_branch=None, viewer_mode=False):
         super().__init__()
@@ -793,6 +841,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         """
         if not has_uncommitted_changes(self.repo_path):
             return True
+        highlight_button_temporarily(self.rescan_btn, blinks=5)
         QMessageBox.information(
             self,
             "Unstaged Changes Detected",
@@ -811,6 +860,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         """
         if not self.viewer_mode:
             return True
+        highlight_button_temporarily(self.exit_viewer_mode_btn, blinks=5)
         QMessageBox.information(
             self,
             "Viewer Mode",
