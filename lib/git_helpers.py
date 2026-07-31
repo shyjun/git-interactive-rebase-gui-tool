@@ -583,3 +583,13 @@ def get_file_stats_between(repo_path, base_sha):
         return stats
     except subprocess.CalledProcessError:
         return {}
+
+
+def resolve_ref(repo_path, ref):
+    """Resolves a git ref/SHA (e.g. 'HEAD~3', 'origin/main', a full/short SHA) to a full SHA."""
+    try:
+        cmd = ["git", "rev-parse", ref]
+        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
+        return result.stdout.strip()
+    except subprocess.CalledProcessError:
+        return None

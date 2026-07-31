@@ -45,7 +45,7 @@ from lib.git_helpers import (
     get_file_diff_only_in_commit, get_revert_commit_message, get_commit_metadata_and_message,
     get_commit_file_stats,     get_unstaged_files, stash_changes, commit_file, bulk_commit_all, amend_with_head,
     get_merge_base, get_diff_between, get_diff_stat_between,
-    get_files_between, get_file_stats_between
+    get_files_between, get_file_stats_between, resolve_ref
 )
 from lib.dialogs import (
     DiffHighlighter, DiffViewerDialog, SplitCommitDialog, ViewCommitDialog,
@@ -56,6 +56,9 @@ from lib.dialogs import (
     DiffView, StatsItemDelegate, DiffSearchBar, UnstagedChangesDialog, BranchDiffDialog
 )
 from lib.utils import get_assets_path
+
+# If the combined branch diff exceeds this many chars (~200 KB), confirm before opening the PR preview.
+PR_DIFF_SIZE_WARN_THRESHOLD = 200_000
 
 class GitWorker(QThread):
     """Generic worker for running git commands in a separate thread."""
@@ -4726,12 +4729,30 @@ for i, filename in enumerate(files):
     def handle_view_branch_diff(self):
         """Opens a PR preview dialog showing the combined branch diff vs its base."""
         try:
-            # Resolve the base: fresh merge-base with the detected upstream, else the stored base SHA
+            # Resolve the base: fresh merge-base with the detected upstream, else ask the user
             base_sha = None
             if self.base_branch:
                 base_sha = get_merge_base(self.repo_path, self.base_branch)
+
             if not base_sha:
-                base_sha = self.commit_sha
+                if self.base_branch is None:
+                    # No parent branch detected (e.g. viewer/gitk mode): ask the user for a base ref
+                    text, ok = QInputDialog.getText(
+                        self, "PR Preview - Base Commit",
+                        "No parent branch was detected.\n\n"
+                        "Enter a base commit/ref to diff against (e.g. a SHA, 'HEAD~5', 'origin/main'):",
+                        text=str(self.commit_sha or ""),
+                    )
+                    if not ok or not text.strip():
+                        return  # user cancelled
+                    base_sha = resolve_ref(self.repo_path, text.strip())
+                    if not base_sha:
+                        QMessageBox.warning(self, "PR Preview", f"Could not resolve base ref: '{text.strip()}'")
+                        return
+                else:
+                    # base_branch set but merge-base failed
+                    base_sha = self.commit_sha
+
             if not base_sha:
                 QMessageBox.information(self, "PR Preview", "Could not determine the base commit to diff against.")
                 return
@@ -4747,6 +4768,15 @@ for i, filename in enumerate(files):
                 branch = get_current_branch(self.repo_path) or "HEAD"
             finally:
                 progress.close()
+
+            if len(diff_text) > PR_DIFF_SIZE_WARN_THRESHOLD:
+                answer = QMessageBox.warning(
+                    self, "Large PR Diff",
+                    f"This branch diff is large (~{len(diff_text)/1024:.0f} KB) and may be slow or hard to digest.\n\n"
+                    "Do you want to open the full PR preview anyway?",
+                    QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+                if answer != QMessageBox.Yes:
+                    return
 
             dialog = BranchDiffDialog(self.repo_path, branch, base_sha, num_commits, diff_text, files, file_stats, self.current_font_size, self)
             dialog.exec()
