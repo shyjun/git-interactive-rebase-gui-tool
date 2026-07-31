@@ -505,3 +505,34 @@ def amend_with_head(repo_path):
         return True
     except subprocess.CalledProcessError:
         return False
+
+
+def get_merge_base(repo_path, ref):
+    """Returns the merge-base of HEAD with *ref* (e.g. 'origin/main')."""
+    try:
+        cmd = ["git", "merge-base", "HEAD", ref]
+        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
+        sha = result.stdout.strip()
+        return sha if sha else None
+    except subprocess.CalledProcessError:
+        return None
+
+
+def get_diff_between(repo_path, base_sha):
+    """Fetches the combined diff of all changes between *base_sha* and HEAD."""
+    try:
+        cmd = ["git", "diff", base_sha, "HEAD"]
+        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
+        return result.stdout
+    except subprocess.CalledProcessError as e:
+        raise Exception(f"Failed to fetch branch diff: {e.stderr}")
+
+
+def get_diff_stat_between(repo_path, base_sha):
+    """Fetches the --stat summary of all changes between *base_sha* and HEAD."""
+    try:
+        cmd = ["git", "diff", "--stat", base_sha, "HEAD"]
+        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
+        return result.stdout.strip()
+    except subprocess.CalledProcessError as e:
+        raise Exception(f"Failed to fetch branch diff stats: {e.stderr}")
