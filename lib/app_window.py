@@ -43,7 +43,8 @@ from lib.git_helpers import (
     get_full_commit_message, get_commit_metadata, get_commit_files,
     has_uncommitted_changes, branch_exists, get_local_branches_map, get_remote_head_sha,
     get_file_diff_only_in_commit, get_revert_commit_message, get_commit_metadata_and_message,
-    get_commit_file_stats,     get_unstaged_files, stash_changes, commit_file, bulk_commit_all, amend_with_head
+    get_commit_file_stats,     get_unstaged_files, stash_changes, commit_file, bulk_commit_all, amend_with_head,
+    get_merge_base, get_diff_between, get_diff_stat_between
 )
 from lib.dialogs import (
     DiffHighlighter, DiffViewerDialog, SplitCommitDialog, ViewCommitDialog,
@@ -51,7 +52,7 @@ from lib.dialogs import (
     MultiSquashDialog, ProgressDialog, DropFileFromCommitDialog, ConfirmDropFileDialog,
     ConfirmMoveFileDialog, ConfirmRemoveFileOnwardsDialog, AggressiveRemoveConfirmationDialog,
     RefineFileSelectDialog, RefineChangesDialog, NewCommitMessageDialog,
-    DiffView, StatsItemDelegate, DiffSearchBar, UnstagedChangesDialog
+    DiffView, StatsItemDelegate, DiffSearchBar, UnstagedChangesDialog, BranchDiffDialog
 )
 from lib.utils import get_assets_path
 
@@ -1131,6 +1132,8 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.exit_viewer_mode_btn.setVisible(self.viewer_mode)
         self.rescan_btn = QPushButton("Rescan Repo")
         self._set_rescan_icon(self.rescan_btn)
+        self.pr_diff_btn = QPushButton("View PR Diff")
+        self._set_pr_diff_icon(self.pr_diff_btn)
         self.undo_btn = QPushButton("Undo")
         self._set_undo_icon(self.undo_btn)
         self.undo_btn.setEnabled(False)
@@ -1147,7 +1150,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.best_commit_btn.setEnabled(False)
         self.custom_reset_btn = QPushButton("Enter commit id to reset hard to")
 
-        for btn in [self.toggle_diff_btn, self.help_btn, self.exit_viewer_mode_btn, self.rescan_btn, self.check_update_btn, self.undo_btn, self.refresh_btn, self.exit_btn, self.theme_menu_btn]:
+        for btn in [self.toggle_diff_btn, self.help_btn, self.exit_viewer_mode_btn, self.rescan_btn, self.pr_diff_btn, self.check_update_btn, self.undo_btn, self.refresh_btn, self.exit_btn, self.theme_menu_btn]:
             btn.setMinimumHeight(40)
             btn.setMinimumWidth(100)
         self.failsafe_btn.setMinimumHeight(40)
@@ -1158,6 +1161,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.help_btn.clicked.connect(self._show_help_dialog)
         self.exit_viewer_mode_btn.clicked.connect(self.handle_exit_viewer_mode)
         self.rescan_btn.clicked.connect(self.handle_rescan_repo)
+        self.pr_diff_btn.clicked.connect(self.handle_view_branch_diff)
         self.undo_btn.clicked.connect(self.handle_undo)
         self.check_update_btn.clicked.connect(self.handle_check_for_updates)
         self.refresh_btn.clicked.connect(self.handle_manual_refresh)
@@ -1172,6 +1176,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         controls_layout.addWidget(self.help_btn)
         controls_layout.addWidget(self.check_update_btn)
         controls_layout.addStretch()
+        controls_layout.addWidget(self.pr_diff_btn)
         controls_layout.addWidget(self.exit_viewer_mode_btn)
         controls_layout.addWidget(self.rescan_btn)
         controls_layout.addWidget(self.undo_btn)
@@ -1814,6 +1819,9 @@ class GitInteractiveRebaseApp(QMainWindow):
     def _set_rescan_icon(self, button):
         self._apply_toolbar_icon(button, self._draw_rescan)
 
+    def _set_pr_diff_icon(self, button):
+        self._apply_toolbar_icon(button, self._draw_compare)
+
     def _set_undo_icon(self, button):
         self._apply_toolbar_icon(button, self._draw_undo)
 
@@ -1839,6 +1847,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self._set_refresh_icon(self.refresh_btn)
         self._set_exit_icon(self.exit_btn)
         self._set_exit_viewer_mode_icon(self.exit_viewer_mode_btn)
+        self._set_pr_diff_icon(self.pr_diff_btn)
 
     def _draw_eye_slash(self, painter, color):
         pen = QPen(color, 1.7)
@@ -1904,6 +1913,19 @@ class GitInteractiveRebaseApp(QMainWindow):
 
         painter.drawEllipse(2.0, 2.0, 8.8, 8.8)
         painter.drawLine(9.4, 9.4, 14.0, 14.0)
+
+    def _draw_compare(self, painter, color):
+        pen = QPen(color, 1.7)
+        pen.setCapStyle(Qt.RoundCap)
+        pen.setJoinStyle(Qt.RoundJoin)
+        painter.setPen(pen)
+        painter.setBrush(Qt.NoBrush)
+
+        painter.drawLine(8, 14, 8, 10)
+        painter.drawLine(8, 10, 4, 5)
+        painter.drawLine(8, 10, 12, 5)
+        painter.drawEllipse(2.8, 2.8, 2.6, 2.6)
+        painter.drawEllipse(10.6, 2.8, 2.6, 2.6)
 
     def _draw_undo(self, painter, color):
         pen = QPen(color, 1.8)
@@ -4699,6 +4721,35 @@ for i, filename in enumerate(files):
 
         # Finally, we reload the tree to correctly align matching local state
         self.load_history()
+
+    def handle_view_branch_diff(self):
+        """Opens a PR preview dialog showing the combined branch diff vs its base."""
+        try:
+            # Resolve the base: fresh merge-base with the detected upstream, else the stored base SHA
+            base_sha = None
+            if self.base_branch:
+                base_sha = get_merge_base(self.repo_path, self.base_branch)
+            if not base_sha:
+                base_sha = self.commit_sha
+            if not base_sha:
+                QMessageBox.information(self, "PR Preview", "Could not determine the base commit to diff against.")
+                return
+
+            progress = ProgressDialog("PR Preview", "Computing branch diff...", self)
+            progress.show()
+            QApplication.processEvents()
+            try:
+                diff_text = get_diff_between(self.repo_path, base_sha)
+                stat_text = get_diff_stat_between(self.repo_path, base_sha)
+                num_commits = len(get_git_history(self.repo_path, base_sha))
+                branch = get_current_branch(self.repo_path) or "HEAD"
+            finally:
+                progress.close()
+
+            dialog = BranchDiffDialog(branch, base_sha, num_commits, stat_text, diff_text, self.current_font_size, self)
+            dialog.exec()
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Could not fetch branch diff: {str(e)}")
 
     def handle_manual_refresh(self):
         """Shows a progress dialog during manual refresh."""

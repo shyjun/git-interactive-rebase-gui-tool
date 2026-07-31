@@ -942,6 +942,39 @@ class ViewCommitDialog(DiffViewerDialog):
         ok_btn.clicked.connect(self.accept)
         self.btn_layout.addWidget(ok_btn)
 
+class BranchDiffDialog(DiffViewerDialog):
+    """Dialog for viewing the combined diff of the branch vs its base (PR preview)."""
+    def __init__(self, branch, base_sha, num_commits, stat_text, diff_text, font_size=10, parent=None):
+        self._branch = branch
+        self._base_sha = base_sha
+        self._num_commits = num_commits
+        self._stat_text = stat_text
+        super().__init__(f"PR Preview: {branch} vs {base_sha[:8]}", base_sha, diff_text, font_size, parent)
+
+    def setup_header(self, sha):
+        base_short = sha[:8]
+        header = QLabel(
+            f"PR Preview: <b>{self._branch}</b> vs <b>{base_short}</b> - {self._num_commits} commits"
+        )
+        header.setTextFormat(Qt.RichText)
+        self.layout.addWidget(header)
+
+        stat_box = QTextEdit()
+        stat_box.setReadOnly(True)
+        stat_box.setPlainText(self._stat_text)
+        stat_box.setFont(QFont("Courier New", self.font_size))
+        stat_box.setLineWrapMode(QTextEdit.NoWrap)
+        stat_box.setFixedHeight(120)
+        stat_box.setProperty("class", "commit-msg-view")
+        self.layout.addWidget(stat_box)
+
+    def setup_buttons(self):
+        ok_btn = QPushButton("Ok")
+        ok_btn.setMinimumWidth(100)
+        ok_btn.setProperty("class", "dialog-btn")
+        ok_btn.clicked.connect(self.accept)
+        self.btn_layout.addWidget(ok_btn)
+
 class FileWiseViewDialog(QDialog):
     """Dialog for viewing changes in a commit file by file."""
     def __init__(self, repo_path, sha, files, font_size=10, parent=None):
