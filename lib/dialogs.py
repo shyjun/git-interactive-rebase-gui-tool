@@ -215,10 +215,12 @@ class DiffSearchBar(QWidget):
 
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Search in diff (Ctrl+F)...")
+        self.search_input.setToolTip("Search in the diff (Ctrl+F).")
         self.search_input.setMinimumHeight(28)
         self.search_input.setClearButtonEnabled(True)
 
         self.match_case_cb = QCheckBox("Match Case")
+        self.match_case_cb.setToolTip("Match case.")
 
         self.btn_prev = QToolButton()
         self.btn_prev.setText("<")
@@ -235,12 +237,14 @@ class DiffSearchBar(QWidget):
         self.lbl_counter.setAlignment(Qt.AlignCenter)
 
         self.whole_word_cb = QCheckBox("Whole word")
+        self.whole_word_cb.setToolTip("Match whole words only.")
 
         self.separator = QFrame()
         self.separator.setFrameShape(QFrame.VLine)
         self.separator.setFrameShadow(QFrame.Sunken)
 
         self.line_num_cb = QCheckBox("Line-Num")
+        self.line_num_cb.setToolTip("Highlight line numbers.")
 
         layout.addWidget(self.search_input)
         layout.addWidget(self.match_case_cb)
@@ -1919,20 +1923,26 @@ class UnstagedChangesDialog(QDialog):
         btn_layout.setSpacing(10)
         
         self.stash_btn = QPushButton("Stash and proceed to app")
+        self.stash_btn.setToolTip("Stash all uncommitted changes and proceed to the app.")
         
         commit_each_text = f"Commit each file changes separately and start app ({num_files} files modified, {num_files} commits)"
         self.commit_each_btn = QPushButton(commit_each_text)
+        self.commit_each_btn.setToolTip("Commit each file's changes as its own commit, then start the app.")
         
         bulk_commit_text = f"Commit all unsaved changes to a single 'bulk' commit (Number of modified files: {num_files})"
         self.bulk_commit_btn = QPushButton(bulk_commit_text)
+        self.bulk_commit_btn.setToolTip("Commit all changes into a single 'bulk' commit, then start the app.")
         
         amend_text = "Amend all changes into the HEAD commit (--amend --no-edit)"
         self.amend_btn = QPushButton(amend_text)
+        self.amend_btn.setToolTip("Amend all changes into the HEAD commit (--amend --no-edit).")
         
         viewer_label = "Switch to" if from_rescan else "Start in"
         self.viewer_mode_btn = QPushButton(f"{viewer_label} Viewer Mode (No history-modifying operations will be allowed)")
+        self.viewer_mode_btn.setToolTip(f"{viewer_label} Viewer Mode. Warning: no history-modifying operations are allowed.")
 
         self.exit_btn = QPushButton("Exit")
+        self.exit_btn.setToolTip("Exit the application.")
         
         # Style buttons a bit
         for btn in [self.stash_btn, self.commit_each_btn, self.bulk_commit_btn, self.amend_btn, self.viewer_mode_btn, self.exit_btn]:
