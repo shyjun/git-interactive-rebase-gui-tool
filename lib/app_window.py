@@ -2388,19 +2388,19 @@ class GitInteractiveRebaseApp(QMainWindow):
         visible = self.show_origin_cb.isChecked()
         self.origin_group.setVisible(visible)
         self.settings.setValue("show_origin_options", visible)
-        self.force_window_resize()
+        # self.force_window_resize()  # intentionally disabled: window keeps its size instead of auto-collapsing
 
     def on_rebase_visibility_toggled(self):
         visible = self.show_rebase_cb.isChecked()
         self.rebase_group.setVisible(visible)
         self.settings.setValue("show_rebase_options", visible)
-        self.force_window_resize()
+        # self.force_window_resize()  # intentionally disabled: window keeps its size instead of auto-collapsing
 
     def on_squash_visibility_toggled(self):
         visible = self.show_squash_cb.isChecked()
         self.squash_group.setVisible(visible)
         self.settings.setValue("show_squash_options", visible)
-        self.force_window_resize()
+        # self.force_window_resize()  # intentionally disabled: window keeps its size instead of auto-collapsing
 
     def on_local_branches_visibility_toggled(self):
         self.show_local_branches = self.show_local_branches_cb.isChecked()
