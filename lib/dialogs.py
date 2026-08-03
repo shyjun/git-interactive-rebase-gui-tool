@@ -1935,10 +1935,11 @@ class UnstagedChangesDialog(QDialog):
     AmendResult = 4
     ViewerModeResult = 5
 
-    def __init__(self, num_files, parent=None, from_rescan=False, repo_path=None, unstaged_files=None, font_size=None):
+    def __init__(self, num_files, parent=None, from_rescan=False, repo_path=None, unstaged_files=None, font_size=None, managed_stash_exists=False):
         super().__init__(parent)
         self.repo_path = repo_path
         self.unstaged_files = unstaged_files or []
+        self.managed_stash_exists = managed_stash_exists
         if font_size is None:
             font_size = int(QSettings("shyjun", "GitInteractiveRebase").value("font_size", 10))
         self.font_size = font_size
@@ -1997,7 +1998,7 @@ class UnstagedChangesDialog(QDialog):
             btn.setMinimumHeight(35)
         
         self.view_changes_btn.clicked.connect(self.show_unstaged_changes)
-        self.stash_btn.clicked.connect(self.accept)
+        self.stash_btn.clicked.connect(self._on_stash)
         self.commit_each_btn.clicked.connect(lambda: self.done(self.CommitEachResult))
         self.bulk_commit_btn.clicked.connect(lambda: self.done(self.BulkCommitResult))
         self.amend_btn.clicked.connect(lambda: self.done(self.AmendResult))
@@ -2030,6 +2031,14 @@ class UnstagedChangesDialog(QDialog):
             dlg.exec()
         except Exception as e:
             QMessageBox.warning(self, "Unstaged Changes", f"Could not load unstaged changes: {e}")
+
+    def _on_stash(self):
+        """Handle 'Stash and proceed'. Only one managed stash is allowed per session."""
+        if self.managed_stash_exists:
+            QMessageBox.information(self, "Managed Stash Exists",
+                "This application session has already created a managed stash. Only one managed stash is allowed per session. Please commit, discard, or manually stash the current changes before continuing.")
+            return  # keep dialog open so the user can choose another option
+        self.accept()
 
 class RefineFileSelectDialog(SplitCommitDialog):
     """File-selection dialog for Refine Changes. Reuses SplitCommitDialog layout."""
