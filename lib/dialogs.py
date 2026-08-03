@@ -22,8 +22,11 @@ from PySide6.QtWidgets import QStyledItemDelegate, QStyle
 from lib.git_helpers import (
     get_file_diff_in_commit, get_file_diff_only_in_commit,
     get_full_commit_message, get_commit_metadata, get_revert_commit_message,
-    get_commit_file_stats, get_file_diff_between
+    get_commit_file_stats, get_file_diff_between,
+    get_unstaged_diff, get_unstaged_file_stats, get_unstaged_file_diff,
+    get_current_branch, get_full_head_sha
 )
+from lib.utils import get_theme_colors
 
 class DiffHighlighter(QSyntaxHighlighter):
     def __init__(self, parent=None, added_color="#a6e22e", removed_color="#f92672", header_color="#66d9ef"):
@@ -949,7 +952,7 @@ class ViewCommitDialog(DiffViewerDialog):
 class BranchDiffDialog(QDialog):
     """Window replicating the right-side diff pane (Plain Diff + Filewise Diff tabs)
     for the combined branch diff vs its base (PR preview)."""
-    def __init__(self, repo_path, branch, base_sha, num_commits, diff_text, files, file_stats, font_size=10, parent=None):
+    def __init__(self, repo_path, branch, base_sha, num_commits, diff_text, files, file_stats, font_size=10, parent=None, colors=None):
         super().__init__(parent)
         self.repo_path = repo_path
         self.base_sha = base_sha
@@ -957,12 +960,13 @@ class BranchDiffDialog(QDialog):
         self.setWindowTitle(f"PR Preview: {branch} vs {base_sha[:8]}")
         self.setMinimumSize(860, 620)
 
-        # Diff colors from parent theme
-        main_win = parent if isinstance(parent, QMainWindow) else None
-        if main_win and hasattr(main_win, 'current_theme_colors'):
-            colors = main_win.current_theme_colors
-        else:
-            colors = {"added": "#a6e22e", "removed": "#f92672", "header": "#66d9ef", "separator": "#444444"}
+        # Diff colors: optional pre-resolved colors, else from the parent theme
+        if colors is None:
+            main_win = parent if isinstance(parent, QMainWindow) else None
+            if main_win and hasattr(main_win, 'current_theme_colors'):
+                colors = main_win.current_theme_colors
+            else:
+                colors = {"added": "#a6e22e", "removed": "#f92672", "header": "#66d9ef", "separator": "#444444"}
         self.colors = colors
 
         layout = QVBoxLayout(self)
@@ -972,6 +976,7 @@ class BranchDiffDialog(QDialog):
             f"PR Preview: <b>{branch}</b> vs <b>{base_sha[:8]}</b> - {num_commits} commits"
         )
         header.setTextFormat(Qt.RichText)
+        self.header_label = header
         layout.addWidget(header)
 
         # Diff Tab Widget
@@ -1094,6 +1099,41 @@ class BranchDiffDialog(QDialog):
             self.filewise_diff_search._perform_search()
         except Exception as e:
             self.filewise_diff_view.setPlainText(f"Error loading diff: {e}")
+
+
+class UnstagedDiffDialog(BranchDiffDialog):
+    """Read-only window identical to the PR diff viewer (View PR Diff), but
+    showing only the unstaged (worktree vs index) changes. No edits allowed."""
+    def __init__(self, repo_path, files, diff_text, file_stats, branch, head_sha, font_size=10, parent=None, colors=None):
+        if colors is None:
+            main_win = parent if isinstance(parent, QMainWindow) else None
+            if main_win and hasattr(main_win, 'current_theme_colors'):
+                colors = main_win.current_theme_colors
+            else:
+                theme_name = QSettings("git-interactive-rebase-gui-tool", "settings").value("theme", "light", type=str)
+                colors = get_theme_colors(theme_name)
+
+        super().__init__(
+            repo_path, branch, head_sha, len(files), diff_text,
+            files, file_stats, font_size, parent, colors=colors
+        )
+        self.setWindowTitle("Unstaged Changes")
+        self.header_label.setText(
+            f"Unstaged Changes: <b>{branch}</b> - {len(files)} file{'s' if len(files) != 1 else ''}"
+        )
+
+    def on_filewise_file_selected(self, filepath):
+        if not filepath:
+            self.filewise_diff_view.clear()
+            return
+        try:
+            diff = get_unstaged_file_diff(self.repo_path, filepath)
+            self.filewise_diff_view.setPlainText(diff)
+            self.filewise_diff_view.set_separator_color(self.colors.get("separator", "#444444"))
+            self.filewise_diff_search._perform_search()
+        except Exception as e:
+            self.filewise_diff_view.setPlainText(f"Error loading diff: {e}")
+
 
 class FileWiseViewDialog(QDialog):
     """Dialog for viewing changes in a commit file by file."""
@@ -1895,8 +1935,11 @@ class UnstagedChangesDialog(QDialog):
     AmendResult = 4
     ViewerModeResult = 5
 
-    def __init__(self, num_files, parent=None, from_rescan=False):
+    def __init__(self, num_files, parent=None, from_rescan=False, repo_path=None, unstaged_files=None, font_size=10):
         super().__init__(parent)
+        self.repo_path = repo_path
+        self.unstaged_files = unstaged_files or []
+        self.font_size = font_size
         self.setWindowTitle("Unstaged Changes Warning")
         self.setMinimumWidth(600)
         self.setModal(True)
@@ -1922,6 +1965,9 @@ class UnstagedChangesDialog(QDialog):
         btn_layout = QVBoxLayout()
         btn_layout.setSpacing(10)
         
+        self.view_changes_btn = QPushButton("Show unstaged changes")
+        self.view_changes_btn.setToolTip("Open a read-only viewer with only the unstaged changes. No edits allowed.")
+        
         self.stash_btn = QPushButton("Stash and proceed to app")
         self.stash_btn.setToolTip("Stash all uncommitted changes and proceed to the app.")
         
@@ -1945,9 +1991,10 @@ class UnstagedChangesDialog(QDialog):
         self.exit_btn.setToolTip("Exit the application.")
         
         # Style buttons a bit
-        for btn in [self.stash_btn, self.commit_each_btn, self.bulk_commit_btn, self.amend_btn, self.viewer_mode_btn, self.exit_btn]:
+        for btn in [self.view_changes_btn, self.stash_btn, self.commit_each_btn, self.bulk_commit_btn, self.amend_btn, self.viewer_mode_btn, self.exit_btn]:
             btn.setMinimumHeight(35)
         
+        self.view_changes_btn.clicked.connect(self.show_unstaged_changes)
         self.stash_btn.clicked.connect(self.accept)
         self.commit_each_btn.clicked.connect(lambda: self.done(self.CommitEachResult))
         self.bulk_commit_btn.clicked.connect(lambda: self.done(self.BulkCommitResult))
@@ -1955,6 +2002,7 @@ class UnstagedChangesDialog(QDialog):
         self.viewer_mode_btn.clicked.connect(lambda: self.done(self.ViewerModeResult))
         self.exit_btn.clicked.connect(self.reject)
         
+        btn_layout.addWidget(self.view_changes_btn)
         btn_layout.addWidget(self.stash_btn)
         btn_layout.addWidget(self.commit_each_btn)
         btn_layout.addWidget(self.bulk_commit_btn)
@@ -1963,6 +2011,23 @@ class UnstagedChangesDialog(QDialog):
         btn_layout.addWidget(self.exit_btn)
         
         layout.addLayout(btn_layout)
+
+    def show_unstaged_changes(self):
+        """Open a read-only viewer (same layout as View PR Diff) with only the unstaged changes."""
+        if not self.repo_path:
+            return
+        try:
+            diff_text = get_unstaged_diff(self.repo_path, ignore_submodules=True)
+            file_stats = get_unstaged_file_stats(self.repo_path, ignore_submodules=True)
+            branch = get_current_branch(self.repo_path) or "HEAD"
+            head_sha = get_full_head_sha(self.repo_path)
+            dlg = UnstagedDiffDialog(
+                self.repo_path, self.unstaged_files, diff_text, file_stats,
+                branch, head_sha, self.font_size, self
+            )
+            dlg.exec()
+        except Exception as e:
+            QMessageBox.warning(self, "Unstaged Changes", f"Could not load unstaged changes: {e}")
 
 class RefineFileSelectDialog(SplitCommitDialog):
     """File-selection dialog for Refine Changes. Reuses SplitCommitDialog layout."""

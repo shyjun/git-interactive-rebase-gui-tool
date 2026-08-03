@@ -4696,7 +4696,9 @@ for i, filename in enumerate(files):
         """Safely rescan repository state, prompting user for unstaged changes identically to app startup if found."""
         unstaged_files = get_unstaged_files(self.repo_path, ignore_submodules=True)
         if unstaged_files:
-            dialog = UnstagedChangesDialog(len(unstaged_files), parent=self, from_rescan=True)
+            dialog = UnstagedChangesDialog(len(unstaged_files), parent=self, from_rescan=True,
+                                           repo_path=self.repo_path, unstaged_files=unstaged_files,
+                                           font_size=self.current_font_size)
             result = dialog.exec()
 
             if result == UnstagedChangesDialog.Accepted:
