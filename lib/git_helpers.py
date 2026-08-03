@@ -71,7 +71,26 @@ def get_git_history(repo_path, commit_sha):
         
         if current_commit:
             commits.append(current_commit)
-            
+
+        # Batch-fetch full commit messages (subject + body) in a single call so the
+        # "Commit Msgs" search can match text in the message body, not just the subject.
+        try:
+            if has_parent:
+                msg_cmd = ["git", "log", f"{commit_sha}..HEAD", "--format=%h%x1f%B%x1e"]
+            else:
+                msg_cmd = ["git", "log", "HEAD", "--format=%h%x1f%B%x1e"]
+            msg_result = subprocess.run(msg_cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
+            full_msgs = {}
+            for record in msg_result.stdout.split('\x1e'):
+                record = record.strip('\x1f')
+                if '\x1f' in record:
+                    rec_sha, body = record.split('\x1f', 1)
+                    full_msgs[rec_sha.strip()] = body.strip()
+            for commit in commits:
+                commit["message"] = full_msgs.get(commit["sha"], commit.get("message", ""))
+        except subprocess.CalledProcessError:
+            pass  # fall back to subject-only messages
+
         return commits
     except subprocess.CalledProcessError as e:
         raise Exception(f"Failed to fetch git history: {e.stderr}")
