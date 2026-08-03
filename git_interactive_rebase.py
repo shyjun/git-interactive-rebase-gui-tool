@@ -167,22 +167,25 @@ def main():
 
     window = GitInteractiveRebaseApp(repo_path, commit_sha, app_start_time, base_branch=base_branch, viewer_mode=args.viewer_mode)
     window.show()
+    if created_stash_sha:
+        window.pending_stash_sha = created_stash_sha
 
     exit_code = app.exec()
 
-    if created_stash_sha:
+    stash_sha = created_stash_sha or getattr(window, "pending_stash_sha", None)
+    if stash_sha:
         # Final reminder before exiting the process completely
         msg_box = QMessageBox(None)
         msg_box.setWindowTitle("Stash Reminder")
-        msg_box.setText("A stash was created during app startup. Do you want to stash pop it ??")
+        msg_box.setText("A stash was created during this session. Do you want to stash pop it ??")
         yes_button = msg_box.addButton("Yes, stash pop now.", QMessageBox.YesRole)
         no_button = msg_box.addButton("No, i will do manually.", QMessageBox.NoRole)
         msg_box.exec()
 
         if msg_box.clickedButton() == yes_button:
-            success, msg = stash_pop(repo_path, created_stash_sha)
+            success, msg = stash_pop(repo_path, stash_sha)
             if success:
-                short_sha = created_stash_sha[:7]
+                short_sha = stash_sha[:7]
                 print(f"Stash {short_sha}({msg}) popped successfully.")
                 QMessageBox.information(None, "Success", f"Stash {short_sha}({msg}) popped successfully.")
             else:
