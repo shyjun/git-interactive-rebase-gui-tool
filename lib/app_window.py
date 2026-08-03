@@ -1665,8 +1665,8 @@ class GitInteractiveRebaseApp(QMainWindow):
 
             matched = False
 
-            # Commit message / SHA match
-            if by_msg and search_term in item_text:
+            # Commit message / SHA match (subject line or full message body)
+            if by_msg and (search_term in item_text or search_term in (item.data(Qt.UserRole + 6) or "").lower()):
                 matched = True
 
             # Filename match — lazy-load via existing commit_cache
@@ -1715,7 +1715,7 @@ class GitInteractiveRebaseApp(QMainWindow):
             item_text = item.text().lower()
 
             # If already matched by msg or files, no need to check diff
-            already_matched = (by_msg and search_term in item_text)
+            already_matched = (by_msg and (search_term in item_text or search_term in (item.data(Qt.UserRole + 6) or "").lower()))
             if not already_matched and by_files:
                 cache_entry = self.commit_cache.get(sha, {})
                 files = cache_entry.get('files', [])
@@ -4862,6 +4862,7 @@ for i, filename in enumerate(files):
                     item.setData(Qt.UserRole + 2, entry.get("date", ""))
                     item.setData(Qt.UserRole + 3, (entry.get("added", 0), entry.get("deleted", 0)))
                     item.setData(Qt.UserRole + 4, entry.get("author", ""))
+                    item.setData(Qt.UserRole + 6, entry.get("message", ""))
                     parents = entry.get("parents", "")
                     item.setData(Qt.UserRole + 5, " " in parents)
                 else:
