@@ -1935,10 +1935,12 @@ class UnstagedChangesDialog(QDialog):
     AmendResult = 4
     ViewerModeResult = 5
 
-    def __init__(self, num_files, parent=None, from_rescan=False, repo_path=None, unstaged_files=None, font_size=10):
+    def __init__(self, num_files, parent=None, from_rescan=False, repo_path=None, unstaged_files=None, font_size=None):
         super().__init__(parent)
         self.repo_path = repo_path
         self.unstaged_files = unstaged_files or []
+        if font_size is None:
+            font_size = int(QSettings("shyjun", "GitInteractiveRebase").value("font_size", 10))
         self.font_size = font_size
         self.setWindowTitle("Unstaged Changes Warning")
         self.setMinimumWidth(600)
