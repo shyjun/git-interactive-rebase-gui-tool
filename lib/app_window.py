@@ -4697,78 +4697,68 @@ for i, filename in enumerate(files):
         """Safely rescan repository state, prompting user for unstaged changes identically to app startup if found."""
         unstaged_files = get_unstaged_files(self.repo_path, ignore_submodules=True)
         if unstaged_files:
-            while True:
-                dialog = UnstagedChangesDialog(len(unstaged_files), parent=self, from_rescan=True,
-                                               repo_path=self.repo_path, unstaged_files=unstaged_files,
-                                               font_size=self.current_font_size)
-                result = dialog.exec()
+            dialog = UnstagedChangesDialog(len(unstaged_files), parent=self, from_rescan=True,
+                                           repo_path=self.repo_path, unstaged_files=unstaged_files,
+                                           font_size=self.current_font_size,
+                                           managed_stash_exists=bool(self.pending_stash_sha))
+            result = dialog.exec()
 
-                if result == UnstagedChangesDialog.Accepted:
-                    if self.pending_stash_sha:
-                        # Only one managed stash is allowed per session.
-                        QMessageBox.information(self, "Managed Stash Exists",
-                            "This application session has already created a managed stash. Only one managed stash is allowed per session. Please commit, discard, or manually stash the current changes before continuing.")
-                        continue  # return to the dialog so the user can choose another option
-                    created_stash_sha = stash_changes(self.repo_path)
-                    if created_stash_sha:
-                        self.pending_stash_sha = created_stash_sha
-                        QMessageBox.information(self, "Stash Successful", f"Changes stashed successfully (SHA: {created_stash_sha[:7]}).")
-                    else:
-                        QMessageBox.critical(self, "Error", "Failed to stash changes. Please stash or commit manually.")
-                        return
-                    break
-                elif result == UnstagedChangesDialog.CommitEachResult:
-                    progress = ProgressDialog("Committing Changes", f"Committing {len(unstaged_files)} files individually...", self)
-                    progress.show()
-                    for _ in range(3): QApplication.processEvents()
-
-                    success_count = 0
-                    for i, f in enumerate(unstaged_files):
-                        progress.label.setText(f"Committing ({i+1}/{len(unstaged_files)}): {f}")
-                        for _ in range(2): QApplication.processEvents()
-                        if commit_file(self.repo_path, f, f"changes in {f}"):
-                            success_count += 1
-
-                    progress.close()
-                    QMessageBox.information(self, "Commit Successful", f"Successfully committed {success_count} isolated files.")
-                    break
-                elif result == UnstagedChangesDialog.BulkCommitResult:
-                    msg = f"bulk commit (Number of modified files: {len(unstaged_files)})"
-                    progress = ProgressDialog("Bulk Committing", f"Committing {len(unstaged_files)} files at once...", self)
-                    progress.show()
-                    for _ in range(3): QApplication.processEvents()
-
-                    success = bulk_commit_all(self.repo_path, msg)
-                    progress.close()
-
-                    if success:
-                        QMessageBox.information(self, "Commit Successful", "Bulk commit successful.")
-                    else:
-                        QMessageBox.critical(self, "Error", "Bulk commit failed.")
-                        return
-                    break
-                elif result == UnstagedChangesDialog.AmendResult:
-                    progress = ProgressDialog("Amending", "Amending all changes into HEAD commit...", self)
-                    progress.show()
-                    for _ in range(3): QApplication.processEvents()
-
-                    success = amend_with_head(self.repo_path)
-                    progress.close()
-
-                    if success:
-                        QMessageBox.information(self, "Amend Successful", "Changes amended into HEAD commit.")
-                    else:
-                        QMessageBox.critical(self, "Error", "Amend failed.")
-                        return
-                    break
-                elif result == UnstagedChangesDialog.ViewerModeResult:
-                    self.viewer_mode = True
-                    self.exit_viewer_mode_btn.setVisible(True)
-                    self.update_window_title()
-                    break
+            if result == UnstagedChangesDialog.Accepted:
+                created_stash_sha = stash_changes(self.repo_path)
+                if created_stash_sha:
+                    self.pending_stash_sha = created_stash_sha
+                    QMessageBox.information(self, "Stash Successful", f"Changes stashed successfully (SHA: {created_stash_sha[:7]}).")
                 else:
-                    # Cancel/Rejected: Just return successfully and quietly drop the window.
+                    QMessageBox.critical(self, "Error", "Failed to stash changes. Please stash or commit manually.")
                     return
+            elif result == UnstagedChangesDialog.CommitEachResult:
+                progress = ProgressDialog("Committing Changes", f"Committing {len(unstaged_files)} files individually...", self)
+                progress.show()
+                for _ in range(3): QApplication.processEvents()
+
+                success_count = 0
+                for i, f in enumerate(unstaged_files):
+                    progress.label.setText(f"Committing ({i+1}/{len(unstaged_files)}): {f}")
+                    for _ in range(2): QApplication.processEvents()
+                    if commit_file(self.repo_path, f, f"changes in {f}"):
+                        success_count += 1
+
+                progress.close()
+                QMessageBox.information(self, "Commit Successful", f"Successfully committed {success_count} isolated files.")
+            elif result == UnstagedChangesDialog.BulkCommitResult:
+                msg = f"bulk commit (Number of modified files: {len(unstaged_files)})"
+                progress = ProgressDialog("Bulk Committing", f"Committing {len(unstaged_files)} files at once...", self)
+                progress.show()
+                for _ in range(3): QApplication.processEvents()
+
+                success = bulk_commit_all(self.repo_path, msg)
+                progress.close()
+
+                if success:
+                    QMessageBox.information(self, "Commit Successful", "Bulk commit successful.")
+                else:
+                    QMessageBox.critical(self, "Error", "Bulk commit failed.")
+                    return
+            elif result == UnstagedChangesDialog.AmendResult:
+                progress = ProgressDialog("Amending", "Amending all changes into HEAD commit...", self)
+                progress.show()
+                for _ in range(3): QApplication.processEvents()
+
+                success = amend_with_head(self.repo_path)
+                progress.close()
+
+                if success:
+                    QMessageBox.information(self, "Amend Successful", "Changes amended into HEAD commit.")
+                else:
+                    QMessageBox.critical(self, "Error", "Amend failed.")
+                    return
+            elif result == UnstagedChangesDialog.ViewerModeResult:
+                self.viewer_mode = True
+                self.exit_viewer_mode_btn.setVisible(True)
+                self.update_window_title()
+            else:
+                # Cancel/Rejected: Just return successfully and quietly drop the window.
+                return
 
         # Finally, we reload the tree to correctly align matching local state
         self.load_history()
