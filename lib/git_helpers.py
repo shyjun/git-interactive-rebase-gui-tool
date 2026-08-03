@@ -585,6 +585,61 @@ def get_file_stats_between(repo_path, base_sha):
         return {}
 
 
+def get_unstaged_diff(repo_path, ignore_submodules=False):
+    """Returns the combined diff of all unstaged (worktree vs index) changes."""
+    try:
+        cmd = ["git", "diff"]
+        if ignore_submodules:
+            cmd.append("--ignore-submodules=all")
+        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
+        diff_text = result.stdout
+        # Inject separator padding
+        import re
+        diff_text = re.sub(r'(\n)(diff --git )', r'\1\n\2', diff_text)
+        return diff_text
+    except subprocess.CalledProcessError as e:
+        raise Exception(f"Failed to fetch unstaged diff: {e.stderr}")
+
+
+def get_unstaged_file_stats(repo_path, ignore_submodules=False):
+    """Returns a dict mapping filepath -> (added_lines, deleted_lines) for unstaged changes."""
+    try:
+        cmd = ["git", "diff", "--numstat"]
+        if ignore_submodules:
+            cmd.append("--ignore-submodules=all")
+        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
+        stats = {}
+        for line in result.stdout.strip().split('\n'):
+            if not line.strip():
+                continue
+            parts = line.split('\t', 2)
+            if len(parts) == 3:
+                added_str, deleted_str, filepath = parts
+                try:
+                    added = int(added_str)
+                    deleted = int(deleted_str)
+                except ValueError:
+                    added, deleted = 0, 0  # binary file
+                stats[filepath.strip()] = (added, deleted)
+        return stats
+    except subprocess.CalledProcessError:
+        return {}
+
+
+def get_unstaged_file_diff(repo_path, filepath):
+    """Returns the diff for a single file's unstaged changes."""
+    try:
+        cmd = ["git", "diff", "--", filepath]
+        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
+        diff_text = result.stdout
+        # Inject separator padding
+        import re
+        diff_text = re.sub(r'(\n)(diff --git )', r'\1\n\2', diff_text)
+        return diff_text
+    except subprocess.CalledProcessError as e:
+        raise Exception(f"Failed to get unstaged file diff: {e.stderr}")
+
+
 def resolve_ref(repo_path, ref):
     """Resolves a git ref/SHA (e.g. 'HEAD~3', 'origin/main', a full/short SHA) to a full SHA."""
     try:

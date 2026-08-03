@@ -109,7 +109,7 @@ def main():
     created_stash_sha = None
     unstaged_files = get_unstaged_files(repo_path, ignore_submodules=True)
     if unstaged_files and not args.viewer_mode:
-        dialog = UnstagedChangesDialog(len(unstaged_files))
+        dialog = UnstagedChangesDialog(len(unstaged_files), repo_path=repo_path, unstaged_files=unstaged_files)
         result = dialog.exec()
 
         if result == UnstagedChangesDialog.Accepted:
