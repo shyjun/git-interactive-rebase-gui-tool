@@ -1638,8 +1638,13 @@ class GitInteractiveRebaseApp(QMainWindow):
 
         # Trigger debounced diff search only when needed
         if by_diff and len(search_term) >= 3:
+            self._diff_status_label.setText("Searching diffs...")
             self._diff_status_label.setVisible(True)
             self._diff_search_timer.start()  # restarts 300ms window each keystroke
+        elif by_diff and search_term:
+            self._diff_search_timer.stop()
+            self._diff_status_label.setText("Diff search needs ≥ 3 characters")
+            self._diff_status_label.setVisible(True)
         else:
             self._diff_search_timer.stop()
             self._diff_status_label.setVisible(False)
@@ -1693,7 +1698,7 @@ class GitInteractiveRebaseApp(QMainWindow):
                     matched = True
 
             # When diff search is enabled keep items visible for now (diff pass will correct)
-            if not matched and by_diff and len(search_term) >= 3:
+            if not matched and by_diff:
                 matched = True  # tentatively show — diff pass will hide non-matching ones
 
             item.setHidden(not matched)
@@ -1708,6 +1713,7 @@ class GitInteractiveRebaseApp(QMainWindow):
 
         by_msg = self.filter_by_msg_cb.isChecked()
         by_files = self.filter_by_files_cb.isChecked()
+        by_author = self.filter_by_author_cb.isChecked()
 
         for i in range(self.list_widget.count()):
             item = self.list_widget.item(i)
@@ -1717,12 +1723,15 @@ class GitInteractiveRebaseApp(QMainWindow):
             sha = item.text().split()[0]
             item_text = item.text().lower()
 
-            # If already matched by msg or files, no need to check diff
+            # If already matched by msg, files, or author, no need to check diff
             already_matched = (by_msg and (search_term in item_text or search_term in (item.data(Qt.UserRole + 6) or "").lower()))
             if not already_matched and by_files:
                 cache_entry = self.commit_cache.get(sha, {})
                 files = cache_entry.get('files', [])
                 already_matched = any(search_term in f.lower() for f in files)
+            if not already_matched and by_author:
+                author = item.data(Qt.UserRole + 4) or ""
+                already_matched = search_term in author.lower()
 
             if already_matched:
                 continue
@@ -4946,6 +4955,10 @@ for i, filename in enumerate(files):
         self.total_commits_label.setText("Total: counting...")
         self._count_total_commits_async()
         self._update_commit_counts()
+
+        # Re-apply the active search/filter so it isn't silently dropped after a reload
+        if hasattr(self, 'search_edit'):
+            self.filter_commits(self.search_edit.text())
 
         if current_head == self.start_time_head[:8] and not uncommitted:
             self.failsafe_btn.setEnabled(False)
