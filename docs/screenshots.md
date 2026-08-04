@@ -117,8 +117,7 @@ Quickly locate commits using live search and advanced filtering options.
 
 Filtering supports the following modes:
 
-- **Commit SHA** → Find commits by SHA
-- **Commit Msgs** → Search commit messages
+- **Message / SHA** → Search by commit message text or SHA
 - **Filenames** → Search commits that modified a specific file
 - **Diff** → Search inside commit diff/content
 
