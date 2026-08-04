@@ -959,8 +959,10 @@ class GitInteractiveRebaseApp(QMainWindow):
         self._diff_search_timer.timeout.connect(self._run_filter_with_diff)
 
         # Inline status label shown during diff search
+        self._DIFF_NEUTRAL_STYLE = "color: gray; font-style: italic; font-size: 10pt;"
+        self._DIFF_HINT_STYLE = "color: #d73a49; font-weight: bold; font-size: 10pt;"
         self._diff_status_label = QLabel("Searching diffs...")
-        self._diff_status_label.setStyleSheet("color: gray; font-style: italic; font-size: 10pt;")
+        self._diff_status_label.setStyleSheet(self._DIFF_NEUTRAL_STYLE)
         self._diff_status_label.setVisible(False)
         search_row_layout.addWidget(self._diff_status_label)
 
@@ -1638,11 +1640,13 @@ class GitInteractiveRebaseApp(QMainWindow):
 
         # Trigger debounced diff search only when needed
         if by_diff and len(search_term) >= 3:
+            self._diff_status_label.setStyleSheet(self._DIFF_NEUTRAL_STYLE)
             self._diff_status_label.setText("Searching diffs...")
             self._diff_status_label.setVisible(True)
             self._diff_search_timer.start()  # restarts 300ms window each keystroke
         elif by_diff and search_term:
             self._diff_search_timer.stop()
+            self._diff_status_label.setStyleSheet(self._DIFF_HINT_STYLE)
             self._diff_status_label.setText("Diff search needs ≥ 3 characters")
             self._diff_status_label.setVisible(True)
         else:
