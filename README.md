@@ -39,6 +39,7 @@ A Python-based Git Interactive Rebase GUI tool to visually manage commit history
 | `Esc` | Clear search / Close dialog |
 | `Ctrl+F` | Search inside diff viewer |
 | `Ctrl+Q` | Exit application |
+| `Ctrl+Z` | Undo last operation (disabled while editing text) |
 | `F5` | Refresh / Rescan commit history |
 
 ### 🎨 Premium User Experience

@@ -531,6 +531,7 @@ Keyboard shortcuts for faster navigation and workflow.
 | `Esc` | Clear search, close dialogs, or exit search mode |
 | `Ctrl+F` | Open search in diff viewer |
 | `Ctrl+Q` | Exit the application |
+| `Ctrl+Z` | Undo the last operation (disabled while editing text) |
 | `F5` | Refresh commit list |
 
 **Notes:**

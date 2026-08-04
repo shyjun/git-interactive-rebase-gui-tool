@@ -1147,7 +1147,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.pr_diff_btn.setToolTip("View the branch diff vs its base.")
         self._set_pr_diff_icon(self.pr_diff_btn)
         self.undo_btn = QPushButton("Undo")
-        self.undo_btn.setToolTip("Undo the last operation.")
+        self.undo_btn.setToolTip("Undo the last operation (Ctrl+Z).")
         self._set_undo_icon(self.undo_btn)
         self.undo_btn.setEnabled(False)
         self.check_update_btn = QPushButton("Check Updates")
@@ -1411,6 +1411,9 @@ class GitInteractiveRebaseApp(QMainWindow):
 
         self.ctrl_q_shortcut = QShortcut(QKeySequence("Ctrl+Q"), self)
         self.ctrl_q_shortcut.activated.connect(self.close)
+
+        self.ctrl_z_shortcut = QShortcut(QKeySequence("Ctrl+Z"), self)
+        self.ctrl_z_shortcut.activated.connect(self.handle_undo_shortcut)
 
     def show_search_bar(self):
         if not self.right_panel.isVisible():
@@ -2067,6 +2070,27 @@ class GitInteractiveRebaseApp(QMainWindow):
         """Saves current HEAD to last_head and enables Undo button."""
         self.last_head = get_full_head_sha(self.repo_path)
         self.undo_btn.setEnabled(True)
+
+    def handle_undo_shortcut(self):
+        """Handles the Ctrl+Z shortcut for undoing the last operation.
+
+        Defers to native text-editing undo when a text field has focus,
+        and does nothing when there is no pending undoable operation.
+        """
+        if not self._undo_focus_guard():
+            return  # let native text-edit undo take over
+        if not self.last_head:
+            return  # nothing to undo yet
+        self.handle_undo()
+
+    def _undo_focus_guard(self):
+        """Return True only when no text-edit widget has focus, so Ctrl+Z
+        performs app 'undo last operation' instead of native text editing undo."""
+        focus = self.focusWidget()
+        if focus is None:
+            return True
+        from PySide6.QtWidgets import QLineEdit, QTextEdit, QPlainTextEdit
+        return not isinstance(focus, (QLineEdit, QTextEdit, QPlainTextEdit))
 
     def handle_undo(self):
         """Handles the Undo action by resetting hard to last_head."""
