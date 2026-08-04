@@ -3337,6 +3337,16 @@ class GitInteractiveRebaseApp(QMainWindow):
         return hunks
 
     @staticmethod
+    def _patch_has_changes(patch_text):
+        """Return True if the patch still contains any added/removed content lines."""
+        for line in patch_text.splitlines():
+            if line.startswith(('+++', '---')):
+                continue
+            if line.startswith(('+', '-')):
+                return True
+        return False
+
+    @staticmethod
     def _rebuild_patch(diff_header_text, all_hunks, kept_indices):
         """
         Build a minimal unified-diff patch string that contains only the kept hunks.
@@ -3490,6 +3500,17 @@ class GitInteractiveRebaseApp(QMainWindow):
             move_patch = ""
             if result_action == "move":
                 move_patch = self._rebuild_patch(diff_header_text, all_hunks, moved_indices)
+
+            # Minimal: warn if editing/deselecting leaves NO content in the only file
+            if is_only_file and not self._patch_has_changes(partial_patch):
+                QMessageBox.information(
+                    self, "Empty Commit",
+                    f"After refinement, '{filepath}' has no remaining changes in commit {sha[:8]}, "
+                    "which is the only file in this commit.\n\n"
+                    "This would create an empty commit. Please cancel and use "
+                    "'Drop Commit' or 'Move file changes out of this commit' instead."
+                )
+                break
 
             action_script_content = f"""#!/usr/bin/env python3
 import subprocess, os, tempfile, sys
