@@ -73,7 +73,7 @@ def get_git_history(repo_path, commit_sha):
             commits.append(current_commit)
 
         # Batch-fetch full commit messages (subject + body) in a single call so the
-        # "Commit Msgs" search can match text in the message body, not just the subject.
+        # "Message / SHA" search can match text in the message body, not just the subject.
         try:
             if has_parent:
                 msg_cmd = ["git", "log", f"{commit_sha}..HEAD", "--format=%h%x1f%B%x1e"]

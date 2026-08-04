@@ -928,9 +928,9 @@ class GitInteractiveRebaseApp(QMainWindow):
         filter_label.setStyleSheet("font-size: 11px; color: gray;")
         search_row_layout.addWidget(filter_label)
 
-        self.filter_by_msg_cb = QCheckBox("Commit Msgs")
+        self.filter_by_msg_cb = QCheckBox("Message / SHA")
         self.filter_by_msg_cb.setChecked(True)
-        self.filter_by_msg_cb.setToolTip("Filter commits by commit message text")
+        self.filter_by_msg_cb.setToolTip("Filter commits by commit message text or SHA")
         self.filter_by_msg_cb.stateChanged.connect(lambda: self.filter_commits(self.search_edit.text()))
         search_row_layout.addWidget(self.filter_by_msg_cb)
 
