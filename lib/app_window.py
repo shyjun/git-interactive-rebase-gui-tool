@@ -53,7 +53,7 @@ from lib.dialogs import (
     MultiSquashDialog, ProgressDialog, DropFileFromCommitDialog, ConfirmDropFileDialog,
     ConfirmMoveFileDialog, ConfirmRemoveFileOnwardsDialog, AggressiveRemoveConfirmationDialog,
     RefineFileSelectDialog, RefineChangesDialog, NewCommitMessageDialog,
-    DiffView, StatsItemDelegate, DiffSearchBar, UnstagedChangesDialog, BranchDiffDialog
+    DiffView, StatsItemDelegate, DiffSearchBar, UnstagedChangesDialog, BranchDiffDialog, StashNoticeDialog
 )
 from lib.utils import get_assets_path
 
@@ -4877,15 +4877,7 @@ for i, filename in enumerate(files):
             text = (f"{short_sha} not found in stash list. "
                     f"Please investigate and stash pop manually.\n\n"
                     f"Please note down the sha: {short_sha}")
-        box = QMessageBox(self)
-        box.setWindowTitle("Managed Stash")
-        box.setIcon(QMessageBox.Warning)
-        box.setText(text)
-        copy_btn = box.addButton("Copy SHA to clipboard", QMessageBox.ActionRole)
-        ok_btn = box.addButton("OK", QMessageBox.RejectRole)
-        box.setDefaultButton(ok_btn)
-        copy_btn.clicked.connect(lambda: QApplication.clipboard().setText(short_sha))
-        box.exec()
+        StashNoticeDialog(text, sha, self).exec()
 
     def handle_pop_managed_stash(self):
         """Pop the app-created managed stash after a confirmation showing stash details."""
