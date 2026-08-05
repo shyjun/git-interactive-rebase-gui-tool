@@ -396,6 +396,31 @@ def discard_changes(repo_path):
     except subprocess.CalledProcessError:
         return False
 
+def get_stash_subject(repo_path, stash_sha=None):
+    """Returns the subject (message) of a stash. If stash_sha is provided, resolves that
+    specific stash, otherwise the top one. Returns the subject string or None."""
+    try:
+        target = "stash@{0}"
+        if stash_sha:
+            cmd_list = ["git", "log", "--format=%H", "-g", "refs/stash"]
+            result = subprocess.run(cmd_list, cwd=repo_path, capture_output=True, text=True, encoding='utf-8', errors='replace')
+            if result.returncode == 0:
+                shas = result.stdout.strip().split('\n')
+                try:
+                    idx = shas.index(stash_sha)
+                    target = f"stash@{{{idx}}}"
+                except ValueError:
+                    return None
+            else:
+                return None
+        result = subprocess.run(["git", "log", "-1", "--format=%s", target],
+                                cwd=repo_path, capture_output=True, text=True, encoding='utf-8', errors='replace')
+        if result.returncode == 0:
+            return result.stdout.strip()
+        return None
+    except:
+        return None
+
 def stash_pop(repo_path, stash_sha=None):
     """Pops a stash from the repository. If stash_sha is provided, pops that specific stash.
     Returns (success, message)."""

@@ -184,6 +184,7 @@ def main():
     window.show()
     if created_stash_sha:
         window.pending_stash_sha = created_stash_sha
+        window._update_stash_btn_visibility()
 
     # Show any acknowledgment/error boxes only after the main window is up.
     if ack_messages:
@@ -197,7 +198,7 @@ def main():
 
     exit_code = app.exec()
 
-    stash_sha = created_stash_sha or getattr(window, "pending_stash_sha", None)
+    stash_sha = getattr(window, "pending_stash_sha", None)
     if stash_sha:
         # Final reminder before exiting the process completely
         msg_box = QMessageBox(None)
