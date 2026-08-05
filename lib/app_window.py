@@ -43,7 +43,7 @@ from lib.git_helpers import (
     get_full_commit_message, get_commit_metadata, get_commit_files,
     has_uncommitted_changes, branch_exists, get_local_branches_map, get_remote_head_sha,
     get_file_diff_only_in_commit, get_revert_commit_message, get_commit_metadata_and_message,
-    get_commit_file_stats,     get_unstaged_files, stash_changes, commit_file, bulk_commit_all, amend_with_head, discard_changes, stash_pop, get_stash_subject, stash_pop_can_apply,
+    get_commit_file_stats,     get_unstaged_files, stash_changes, commit_file, bulk_commit_all, amend_with_head, discard_changes, stash_pop, get_stash_subject, stash_pop_can_apply, get_stash_status,
     get_merge_base, get_diff_between, get_diff_stat_between,
     get_files_between, get_file_stats_between, resolve_ref
 )
@@ -712,7 +712,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.last_head = None
         self.best_commit_sha = None
         self.marked_shas = set()
-        self.pending_stash_sha = None
+        self.app_managed_stash_sha = None
 
         # Global application icon is handled in the main entry point
 
@@ -4860,18 +4860,47 @@ for i, filename in enumerate(files):
 
     def _update_stash_btn_visibility(self):
         """Show the 'Pop the app managed stash' button only while a managed stash exists."""
-        self.pop_stash_btn.setVisible(bool(self.pending_stash_sha))
+        self.pop_stash_btn.setVisible(bool(self.app_managed_stash_sha))
 
     def _flash_pop_stash_btn(self):
         """Briefly highlight the 'Pop the app managed stash' button after a stash is created."""
         highlight_button_temporarily(self.pop_stash_btn, blinks=5)
 
+    def _show_managed_stash_missing_box(self, sha, not_at_head):
+        """Show that the managed stash is missing or not at HEAD, offering to copy the SHA."""
+        short_sha = sha[:8]
+        if not_at_head:
+            text = (f"{short_sha} is found in stash list, but not at HEAD position. "
+                    f"Please investigate and stash pop manually.\n\n"
+                    f"Please note down the sha: {short_sha}")
+        else:
+            text = (f"{short_sha} not found in stash list. "
+                    f"Please investigate and stash pop manually.\n\n"
+                    f"Please note down the sha: {short_sha}")
+        box = QMessageBox(self)
+        box.setWindowTitle("Managed Stash")
+        box.setIcon(QMessageBox.Warning)
+        box.setText(text)
+        copy_btn = box.addButton("Copy SHA to clipboard", QMessageBox.AcceptRole)
+        ok_btn = box.addButton("OK", QMessageBox.RejectRole)
+        box.setDefaultButton(ok_btn)
+        box.exec()
+        if box.clickedButton() == copy_btn:
+            QApplication.clipboard().setText(short_sha)
+
     def handle_pop_managed_stash(self):
         """Pop the app-created managed stash after a confirmation showing stash details."""
-        if not self.pending_stash_sha:
+        if not self.app_managed_stash_sha:
             return
-        short_sha = self.pending_stash_sha[:8]
-        subject = get_stash_subject(self.repo_path, self.pending_stash_sha)
+        status, _ = get_stash_status(self.repo_path, self.app_managed_stash_sha)
+        if status == "NOT_FOUND":
+            self._show_managed_stash_missing_box(self.app_managed_stash_sha, not_at_head=False)
+            return
+        if status == "NOT_HEAD":
+            self._show_managed_stash_missing_box(self.app_managed_stash_sha, not_at_head=True)
+            return
+        short_sha = self.app_managed_stash_sha[:8]
+        subject = get_stash_subject(self.repo_path, self.app_managed_stash_sha)
         details = f"<b>SHA:</b> {short_sha}" + (f"<br><b>Message:</b> {subject}" if subject else "")
         box = QMessageBox(self)
         box.setWindowTitle("Pop Managed Stash")
@@ -4882,7 +4911,7 @@ for i, filename in enumerate(files):
         answer = box.exec()
         if answer != QMessageBox.Yes:
             return
-        can_apply, conflict_detail = stash_pop_can_apply(self.repo_path, self.pending_stash_sha)
+        can_apply, conflict_detail = stash_pop_can_apply(self.repo_path, self.app_managed_stash_sha)
         if not can_apply:
             QMessageBox.warning(
                 self,
@@ -4893,9 +4922,9 @@ for i, filename in enumerate(files):
                 "The stash was left untouched and will be offered again at exit."
             )
             return
-        success, msg = stash_pop(self.repo_path, self.pending_stash_sha)
+        success, msg = stash_pop(self.repo_path, self.app_managed_stash_sha)
         if success:
-            self.pending_stash_sha = None
+            self.app_managed_stash_sha = None
             self._update_stash_btn_visibility()
             QMessageBox.information(self, "Pop Successful", f"Stash popped successfully.{(' (' + msg + ')') if msg else ''}")
         else:
@@ -4909,13 +4938,13 @@ for i, filename in enumerate(files):
             dialog = UnstagedChangesDialog(len(unstaged_files), parent=self, from_rescan=True,
                                            repo_path=self.repo_path, unstaged_files=unstaged_files,
                                            font_size=self.current_font_size,
-                                           managed_stash_exists=bool(self.pending_stash_sha))
+                                           managed_stash_exists=bool(self.app_managed_stash_sha))
             result = dialog.exec()
 
             if result == UnstagedChangesDialog.Accepted:
                 created_stash_sha = stash_changes(self.repo_path)
                 if created_stash_sha:
-                    self.pending_stash_sha = created_stash_sha
+                    self.app_managed_stash_sha = created_stash_sha
                     self._update_stash_btn_visibility()
                     self._flash_pop_stash_btn()
                     QMessageBox.information(self, "Stash Successful", f"Changes stashed successfully (SHA: {created_stash_sha[:7]}).")

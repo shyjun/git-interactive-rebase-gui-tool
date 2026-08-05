@@ -23,7 +23,7 @@ from lib.utils import get_assets_path
 from lib.git_helpers import (
     get_root_commit, get_recent_history_start, get_branch_base_info,
     has_uncommitted_changes, stash_changes, get_unstaged_files, commit_file,
-    bulk_commit_all, amend_with_head, stash_pop, get_full_head_sha, get_head_sha, discard_changes
+    bulk_commit_all, amend_with_head, stash_pop, get_full_head_sha, get_head_sha, discard_changes, get_stash_status
 )
 from lib.app_window import GitInteractiveRebaseApp, get_theme_stylesheet
 from lib.dialogs import UnstagedChangesDialog, ProgressDialog
@@ -183,7 +183,7 @@ def main():
     window = GitInteractiveRebaseApp(repo_path, commit_sha, app_start_time, base_branch=base_branch, viewer_mode=args.viewer_mode)
     window.show()
     if created_stash_sha:
-        window.pending_stash_sha = created_stash_sha
+        window.app_managed_stash_sha = created_stash_sha
         window._update_stash_btn_visibility()
         window._flash_pop_stash_btn()
 
@@ -199,24 +199,51 @@ def main():
 
     exit_code = app.exec()
 
-    stash_sha = getattr(window, "pending_stash_sha", None)
+    stash_sha = getattr(window, "app_managed_stash_sha", None)
     if stash_sha:
-        # Final reminder before exiting the process completely
-        msg_box = QMessageBox(None)
-        msg_box.setWindowTitle("Stash Reminder")
-        msg_box.setText("A stash was created during this session. Do you want to stash pop it ??")
-        yes_button = msg_box.addButton("Yes, stash pop now.", QMessageBox.YesRole)
-        no_button = msg_box.addButton("No, i will do manually.", QMessageBox.NoRole)
-        msg_box.exec()
+        status, _ = get_stash_status(repo_path, stash_sha)
+        short_sha = stash_sha[:8]
 
-        if msg_box.clickedButton() == yes_button:
-            success, msg = stash_pop(repo_path, stash_sha)
-            if success:
-                short_sha = stash_sha[:7]
-                print(f"Stash {short_sha}({msg}) popped successfully.")
-                QMessageBox.information(None, "Success", f"Stash {short_sha}({msg}) popped successfully.")
+        def show_missing_box(not_at_head):
+            if not_at_head:
+                text = (f"{short_sha} is found in stash list, but not at HEAD position. "
+                        f"Please investigate and stash pop manually.\n\n"
+                        f"Please note down the sha: {short_sha}")
             else:
-                QMessageBox.critical(None, "Error", "Failed to pop stash. You may need to do it manually.")
+                text = (f"{short_sha} not found in stash list. "
+                        f"Please investigate and stash pop manually.\n\n"
+                        f"Please note down the sha: {short_sha}")
+            box = QMessageBox(None)
+            box.setWindowTitle("Stash Reminder")
+            box.setIcon(QMessageBox.Warning)
+            box.setText(text)
+            copy_btn = box.addButton("Copy SHA to clipboard", QMessageBox.AcceptRole)
+            ok_btn = box.addButton("OK", QMessageBox.RejectRole)
+            box.setDefaultButton(ok_btn)
+            box.exec()
+            if box.clickedButton() == copy_btn:
+                QApplication.clipboard().setText(short_sha)
+
+        if status == "NOT_FOUND":
+            show_missing_box(not_at_head=False)
+        elif status == "NOT_HEAD":
+            show_missing_box(not_at_head=True)
+        else:
+            # Final reminder before exiting the process completely
+            msg_box = QMessageBox(None)
+            msg_box.setWindowTitle("Stash Reminder")
+            msg_box.setText("A stash was created during this session. Do you want to stash pop it ??")
+            yes_button = msg_box.addButton("Yes, stash pop now.", QMessageBox.YesRole)
+            no_button = msg_box.addButton("No, i will do manually.", QMessageBox.NoRole)
+            msg_box.exec()
+
+            if msg_box.clickedButton() == yes_button:
+                success, msg = stash_pop(repo_path, stash_sha)
+                if success:
+                    print(f"Stash {stash_sha[:8]}({msg}) popped successfully.")
+                    QMessageBox.information(None, "Success", f"Stash {stash_sha[:8]}({msg}) popped successfully.")
+                else:
+                    QMessageBox.critical(None, "Error", "Failed to pop stash. You may need to do it manually.")
 
     sys.exit(exit_code)
 
