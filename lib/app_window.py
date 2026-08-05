@@ -4864,14 +4864,22 @@ for i, filename in enumerate(files):
                 for _ in range(3): QApplication.processEvents()
 
                 success_count = 0
+                committed_shas = []
                 for i, f in enumerate(unstaged_files):
                     progress.label.setText(f"Committing ({i+1}/{len(unstaged_files)}): {f}")
                     for _ in range(2): QApplication.processEvents()
                     if commit_file(self.repo_path, f, f"changes in {f}"):
+                        committed_shas.append(self.get_head_sha()[:8])
                         success_count += 1
 
                 progress.close()
-                QMessageBox.information(self, "Commit Successful", f"Successfully committed {success_count} isolated files.")
+                if committed_shas:
+                    ids = "\n".join(committed_shas)
+                    QMessageBox.information(
+                        self, "Commit Successful",
+                        f"Done. Successfully committed {success_count} file(s) individually.\n\n"
+                        f"Commit IDs:\n{ids}"
+                    )
             elif result == UnstagedChangesDialog.BulkCommitResult:
                 msg = f"bulk commit (Number of modified files: {len(unstaged_files)})"
                 progress = ProgressDialog("Bulk Committing", f"Committing {len(unstaged_files)} files at once...", self)
@@ -4882,7 +4890,10 @@ for i, filename in enumerate(files):
                 progress.close()
 
                 if success:
-                    QMessageBox.information(self, "Commit Successful", "Bulk commit successful.")
+                    QMessageBox.information(
+                        self, "Bulk Commit Successful",
+                        f"Done. Bulk commit successful.\n\nCommit ID:\n{self.get_head_sha()[:8]}"
+                    )
                 else:
                     QMessageBox.critical(self, "Error", "Bulk commit failed.")
                     return
@@ -4891,11 +4902,16 @@ for i, filename in enumerate(files):
                 progress.show()
                 for _ in range(3): QApplication.processEvents()
 
+                old_head = self.get_head_sha()
                 success = amend_with_head(self.repo_path)
                 progress.close()
 
                 if success:
-                    QMessageBox.information(self, "Amend Successful", "Changes amended into HEAD commit.")
+                    QMessageBox.information(
+                        self, "Amend Successful",
+                        f"Done. Changes amended into HEAD commit.\n\n"
+                        f"OLD COMMIT: {old_head[:8]}\nNEW COMMIT: {self.get_head_sha()[:8]}"
+                    )
                 else:
                     QMessageBox.critical(self, "Error", "Amend failed.")
                     return

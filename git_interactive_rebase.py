@@ -23,7 +23,7 @@ from lib.utils import get_assets_path
 from lib.git_helpers import (
     get_root_commit, get_recent_history_start, get_branch_base_info,
     has_uncommitted_changes, stash_changes, get_unstaged_files, commit_file,
-    bulk_commit_all, amend_with_head, stash_pop, get_full_head_sha
+    bulk_commit_all, amend_with_head, stash_pop, get_full_head_sha, get_head_sha
 )
 from lib.app_window import GitInteractiveRebaseApp, get_theme_stylesheet
 from lib.dialogs import UnstagedChangesDialog, ProgressDialog
@@ -116,6 +116,7 @@ def main():
             created_stash_sha = stash_changes(repo_path)
             if created_stash_sha:
                 print(f"Changes stashed successfully (SHA: {created_stash_sha}).")
+                QMessageBox.information(None, "Stash Successful", f"Changes stashed successfully (SHA: {created_stash_sha[:8]}).")
             else:
                 QMessageBox.critical(None, "Error", "Failed to stash changes. Please stash or commit manually.")
                 sys.exit(1)
@@ -126,15 +127,23 @@ def main():
             QApplication.processEvents()
 
             success_count = 0
+            committed_shas = []
             for i, f in enumerate(unstaged_files):
                 progress.label.setText(f"Committing ({i+1}/{len(unstaged_files)}): {f}")
                 QApplication.processEvents()
                 if commit_file(repo_path, f, f"changes in {f}"):
+                    committed_shas.append(get_head_sha(repo_path)[:8])
                     success_count += 1
                 else:
                     print(f"Failed to commit {f}")
 
             progress.close()
+            if committed_shas:
+                ids = "\n".join(committed_shas)
+                QMessageBox.information(
+                    None, "Commit Successful",
+                    f"Done. Successfully committed {success_count} file(s) individually.\n\nCommit IDs:\n{ids}"
+                )
             print(f"Successfully committed {success_count} files.")
         elif result == UnstagedChangesDialog.BulkCommitResult:
             msg = f"bulk commit (Number of modified files: {len(unstaged_files)})"
@@ -144,8 +153,13 @@ def main():
 
             if bulk_commit_all(repo_path, msg):
                 print("Bulk commit successful.")
+                QMessageBox.information(
+                    None, "Bulk Commit Successful",
+                    f"Done. Bulk commit successful.\n\nCommit ID:\n{get_head_sha(repo_path)[:8]}"
+                )
             else:
                 print("Bulk commit failed.")
+                QMessageBox.critical(None, "Error", "Bulk commit failed.")
 
             progress.close()
         elif result == UnstagedChangesDialog.AmendResult:
@@ -153,10 +167,17 @@ def main():
             progress.show()
             QApplication.processEvents()
 
+            old_head = get_head_sha(repo_path)
             if amend_with_head(repo_path):
+                new_head = get_head_sha(repo_path)
                 print("Amend successful.")
+                QMessageBox.information(
+                    None, "Amend Successful",
+                    f"Done. Changes amended into HEAD commit.\n\nOLD COMMIT: {old_head[:8]}\nNEW COMMIT: {new_head[:8]}"
+                )
             else:
                 print("Amend failed.")
+                QMessageBox.critical(None, "Error", "Amend failed.")
 
             progress.close()
         elif result == UnstagedChangesDialog.ViewerModeResult:
