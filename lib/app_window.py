@@ -1162,8 +1162,9 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.pr_diff_btn = QPushButton("View PR Diff")
         self.pr_diff_btn.setToolTip("View the branch diff vs its base.")
         self._set_pr_diff_icon(self.pr_diff_btn)
-        self.pop_stash_btn = QPushButton("Pop the app managed stash")
+        self.pop_stash_btn = QPushButton("Pop app created stash")
         self.pop_stash_btn.setToolTip("Pop the app-created stash (git stash pop).")
+        self._set_pop_stash_icon(self.pop_stash_btn)
         self.pop_stash_btn.setVisible(False)
         self.undo_btn = QPushButton("Undo")
         self.undo_btn.setToolTip("Undo the last operation (Ctrl+Z).")
@@ -1894,6 +1895,9 @@ class GitInteractiveRebaseApp(QMainWindow):
     def _set_pr_diff_icon(self, button):
         self._apply_toolbar_icon(button, self._draw_compare)
 
+    def _set_pop_stash_icon(self, button):
+        self._apply_toolbar_icon(button, self._draw_pop_stash)
+
     def _set_undo_icon(self, button):
         self._apply_toolbar_icon(button, self._draw_undo)
 
@@ -1920,6 +1924,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self._set_exit_icon(self.exit_btn)
         self._set_exit_viewer_mode_icon(self.exit_viewer_mode_btn)
         self._set_pr_diff_icon(self.pr_diff_btn)
+        self._set_pop_stash_icon(self.pop_stash_btn)
 
     def _draw_eye_slash(self, painter, color):
         pen = QPen(color, 1.7)
@@ -1998,6 +2003,18 @@ class GitInteractiveRebaseApp(QMainWindow):
         painter.drawLine(8, 10, 12, 5)
         painter.drawEllipse(2.8, 2.8, 2.6, 2.6)
         painter.drawEllipse(10.6, 2.8, 2.6, 2.6)
+
+    def _draw_pop_stash(self, painter, color):
+        pen = QPen(color, 1.7)
+        pen.setCapStyle(Qt.RoundCap)
+        pen.setJoinStyle(Qt.RoundJoin)
+        painter.setPen(pen)
+        painter.setBrush(Qt.NoBrush)
+
+        painter.drawLine(8.0, 10.5, 8.0, 4.5)
+        painter.drawLine(5.0, 7.5, 8.0, 4.5)
+        painter.drawLine(11.0, 7.5, 8.0, 4.5)
+        painter.drawRoundedRect(3.0, 10.5, 10.0, 3.0, 1.0, 1.0)
 
     def _draw_undo(self, painter, color):
         pen = QPen(color, 1.8)
