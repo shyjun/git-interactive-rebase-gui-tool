@@ -2560,6 +2560,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         mark_action = QAction(f"Mark / Unmark commit {sha}", self)
         view_action = QAction(f"Show / View commit {sha}", self)
         reset_action = QAction(f"Reset Hard to {sha}", self)
+        reset_here_action = QAction("Reset HEAD to Here (Keep Changes as Unstaged)", self)
         set_best_action = QAction("set as BEST_COMMITID", self)
         drop_action = QAction("Drop", self)
         rephrase_action = QAction("Rephrase", self)
@@ -2604,6 +2605,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         view_filewise_action = QAction(f"Show / View commit {sha} -- file-wise", self)
         view_filewise_action.triggered.connect(lambda: self.handle_view_commit_file_wise(item))
         reset_action.triggered.connect(lambda: self.handle_reset(item))
+        reset_here_action.triggered.connect(lambda: self.handle_reset_to_here(item))
         set_best_action.triggered.connect(lambda: self.handle_set_best_commit(item))
         drop_action.triggered.connect(lambda: self.handle_drop(item))
         rephrase_action.triggered.connect(lambda: self.handle_rephrase(item))
@@ -2618,6 +2620,7 @@ class GitInteractiveRebaseApp(QMainWindow):
             view_action.setEnabled(False)
             view_filewise_action.setEnabled(False)
             reset_action.setEnabled(False)
+            reset_here_action.setEnabled(False)
             set_best_action.setEnabled(False)
             drop_action.setEnabled(False)
             rephrase_action.setEnabled(False)
@@ -2636,6 +2639,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         menu.addAction(view_filewise_action)
         menu.addSeparator()
         menu.addAction(reset_action)
+        menu.addAction(reset_here_action)
         menu.addAction(set_best_action)
         menu.addSeparator()
         menu.addAction(rephrase_action)
@@ -3028,6 +3032,85 @@ class GitInteractiveRebaseApp(QMainWindow):
                 QMessageBox.critical(self, "Reset Failed", f"Could not perform reset.\n\nError: {stderr}")
 
         self.worker.finished.connect(on_reset_finished)
+        self.worker.start()
+        self.progress_dialog.exec()
+
+    def handle_reset_to_here(self, item):
+        """Resets HEAD (git reset --mixed) to a selected commit, keeping the
+        changes of the removed commits as unstaged working-tree changes."""
+        index = self.list_widget.row(item)
+        sha = item.text().split()[0]
+
+        # Standard safety validations used by all history-modifying operations.
+        if not self._check_not_viewer_mode():
+            return
+        if not self._check_head_unchanged():
+            return
+        if not self._check_no_unstaged_changes():
+            return
+
+        # Edge case: the selected commit is already HEAD, nothing to remove.
+        if index == 0:
+            QMessageBox.information(
+                self,
+                "Already at HEAD",
+                f"The selected commit ({sha[:8]}) is already HEAD.\n\n"
+                "Nothing to reset.\n\n"
+                "Tip: To unstage the HEAD commit's changes, right-click the "
+                "commit below it (its parent, if any) and choose "
+                "'Reset HEAD to Here'."
+            )
+            return
+
+        next_item = self.list_widget.item(index - 1)
+        next_short = next_item.text().split()[0][:8] if next_item else sha[:8]
+        head_short = self.get_head_sha()[:8]
+
+        box = QMessageBox(self)
+        box.setWindowTitle("Reset HEAD to Here")
+        box.setText(
+            f"This will move HEAD to the selected commit.\n\n"
+            f"All commits after the selected commit ({next_short} .. {head_short}) "
+            f"will be removed from the current branch, but their changes will be "
+            f"preserved as unstaged changes in the working tree.\n\n"
+            f"This operation rewrites Git history.\n\n"
+            f"Do you want to continue?"
+        )
+        reset_btn = box.addButton("Reset", QMessageBox.AcceptRole)
+        cancel_btn = box.addButton("Cancel", QMessageBox.RejectRole)
+        box.setDefaultButton(cancel_btn)
+        box.exec()
+
+        if box.clickedButton() != reset_btn:
+            print(f"Cancelled reset HEAD to here ({sha}).")
+            return
+
+        old_head = self.get_head_sha()
+        self.save_undo_state()
+        print(f"Resetting HEAD (mixed) to {sha}...")
+
+        self.progress_dialog = ProgressDialog("Resetting", f"Resetting HEAD to {sha[:10]}...", self)
+        self.worker = GitWorker(["git", "reset", "--mixed", sha], self.repo_path)
+
+        def on_reset_here_finished(success, stdout, stderr):
+            if hasattr(self, 'progress_dialog'):
+                self.progress_dialog.close()
+
+            if success:
+                self.load_history()
+                new_head = self.get_head_sha()
+                self.log_action(sha, "reset HEAD to here (mixed)", old_head, new_head)
+                QMessageBox.information(
+                    self, "Success",
+                    f"Successfully reset HEAD to {sha[:10]}. Changes kept as unstaged."
+                )
+            else:
+                QMessageBox.critical(
+                    self, "Reset Failed",
+                    f"Could not perform reset.\n\nError: {stderr}"
+                )
+
+        self.worker.finished.connect(on_reset_here_finished)
         self.worker.start()
         self.progress_dialog.exec()
 
