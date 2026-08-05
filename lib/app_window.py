@@ -43,7 +43,7 @@ from lib.git_helpers import (
     get_full_commit_message, get_commit_metadata, get_commit_files,
     has_uncommitted_changes, branch_exists, get_local_branches_map, get_remote_head_sha,
     get_file_diff_only_in_commit, get_revert_commit_message, get_commit_metadata_and_message,
-    get_commit_file_stats,     get_unstaged_files, stash_changes, commit_file, bulk_commit_all, amend_with_head, discard_changes,
+    get_commit_file_stats,     get_unstaged_files, stash_changes, commit_file, bulk_commit_all, amend_with_head, discard_changes, stash_pop, get_stash_subject,
     get_merge_base, get_diff_between, get_diff_stat_between,
     get_files_between, get_file_stats_between, resolve_ref
 )
@@ -1148,6 +1148,9 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.pr_diff_btn = QPushButton("View PR Diff")
         self.pr_diff_btn.setToolTip("View the branch diff vs its base.")
         self._set_pr_diff_icon(self.pr_diff_btn)
+        self.pop_stash_btn = QPushButton("Pop the app managed stash")
+        self.pop_stash_btn.setToolTip("Pop the app-created stash (git stash pop).")
+        self.pop_stash_btn.setVisible(False)
         self.undo_btn = QPushButton("Undo")
         self.undo_btn.setToolTip("Undo the last operation (Ctrl+Z).")
         self._set_undo_icon(self.undo_btn)
@@ -1171,7 +1174,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.custom_reset_btn = QPushButton("Enter commit id to reset hard to")
         self.custom_reset_btn.setToolTip("Reset hard to a commit id you enter.")
 
-        for btn in [self.toggle_diff_btn, self.help_btn, self.exit_viewer_mode_btn, self.rescan_btn, self.pr_diff_btn, self.check_update_btn, self.undo_btn, self.refresh_btn, self.exit_btn, self.theme_menu_btn]:
+        for btn in [self.toggle_diff_btn, self.help_btn, self.exit_viewer_mode_btn, self.rescan_btn, self.pr_diff_btn, self.pop_stash_btn, self.check_update_btn, self.undo_btn, self.refresh_btn, self.exit_btn, self.theme_menu_btn]:
             btn.setMinimumHeight(40)
             btn.setMinimumWidth(100)
         self.failsafe_btn.setMinimumHeight(40)
@@ -1183,6 +1186,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.exit_viewer_mode_btn.clicked.connect(self.handle_exit_viewer_mode)
         self.rescan_btn.clicked.connect(self.handle_rescan_repo)
         self.pr_diff_btn.clicked.connect(self.handle_view_branch_diff)
+        self.pop_stash_btn.clicked.connect(self.handle_pop_managed_stash)
         self.undo_btn.clicked.connect(self.handle_undo)
         self.check_update_btn.clicked.connect(self.handle_check_for_updates)
         self.refresh_btn.clicked.connect(self.handle_manual_refresh)
@@ -1197,6 +1201,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         controls_layout.addWidget(self.help_btn)
         controls_layout.addWidget(self.check_update_btn)
         controls_layout.addStretch()
+        controls_layout.addWidget(self.pop_stash_btn)
         controls_layout.addWidget(self.pr_diff_btn)
         controls_layout.addWidget(self.exit_viewer_mode_btn)
         controls_layout.addWidget(self.rescan_btn)
@@ -4840,6 +4845,35 @@ for i, filename in enumerate(files):
 
 
 
+    def _update_stash_btn_visibility(self):
+        """Show the 'Pop the app managed stash' button only while a managed stash exists."""
+        self.pop_stash_btn.setVisible(bool(self.pending_stash_sha))
+
+    def handle_pop_managed_stash(self):
+        """Pop the app-created managed stash after a confirmation showing stash details."""
+        if not self.pending_stash_sha:
+            return
+        short_sha = self.pending_stash_sha[:8]
+        subject = get_stash_subject(self.repo_path, self.pending_stash_sha)
+        details = f"<b>SHA:</b> {short_sha}" + (f"<br><b>Message:</b> {subject}" if subject else "")
+        answer = QMessageBox.question(
+            self,
+            "Pop Managed Stash",
+            f"Pop the app-created stash and restore its changes?\n\n{details}",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if answer != QMessageBox.Yes:
+            return
+        success, msg = stash_pop(self.repo_path, self.pending_stash_sha)
+        if success:
+            self.pending_stash_sha = None
+            self._update_stash_btn_visibility()
+            QMessageBox.information(self, "Pop Successful", f"Stash popped successfully.{(' (' + msg + ')') if msg else ''}")
+        else:
+            QMessageBox.critical(self, "Error", "Failed to pop the managed stash.")
+            self._update_stash_btn_visibility()
+
     def handle_rescan_repo(self):
         """Safely rescan repository state, prompting user for unstaged changes identically to app startup if found."""
         unstaged_files = get_unstaged_files(self.repo_path, ignore_submodules=True)
@@ -4854,6 +4888,7 @@ for i, filename in enumerate(files):
                 created_stash_sha = stash_changes(self.repo_path)
                 if created_stash_sha:
                     self.pending_stash_sha = created_stash_sha
+                    self._update_stash_btn_visibility()
                     QMessageBox.information(self, "Stash Successful", f"Changes stashed successfully (SHA: {created_stash_sha[:7]}).")
                 else:
                     QMessageBox.critical(self, "Error", "Failed to stash changes. Please stash or commit manually.")
