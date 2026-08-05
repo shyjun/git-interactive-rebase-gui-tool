@@ -11,6 +11,7 @@ import tempfile
 import stat
 import time
 import pathlib
+from datetime import datetime
 
 
 def _posix_path(p: str) -> str:
@@ -43,7 +44,7 @@ from lib.git_helpers import (
     get_full_commit_message, get_commit_metadata, get_commit_files,
     has_uncommitted_changes, branch_exists, get_local_branches_map, get_remote_head_sha,
     get_file_diff_only_in_commit, get_revert_commit_message, get_commit_metadata_and_message,
-    get_commit_file_stats,     get_unstaged_files, stash_changes, commit_file, bulk_commit_all, amend_with_head, discard_changes, stash_pop, get_stash_subject, stash_pop_can_apply, get_stash_status,
+    get_commit_file_stats,     get_unstaged_files, stash_changes, commit_file, bulk_commit_all, amend_with_head, discard_changes, stash_pop, get_stash_subject, stash_pop_can_apply, get_stash_status, STASH_NOTHING_STASHED,
     get_merge_base, get_diff_between, get_diff_stat_between,
     get_files_between, get_file_stats_between, resolve_ref
 )
@@ -4936,12 +4937,18 @@ for i, filename in enumerate(files):
             result = dialog.exec()
 
             if result == UnstagedChangesDialog.Accepted:
-                created_stash_sha = stash_changes(self.repo_path)
-                if created_stash_sha:
+                created_stash_sha = stash_changes(
+                    self.repo_path,
+                    message=f"git-interactive-rebase-gui-tool: Rescan stash ({datetime.now().strftime('%H:%M:%S %Y-%m-%d')})")
+                if created_stash_sha is not None and created_stash_sha is not STASH_NOTHING_STASHED:
                     self.app_managed_stash_sha = created_stash_sha
                     self._update_stash_btn_visibility()
                     self._flash_pop_stash_btn()
-                    QMessageBox.information(self, "Stash Successful", f"Changes stashed successfully (SHA: {created_stash_sha[:7]}).")
+                    QMessageBox.information(self, "Stash Successful", f"Changes stashed successfully (SHA: {created_stash_sha[:8]}).")
+                elif created_stash_sha is STASH_NOTHING_STASHED:
+                    QMessageBox.information(self, "No Changes Stashed",
+                                            "There was nothing to stash (e.g. changes are in untracked files). "
+                                            "Please handle them manually.")
                 else:
                     QMessageBox.critical(self, "Error", "Failed to stash changes. Please stash or commit manually.")
                     return
