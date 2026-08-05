@@ -2687,6 +2687,8 @@ class RefineChangesDialog(QDialog):
 class StashNoticeDialog(QDialog):
     """Warning dialog for a missing/not-at-head managed stash. Offers a 'Copy SHA to
     clipboard' button that does NOT close the dialog, and an OK button to dismiss."""
+    ManualPopResult = 2
+
     def __init__(self, text, sha, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Managed Stash")
@@ -2707,6 +2709,10 @@ class StashNoticeDialog(QDialog):
         copy_btn.setToolTip("Copy the stash SHA to the clipboard.")
         copy_btn.clicked.connect(lambda: QApplication.clipboard().setText(short_sha))
 
+        manual_btn = QPushButton("Its OK, I stash pop-ed it myself manually")
+        manual_btn.setToolTip("Mark this stash as manually handled and stop tracking it.")
+        manual_btn.clicked.connect(lambda: self.done(self.ManualPopResult))
+
         ok_btn = QPushButton("OK")
         ok_btn.setDefault(True)
         ok_btn.clicked.connect(self.accept)
@@ -2714,6 +2720,7 @@ class StashNoticeDialog(QDialog):
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
         btn_layout.addWidget(copy_btn)
+        btn_layout.addWidget(manual_btn)
         btn_layout.addWidget(ok_btn)
         layout.addLayout(btn_layout)
 
