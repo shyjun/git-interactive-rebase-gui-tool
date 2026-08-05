@@ -23,7 +23,7 @@ from lib.utils import get_assets_path
 from lib.git_helpers import (
     get_root_commit, get_recent_history_start, get_branch_base_info,
     has_uncommitted_changes, stash_changes, get_unstaged_files, commit_file,
-    bulk_commit_all, amend_with_head, stash_pop, get_full_head_sha, get_head_sha, discard_changes, get_stash_status
+    bulk_commit_all, amend_with_head, stash_pop, stash_pop_can_apply, get_full_head_sha, get_head_sha, discard_changes, get_stash_status
 )
 from lib.app_window import GitInteractiveRebaseApp, get_theme_stylesheet
 from lib.dialogs import UnstagedChangesDialog, ProgressDialog, StashNoticeDialog
@@ -230,12 +230,22 @@ def main():
             msg_box.exec()
 
             if msg_box.clickedButton() == yes_button:
-                success, msg = stash_pop(repo_path, stash_sha)
-                if success:
-                    print(f"Stash {stash_sha[:8]}({msg}) popped successfully.")
-                    QMessageBox.information(None, "Success", f"Stash {stash_sha[:8]}({msg}) popped successfully.")
+                can_apply, conflict_detail = stash_pop_can_apply(repo_path, stash_sha)
+                if not can_apply:
+                    QMessageBox.warning(
+                        None,
+                        "Cannot Pop Stash",
+                        f"Popping this stash would create a merge conflict (HEAD has moved since it was created), "
+                        f"so it was not applied.\n\n"
+                        f"{conflict_detail}\n\nThe stash (SHA: {short_sha}) was left untouched."
+                    )
                 else:
-                    QMessageBox.critical(None, "Error", "Failed to pop stash. You may need to do it manually.")
+                    success, msg = stash_pop(repo_path, stash_sha)
+                    if success:
+                        print(f"Stash {stash_sha[:8]}({msg}) popped successfully.")
+                        QMessageBox.information(None, "Success", f"Stash {stash_sha[:8]}({msg}) popped successfully.")
+                    else:
+                        QMessageBox.critical(None, "Error", "Failed to pop stash. You may need to do it manually.")
 
     sys.exit(exit_code)
 
