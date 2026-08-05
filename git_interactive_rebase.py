@@ -185,6 +185,7 @@ def main():
     if created_stash_sha:
         window.pending_stash_sha = created_stash_sha
         window._update_stash_btn_visibility()
+        window._flash_pop_stash_btn()
 
     # Show any acknowledgment/error boxes only after the main window is up.
     if ack_messages:
