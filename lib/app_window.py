@@ -4870,7 +4870,7 @@ for i, filename in enumerate(files):
         """Show that the managed stash is missing or not at HEAD, offering to copy the SHA."""
         short_sha = sha[:8]
         if not_at_head:
-            text = (f"{short_sha} is found in stash list, but not at HEAD position. "
+            text = (f"The stash created by app ({short_sha}) is found in stash list, but not at HEAD position. "
                     f"Please investigate and stash pop manually.\n\n"
                     f"Please note down the sha: {short_sha}")
         else:
