@@ -457,6 +457,38 @@ def stash_pop(repo_path, stash_sha=None):
     except subprocess.CalledProcessError:
         return False, ""
 
+def stash_pop_can_apply(repo_path, stash_sha):
+    """Performs a non-mutating dry-run of 'git stash pop' using git merge-tree
+    (affects objects only, never the working tree). Returns (True, '') if the
+    stash can be applied cleanly, (False, detail) otherwise."""
+    try:
+        base = subprocess.run(
+            ["git", "rev-parse", f"{stash_sha}^"],
+            cwd=repo_path, capture_output=True, text=True, encoding='utf-8', errors='replace'
+        )
+        if base.returncode != 0:
+            return False, "Could not resolve the stash base."
+        base_sha = base.stdout.strip()
+
+        head = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=repo_path, capture_output=True, text=True, encoding='utf-8', errors='replace'
+        )
+        if head.returncode != 0:
+            return False, "Could not resolve HEAD."
+        head_sha = head.stdout.strip()
+
+        result = subprocess.run(
+            ["git", "merge-tree", base_sha, head_sha, stash_sha],
+            cwd=repo_path, capture_output=True, text=True, encoding='utf-8', errors='replace'
+        )
+        output = result.stdout
+        if "<<<<<<<" in output or "=======" in output or "CONFLICT" in output:
+            return False, "Merging this stash would produce conflicts."
+        return True, ""
+    except Exception:
+        return False, "Could not check if the stash can be applied."
+
 def branch_exists(repo_path, branch_name):
     """Checks if a local or remote branch exists."""
     try:
