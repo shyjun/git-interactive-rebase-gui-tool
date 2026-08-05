@@ -747,6 +747,9 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.update_rebase_buttons()
         self.list_widget.setFocus()
 
+        if self.viewer_mode:
+            QTimer.singleShot(0, self._notify_viewer_mode)
+
     def load_settings(self):
         """Loads persistent user settings like font size and theme."""
         # Diff Tab
@@ -880,6 +883,16 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.viewer_mode = False
         self.exit_viewer_mode_btn.setVisible(False)
         self.update_window_title()
+
+    def _notify_viewer_mode(self):
+        """Highlight the 'Exit Viewer Mode' button and inform the user that the app is in Viewer Mode."""
+        highlight_button_temporarily(self.exit_viewer_mode_btn, blinks=5)
+        QMessageBox.information(
+            self,
+            "Viewer Mode",
+            "git-interactive-rebase-gui-tool is running in Viewer Mode.\n\n"
+            "Please press the 'Exit Viewer Mode' button to re-enable history-modifying operations."
+        )
 
     def restore_visibility_settings(self):
         """Restores visibility and checkbox states for optional groups."""
@@ -4953,6 +4966,7 @@ for i, filename in enumerate(files):
                 self.viewer_mode = True
                 self.exit_viewer_mode_btn.setVisible(True)
                 self.update_window_title()
+                self._notify_viewer_mode()
             else:
                 # Cancel/Rejected: Just return successfully and quietly drop the window.
                 return
