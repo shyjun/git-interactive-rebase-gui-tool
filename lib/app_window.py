@@ -3066,17 +3066,23 @@ class GitInteractiveRebaseApp(QMainWindow):
         next_short = next_item.text().split()[0][:8] if next_item else sha[:8]
         head_short = self.get_head_sha()[:8]
 
+        # When the selected commit is HEAD^ (the parent of HEAD), only the
+        # HEAD commit itself is removed, so name it directly.
+        removed_part = (
+            f"HEAD commit ({head_short})"
+            if index == 1 else
+            f"All commits after the selected commit ({next_short} .. {head_short})"
+        )
+
         box = QMessageBox(self)
         box.setWindowTitle("Reset HEAD to Here")
         box.setText(
             f"This will move HEAD to the selected commit.\n\n"
-            f"All commits after the selected commit ({next_short} .. {head_short}) "
-            f"will be removed from the current branch, but their changes will be "
-            f"preserved as unstaged changes in the working tree.\n\n"
-            f"This operation rewrites Git history.\n\n"
+            f"{removed_part} will be removed from the current branch, but the "
+            f"changes will be preserved as unstaged changes in the working tree.\n\n"
             f"Do you want to continue?"
         )
-        reset_btn = box.addButton("Reset", QMessageBox.AcceptRole)
+        reset_btn = box.addButton("Yes, Reset", QMessageBox.AcceptRole)
         cancel_btn = box.addButton("Cancel", QMessageBox.RejectRole)
         box.setDefaultButton(cancel_btn)
         box.exec()
