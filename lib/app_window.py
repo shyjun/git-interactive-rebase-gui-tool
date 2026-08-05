@@ -4877,7 +4877,10 @@ for i, filename in enumerate(files):
             text = (f"{short_sha} not found in stash list. "
                     f"Please investigate and stash pop manually.\n\n"
                     f"Please note down the sha: {short_sha}")
-        StashNoticeDialog(text, sha, self).exec()
+        dialog_result = StashNoticeDialog(text, sha, self).exec()
+        if dialog_result == StashNoticeDialog.ManualPopResult:
+            self.app_managed_stash_sha = None
+            self._update_stash_btn_visibility()
 
     def handle_pop_managed_stash(self):
         """Pop the app-created managed stash after a confirmation showing stash details."""
