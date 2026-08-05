@@ -4881,12 +4881,11 @@ for i, filename in enumerate(files):
         box.setWindowTitle("Managed Stash")
         box.setIcon(QMessageBox.Warning)
         box.setText(text)
-        copy_btn = box.addButton("Copy SHA to clipboard", QMessageBox.AcceptRole)
+        copy_btn = box.addButton("Copy SHA to clipboard", QMessageBox.ActionRole)
         ok_btn = box.addButton("OK", QMessageBox.RejectRole)
         box.setDefaultButton(ok_btn)
+        copy_btn.clicked.connect(lambda: QApplication.clipboard().setText(short_sha))
         box.exec()
-        if box.clickedButton() == copy_btn:
-            QApplication.clipboard().setText(short_sha)
 
     def handle_pop_managed_stash(self):
         """Pop the app-created managed stash after a confirmation showing stash details."""

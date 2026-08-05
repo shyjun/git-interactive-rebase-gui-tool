@@ -210,19 +210,19 @@ def main():
                         f"Please investigate and stash pop manually.\n\n"
                         f"Please note down the sha: {short_sha}")
             else:
-                text = (f"{short_sha} not found in stash list. "
+                text = (f"The stash created during app start is missing. "
+                        f"{short_sha} not found in stash list. "
                         f"Please investigate and stash pop manually.\n\n"
                         f"Please note down the sha: {short_sha}")
             box = QMessageBox(None)
             box.setWindowTitle("Stash Reminder")
             box.setIcon(QMessageBox.Warning)
             box.setText(text)
-            copy_btn = box.addButton("Copy SHA to clipboard", QMessageBox.AcceptRole)
+            copy_btn = box.addButton("Copy SHA to clipboard", QMessageBox.ActionRole)
             ok_btn = box.addButton("OK", QMessageBox.RejectRole)
             box.setDefaultButton(ok_btn)
+            copy_btn.clicked.connect(lambda: QApplication.clipboard().setText(short_sha))
             box.exec()
-            if box.clickedButton() == copy_btn:
-                QApplication.clipboard().setText(short_sha)
 
         if status == "NOT_FOUND":
             show_missing_box(not_at_head=False)
