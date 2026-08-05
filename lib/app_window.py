@@ -4862,6 +4862,10 @@ for i, filename in enumerate(files):
         """Show the 'Pop the app managed stash' button only while a managed stash exists."""
         self.pop_stash_btn.setVisible(bool(self.pending_stash_sha))
 
+    def _flash_pop_stash_btn(self):
+        """Briefly highlight the 'Pop the app managed stash' button after a stash is created."""
+        highlight_button_temporarily(self.pop_stash_btn, blinks=5)
+
     def handle_pop_managed_stash(self):
         """Pop the app-created managed stash after a confirmation showing stash details."""
         if not self.pending_stash_sha:
@@ -4902,6 +4906,7 @@ for i, filename in enumerate(files):
                 if created_stash_sha:
                     self.pending_stash_sha = created_stash_sha
                     self._update_stash_btn_visibility()
+                    self._flash_pop_stash_btn()
                     QMessageBox.information(self, "Stash Successful", f"Changes stashed successfully (SHA: {created_stash_sha[:7]}).")
                 else:
                     QMessageBox.critical(self, "Error", "Failed to stash changes. Please stash or commit manually.")
