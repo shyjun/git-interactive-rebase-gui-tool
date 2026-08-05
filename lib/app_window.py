@@ -4884,15 +4884,17 @@ for i, filename in enumerate(files):
             return
         can_apply, conflict_detail = stash_pop_can_apply(self.repo_path, self.pending_stash_sha)
         if not can_apply:
-            QMessageBox.critical(
+            self.pending_stash_sha = None
+            self._update_stash_btn_visibility()
+            QMessageBox.warning(
                 self,
                 "Cannot Pop Managed Stash",
                 f"Popping this stash would create a merge conflict (HEAD has moved since it was created), "
                 f"so it was not applied.\n\n"
                 f"{conflict_detail}\n\n"
+                "The managed stash has been discarded from this session. "
                 "Please pop or apply it manually outside this tool (e.g. 'git stash pop')."
             )
-            self._update_stash_btn_visibility()
             return
         success, msg = stash_pop(self.repo_path, self.pending_stash_sha)
         if success:
