@@ -43,7 +43,7 @@ from lib.git_helpers import (
     get_full_commit_message, get_commit_metadata, get_commit_files,
     has_uncommitted_changes, branch_exists, get_local_branches_map, get_remote_head_sha,
     get_file_diff_only_in_commit, get_revert_commit_message, get_commit_metadata_and_message,
-    get_commit_file_stats,     get_unstaged_files, stash_changes, commit_file, bulk_commit_all, amend_with_head,
+    get_commit_file_stats,     get_unstaged_files, stash_changes, commit_file, bulk_commit_all, amend_with_head, discard_changes,
     get_merge_base, get_diff_between, get_diff_stat_between,
     get_files_between, get_file_stats_between, resolve_ref
 )
@@ -4905,6 +4905,14 @@ for i, filename in enumerate(files):
                     )
                 else:
                     QMessageBox.critical(self, "Error", "Amend failed.")
+                    return
+            elif result == UnstagedChangesDialog.DiscardResult:
+                success = discard_changes(self.repo_path)
+
+                if success:
+                    QMessageBox.information(self, "Discard Successful", "Done. Unstaged changes discarded (git checkout .).")
+                else:
+                    QMessageBox.critical(self, "Error", "Discard failed.")
                     return
             elif result == UnstagedChangesDialog.ViewerModeResult:
                 self.viewer_mode = True

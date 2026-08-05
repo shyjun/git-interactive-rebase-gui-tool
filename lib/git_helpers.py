@@ -387,7 +387,14 @@ def stash_changes(repo_path, message=None):
     except subprocess.CalledProcessError:
         return None
 
-def stash_pop(repo_path, stash_sha=None):
+def discard_changes(repo_path):
+    """Discards all unstaged changes in tracked files (git checkout .).
+    Returns True if successful, otherwise False."""
+    try:
+        subprocess.run(["git", "checkout", "."], cwd=repo_path, check=True, capture_output=True, text=True)
+        return True
+    except subprocess.CalledProcessError:
+        return False
     """Pops a stash from the repository. If stash_sha is provided, pops that specific stash.
     Returns (success, message)."""
     try:

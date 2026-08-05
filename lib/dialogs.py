@@ -1934,6 +1934,7 @@ class UnstagedChangesDialog(QDialog):
     BulkCommitResult = 3
     AmendResult = 4
     ViewerModeResult = 5
+    DiscardResult = 6
 
     def __init__(self, num_files, parent=None, from_rescan=False, repo_path=None, unstaged_files=None, font_size=None, managed_stash_exists=False):
         super().__init__(parent)
@@ -1986,6 +1987,9 @@ class UnstagedChangesDialog(QDialog):
         self.amend_btn = QPushButton(amend_text)
         self.amend_btn.setToolTip("Amend all changes into the HEAD commit (--amend --no-edit).")
         
+        self.discard_btn = QPushButton("Discard the changes (git checkout .)")
+        self.discard_btn.setToolTip("Discard all unstaged changes in tracked files (git checkout .). This cannot be undone.")
+        
         viewer_label = "Switch to" if from_rescan else "Start in"
         self.viewer_mode_btn = QPushButton(f"{viewer_label} Viewer Mode (No history-modifying operations will be allowed)")
         self.viewer_mode_btn.setToolTip(f"{viewer_label} Viewer Mode. Warning: no history-modifying operations are allowed.")
@@ -1994,7 +1998,7 @@ class UnstagedChangesDialog(QDialog):
         self.exit_btn.setToolTip("Exit the application.")
         
         # Style buttons a bit
-        for btn in [self.view_changes_btn, self.stash_btn, self.commit_each_btn, self.bulk_commit_btn, self.amend_btn, self.viewer_mode_btn, self.exit_btn]:
+        for btn in [self.view_changes_btn, self.stash_btn, self.commit_each_btn, self.bulk_commit_btn, self.amend_btn, self.discard_btn, self.viewer_mode_btn, self.exit_btn]:
             btn.setMinimumHeight(35)
         
         self.view_changes_btn.clicked.connect(self.show_unstaged_changes)
@@ -2002,6 +2006,7 @@ class UnstagedChangesDialog(QDialog):
         self.commit_each_btn.clicked.connect(lambda: self.done(self.CommitEachResult))
         self.bulk_commit_btn.clicked.connect(lambda: self.done(self.BulkCommitResult))
         self.amend_btn.clicked.connect(lambda: self.done(self.AmendResult))
+        self.discard_btn.clicked.connect(self._on_discard)
         self.viewer_mode_btn.clicked.connect(lambda: self.done(self.ViewerModeResult))
         self.exit_btn.clicked.connect(self.reject)
         
@@ -2010,6 +2015,7 @@ class UnstagedChangesDialog(QDialog):
         btn_layout.addWidget(self.commit_each_btn)
         btn_layout.addWidget(self.bulk_commit_btn)
         btn_layout.addWidget(self.amend_btn)
+        btn_layout.addWidget(self.discard_btn)
         btn_layout.addWidget(self.viewer_mode_btn)
         btn_layout.addWidget(self.exit_btn)
         
@@ -2039,6 +2045,19 @@ class UnstagedChangesDialog(QDialog):
                 "This application session has already created a managed stash. Only one managed stash is allowed per session. Please commit, discard, or manually stash the current changes before continuing.")
             return  # keep dialog open so the user can choose another option
         self.accept()
+
+    def _on_discard(self):
+        """Handle 'Discard the changes (git checkout .)'. Destructive, so confirm first."""
+        answer = QMessageBox.warning(
+            self,
+            "Discard Changes",
+            "Are you sure you want to discard all unstaged changes in tracked files?\n\n"
+            "This cannot be undone.",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if answer == QMessageBox.Yes:
+            self.done(self.DiscardResult)
 
 class RefineFileSelectDialog(SplitCommitDialog):
     """File-selection dialog for Refine Changes. Reuses SplitCommitDialog layout."""

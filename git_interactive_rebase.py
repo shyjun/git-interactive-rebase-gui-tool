@@ -23,7 +23,7 @@ from lib.utils import get_assets_path
 from lib.git_helpers import (
     get_root_commit, get_recent_history_start, get_branch_base_info,
     has_uncommitted_changes, stash_changes, get_unstaged_files, commit_file,
-    bulk_commit_all, amend_with_head, stash_pop, get_full_head_sha, get_head_sha
+    bulk_commit_all, amend_with_head, stash_pop, get_full_head_sha, get_head_sha, discard_changes
 )
 from lib.app_window import GitInteractiveRebaseApp, get_theme_stylesheet
 from lib.dialogs import UnstagedChangesDialog, ProgressDialog
@@ -165,6 +165,14 @@ def main():
             else:
                 print("Amend failed.")
                 ack_messages.append(("critical", "Error", "Amend failed."))
+
+        elif result == UnstagedChangesDialog.DiscardResult:
+            if discard_changes(repo_path):
+                print("Unstaged changes discarded.")
+                ack_messages.append(("info", "Discard Successful", "Done. Unstaged changes discarded (git checkout .)."))
+            else:
+                print("Discard failed.")
+                ack_messages.append(("critical", "Error", "Discard failed."))
 
         elif result == UnstagedChangesDialog.ViewerModeResult:
             args.viewer_mode = True
