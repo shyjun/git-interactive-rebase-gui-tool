@@ -43,7 +43,7 @@ from lib.git_helpers import (
     get_full_commit_message, get_commit_metadata, get_commit_files,
     has_uncommitted_changes, branch_exists, get_local_branches_map, get_remote_head_sha,
     get_file_diff_only_in_commit, get_revert_commit_message, get_commit_metadata_and_message,
-    get_commit_file_stats,     get_unstaged_files, stash_changes, commit_file, bulk_commit_all, amend_with_head, discard_changes, stash_pop, get_stash_subject,
+    get_commit_file_stats,     get_unstaged_files, stash_changes, commit_file, bulk_commit_all, amend_with_head, discard_changes, stash_pop, get_stash_subject, stash_pop_can_apply,
     get_merge_base, get_diff_between, get_diff_stat_between,
     get_files_between, get_file_stats_between, resolve_ref
 )
@@ -4882,13 +4882,25 @@ for i, filename in enumerate(files):
         answer = box.exec()
         if answer != QMessageBox.Yes:
             return
+        can_apply, conflict_detail = stash_pop_can_apply(self.repo_path, self.pending_stash_sha)
+        if not can_apply:
+            QMessageBox.critical(
+                self,
+                "Cannot Pop Managed Stash",
+                f"Popping this stash would create a merge conflict (HEAD has moved since it was created), "
+                f"so it was not applied.\n\n"
+                f"{conflict_detail}\n\n"
+                "Please pop or apply it manually outside this tool (e.g. 'git stash pop')."
+            )
+            self._update_stash_btn_visibility()
+            return
         success, msg = stash_pop(self.repo_path, self.pending_stash_sha)
         if success:
             self.pending_stash_sha = None
             self._update_stash_btn_visibility()
             QMessageBox.information(self, "Pop Successful", f"Stash popped successfully.{(' (' + msg + ')') if msg else ''}")
         else:
-            QMessageBox.critical(self, "Error", "Failed to pop the managed stash.")
+            QMessageBox.critical(self, "Error", "Failed to pop the managed stash. Please resolve any conflict markers manually or try again.")
             self._update_stash_btn_visibility()
 
     def handle_rescan_repo(self):
