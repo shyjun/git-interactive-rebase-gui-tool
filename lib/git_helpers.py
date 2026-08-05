@@ -489,6 +489,30 @@ def stash_pop_can_apply(repo_path, stash_sha):
     except Exception:
         return False, "Could not check if the stash can be applied."
 
+def get_stash_status(repo_path, stash_sha):
+    """Determines where the managed stash sits in the stash list.
+    Returns one of:
+      ('NOT_FOUND', None)   - the stash is not in the list (or the list is empty)
+      ('AT_HEAD', 0)        - the stash is the latest / only entry
+      ('NOT_HEAD', idx)     - the stash is present but not at the head position"""
+    try:
+        result = subprocess.run(["git", "log", "--format=%H", "-g", "refs/stash"],
+                                cwd=repo_path, capture_output=True, text=True, encoding='utf-8', errors='replace')
+        if result.returncode != 0:
+            return ("NOT_FOUND", None)
+        shas = result.stdout.strip().split('\n') if result.stdout.strip() else []
+        if not shas:
+            return ("NOT_FOUND", None)
+        try:
+            idx = shas.index(stash_sha)
+        except ValueError:
+            return ("NOT_FOUND", None)
+        if idx == 0:
+            return ("AT_HEAD", 0)
+        return ("NOT_HEAD", idx)
+    except Exception:
+        return ("NOT_FOUND", None)
+
 def branch_exists(repo_path, branch_name):
     """Checks if a local or remote branch exists."""
     try:
