@@ -4882,12 +4882,8 @@ for i, filename in enumerate(files):
                     )
             elif result == UnstagedChangesDialog.BulkCommitResult:
                 msg = f"bulk commit (Number of modified files: {len(unstaged_files)})"
-                progress = ProgressDialog("Bulk Committing", f"Committing {len(unstaged_files)} files at once...", self)
-                progress.show()
-                for _ in range(3): QApplication.processEvents()
 
                 success = bulk_commit_all(self.repo_path, msg)
-                progress.close()
 
                 if success:
                     QMessageBox.information(
@@ -4898,13 +4894,8 @@ for i, filename in enumerate(files):
                     QMessageBox.critical(self, "Error", "Bulk commit failed.")
                     return
             elif result == UnstagedChangesDialog.AmendResult:
-                progress = ProgressDialog("Amending", "Amending all changes into HEAD commit...", self)
-                progress.show()
-                for _ in range(3): QApplication.processEvents()
-
                 old_head = self.get_head_sha()
                 success = amend_with_head(self.repo_path)
-                progress.close()
 
                 if success:
                     QMessageBox.information(

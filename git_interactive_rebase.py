@@ -147,9 +147,6 @@ def main():
             print(f"Successfully committed {success_count} files.")
         elif result == UnstagedChangesDialog.BulkCommitResult:
             msg = f"bulk commit (Number of modified files: {len(unstaged_files)})"
-            progress = ProgressDialog("Bulk Committing", f"Committing {len(unstaged_files)} files at once...", None)
-            progress.show()
-            QApplication.processEvents()
 
             if bulk_commit_all(repo_path, msg):
                 print("Bulk commit successful.")
@@ -161,12 +158,7 @@ def main():
                 print("Bulk commit failed.")
                 QMessageBox.critical(None, "Error", "Bulk commit failed.")
 
-            progress.close()
         elif result == UnstagedChangesDialog.AmendResult:
-            progress = ProgressDialog("Amending", "Amending all changes into HEAD commit...", None)
-            progress.show()
-            QApplication.processEvents()
-
             old_head = get_head_sha(repo_path)
             if amend_with_head(repo_path):
                 new_head = get_head_sha(repo_path)
@@ -179,7 +171,6 @@ def main():
                 print("Amend failed.")
                 QMessageBox.critical(None, "Error", "Amend failed.")
 
-            progress.close()
         elif result == UnstagedChangesDialog.ViewerModeResult:
             args.viewer_mode = True
         else:
