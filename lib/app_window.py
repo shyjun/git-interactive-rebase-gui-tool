@@ -4873,13 +4873,13 @@ for i, filename in enumerate(files):
         short_sha = self.pending_stash_sha[:8]
         subject = get_stash_subject(self.repo_path, self.pending_stash_sha)
         details = f"<b>SHA:</b> {short_sha}" + (f"<br><b>Message:</b> {subject}" if subject else "")
-        answer = QMessageBox.question(
-            self,
-            "Pop Managed Stash",
-            f"Pop the app-created stash and restore its changes?\n\n{details}",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
-        )
+        box = QMessageBox(self)
+        box.setWindowTitle("Pop Managed Stash")
+        box.setTextFormat(Qt.RichText)
+        box.setText(f"Pop the app-created stash and restore its changes?<br><br>{details}")
+        box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        box.setDefaultButton(QMessageBox.No)
+        answer = box.exec()
         if answer != QMessageBox.Yes:
             return
         success, msg = stash_pop(self.repo_path, self.pending_stash_sha)
