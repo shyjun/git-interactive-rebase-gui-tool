@@ -395,6 +395,8 @@ def discard_changes(repo_path):
         return True
     except subprocess.CalledProcessError:
         return False
+
+def stash_pop(repo_path, stash_sha=None):
     """Pops a stash from the repository. If stash_sha is provided, pops that specific stash.
     Returns (success, message)."""
     try:
