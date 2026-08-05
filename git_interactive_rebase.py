@@ -23,7 +23,8 @@ from lib.utils import get_assets_path
 from lib.git_helpers import (
     get_root_commit, get_recent_history_start, get_branch_base_info,
     has_uncommitted_changes, stash_changes, get_unstaged_files, commit_file,
-    bulk_commit_all, amend_with_head, stash_pop, stash_pop_can_apply, get_full_head_sha, get_head_sha, discard_changes, get_stash_status
+    bulk_commit_all, amend_with_head, stash_pop, stash_pop_can_apply, get_full_head_sha, get_head_sha,
+    discard_changes, get_stash_status, STASH_NOTHING_STASHED
 )
 from lib.app_window import GitInteractiveRebaseApp, get_theme_stylesheet
 from lib.dialogs import UnstagedChangesDialog, ProgressDialog, StashNoticeDialog
@@ -115,9 +116,13 @@ def main():
 
         if result == UnstagedChangesDialog.Accepted:
             created_stash_sha = stash_changes(repo_path)
-            if created_stash_sha:
+            if created_stash_sha is not None and created_stash_sha is not STASH_NOTHING_STASHED:
                 print(f"Changes stashed successfully (SHA: {created_stash_sha}).")
                 ack_messages.append(("info", "Stash Successful", f"Changes stashed successfully (SHA: {created_stash_sha[:8]})."))
+            elif created_stash_sha is STASH_NOTHING_STASHED:
+                ack_messages.append(("info", "No Changes Stashed",
+                                     "There was nothing to stash (e.g. changes are in untracked files). "
+                                     "Please handle them manually."))
             else:
                 QMessageBox.critical(None, "Error", "Failed to stash changes. Please stash or commit manually.")
                 sys.exit(1)

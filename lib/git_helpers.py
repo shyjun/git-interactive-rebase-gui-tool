@@ -359,11 +359,19 @@ def has_uncommitted_changes(repo_path):
         return False
 
 from datetime import datetime
+
+# Sentinel returned by stash_changes when there was nothing to stash (a no-op),
+# as opposed to None which indicates a genuine failure.
+STASH_NOTHING_STASHED = object()
+
+
 def stash_changes(repo_path, message=None):
+    """Stashes unstaged changes in the repository.
+    Returns the new stash SHA if a stash was created, STASH_NOTHING_STASHED if there was
+    nothing to stash, or None if the operation failed."""
     if message is None:
         now = datetime.now()
         message = f"git-interactive-rebase-gui-tool: Pre-start stash ({now.strftime('%H:%M:%S %Y-%m-%d')})"
-    """Stashes unstaged changes in the repository. Returns the stash SHA if successful, otherwise None."""
     try:
         # Before stashing, get the current top stash SHA (if any)
         old_stash_sha = None
@@ -383,6 +391,7 @@ def stash_changes(repo_path, message=None):
             new_stash_sha = result.stdout.strip()
             if new_stash_sha != old_stash_sha:
                 return new_stash_sha
+            return STASH_NOTHING_STASHED
         return None
     except subprocess.CalledProcessError:
         return None
