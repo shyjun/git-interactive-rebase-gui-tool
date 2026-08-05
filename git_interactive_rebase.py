@@ -26,7 +26,7 @@ from lib.git_helpers import (
     bulk_commit_all, amend_with_head, stash_pop, get_full_head_sha, get_head_sha, discard_changes, get_stash_status
 )
 from lib.app_window import GitInteractiveRebaseApp, get_theme_stylesheet
-from lib.dialogs import UnstagedChangesDialog, ProgressDialog
+from lib.dialogs import UnstagedChangesDialog, ProgressDialog, StashNoticeDialog
 
 import shutil
 
@@ -214,15 +214,7 @@ def main():
                         f"{short_sha} not found in stash list. "
                         f"Please investigate and stash pop manually.\n\n"
                         f"Please note down the sha: {short_sha}")
-            box = QMessageBox(None)
-            box.setWindowTitle("Stash Reminder")
-            box.setIcon(QMessageBox.Warning)
-            box.setText(text)
-            copy_btn = box.addButton("Copy SHA to clipboard", QMessageBox.ActionRole)
-            ok_btn = box.addButton("OK", QMessageBox.RejectRole)
-            box.setDefaultButton(ok_btn)
-            copy_btn.clicked.connect(lambda: QApplication.clipboard().setText(short_sha))
-            box.exec()
+            StashNoticeDialog(text, stash_sha).exec()
 
         if status == "NOT_FOUND":
             show_missing_box(not_at_head=False)

@@ -2684,3 +2684,36 @@ class RefineChangesDialog(QDialog):
     def reject(self):
         super().reject()
 
+class StashNoticeDialog(QDialog):
+    """Warning dialog for a missing/not-at-head managed stash. Offers a 'Copy SHA to
+    clipboard' button that does NOT close the dialog, and an OK button to dismiss."""
+    def __init__(self, text, sha, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Managed Stash")
+        self.setMinimumWidth(480)
+        self.setModal(True)
+
+        short_sha = sha[:8]
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
+
+        label = QLabel(text)
+        label.setWordWrap(True)
+        layout.addWidget(label)
+
+        copy_btn = QPushButton("Copy SHA to clipboard")
+        copy_btn.setToolTip("Copy the stash SHA to the clipboard.")
+        copy_btn.clicked.connect(lambda: QApplication.clipboard().setText(short_sha))
+
+        ok_btn = QPushButton("OK")
+        ok_btn.setDefault(True)
+        ok_btn.clicked.connect(self.accept)
+
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+        btn_layout.addWidget(copy_btn)
+        btn_layout.addWidget(ok_btn)
+        layout.addLayout(btn_layout)
+
