@@ -206,7 +206,7 @@ def main():
 
         def show_missing_box(not_at_head):
             if not_at_head:
-                text = (f"{short_sha} is found in stash list, but not at HEAD position. "
+                text = (f"The stash created by app ({short_sha}) is found in stash list, but not at HEAD position. "
                         f"Please investigate and stash pop manually.\n\n"
                         f"Please note down the sha: {short_sha}")
             else:
