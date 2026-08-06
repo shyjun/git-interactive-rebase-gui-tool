@@ -44,7 +44,7 @@ from lib.git_helpers import (
     get_full_commit_message, get_commit_metadata, get_commit_files,
     has_uncommitted_changes, branch_exists, get_local_branches_map, get_remote_head_sha,
     get_file_diff_only_in_commit, get_revert_commit_message, get_commit_metadata_and_message,
-    get_commit_file_stats,     get_unstaged_files, stash_changes, commit_file, bulk_commit_all, amend_with_head, discard_changes, stash_pop, get_stash_subject, stash_pop_can_apply, get_stash_status, STASH_NOTHING_STASHED,
+    get_commit_file_stats,     get_unstaged_files, stash_changes, commit_file, bulk_commit_all, amend_with_head, discard_changes, stash_pop, get_stash_subject, stash_pop_can_apply, get_stash_status, STASH_NOTHING_STASHED, merge_into_stash,
     get_merge_base, get_diff_between, get_diff_stat_between,
     get_files_between, get_file_stats_between, resolve_ref
 )
@@ -4974,6 +4974,45 @@ for i, filename in enumerate(files):
             QMessageBox.critical(self, "Error", "Failed to pop the managed stash. Please resolve any conflict markers manually or try again.")
             self._update_stash_btn_visibility()
 
+    def _merge_into_managed_stash(self):
+        """Merges the current unstaged changes into the existing app-created stash."""
+        old_sha = self.app_managed_stash_sha
+        if not old_sha:
+            return
+        progress = ProgressDialog("Merging Stash", "Merging changes into app-created stash...", self)
+        progress.show()
+        QApplication.processEvents()
+        try:
+            new_sha = merge_into_stash(self.repo_path, old_sha)
+        finally:
+            progress.close()
+
+        if not new_sha:
+            QMessageBox.critical(
+                self, "Merge Failed",
+                "Unable to merge the current unstaged changes into the existing app-created stash.\n\n"
+                "The original app-created stash has not been modified.\n"
+                "Your current unstaged changes have been restored.\n"
+                "No changes have been lost."
+            )
+            return
+        if new_sha == old_sha:
+            QMessageBox.information(
+                self, "No Changes to Merge",
+                "There were no changes to merge into the app-created stash."
+            )
+            return
+
+        self.app_managed_stash_sha = new_sha
+        self._update_stash_btn_visibility()
+        self._flash_pop_stash_btn()
+        QMessageBox.information(
+            self, "Merge Successful",
+            f"Successfully merged the current unstaged changes into the app-created stash.\n\n"
+            f"Old app-created stash:\n    {old_sha}\n\n"
+            f"New app-created stash:\n    {new_sha}"
+        )
+
     def handle_rescan_repo(self):
         """Safely rescan repository state, prompting user for unstaged changes identically to app startup if found."""
         unstaged_files = get_unstaged_files(self.repo_path, ignore_submodules=True)
@@ -4981,7 +5020,7 @@ for i, filename in enumerate(files):
             dialog = UnstagedChangesDialog(len(unstaged_files), parent=self, from_rescan=True,
                                            repo_path=self.repo_path, unstaged_files=unstaged_files,
                                            font_size=self.current_font_size,
-                                           managed_stash_exists=bool(self.app_managed_stash_sha),
+                                           managed_stash_sha=self.app_managed_stash_sha,
                                            viewer_mode=self.viewer_mode)
             result = dialog.exec()
 
@@ -4994,7 +5033,9 @@ for i, filename in enumerate(files):
                 QMessageBox.warning(self, "Viewer Mode", "This operation is not allowed in Viewer Mode.")
                 return
 
-            if result == UnstagedChangesDialog.Accepted:
+            if result == UnstagedChangesDialog.MergeResult:
+                self._merge_into_managed_stash()
+            elif result == UnstagedChangesDialog.Accepted:
                 created_stash_sha = stash_changes(
                     self.repo_path,
                     message=f"git-interactive-rebase-gui-tool: Rescan stash ({datetime.now().strftime('%H:%M:%S %Y-%m-%d')})")

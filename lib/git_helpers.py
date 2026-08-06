@@ -522,6 +522,143 @@ def get_stash_status(repo_path, stash_sha):
     except Exception:
         return ("NOT_FOUND", None)
 
+def _stash_index(repo_path, stash_sha):
+    """Resolves a stash SHA to its stash@{idx} target. Returns None if not found."""
+    try:
+        result = subprocess.run(["git", "log", "--format=%H", "-g", "refs/stash"],
+                                cwd=repo_path, capture_output=True, text=True, encoding='utf-8', errors='replace')
+        if result.returncode != 0:
+            return None
+        shas = result.stdout.strip().split('\n')
+        try:
+            idx = shas.index(stash_sha)
+        except ValueError:
+            return None
+        return f"stash@{{{idx}}}"
+    except Exception:
+        return None
+
+def stash_apply(repo_path, stash_sha):
+    """Applies a stash without removing it (git stash apply).
+    Returns (success, error_detail). Logs the failed command details."""
+    try:
+        target = _stash_index(repo_path, stash_sha)
+        if target is None:
+            print(f"[stash-merge] FAILED: could not resolve stash {stash_sha[:8]} in stash list")
+            return False, f"Stash {stash_sha[:8]} not found in the stash list."
+        cmd = ["git", "stash", "apply", target]
+        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, encoding='utf-8', errors='replace')
+        if result.returncode == 0:
+            return True, ""
+        print(f"[stash-merge] FAILED: {cmd[0]} {' '.join(cmd[1:])}")
+        print(f"[stash-merge] Command: {' '.join(cmd)}")
+        print(f"[stash-merge] Return code: {result.returncode}")
+        print(f"[stash-merge] stdout: {result.stdout.strip()}")
+        print(f"[stash-merge] stderr: {result.stderr.strip()}")
+        return False, result.stderr.strip() or "git stash apply failed"
+    except Exception as e:
+        print(f"[stash-merge] FAILED: git stash apply raised: {e}")
+        return False, str(e)
+
+def stash_drop(repo_path, stash_sha):
+    """Drops a specific stash (git stash drop stash@{idx}). Returns True on success."""
+    try:
+        target = _stash_index(repo_path, stash_sha)
+        if target is None:
+            print(f"[stash-merge] FAILED: could not resolve stash {stash_sha[:8]} in stash list")
+            return False
+        cmd = ["git", "stash", "drop", target]
+        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, encoding='utf-8', errors='replace')
+        if result.returncode != 0:
+            print(f"[stash-merge] FAILED: {cmd[0]} {' '.join(cmd[1:])}")
+            print(f"[stash-merge] Command: {' '.join(cmd)}")
+            print(f"[stash-merge] Return code: {result.returncode}")
+            print(f"[stash-merge] stdout: {result.stdout.strip()}")
+            print(f"[stash-merge] stderr: {result.stderr.strip()}")
+            return False
+        return True
+    except Exception as e:
+        print(f"[stash-merge] FAILED: git stash drop raised: {e}")
+        return False
+
+def _rollback_merge(repo_path, temp_stash_sha):
+    """Restores the repository after a failed stash merge. The working tree is reset
+    and the original unstaged changes are recovered from the temporary stash, which is
+    then dropped. The original app-created stash is left untouched."""
+    print("[stash-merge] Rolling back failed merge (git reset --hard HEAD)...")
+    subprocess.run(["git", "reset", "--hard", "HEAD"], cwd=repo_path, capture_output=True, text=True, encoding='utf-8', errors='replace')
+    print("[stash-merge] Restoring changes from temporary stash...")
+    stash_apply(repo_path, temp_stash_sha)
+    print("[stash-merge] Dropping temporary stash...")
+    stash_drop(repo_path, temp_stash_sha)
+
+def merge_into_stash(repo_path, existing_stash_sha):
+    """Merges the current unstaged changes into the existing app-created stash.
+
+    Uses only 'git stash apply' (never 'pop') so no stash is removed until the merge
+    has completed successfully. On failure the repository is restored to its original
+    state and the original app-created stash is left untouched.
+
+    Returns the new app-created stash SHA on success, or None on failure."""
+    def log(msg):
+        print(f"[stash-merge] {msg}")
+
+    temp_stash_sha = None
+    try:
+        # Step 1: temporary stash of the current unstaged changes
+        log("Creating temporary stash...")
+        now = datetime.now()
+        temp_stash_sha = stash_changes(
+            repo_path,
+            message=f"git-interactive-rebase-gui-tool: temp merge stash ({now.strftime('%H:%M:%S %Y-%m-%d')})")
+        if temp_stash_sha is None:
+            log("Failed to create temporary stash.")
+            return None
+        if temp_stash_sha is STASH_NOTHING_STASHED:
+            # Nothing to merge (no tracked changes); the existing stash stays as managed
+            log("No changes to merge; keeping existing app-created stash.")
+            return existing_stash_sha
+
+        # Step 2: apply the existing app-created stash
+        log("Applying app-created stash...")
+        ok, err = stash_apply(repo_path, existing_stash_sha)
+        if not ok:
+            log(f"Applying app-created stash failed: {err}")
+            _rollback_merge(repo_path, temp_stash_sha)
+            return None
+
+        # Step 3: apply the temporary stash
+        log("Applying temporary stash...")
+        ok, err = stash_apply(repo_path, temp_stash_sha)
+        if not ok:
+            log(f"Applying temporary stash failed: {err}")
+            _rollback_merge(repo_path, temp_stash_sha)
+            return None
+
+        # Step 4: drop the original app-created stash and the temporary stash
+        log("Dropping app-created stash...")
+        stash_drop(repo_path, existing_stash_sha)
+        log("Dropping temporary stash...")
+        stash_drop(repo_path, temp_stash_sha)
+
+        # Step 5: create a new stash from the combined working tree changes
+        log("Creating merged app-created stash...")
+        now = datetime.now()
+        new_stash_sha = stash_changes(
+            repo_path,
+            message=f"git-interactive-rebase-gui-tool: merged app stash ({now.strftime('%H:%M:%S %Y-%m-%d')})")
+        if new_stash_sha is None or new_stash_sha is STASH_NOTHING_STASHED:
+            log("Failed to create merged app-created stash.")
+            return None
+
+        log("Merge completed successfully.")
+        return new_stash_sha
+    except Exception as e:
+        log(f"Unexpected error during merge: {e}")
+        if temp_stash_sha:
+            _rollback_merge(repo_path, temp_stash_sha)
+        return None
+
 def branch_exists(repo_path, branch_name):
     """Checks if a local or remote branch exists."""
     try:
