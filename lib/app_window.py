@@ -2671,7 +2671,6 @@ class GitInteractiveRebaseApp(QMainWindow):
             drop_action.setEnabled(False)
             rephrase_action.setEnabled(False)
             revert_action.setEnabled(False)
-            move_menu.setEnabled(False)
             copy_sha_action.setEnabled(False)
             copy_msg_action.setEnabled(False)
             copy_sha_msg_action.setEnabled(False)
