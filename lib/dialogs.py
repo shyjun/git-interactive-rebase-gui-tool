@@ -951,13 +951,15 @@ class ViewCommitDialog(DiffViewerDialog):
 
 class BranchDiffDialog(QDialog):
     """Window replicating the right-side diff pane (Plain Diff + Filewise Diff tabs)
-    for the combined branch diff vs its base (PR preview)."""
-    def __init__(self, repo_path, branch, base_sha, num_commits, diff_text, files, file_stats, font_size=10, parent=None, colors=None):
+    for the combined diff between two commits (consolidated diff / PR preview)."""
+    def __init__(self, repo_path, start_sha, end_sha, num_commits, diff_text, files, file_stats, font_size=10, parent=None, colors=None, title=None, description=None):
         super().__init__(parent)
         self.repo_path = repo_path
-        self.base_sha = base_sha
+        self.start_sha = start_sha
+        self.end_sha = end_sha
         self.font_size = font_size
-        self.setWindowTitle(f"PR Preview: {branch} vs {base_sha[:8]}")
+        title = title or "Consolidated Diff"
+        self.setWindowTitle(f"{title} — {start_sha[:8]} → {end_sha[:8]}")
         self.setMinimumSize(860, 620)
 
         # Diff colors: optional pre-resolved colors, else from the parent theme
@@ -972,9 +974,13 @@ class BranchDiffDialog(QDialog):
         layout = QVBoxLayout(self)
 
         # Header
-        header = QLabel(
-            f"PR Preview: <b>{branch}</b> vs <b>{base_sha[:8]}</b> - {num_commits} commits"
+        header_text = (
+            f"<b>{title}</b><br>"
+            f"<b>{start_sha[:8]}</b> → <b>{end_sha[:8]}</b> - {num_commits} commits"
         )
+        if description:
+            header_text += f"<br><span style='color:#888888'>{description}</span>"
+        header = QLabel(header_text)
         header.setTextFormat(Qt.RichText)
         self.header_label = header
         layout.addWidget(header)
@@ -1093,7 +1099,7 @@ class BranchDiffDialog(QDialog):
             self.filewise_diff_view.clear()
             return
         try:
-            diff = get_file_diff_between(self.repo_path, self.base_sha, filepath)
+            diff = get_file_diff_between(self.repo_path, self.start_sha, self.end_sha, filepath)
             self.filewise_diff_view.setPlainText(diff)
             self.filewise_diff_view.set_separator_color(self.colors.get("separator", "#444444"))
             self.filewise_diff_search._perform_search()

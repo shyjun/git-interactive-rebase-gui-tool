@@ -714,6 +714,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.best_commit_sha = None
         self.marked_shas = set()
         self.app_managed_stash_sha = None
+        self.consolidated_diff_start_sha = None
 
         # Global application icon is handled in the main entry point
 
@@ -2767,6 +2768,36 @@ class GitInteractiveRebaseApp(QMainWindow):
         split_refine_action = QAction("Refine/Edit changes in selected file", self)
         split_refine_action.triggered.connect(lambda: self.handle_refine_changes(item))
         split_menu.addAction(split_refine_action)
+
+        # Consolidated Diff submenu
+        consolidated_menu = menu.addMenu("Consolidated Diff")
+        consolidated_menu.setFont(menu_font)
+
+        if self.consolidated_diff_start_sha:
+            start_short = self.consolidated_diff_start_sha[:8]
+            set_start_action = QAction("Change Start Commit", self)
+            diff_here_action = QAction(f"Diff from {start_short} to Here", self)
+        else:
+            set_start_action = QAction("Set Start Commit", self)
+            diff_here_action = QAction("Show Diff to Here", self)
+            diff_here_action.setEnabled(False)
+
+        head_to_here_action = QAction("From HEAD Till Here", self)
+
+        set_start_action.triggered.connect(lambda: self._set_consolidated_diff_start(sha))
+        diff_here_action.triggered.connect(
+            lambda: self.show_consolidated_diff(self.consolidated_diff_start_sha, sha, title="Consolidated Diff"))
+        head_to_here_action.triggered.connect(
+            lambda: self.show_consolidated_diff(self.get_head_sha(), sha, title="Consolidated Diff"))
+
+        if self.multi_select_mode:
+            set_start_action.setEnabled(False)
+            diff_here_action.setEnabled(False)
+            head_to_here_action.setEnabled(False)
+
+        consolidated_menu.addAction(set_start_action)
+        consolidated_menu.addAction(diff_here_action)
+        consolidated_menu.addAction(head_to_here_action)
 
         menu.addSeparator()
         menu.addAction(copy_sha_action)
@@ -5037,6 +5068,41 @@ for i, filename in enumerate(files):
         # Finally, we reload the tree to correctly align matching local state
         self.load_history()
 
+    def show_consolidated_diff(self, start_sha, end_sha, title=None, description=None):
+        """Displays the consolidated diff between *start_sha* and *end_sha* using the shared diff dialog."""
+        try:
+            if not start_sha or not end_sha:
+                return
+            progress = ProgressDialog(title or "Consolidated Diff", "Computing diff...", self)
+            progress.show()
+            QApplication.processEvents()
+            try:
+                diff_text = get_diff_between(self.repo_path, start_sha, end_sha)
+                files = get_files_between(self.repo_path, start_sha, end_sha)
+                file_stats = get_file_stats_between(self.repo_path, start_sha, end_sha)
+                num_commits = len(get_git_history(self.repo_path, start_sha, end_sha))
+            finally:
+                progress.close()
+
+            if len(diff_text) > PR_DIFF_SIZE_WARN_THRESHOLD:
+                answer = QMessageBox.warning(
+                    self, "Large Consolidated Diff",
+                    f"This consolidated diff is large (~{len(diff_text)/1024:.0f} KB) and may be slow or hard to digest.\n\n"
+                    "Do you want to open it anyway?",
+                    QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+                if answer != QMessageBox.Yes:
+                    return
+
+            dialog = BranchDiffDialog(self.repo_path, start_sha, end_sha, num_commits, diff_text, files,
+                                      file_stats, self.current_font_size, self, title=title, description=description)
+            dialog.exec()
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Could not fetch consolidated diff: {str(e)}")
+
+    def _set_consolidated_diff_start(self, sha):
+        """Stores the selected commit as the start point for a consolidated diff."""
+        self.consolidated_diff_start_sha = sha
+
     def handle_view_branch_diff(self):
         """Opens a PR preview dialog showing the combined branch diff vs its base."""
         try:
@@ -5067,32 +5133,12 @@ for i, filename in enumerate(files):
             if not base_sha:
                 QMessageBox.information(self, "PR Preview", "Could not determine the base commit to diff against.")
                 return
-
-            progress = ProgressDialog("PR Preview", "Computing branch diff...", self)
-            progress.show()
-            QApplication.processEvents()
-            try:
-                diff_text = get_diff_between(self.repo_path, base_sha)
-                files = get_files_between(self.repo_path, base_sha)
-                file_stats = get_file_stats_between(self.repo_path, base_sha)
-                num_commits = len(get_git_history(self.repo_path, base_sha))
-                branch = get_current_branch(self.repo_path) or "HEAD"
-            finally:
-                progress.close()
-
-            if len(diff_text) > PR_DIFF_SIZE_WARN_THRESHOLD:
-                answer = QMessageBox.warning(
-                    self, "Large PR Diff",
-                    f"This branch diff is large (~{len(diff_text)/1024:.0f} KB) and may be slow or hard to digest.\n\n"
-                    "Do you want to open the full PR preview anyway?",
-                    QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-                if answer != QMessageBox.Yes:
-                    return
-
-            dialog = BranchDiffDialog(self.repo_path, branch, base_sha, num_commits, diff_text, files, file_stats, self.current_font_size, self)
-            dialog.exec()
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not fetch branch diff: {str(e)}")
+            return
+
+        branch = get_current_branch(self.repo_path) or "HEAD"
+        self.show_consolidated_diff(base_sha, self.get_head_sha(), title="PR Preview", description=branch)
 
     def handle_manual_refresh(self):
         """Shows a progress dialog during manual refresh."""
@@ -5125,7 +5171,7 @@ for i, filename in enumerate(files):
         self.list_widget.setUpdatesEnabled(False)
         self.list_widget.blockSignals(True)
         try:
-            history = get_git_history(self.repo_path, self.commit_sha)
+            history = get_git_history(self.repo_path, self.commit_sha, self.get_head_sha())
             branch_map = get_local_branches_map(self.repo_path, current_branch=current_branch)
 
             for entry in history:

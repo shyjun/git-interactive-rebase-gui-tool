@@ -6,22 +6,22 @@ if __name__ == "__main__":
 
 import subprocess
 
-def get_git_history(repo_path, commit_sha):
-    """Fetches git history from HEAD down to commit_sha inclusive, yielding parsed objects."""
+def get_git_history(repo_path, start_sha, end_sha):
+    """Fetches git history from *start_sha* (exclusive) down to *end_sha* inclusive, yielding parsed objects."""
     try:
-        # Check if commit_sha has a parent
+        # Check if start_sha has a parent
         has_parent = False
         try:
-            subprocess.run(["git", "rev-parse", f"{commit_sha}^"], 
+            subprocess.run(["git", "rev-parse", f"{start_sha}^"], 
                            cwd=repo_path, check=True, capture_output=True, encoding='utf-8', errors='replace')
             has_parent = True
         except:
             has_parent = False
 
         if has_parent:
-            cmd = ["git", "log", f"{commit_sha}..HEAD", "--format=%h|%cd|%an <%ae>|%s|%P", "--date=format:%d %b %Y", "--shortstat"]
+            cmd = ["git", "log", f"{start_sha}..{end_sha}", "--format=%h|%cd|%an <%ae>|%s|%P", "--date=format:%d %b %Y", "--shortstat"]
         else:
-            cmd = ["git", "log", "HEAD", "--format=%h|%cd|%an <%ae>|%s|%P", "--date=format:%d %b %Y", "--shortstat"]
+            cmd = ["git", "log", end_sha, "--format=%h|%cd|%an <%ae>|%s|%P", "--date=format:%d %b %Y", "--shortstat"]
         
         result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
         
@@ -76,9 +76,9 @@ def get_git_history(repo_path, commit_sha):
         # "Message / SHA" search can match text in the message body, not just the subject.
         try:
             if has_parent:
-                msg_cmd = ["git", "log", f"{commit_sha}..HEAD", "--format=%h%x1f%B%x1e"]
+                msg_cmd = ["git", "log", f"{start_sha}..{end_sha}", "--format=%h%x1f%B%x1e"]
             else:
-                msg_cmd = ["git", "log", "HEAD", "--format=%h%x1f%B%x1e"]
+                msg_cmd = ["git", "log", end_sha, "--format=%h%x1f%B%x1e"]
             msg_result = subprocess.run(msg_cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
             full_msgs = {}
             for record in msg_result.stdout.split('\x1e'):
@@ -636,40 +636,40 @@ def get_merge_base(repo_path, ref):
         return None
 
 
-def get_diff_between(repo_path, base_sha):
-    """Fetches the combined diff of all changes between *base_sha* and HEAD."""
+def get_diff_between(repo_path, start_sha, end_sha):
+    """Fetches the combined diff of all changes between *start_sha* and *end_sha*."""
     try:
-        cmd = ["git", "diff", base_sha, "HEAD"]
+        cmd = ["git", "diff", start_sha, end_sha]
         result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
         return result.stdout
     except subprocess.CalledProcessError as e:
         raise Exception(f"Failed to fetch branch diff: {e.stderr}")
 
 
-def get_diff_stat_between(repo_path, base_sha):
-    """Fetches the --stat summary of all changes between *base_sha* and HEAD."""
+def get_diff_stat_between(repo_path, start_sha, end_sha):
+    """Fetches the --stat summary of all changes between *start_sha* and *end_sha*."""
     try:
-        cmd = ["git", "diff", "--stat", base_sha, "HEAD"]
+        cmd = ["git", "diff", "--stat", start_sha, end_sha]
         result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
         return result.stdout.strip()
     except subprocess.CalledProcessError as e:
         raise Exception(f"Failed to fetch branch diff stats: {e.stderr}")
 
 
-def get_files_between(repo_path, base_sha):
-    """Returns the list of file paths changed between *base_sha* and HEAD."""
+def get_files_between(repo_path, start_sha, end_sha):
+    """Returns the list of file paths changed between *start_sha* and *end_sha*."""
     try:
-        cmd = ["git", "diff", "--name-only", base_sha, "HEAD"]
+        cmd = ["git", "diff", "--name-only", start_sha, end_sha]
         result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
         return [f for f in result.stdout.strip().split('\n') if f.strip()]
     except subprocess.CalledProcessError as e:
         raise Exception(f"Failed to list changed files: {e.stderr}")
 
 
-def get_file_diff_between(repo_path, base_sha, filepath):
-    """Returns the diff for a single file between *base_sha* and HEAD."""
+def get_file_diff_between(repo_path, start_sha, end_sha, filepath):
+    """Returns the diff for a single file between *start_sha* and *end_sha*."""
     try:
-        cmd = ["git", "diff", base_sha, "HEAD", "--", filepath]
+        cmd = ["git", "diff", start_sha, end_sha, "--", filepath]
         result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
         diff_text = result.stdout
         # Inject separator padding
@@ -680,10 +680,10 @@ def get_file_diff_between(repo_path, base_sha, filepath):
         raise Exception(f"Failed to get file diff: {e.stderr}")
 
 
-def get_file_stats_between(repo_path, base_sha):
-    """Returns a dict mapping filepath -> (added_lines, deleted_lines) between *base_sha* and HEAD."""
+def get_file_stats_between(repo_path, start_sha, end_sha):
+    """Returns a dict mapping filepath -> (added_lines, deleted_lines) between *start_sha* and *end_sha*."""
     try:
-        cmd = ["git", "diff", "--numstat", base_sha, "HEAD"]
+        cmd = ["git", "diff", "--numstat", start_sha, end_sha]
         result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
         stats = {}
         for line in result.stdout.strip().split('\n'):
