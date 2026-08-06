@@ -5073,6 +5073,13 @@ for i, filename in enumerate(files):
         try:
             if not start_sha or not end_sha:
                 return
+            if start_sha[:8].lower() == end_sha[:8].lower():
+                QMessageBox.information(
+                    self, "Consolidated Diff",
+                    "The start and end commits are the same, so there is nothing to compare.\n\n"
+                    f"Commit: {start_sha[:8]}"
+                )
+                return
             progress = ProgressDialog(title or "Consolidated Diff", "Computing diff...", self)
             progress.show()
             QApplication.processEvents()
