@@ -2775,7 +2775,7 @@ class GitInteractiveRebaseApp(QMainWindow):
 
         if self.consolidated_diff_start_sha:
             start_short = self.consolidated_diff_start_sha[:8]
-            set_start_action = QAction("Change Start Commit", self)
+            set_start_action = QAction("Set Start Commit", self)
             diff_here_action = QAction(f"Diff from {start_short} to Here", self)
         else:
             set_start_action = QAction("Set Start Commit", self)
