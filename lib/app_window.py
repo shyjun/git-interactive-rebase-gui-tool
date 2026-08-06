@@ -236,6 +236,14 @@ class CommitItemDelegate(QStyledItemDelegate):
         style = widget.style() if widget else QApplication.style()
         style.drawControl(QStyle.CE_ItemViewItem, opt, painter, widget)
 
+        # Small left accent bar marking the set consolidated-diff start commit
+        is_diff_start = (main_win and getattr(main_win, 'consolidated_diff_start_sha', None)
+                         and sha == main_win.consolidated_diff_start_sha)
+        if is_diff_start:
+            painter.save()
+            painter.fillRect(option.rect.left(), option.rect.top(), 4, option.rect.height(), QColor("#ff9800"))
+            painter.restore()
+
         # Draw commit graph node (circle + connecting line) - skip during multi-select mode
         GRAPH_WIDTH = 22
         is_multi = main_win and getattr(main_win, 'multi_select_mode', False)
@@ -5160,6 +5168,8 @@ for i, filename in enumerate(files):
     def _set_consolidated_diff_start(self, sha):
         """Stores the selected commit as the start point for a consolidated diff."""
         self.consolidated_diff_start_sha = sha
+        # Repaint so the left accent bar moves to the newly selected start commit
+        self.list_widget.viewport().update()
 
     def handle_view_branch_diff(self):
         """Opens a PR preview dialog showing the combined branch diff vs its base."""
