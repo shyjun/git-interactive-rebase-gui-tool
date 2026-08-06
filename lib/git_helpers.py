@@ -7,21 +7,22 @@ if __name__ == "__main__":
 import subprocess
 
 def get_git_history(repo_path, start_sha, end_sha):
-    """Fetches git history from *start_sha* (exclusive) down to *end_sha* inclusive, yielding parsed objects."""
-    try:
-        # Check if start_sha has a parent
+    """Fetches git history from *start_sha* (exclusive) down to *end_sha* inclusive, yielding parsed objects.
+    If the range is reversed (start is newer than end) the equivalent commits are returned."""
+    def _build(sha_from, sha_to):
+        # Check if sha_from has a parent
         has_parent = False
         try:
-            subprocess.run(["git", "rev-parse", f"{start_sha}^"], 
+            subprocess.run(["git", "rev-parse", f"{sha_from}^"], 
                            cwd=repo_path, check=True, capture_output=True, encoding='utf-8', errors='replace')
             has_parent = True
         except:
             has_parent = False
 
         if has_parent:
-            cmd = ["git", "log", f"{start_sha}..{end_sha}", "--format=%h|%cd|%an <%ae>|%s|%P", "--date=format:%d %b %Y", "--shortstat"]
+            cmd = ["git", "log", f"{sha_from}..{sha_to}", "--format=%h|%cd|%an <%ae>|%s|%P", "--date=format:%d %b %Y", "--shortstat"]
         else:
-            cmd = ["git", "log", end_sha, "--format=%h|%cd|%an <%ae>|%s|%P", "--date=format:%d %b %Y", "--shortstat"]
+            cmd = ["git", "log", sha_to, "--format=%h|%cd|%an <%ae>|%s|%P", "--date=format:%d %b %Y", "--shortstat"]
         
         result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
         
@@ -76,9 +77,9 @@ def get_git_history(repo_path, start_sha, end_sha):
         # "Message / SHA" search can match text in the message body, not just the subject.
         try:
             if has_parent:
-                msg_cmd = ["git", "log", f"{start_sha}..{end_sha}", "--format=%h%x1f%B%x1e"]
+                msg_cmd = ["git", "log", f"{sha_from}..{sha_to}", "--format=%h%x1f%B%x1e"]
             else:
-                msg_cmd = ["git", "log", end_sha, "--format=%h%x1f%B%x1e"]
+                msg_cmd = ["git", "log", sha_to, "--format=%h%x1f%B%x1e"]
             msg_result = subprocess.run(msg_cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
             full_msgs = {}
             for record in msg_result.stdout.split('\x1e'):
@@ -91,6 +92,14 @@ def get_git_history(repo_path, start_sha, end_sha):
         except subprocess.CalledProcessError:
             pass  # fall back to subject-only messages
 
+        return commits
+
+    try:
+        commits = _build(start_sha, end_sha)
+        # If the requested direction has no commits but the reverse does, the user
+        # chose a "newer" start; count the commits between the two instead of 0.
+        if not commits and start_sha != end_sha:
+            commits = _build(end_sha, start_sha)
         return commits
     except subprocess.CalledProcessError as e:
         raise Exception(f"Failed to fetch git history: {e.stderr}")
