@@ -4981,8 +4981,19 @@ for i, filename in enumerate(files):
             dialog = UnstagedChangesDialog(len(unstaged_files), parent=self, from_rescan=True,
                                            repo_path=self.repo_path, unstaged_files=unstaged_files,
                                            font_size=self.current_font_size,
-                                           managed_stash_exists=bool(self.app_managed_stash_sha))
+                                           managed_stash_exists=bool(self.app_managed_stash_sha),
+                                           viewer_mode=self.viewer_mode)
             result = dialog.exec()
+
+            if self.viewer_mode and result in (
+                UnstagedChangesDialog.Accepted,
+                UnstagedChangesDialog.CommitEachResult,
+                UnstagedChangesDialog.BulkCommitResult,
+                UnstagedChangesDialog.AmendResult,
+                UnstagedChangesDialog.DiscardResult,
+            ):
+                QMessageBox.warning(self, "Viewer Mode", "This operation is not allowed in Viewer Mode.")
+                return
 
             if result == UnstagedChangesDialog.Accepted:
                 created_stash_sha = stash_changes(
