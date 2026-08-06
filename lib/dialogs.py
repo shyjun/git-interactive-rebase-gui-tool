@@ -2018,9 +2018,10 @@ class UnstagedChangesDialog(QDialog):
         self.exit_btn.clicked.connect(self.reject)
 
         if self.viewer_mode:
-            # In Viewer Mode no history-modifying / destructive actions are allowed.
+            # In Viewer Mode no history-modifying / committing actions are allowed.
+            # Discarding unstaged changes is still permitted.
             not_allowed = "Not allowed in Viewer Mode."
-            for btn in [self.stash_btn, self.commit_each_btn, self.bulk_commit_btn, self.amend_btn, self.discard_btn]:
+            for btn in [self.stash_btn, self.commit_each_btn, self.bulk_commit_btn, self.amend_btn]:
                 btn.setEnabled(False)
                 btn.setToolTip(not_allowed)
             self.viewer_mode_btn.setVisible(False)

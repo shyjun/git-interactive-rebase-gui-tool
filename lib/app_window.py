@@ -4990,7 +4990,6 @@ for i, filename in enumerate(files):
                 UnstagedChangesDialog.CommitEachResult,
                 UnstagedChangesDialog.BulkCommitResult,
                 UnstagedChangesDialog.AmendResult,
-                UnstagedChangesDialog.DiscardResult,
             ):
                 QMessageBox.warning(self, "Viewer Mode", "This operation is not allowed in Viewer Mode.")
                 return
