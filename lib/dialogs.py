@@ -1942,11 +1942,12 @@ class UnstagedChangesDialog(QDialog):
     ViewerModeResult = 5
     DiscardResult = 6
 
-    def __init__(self, num_files, parent=None, from_rescan=False, repo_path=None, unstaged_files=None, font_size=None, managed_stash_exists=False):
+    def __init__(self, num_files, parent=None, from_rescan=False, repo_path=None, unstaged_files=None, font_size=None, managed_stash_exists=False, viewer_mode=False):
         super().__init__(parent)
         self.repo_path = repo_path
         self.unstaged_files = unstaged_files or []
         self.managed_stash_exists = managed_stash_exists
+        self.viewer_mode = viewer_mode
         if font_size is None:
             font_size = int(QSettings("shyjun", "GitInteractiveRebase").value("font_size", 10))
         self.font_size = font_size
@@ -2015,6 +2016,14 @@ class UnstagedChangesDialog(QDialog):
         self.discard_btn.clicked.connect(self._on_discard)
         self.viewer_mode_btn.clicked.connect(lambda: self.done(self.ViewerModeResult))
         self.exit_btn.clicked.connect(self.reject)
+
+        if self.viewer_mode:
+            # In Viewer Mode no history-modifying / destructive actions are allowed.
+            not_allowed = "Not allowed in Viewer Mode."
+            for btn in [self.stash_btn, self.commit_each_btn, self.bulk_commit_btn, self.amend_btn, self.discard_btn]:
+                btn.setEnabled(False)
+                btn.setToolTip(not_allowed)
+            self.viewer_mode_btn.setVisible(False)
         
         btn_layout.addWidget(self.view_changes_btn)
         btn_layout.addWidget(self.stash_btn)
