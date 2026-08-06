@@ -1941,12 +1941,14 @@ class UnstagedChangesDialog(QDialog):
     AmendResult = 4
     ViewerModeResult = 5
     DiscardResult = 6
+    MergeResult = 7
 
-    def __init__(self, num_files, parent=None, from_rescan=False, repo_path=None, unstaged_files=None, font_size=None, managed_stash_exists=False, viewer_mode=False):
+    def __init__(self, num_files, parent=None, from_rescan=False, repo_path=None, unstaged_files=None, font_size=None, managed_stash_exists=False, managed_stash_sha=None, viewer_mode=False):
         super().__init__(parent)
         self.repo_path = repo_path
         self.unstaged_files = unstaged_files or []
-        self.managed_stash_exists = managed_stash_exists
+        self.managed_stash_sha = managed_stash_sha
+        self.managed_stash_exists = managed_stash_exists or bool(managed_stash_sha)
         self.viewer_mode = viewer_mode
         if font_size is None:
             font_size = int(QSettings("shyjun", "GitInteractiveRebase").value("font_size", 10))
@@ -2057,9 +2059,27 @@ class UnstagedChangesDialog(QDialog):
     def _on_stash(self):
         """Handle 'Stash and proceed'. Only one managed stash is allowed per session."""
         if self.managed_stash_exists:
-            QMessageBox.information(self, "Managed Stash Exists",
-                "This application session has already created a managed stash. Only one managed stash is allowed per session. Please commit, discard, or manually stash the current changes before continuing.")
-            return  # keep dialog open so the user can choose another option
+            # Offer to merge the current unstaged changes into the existing app-created stash
+            box = QMessageBox(self)
+            box.setWindowTitle("App-created stash already exists")
+            box.setIcon(QMessageBox.Question)
+            box.setTextFormat(Qt.RichText)
+            box.setText(
+                "An app-created stash already exists.<br><br>"
+                f"Existing app-created stash:<br><b>{self.managed_stash_sha}</b><br><br>"
+                "Would you like the application to attempt to merge the current unstaged "
+                "changes with the existing app-created stash?<br><br>"
+                "If the merge cannot be completed, the original app-created stash and your "
+                "current unstaged changes will both be preserved."
+            )
+            merge_btn = box.addButton("Merge", QMessageBox.AcceptRole)
+            cancel_btn = box.addButton("Cancel", QMessageBox.RejectRole)
+            box.setDefaultButton(cancel_btn)
+            box.exec()
+            if box.clickedButton() != merge_btn:
+                return  # do nothing, keep dialog open so the user can choose another option
+            self.done(self.MergeResult)
+            return
         self.accept()
 
     def _on_discard(self):
