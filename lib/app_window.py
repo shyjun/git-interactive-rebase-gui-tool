@@ -726,6 +726,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.best_commit_sha = None
         self.marked_shas = set()
         self.browse_limit = 200
+        self.browse_windows = []
         self.app_managed_stash_sha = None
         self.consolidated_diff_start_sha = None
 
@@ -829,6 +830,10 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.settings.setValue(self._sk("isMaximized"), self.isMaximized())
         self.settings.setValue(self._sk("show_stats"), self.show_stats)
         self.settings.setValue(self._sk("show_date"), self.show_date)
+        if self.browse_branch and self.parent():
+            parent = self.parent()
+            if hasattr(parent, 'browse_windows') and self in parent.browse_windows:
+                parent.browse_windows.remove(self)
         super().closeEvent(event)
     def update_window_title(self):
         """Updates window title with branch, HEAD, and path."""
@@ -2439,6 +2444,13 @@ class GitInteractiveRebaseApp(QMainWindow):
             self.repo_path, self.commit_sha, self.app_start_time,
             viewer_mode=True, browse_branch=branch_name, parent=self,
         )
+        # The browse viewer inherits the main window's current zoom and theme.
+        viewer.current_font_size = self.current_font_size
+        viewer.update_font()
+        if viewer.is_dark_theme != self.is_dark_theme:
+            viewer.is_dark_theme = self.is_dark_theme
+            viewer.apply_theme("dark" if self.is_dark_theme else "light")
+        self.browse_windows.append(viewer)
         viewer.show()
 
     def handle_git_fetch(self):
@@ -2595,11 +2607,13 @@ class GitInteractiveRebaseApp(QMainWindow):
     def handle_zoom_in(self):
         self.current_font_size += 1
         self.update_font()
+        self._propagate_browse_font()
 
     def handle_zoom_out(self):
         if self.current_font_size > 6:
             self.current_font_size -= 1
             self.update_font()
+            self._propagate_browse_font()
 
     def on_theme_toggled(self):
         theme = "dark" if self.dark_radio.isChecked() else "light"
@@ -2607,8 +2621,18 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.apply_theme(theme)
         self.settings.setValue("theme", theme)
         self._refresh_toolbar_icons()
+        for viewer in list(self.browse_windows):
+            if viewer.is_dark_theme != self.is_dark_theme:
+                viewer.is_dark_theme = self.is_dark_theme
+                viewer.apply_theme("dark" if self.is_dark_theme else "light")
+            viewer._refresh_toolbar_icons()
         if self.theme_menu_btn.menu():
             self.theme_menu_btn.menu().close()
+
+    def _propagate_browse_font(self):
+        for viewer in list(self.browse_windows):
+            viewer.current_font_size = self.current_font_size
+            viewer.update_font()
 
     def on_origin_visibility_toggled(self):
         visible = self.show_origin_cb.isChecked()
