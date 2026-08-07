@@ -55,7 +55,7 @@ from lib.dialogs import (
     ConfirmMoveFileDialog, ConfirmRemoveFileOnwardsDialog, AggressiveRemoveConfirmationDialog,
     RefineFileSelectDialog, RefineChangesDialog, NewCommitMessageDialog,
     DiffView, StatsItemDelegate, DiffSearchBar, UnstagedChangesDialog, BranchDiffDialog, StashNoticeDialog,
-    CherryPickDialog
+    CherryPickDialog, BrowseBranchDialog
 )
 from lib.utils import get_assets_path
 
@@ -708,7 +708,7 @@ def highlight_button_temporarily(button, duration_ms=3000, blinks=0, color=None)
 
 
 class GitInteractiveRebaseApp(QMainWindow):
-    def __init__(self, repo_path, commit_sha, app_start_time, base_branch=None, viewer_mode=False, browse_branch=None, parent=None):
+    def __init__(self, repo_path, commit_sha, app_start_time, base_branch=None, viewer_mode=False, browse_branch=None, parent=None, browse_limit=50):
         super().__init__(parent)
         self.repo_path = repo_path
         self.commit_sha = commit_sha
@@ -725,7 +725,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.last_head = None
         self.best_commit_sha = None
         self.marked_shas = set()
-        self.browse_limit = 200
+        self.browse_limit = browse_limit
         self.browse_windows = []
         self.app_managed_stash_sha = None
         self.consolidated_diff_start_sha = None
@@ -839,7 +839,8 @@ class GitInteractiveRebaseApp(QMainWindow):
         """Updates window title with branch, HEAD, and path."""
         app_time = self.app_start_time if self.app_start_time else "N/A"
         if self.browse_branch:
-            title = f"Browse Branch: {self.browse_branch} (read-only), path={self.repo_path}"
+            title = (f"Browse Branch: {self.browse_branch} (read-only, latest "
+                     f"{self.browse_limit}), path={self.repo_path}")
             self.setWindowTitle(title)
             return
         branch = get_current_branch(self.repo_path)
@@ -2428,13 +2429,15 @@ class GitInteractiveRebaseApp(QMainWindow):
             QMessageBox.critical(self, "Error", f"An error occurred while cherry-picking: {str(e)}")
 
     def handle_browse_branch(self):
-        """Opens a read-only viewer window showing another branch's full history."""
-        branch_name, ok = QInputDialog.getText(
-            self, "Browse Branch", "Enter branch name to browse:"
-        )
-        if not ok or not branch_name.strip():
+        """Opens a read-only viewer window showing another branch's recent history.
+        Prompts for the branch name and the number of commits to load."""
+        dialog = BrowseBranchDialog(self.repo_path, parent=self)
+        if dialog.exec() != QDialog.Accepted:
             return
-        branch_name = branch_name.strip()
+        branch_name = dialog.branch_name
+        commit_limit = dialog.commit_limit
+        if not branch_name:
+            return
         if not branch_exists(self.repo_path, branch_name):
             QMessageBox.critical(self, "Branch does not exist",
                                  f"The branch '{branch_name}' does not exist.")
@@ -2443,6 +2446,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         viewer = GitInteractiveRebaseApp(
             self.repo_path, self.commit_sha, self.app_start_time,
             viewer_mode=True, browse_branch=branch_name, parent=self,
+            browse_limit=commit_limit,
         )
         # The browse viewer inherits the main window's current zoom and theme.
         viewer.current_font_size = self.current_font_size
