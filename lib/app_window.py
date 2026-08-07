@@ -2725,8 +2725,8 @@ class GitInteractiveRebaseApp(QMainWindow):
             self.filewise_diff_view.setFont(font)
         if hasattr(self, 'filewise_file_list'):
             self.filewise_file_list.setFont(font)
-        # Save persistence
-        self.settings.setValue(self._sk("font_size"), self.current_font_size)
+        # Save persistence (font size is app-wide, not window-scoped)
+        self.settings.setValue("font_size", self.current_font_size)
         # Update status bar zoom label
         if hasattr(self, 'zoom_percent_label'):
             default_size = 10
