@@ -1217,6 +1217,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self._set_pr_diff_icon(self.pr_diff_btn)
         self.cherry_pick_btn = QPushButton("Cherry-pick 1 Commit")
         self.cherry_pick_btn.setToolTip("Cherry-pick a single commit by SHA.")
+        self._set_cherry_pick_icon(self.cherry_pick_btn)
         self.browse_branch_btn = QPushButton("Browse Branch")
         self.browse_branch_btn.setToolTip("Open a read-only viewer of another branch's full history.")
         self.pop_stash_btn = QPushButton("Pop app created stash")
@@ -1992,6 +1993,9 @@ class GitInteractiveRebaseApp(QMainWindow):
     def _set_pr_diff_icon(self, button):
         self._apply_toolbar_icon(button, self._draw_compare)
 
+    def _set_cherry_pick_icon(self, button):
+        self._apply_toolbar_icon(button, self._draw_cherry_pick)
+
     def _set_pop_stash_icon(self, button):
         self._apply_toolbar_icon(button, self._draw_pop_stash)
 
@@ -2021,6 +2025,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self._set_exit_icon(self.exit_btn)
         self._set_exit_viewer_mode_icon(self.exit_viewer_mode_btn)
         self._set_pr_diff_icon(self.pr_diff_btn)
+        self._set_cherry_pick_icon(self.cherry_pick_btn)
         self._set_pop_stash_icon(self.pop_stash_btn)
 
     def _draw_eye_slash(self, painter, color):
@@ -2100,6 +2105,23 @@ class GitInteractiveRebaseApp(QMainWindow):
         painter.drawLine(8, 10, 12, 5)
         painter.drawEllipse(2.8, 2.8, 2.6, 2.6)
         painter.drawEllipse(10.6, 2.8, 2.6, 2.6)
+
+    def _draw_cherry_pick(self, painter, color):
+        # A "replay" arrow picking a commit node placed onto the current line:
+        # show a commit dot being copied onto a downward arrow into a branch line.
+        pen = QPen(color, 1.7)
+        pen.setCapStyle(Qt.RoundCap)
+        pen.setJoinStyle(Qt.RoundJoin)
+        painter.setPen(pen)
+        painter.setBrush(Qt.NoBrush)
+
+        # destination branch line
+        painter.drawLine(3.0, 12.5, 13.0, 12.5)
+        painter.drawEllipse(3.0, 10.7, 3.6, 3.6)
+        # arrow being dropped onto the line (picking)
+        painter.drawLine(8.0, 3.5, 8.0, 8.5)
+        painter.drawLine(5.5, 7.0, 8.0, 9.5)
+        painter.drawLine(10.5, 7.0, 8.0, 9.5)
 
     def _draw_pop_stash(self, painter, color):
         pen = QPen(color, 1.7)
