@@ -1293,6 +1293,21 @@ class GitInteractiveRebaseApp(QMainWindow):
                         self.pr_diff_btn, self.cherry_pick_btn, self.rescan_btn]:
                 btn.setVisible(False)
 
+        # Browse-mode checkbox selection controls.
+        self.browse_select_btn = QPushButton("Select commits")
+        self.browse_select_btn.setToolTip("Enter checkbox selection mode on the commit list.")
+        self.browse_select_btn.clicked.connect(self.enter_browse_multi_select)
+        self.browse_cancel_select_btn = QPushButton("Cancel selection")
+        self.browse_cancel_select_btn.setToolTip("Exit checkbox selection mode.")
+        self.browse_cancel_select_btn.setEnabled(False)
+        self.browse_cancel_select_btn.clicked.connect(self.exit_browse_multi_select)
+        for btn in [self.browse_select_btn, self.browse_cancel_select_btn]:
+            btn.setMinimumHeight(40)
+            btn.setMinimumWidth(100)
+            btn.setVisible(bool(self.browse_branch))
+        controls_layout.addWidget(self.browse_select_btn)
+        controls_layout.addWidget(self.browse_cancel_select_btn)
+
         layout.addLayout(controls_layout)
 
         # Add failsafe options as a distinct row below the other controls
@@ -3495,6 +3510,18 @@ class GitInteractiveRebaseApp(QMainWindow):
     def handle_cancel_multi_select(self):
         """Cancels multi-select mode without merging."""
         self.exit_multi_select_mode()
+
+    def enter_browse_multi_select(self):
+        """Enters checkbox multi-select mode in the browse window."""
+        self.enter_multi_select_mode()
+        self.browse_select_btn.setEnabled(False)
+        self.browse_cancel_select_btn.setEnabled(True)
+
+    def exit_browse_multi_select(self):
+        """Exits checkbox multi-select mode in the browse window."""
+        self.exit_multi_select_mode()
+        self.browse_select_btn.setEnabled(True)
+        self.browse_cancel_select_btn.setEnabled(False)
 
     def handle_squash_selected(self):
         """Collects checked commits, validates contiguity, confirms, then squashes."""
