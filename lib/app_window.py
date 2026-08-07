@@ -54,7 +54,8 @@ from lib.dialogs import (
     MultiSquashDialog, ProgressDialog, DropFileFromCommitDialog, ConfirmDropFileDialog,
     ConfirmMoveFileDialog, ConfirmRemoveFileOnwardsDialog, AggressiveRemoveConfirmationDialog,
     RefineFileSelectDialog, RefineChangesDialog, NewCommitMessageDialog,
-    DiffView, StatsItemDelegate, DiffSearchBar, UnstagedChangesDialog, BranchDiffDialog, StashNoticeDialog
+    DiffView, StatsItemDelegate, DiffSearchBar, UnstagedChangesDialog, BranchDiffDialog, StashNoticeDialog,
+    CherryPickDialog
 )
 from lib.utils import get_assets_path
 
@@ -1172,6 +1173,8 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.pr_diff_btn = QPushButton("View PR Diff")
         self.pr_diff_btn.setToolTip("View the branch diff vs its base.")
         self._set_pr_diff_icon(self.pr_diff_btn)
+        self.cherry_pick_btn = QPushButton("Cherry-pick 1 Commit")
+        self.cherry_pick_btn.setToolTip("Cherry-pick a single commit by SHA.")
         self.pop_stash_btn = QPushButton("Pop app created stash")
         self.pop_stash_btn.setToolTip("Pop the app-created stash (git stash pop).")
         self._set_pop_stash_icon(self.pop_stash_btn)
@@ -1199,7 +1202,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.custom_reset_btn = QPushButton("Enter commit id to reset hard to")
         self.custom_reset_btn.setToolTip("Reset hard to a commit id you enter.")
 
-        for btn in [self.toggle_diff_btn, self.help_btn, self.exit_viewer_mode_btn, self.rescan_btn, self.pr_diff_btn, self.pop_stash_btn, self.check_update_btn, self.undo_btn, self.refresh_btn, self.exit_btn, self.theme_menu_btn]:
+        for btn in [self.toggle_diff_btn, self.help_btn, self.exit_viewer_mode_btn, self.rescan_btn, self.pr_diff_btn, self.cherry_pick_btn, self.pop_stash_btn, self.check_update_btn, self.undo_btn, self.refresh_btn, self.exit_btn, self.theme_menu_btn]:
             btn.setMinimumHeight(40)
             btn.setMinimumWidth(100)
         self.failsafe_btn.setMinimumHeight(40)
@@ -1211,6 +1214,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.exit_viewer_mode_btn.clicked.connect(self.handle_exit_viewer_mode)
         self.rescan_btn.clicked.connect(self.handle_rescan_repo)
         self.pr_diff_btn.clicked.connect(self.handle_view_branch_diff)
+        self.cherry_pick_btn.clicked.connect(self.handle_cherry_pick)
         self.pop_stash_btn.clicked.connect(self.handle_pop_managed_stash)
         self.undo_btn.clicked.connect(self.handle_undo)
         self.check_update_btn.clicked.connect(self.handle_check_for_updates)
@@ -1228,6 +1232,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         controls_layout.addStretch()
         controls_layout.addWidget(self.pop_stash_btn)
         controls_layout.addWidget(self.pr_diff_btn)
+        controls_layout.addWidget(self.cherry_pick_btn)
         controls_layout.addWidget(self.exit_viewer_mode_btn)
         controls_layout.addWidget(self.rescan_btn)
         controls_layout.addWidget(self.undo_btn)
@@ -2297,6 +2302,65 @@ class GitInteractiveRebaseApp(QMainWindow):
                 self.perform_reset(sha)
             else:
                 print(f"Cancelled custom reset to {sha}.")
+
+    def handle_cherry_pick(self):
+        """Cherry-picks a single commit entered by the user."""
+        import re
+        dialog = CherryPickDialog(self.current_font_size, self)
+        if dialog.exec() != QDialog.Accepted:
+            print("Cancelled cherry-pick.")
+            return
+
+        sha = dialog.get_sha()
+        if not re.fullmatch(r"[0-9a-fA-F]{4,40}", sha):
+            QMessageBox.warning(self, "Invalid Commit SHA", "Please enter a valid commit SHA.")
+            return
+
+        if not self._check_not_viewer_mode():
+            return
+        if not self._check_head_unchanged():
+            return
+        if not self._check_no_unstaged_changes():
+            return
+
+        cmd = ["git", "cherry-pick"]
+        no_commit = dialog.chosen == "no_commit"
+        if no_commit:
+            cmd.append("--no-commit")
+        cmd.append(sha)
+
+        try:
+            result = subprocess.run(
+                cmd, cwd=self.repo_path, capture_output=True, text=True,
+                encoding='utf-8', errors='replace'
+            )
+            if result.returncode == 0:
+                self.load_history()
+                if no_commit:
+                    QMessageBox.information(
+                        self, "Success",
+                        "Changes have been applied without creating a commit."
+                    )
+                else:
+                    QMessageBox.information(
+                        self, "Success", "Cherry-pick completed successfully."
+                    )
+                return
+
+            try:
+                subprocess.run(
+                    ["git", "cherry-pick", "--abort"], cwd=self.repo_path,
+                    capture_output=True, text=True, encoding='utf-8', errors='replace'
+                )
+            except Exception:
+                pass
+            self.load_history()
+            QMessageBox.critical(
+                self, "Cherry-pick Failed",
+                f"Cherry-pick failed.\n\n{result.stderr.strip()}"
+            )
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"An error occurred while cherry-picking: {str(e)}")
 
     def handle_git_fetch(self):
         """Runs git fetch."""
