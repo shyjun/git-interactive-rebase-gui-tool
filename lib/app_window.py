@@ -1283,16 +1283,6 @@ class GitInteractiveRebaseApp(QMainWindow):
         controls_layout.addWidget(self.cherry_pick_btn)
         controls_layout.addWidget(self.browse_branch_btn)
         controls_layout.addWidget(self.exit_viewer_mode_btn)
-        controls_layout.addWidget(self.rescan_btn)
-        controls_layout.addWidget(self.undo_btn)
-        controls_layout.addWidget(self.refresh_btn)
-        controls_layout.addWidget(self.exit_btn)
-
-        if self.browse_branch:
-            for btn in [self.theme_menu_btn, self.help_btn, self.check_update_btn,
-                        self.pr_diff_btn, self.cherry_pick_btn, self.rescan_btn]:
-                btn.setVisible(False)
-
         # Browse-mode checkbox selection controls.
         self.browse_select_btn = QPushButton("Select commits")
         self.browse_select_btn.setToolTip("Enter checkbox selection mode on the commit list.")
@@ -1305,8 +1295,19 @@ class GitInteractiveRebaseApp(QMainWindow):
             btn.setMinimumHeight(40)
             btn.setMinimumWidth(100)
             btn.setVisible(bool(self.browse_branch))
+
+        controls_layout.addWidget(self.rescan_btn)
+        controls_layout.addWidget(self.undo_btn)
         controls_layout.addWidget(self.browse_select_btn)
         controls_layout.addWidget(self.browse_cancel_select_btn)
+        controls_layout.addWidget(self.refresh_btn)
+        controls_layout.addWidget(self.exit_btn)
+
+        if self.browse_branch:
+            for btn in [self.theme_menu_btn, self.help_btn, self.check_update_btn,
+                        self.pr_diff_btn, self.cherry_pick_btn, self.rescan_btn,
+                        self.undo_btn]:
+                btn.setVisible(False)
 
         layout.addLayout(controls_layout)
 
