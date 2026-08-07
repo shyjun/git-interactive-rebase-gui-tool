@@ -1220,6 +1220,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self._set_cherry_pick_icon(self.cherry_pick_btn)
         self.browse_branch_btn = QPushButton("Browse Branch")
         self.browse_branch_btn.setToolTip("Open a read-only viewer of another branch's full history.")
+        self._set_browse_branch_icon(self.browse_branch_btn)
         self.pop_stash_btn = QPushButton("Pop app created stash")
         self.pop_stash_btn.setToolTip("Pop the app-created stash (git stash pop).")
         self._set_pop_stash_icon(self.pop_stash_btn)
@@ -1996,6 +1997,9 @@ class GitInteractiveRebaseApp(QMainWindow):
     def _set_cherry_pick_icon(self, button):
         self._apply_toolbar_icon(button, self._draw_cherry_pick)
 
+    def _set_browse_branch_icon(self, button):
+        self._apply_toolbar_icon(button, self._draw_browse_branch)
+
     def _set_pop_stash_icon(self, button):
         self._apply_toolbar_icon(button, self._draw_pop_stash)
 
@@ -2026,6 +2030,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self._set_exit_viewer_mode_icon(self.exit_viewer_mode_btn)
         self._set_pr_diff_icon(self.pr_diff_btn)
         self._set_cherry_pick_icon(self.cherry_pick_btn)
+        self._set_browse_branch_icon(self.browse_branch_btn)
         self._set_pop_stash_icon(self.pop_stash_btn)
 
     def _draw_eye_slash(self, painter, color):
@@ -2122,6 +2127,22 @@ class GitInteractiveRebaseApp(QMainWindow):
         painter.drawLine(8.0, 3.5, 8.0, 8.5)
         painter.drawLine(5.5, 7.0, 8.0, 9.5)
         painter.drawLine(10.5, 7.0, 8.0, 9.5)
+
+    def _draw_browse_branch(self, painter, color):
+        pen = QPen(color, 1.6)
+        pen.setCapStyle(Qt.RoundCap)
+        pen.setJoinStyle(Qt.RoundJoin)
+        painter.setPen(pen)
+        painter.setBrush(QColor(color))
+
+        # commit-graph: a vertical trunk with a branch splitting off and
+        # three commits (filled dots) on it — reads as "browse this branch's history"
+        painter.drawLine(3.0, 14.0, 3.0, 6.5)
+        painter.drawLine(3.0, 8.0, 11.5, 8.0)
+        painter.drawLine(11.5, 8.0, 11.5, 3.0)
+        painter.drawEllipse(1.8, 12.8, 2.4, 2.4)   # trunk commit
+        painter.drawEllipse(1.8, 4.8, 2.4, 2.4)     # trunk commit
+        painter.drawEllipse(10.8, 1.8, 2.4, 2.4)    # branch commit
 
     def _draw_pop_stash(self, painter, color):
         pen = QPen(color, 1.7)
