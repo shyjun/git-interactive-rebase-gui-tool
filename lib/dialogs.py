@@ -24,7 +24,7 @@ from lib.git_helpers import (
     get_full_commit_message, get_commit_metadata, get_revert_commit_message,
     get_commit_file_stats, get_file_diff_between,
     get_unstaged_diff, get_unstaged_file_stats, get_unstaged_file_diff,
-    get_current_branch, get_full_head_sha
+    get_current_branch, get_full_head_sha, classify_tracked_changes
 )
 from lib.utils import get_theme_colors
 
@@ -2055,8 +2055,8 @@ class UnstagedChangesDialog(QDialog):
         self.amend_btn = QPushButton(amend_text)
         self.amend_btn.setToolTip("Amend all changes into the HEAD commit (--amend --no-edit).")
         
-        self.discard_btn = QPushButton("Discard the changes (git checkout .)")
-        self.discard_btn.setToolTip("Discard all unstaged changes in tracked files (git checkout .). This cannot be undone.")
+        self.discard_btn = QPushButton("Discard unstaged changes (git checkout .), staged changes if any is untouched")
+        self.discard_btn.setToolTip("Discard only unstaged (worktree) changes in tracked files. Staged changes are left untouched. This cannot be undone.")
         
         viewer_label = "Switch to" if from_rescan else "Start in"
         self.viewer_mode_btn = QPushButton(f"{viewer_label} Viewer Mode (No history-modifying operations will be allowed)")
@@ -2142,7 +2142,38 @@ class UnstagedChangesDialog(QDialog):
         self.accept()
 
     def _on_discard(self):
-        """Handle 'Discard the changes (git checkout .)'. Destructive, so confirm first."""
+        """Handle 'Discard unstaged changes (git checkout .)'. Destructive, so confirm first."""
+        if not self.repo_path:
+            return
+        has_staged, has_unstaged = classify_tracked_changes(self.repo_path)
+
+        # Only staged changes: nothing to discard — tell the user to commit instead.
+        if has_staged and not has_unstaged:
+            QMessageBox.information(
+                self,
+                "Staged Changes",
+                "All tracked changes are in the staged state.\n\n"
+                "Discarding won't remove staged changes. Please commit them."
+            )
+            return
+
+        if has_staged and has_unstaged:
+            # Both staged and unstaged: warn that only unstaged will be lost.
+            answer = QMessageBox.warning(
+                self,
+                "Discard Changes",
+                "There are changes in the staged and unstaged areas.\n"
+                "If you continue, the unstaged changes will be lost, "
+                "and staged changes will not be touched. Are you sure?\n\n"
+                "This can't be undone.",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No,
+            )
+            if answer == QMessageBox.Yes:
+                self.done(self.DiscardResult)
+            return
+
+        # Only unstaged changes: keep the existing flow.
         answer = QMessageBox.warning(
             self,
             "Discard Changes",

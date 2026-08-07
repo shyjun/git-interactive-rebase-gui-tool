@@ -367,6 +367,36 @@ def has_uncommitted_changes(repo_path):
     except subprocess.CalledProcessError:
         return False
 
+def classify_tracked_changes(repo_path):
+    """Returns (has_staged, has_unstaged) for tracked changes.
+
+    Untracked files are ignored (consistent with the rest of the app).
+    Porcelain XY columns: X is the index (staged) state, Y is the worktree
+    (unstaged) state.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "status", "--porcelain", "--untracked-files=no", "--ignore-submodules=all"],
+            cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace'
+        )
+    except subprocess.CalledProcessError:
+        return False, False
+
+    has_staged = False
+    has_unstaged = False
+    for line in result.stdout.split('\n'):
+        if len(line) < 2:
+            continue
+        x = line[0]
+        y = line[1]
+        if x not in (' ', '?'):
+            has_staged = True
+        if y not in (' ', '?'):
+            has_unstaged = True
+        if has_staged and has_unstaged:
+            break
+    return has_staged, has_unstaged
+
 from datetime import datetime
 
 # Sentinel returned by stash_changes when there was nothing to stash (a no-op),
