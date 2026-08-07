@@ -2437,6 +2437,8 @@ class GitInteractiveRebaseApp(QMainWindow):
         branch_name = dialog.branch_name
         commit_limit = dialog.commit_limit
         if not branch_name:
+            QMessageBox.warning(self, "No branch name",
+                                "Please enter a branch name to browse.")
             return
         if not branch_exists(self.repo_path, branch_name):
             QMessageBox.critical(self, "Branch does not exist",
