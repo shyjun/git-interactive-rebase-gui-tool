@@ -1690,6 +1690,65 @@ class NewCommitMessageDialog(QDialog):
     def on_text_changed(self):
         self.proceed_btn.setEnabled(bool(self.message_edit.toPlainText().strip()))
 
+class CherryPickDialog(QDialog):
+    """Dialog for entering a commit SHA to cherry-pick."""
+    def __init__(self, font_size=10, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Cherry-pick Commit")
+        self.setMinimumSize(500, 160)
+        self.font_size = font_size
+        self.chosen = None
+
+        layout = QVBoxLayout(self)
+
+        self.label = QLabel("Enter the commit SHA.")
+        self.label.setWordWrap(True)
+        layout.addWidget(self.label)
+
+        self.sha_edit = QLineEdit()
+        self.sha_edit.setPlaceholderText("Commit SHA")
+        self.sha_edit.setFont(QFont("Courier New", self.font_size))
+        self.sha_edit.setMinimumHeight(36)
+        layout.addWidget(self.sha_edit)
+
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+
+        self.cherry_pick_btn = QPushButton("Cherry-pick")
+        self.no_commit_btn = QPushButton("Cherry-pick (--no-commit)")
+        self.cancel_btn = QPushButton("Cancel")
+
+        for btn in [self.cherry_pick_btn, self.no_commit_btn, self.cancel_btn]:
+            btn.setMinimumWidth(120)
+            btn.setMinimumHeight(40)
+            btn.setProperty("class", "dialog-btn")
+
+        self.cherry_pick_btn.clicked.connect(lambda: self._choose("normal"))
+        self.no_commit_btn.clicked.connect(lambda: self._choose("no_commit"))
+        self.cancel_btn.clicked.connect(self.reject)
+
+        self.sha_edit.textChanged.connect(self.on_text_changed)
+        self.on_text_changed()
+
+        btn_layout.addWidget(self.cherry_pick_btn)
+        btn_layout.addWidget(self.no_commit_btn)
+        btn_layout.addWidget(self.cancel_btn)
+        btn_layout.addStretch()
+
+        layout.addLayout(btn_layout)
+
+    def _choose(self, choice):
+        self.chosen = choice
+        self.accept()
+
+    def get_sha(self):
+        return self.sha_edit.text().strip()
+
+    def on_text_changed(self):
+        has_text = bool(self.sha_edit.text().strip())
+        self.cherry_pick_btn.setEnabled(has_text)
+        self.no_commit_btn.setEnabled(has_text)
+
 class RevertCommitDialog(QDialog):
     """Dialog for editing the commit message before reverting a commit."""
     def __init__(self, sha, revert_message, font_size=10, parent=None):
