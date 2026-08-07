@@ -1277,6 +1277,17 @@ class GitInteractiveRebaseApp(QMainWindow):
         # Single row of main buttons
         controls_layout.addWidget(self.theme_menu_btn)
         controls_layout.addWidget(self.toggle_diff_btn)
+        # Browse-mode cherry-pick of the selected commit(s); placed right after
+        # the show/hide diff button.
+        self.browse_cherry_pick_btn = QPushButton("Cherry-pick selected commit(s)")
+        self.browse_cherry_pick_btn.setToolTip(
+            "Cherry-pick the currently selected commit (single) or the checked "
+            "commits (in multi-select mode).")
+        self.browse_cherry_pick_btn.clicked.connect(self.handle_browse_cherry_pick)
+        self.browse_cherry_pick_btn.setMinimumHeight(40)
+        self.browse_cherry_pick_btn.setMinimumWidth(100)
+        self.browse_cherry_pick_btn.setVisible(bool(self.browse_branch))
+        controls_layout.addWidget(self.browse_cherry_pick_btn)
         controls_layout.addWidget(self.help_btn)
         controls_layout.addWidget(self.check_update_btn)
         controls_layout.addStretch()
@@ -1285,7 +1296,6 @@ class GitInteractiveRebaseApp(QMainWindow):
         controls_layout.addWidget(self.cherry_pick_btn)
         controls_layout.addWidget(self.browse_branch_btn)
         controls_layout.addWidget(self.exit_viewer_mode_btn)
-        # Browse-mode checkbox selection controls.
         self.browse_select_btn = QPushButton("Select commits")
         self.browse_select_btn.setToolTip("Enter checkbox selection mode on the commit list.")
         self.browse_select_btn.clicked.connect(self.enter_browse_multi_select)
@@ -2517,6 +2527,173 @@ class GitInteractiveRebaseApp(QMainWindow):
             viewer.apply_theme("dark" if self.is_dark_theme else "light")
         self.browse_windows.append(viewer)
         viewer.show()
+
+    def _collect_browse_cherry_pick_shas(self):
+        """Returns the SHAs to cherry-pick from the browse window.
+
+        In multi-select mode, gathers the checked commits (in list order, which
+        is newest first). Otherwise returns the single currently selected commit.
+        """
+        if self.multi_select_mode:
+            shas = [
+                self.list_widget.item(i).text().split()[0]
+                for i in range(self.list_widget.count())
+                if self.list_widget.item(i).checkState() == Qt.Checked
+            ]
+        else:
+            item = self.list_widget.currentItem()
+            shas = [item.text().split()[0]] if item else []
+        return shas
+
+    def _run_cherry_pick(self, sha):
+        """Runs 'git cherry-pick <sha>'. Returns (success, stderr_or_empty)."""
+        try:
+            result = subprocess.run(
+                ["git", "cherry-pick", sha], cwd=self.repo_path,
+                capture_output=True, text=True, encoding='utf-8', errors='replace'
+            )
+        except Exception as e:
+            return False, str(e)
+        if result.returncode == 0:
+            return True, ""
+        return False, result.stderr.strip()
+
+    def _run_abort_cherry_pick(self):
+        """Runs 'git cherry-pick --abort' silently."""
+        try:
+            subprocess.run(
+                ["git", "cherry-pick", "--abort"], cwd=self.repo_path,
+                capture_output=True, text=True, encoding='utf-8', errors='replace'
+            )
+        except Exception:
+            pass
+
+    def handle_browse_cherry_pick(self):
+        """Cherry-picks the selected commit(s) from the browse window.
+
+        Single selection: cherry-pick that commit directly (with the same
+        standard pre-checks as the main window).
+        Multi selection: confirm the apply order, then apply one by one,
+        handling each failure, and report a summary at the end.
+        """
+        if not self._check_head_unchanged():
+            return
+        if not self._check_no_unstaged_changes():
+            return
+
+        shas = self._collect_browse_cherry_pick_shas()
+        if not shas:
+            QMessageBox.warning(self, "No Selection",
+                                "Please select a commit to cherry-pick.")
+            return
+
+        if len(shas) == 1:
+            self._cherry_pick_single(shas[0])
+            return
+
+        self._cherry_pick_sequence(shas)
+
+    def _cherry_pick_single(self, sha):
+        """Cherry-picks a single commit with the standard safety checks."""
+        # Safety checks: repo unchanged and no unstaged changes.
+        if not self._check_head_unchanged():
+            return
+        if not self._check_no_unstaged_changes():
+            return
+
+        success, err = self._run_cherry_pick(sha)
+        if success:
+            self.load_history()
+            QMessageBox.information(self, "Success", "Cherry-pick completed successfully.")
+        else:
+            self._run_abort_cherry_pick()
+            self.load_history()
+            QMessageBox.critical(
+                self, "Cherry-pick Failed",
+                f"Cherry-pick failed.\n\n{err}"
+            )
+
+    def _cherry_pick_sequence(self, shas):
+        """Cherry-picks a list of SHAs one by one, asking how to proceed on
+        each failure, then shows a summary."""
+        # (Safety checks already done by the caller.)
+        order_str = ", ".join(sha[:7] for sha in shas)
+        box = QMessageBox(self)
+        box.setWindowTitle("Cherry-pick Selected Commits")
+        box.setText(
+            "Cherry-pick will be applied in this order:\n\n"
+            f"A: {order_str}\n\n"
+            "Continue?"
+        )
+        yes_btn = box.addButton("Yes", QMessageBox.YesRole)
+        no_btn = box.addButton("No", QMessageBox.NoRole)
+        box.exec()
+        if box.clickedButton() is not yes_btn:
+            return
+
+        head_before = get_full_head_sha(self.repo_path)
+
+        cherry_picked_total = len(shas)
+        cherry_picked = 0
+        skipped = 0
+        # 'not_cherry_picked' counts commits that were neither applied nor skipped
+        # (failures the user stopped on, plus everything left after a stop/undo).
+        not_cherry_picked = 0
+        stop = False
+
+        for sha in shas:
+            success, _ = self._run_cherry_pick(sha)
+            if success:
+                cherry_picked += 1
+                continue
+
+            # A cherry-pick failed. Offer recovery choices.
+            remaining_after = cherry_picked_total - cherry_picked - skipped - 1
+            box = QMessageBox(self)
+            box.setWindowTitle("Cherry-pick Failed")
+            box.setText(
+                f"<b>{sha[:10]}</b> cherry-pick failed.\n\n"
+                f"Successfully cherry-picked so far: <b>{cherry_picked}</b>\n"
+                f"Pending commits: <b>{remaining_after}</b>"
+            )
+            undo_btn = box.addButton("Undo entire cherry-pick", QMessageBox.DestructiveRole)
+            skip_btn = box.addButton("Skip this and continue with next", QMessageBox.AcceptRole)
+            stop_btn = box.addButton("Stop cherry-pick here, I'll cherry-pick manually",
+                                     QMessageBox.RejectRole)
+            box.exec()
+            clicked = box.clickedButton()
+
+            if clicked is undo_btn:
+                subprocess.run(
+                    ["git", "reset", "--hard", head_before], cwd=self.repo_path,
+                    capture_output=True, text=True, encoding='utf-8', errors='replace'
+                )
+                self._run_abort_cherry_pick()
+                # Nothing remains applied; skipped commits were never applied.
+                skipped += 1  # the failed one counts as skipped
+                cherry_picked = 0
+                stop = True
+            elif clicked is skip_btn:
+                self._run_abort_cherry_pick()
+                skipped += 1
+            else:  # stop
+                self._run_abort_cherry_pick()
+                skipped += 1
+                stop = True
+
+            if stop:
+                break
+
+        # Everything not cherry-picked or skipped is "not cherry-picked".
+        not_cherry_picked = cherry_picked_total - cherry_picked - skipped
+
+        self.load_history()
+        QMessageBox.information(
+            self, "Cherry-pick Summary",
+            f"Cherry-picked: <b>{cherry_picked}</b>\n"
+            f"Skipped: <b>{skipped}</b>\n"
+            f"Not cherry-picked: <b>{not_cherry_picked}</b>"
+        )
 
     def handle_git_fetch(self):
         """Runs git fetch."""
