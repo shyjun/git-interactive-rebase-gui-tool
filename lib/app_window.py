@@ -2689,7 +2689,11 @@ class GitInteractiveRebaseApp(QMainWindow):
                 "separator": "#CCCCCC" # Neutral Slate Gray
             }
 
-        QApplication.instance().setStyleSheet(get_theme_stylesheet(theme_name))
+        # Theme is app-global; only (re)apply the stylesheet when it actually
+        # changes, otherwise re-polishing every window would reset their fonts.
+        new_stylesheet = get_theme_stylesheet(theme_name)
+        if QApplication.instance().styleSheet() != new_stylesheet:
+            QApplication.instance().setStyleSheet(new_stylesheet)
 
         # Update highlighter colors according to the theme
         if hasattr(self, 'side_diff_view'):
