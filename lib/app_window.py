@@ -725,6 +725,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.last_head = None
         self.best_commit_sha = None
         self.marked_shas = set()
+        self.browse_limit = 200
         self.app_managed_stash_sha = None
         self.consolidated_diff_start_sha = None
 
@@ -5545,10 +5546,11 @@ for i, filename in enumerate(files):
 
         repo_path = self.repo_path
         branch = self.browse_branch
+        browse_limit = self.browse_limit
 
         def worker():
             try:
-                history = get_branch_history(repo_path, branch)
+                history = get_branch_history(repo_path, branch, limit=browse_limit)
                 branch_map = get_local_branches_map(repo_path)
                 self._browse_load_result = (True, history, branch_map)
             except Exception as e:
