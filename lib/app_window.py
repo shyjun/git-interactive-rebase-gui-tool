@@ -780,7 +780,12 @@ class GitInteractiveRebaseApp(QMainWindow):
     def load_settings(self):
         """Loads persistent user settings like font size and theme."""
         # Diff Tab
-        diff_tab_index = self.settings.value("diff_tab_index", 0, type=int)
+        if self.browse_branch:
+            # Always land on the plain-diff tab in browse mode so a diff is
+            # visible immediately (the file-wise pane looks empty without a selection).
+            diff_tab_index = 0
+        else:
+            diff_tab_index = self.settings.value("diff_tab_index", 0, type=int)
         if hasattr(self, 'diff_tab_widget'):
             self.diff_tab_widget.setCurrentIndex(diff_tab_index)
 
