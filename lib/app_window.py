@@ -737,13 +737,13 @@ class GitInteractiveRebaseApp(QMainWindow):
         # clobber each other's saved size/position across sessions.
         self.settings_scope = "browse" if browse_branch else "main"
         self.current_font_size = int(self.settings.value("font_size", 10))
-        self.show_diffs = self.settings.value("show_diffs", False, type=bool)
-        self.show_origin_options = self.settings.value("show_origin_options", False, type=bool)
-        self.show_rebase_options = self.settings.value("show_rebase_options", False, type=bool)
-        self.show_squash_options = self.settings.value("show_squash_options", True, type=bool)
-        self.show_local_branches = self.settings.value("show_local_branches", False, type=bool)
-        self.show_stats = self.settings.value("show_stats", True, type=bool)
-        self.show_date = self.settings.value("show_date", True, type=bool)
+        self.show_diffs = self.settings.value(self._sk("show_diffs"), False, type=bool)
+        self.show_origin_options = self.settings.value(self._sk("show_origin_options"), False, type=bool)
+        self.show_rebase_options = self.settings.value(self._sk("show_rebase_options"), False, type=bool)
+        self.show_squash_options = self.settings.value(self._sk("show_squash_options"), True, type=bool)
+        self.show_local_branches = self.settings.value(self._sk("show_local_branches"), False, type=bool)
+        self.show_stats = self.settings.value(self._sk("show_stats"), True, type=bool)
+        self.show_date = self.settings.value(self._sk("show_date"), True, type=bool)
 
         # Browse mode is a strict read-only history viewer: force-hide the
         # mutating groups so the user only sees the commit list + diffs.
@@ -778,6 +778,11 @@ class GitInteractiveRebaseApp(QMainWindow):
         if self.viewer_mode and not self.browse_branch:
             QTimer.singleShot(0, self._notify_viewer_mode)
 
+    def _sk(self, key):
+        """Scopes a settings key by window type so main and browse windows keep
+        independent saved options (e.g. show_date, show_stats)."""
+        return f"{self.settings_scope}/{key}"
+
     def load_settings(self):
         """Loads persistent user settings like font size and theme."""
         # Diff Tab
@@ -786,7 +791,7 @@ class GitInteractiveRebaseApp(QMainWindow):
             # visible immediately (the file-wise pane looks empty without a selection).
             diff_tab_index = 0
         else:
-            diff_tab_index = self.settings.value("diff_tab_index", 0, type=int)
+            diff_tab_index = self.settings.value(self._sk("diff_tab_index"), 0, type=int)
         if hasattr(self, 'diff_tab_widget'):
             self.diff_tab_widget.setCurrentIndex(diff_tab_index)
 
@@ -805,25 +810,25 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.apply_theme(theme)
 
         # Window Geometry and State
-        geometry = self.settings.value(f"{self.settings_scope}/geometry")
+        geometry = self.settings.value(self._sk("geometry"))
         if geometry:
             self.restoreGeometry(geometry)
 
-        window_state = self.settings.value(f"{self.settings_scope}/windowState")
+        window_state = self.settings.value(self._sk("windowState"))
         if window_state:
             self.restoreState(window_state)
 
-        is_maximized = self.settings.value(f"{self.settings_scope}/isMaximized", False, type=bool)
+        is_maximized = self.settings.value(self._sk("isMaximized"), False, type=bool)
         if is_maximized:
             self.showMaximized()
 
     def closeEvent(self, event):
         """Save settings before exiting."""
-        self.settings.setValue(f"{self.settings_scope}/geometry", self.saveGeometry())
-        self.settings.setValue(f"{self.settings_scope}/windowState", self.saveState())
-        self.settings.setValue(f"{self.settings_scope}/isMaximized", self.isMaximized())
-        self.settings.setValue("show_stats", self.show_stats)
-        self.settings.setValue("show_date", self.show_date)
+        self.settings.setValue(self._sk("geometry"), self.saveGeometry())
+        self.settings.setValue(self._sk("windowState"), self.saveState())
+        self.settings.setValue(self._sk("isMaximized"), self.isMaximized())
+        self.settings.setValue(self._sk("show_stats"), self.show_stats)
+        self.settings.setValue(self._sk("show_date"), self.show_date)
         super().closeEvent(event)
     def update_window_title(self):
         """Updates window title with branch, HEAD, and path."""
@@ -1157,7 +1162,10 @@ class GitInteractiveRebaseApp(QMainWindow):
 
         layout.addWidget(self.main_splitter, 1)
 
-        self.list_widget.itemDoubleClicked.connect(self.view_commit)
+        # In browse (read-only) mode use only the right-side pane for details;
+        # no commit-viewer dialog on double-click.
+        if not self.browse_branch:
+            self.list_widget.itemDoubleClicked.connect(self.view_commit)
         self.list_widget.itemSelectionChanged.connect(self.on_selection_changed)
 
         self.diff_tab_widget.currentChanged.connect(self.on_diff_tab_changed)
@@ -1597,7 +1605,7 @@ class GitInteractiveRebaseApp(QMainWindow):
                 self.filewise_diff_view.setPlainText(f"Error loading diff: {e}")
 
     def on_diff_tab_changed(self, index):
-        self.settings.setValue("diff_tab_index", index)
+        self.settings.setValue(self._sk("diff_tab_index"), index)
         self.update_side_diff()
 
     def show_filewise_context_menu(self, pos):
@@ -1684,7 +1692,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         new_visibility = not self.right_panel.isVisible()
         self.right_panel.setVisible(new_visibility)
         self.show_diffs = new_visibility
-        self.settings.setValue("show_diffs", self.show_diffs)
+        self.settings.setValue(self._sk("show_diffs"), self.show_diffs)
         self.toggle_diff_btn.setText("Hide Diffs" if new_visibility else "Show Diffs")
 
     def _show_help_dialog(self):
@@ -2605,34 +2613,34 @@ class GitInteractiveRebaseApp(QMainWindow):
     def on_origin_visibility_toggled(self):
         visible = self.show_origin_cb.isChecked()
         self.origin_group.setVisible(visible)
-        self.settings.setValue("show_origin_options", visible)
+        self.settings.setValue(self._sk("show_origin_options"), visible)
         # self.force_window_resize()  # intentionally disabled: window keeps its size instead of auto-collapsing
 
     def on_rebase_visibility_toggled(self):
         visible = self.show_rebase_cb.isChecked()
         self.rebase_group.setVisible(visible)
-        self.settings.setValue("show_rebase_options", visible)
+        self.settings.setValue(self._sk("show_rebase_options"), visible)
         # self.force_window_resize()  # intentionally disabled: window keeps its size instead of auto-collapsing
 
     def on_squash_visibility_toggled(self):
         visible = self.show_squash_cb.isChecked()
         self.squash_group.setVisible(visible)
-        self.settings.setValue("show_squash_options", visible)
+        self.settings.setValue(self._sk("show_squash_options"), visible)
         # self.force_window_resize()  # intentionally disabled: window keeps its size instead of auto-collapsing
 
     def on_local_branches_visibility_toggled(self):
         self.show_local_branches = self.show_local_branches_cb.isChecked()
-        self.settings.setValue("show_local_branches", self.show_local_branches)
+        self.settings.setValue(self._sk("show_local_branches"), self.show_local_branches)
         self.list_widget.viewport().update()
 
     def _on_stats_toggled(self):
         self.show_stats = self.show_stats_cb.isChecked()
-        self.settings.setValue("show_stats", self.show_stats)
+        self.settings.setValue(self._sk("show_stats"), self.show_stats)
         self.list_widget.viewport().update()
 
     def _on_date_toggled(self):
         self.show_date = self.show_date_cb.isChecked()
-        self.settings.setValue("show_date", self.show_date)
+        self.settings.setValue(self._sk("show_date"), self.show_date)
         self.list_widget.viewport().update()
 
     def _on_always_on_top_toggled(self, checked):
@@ -2718,7 +2726,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         if hasattr(self, 'filewise_file_list'):
             self.filewise_file_list.setFont(font)
         # Save persistence
-        self.settings.setValue("font_size", self.current_font_size)
+        self.settings.setValue(self._sk("font_size"), self.current_font_size)
         # Update status bar zoom label
         if hasattr(self, 'zoom_percent_label'):
             default_size = 10
