@@ -40,7 +40,7 @@ from PySide6.QtGui import QFont, QSyntaxHighlighter, QTextCharFormat, QColor, QA
 from PySide6.QtCore import Qt, QSize, QSettings, QThread, Signal, QRect, QTimer, Slot
 
 from lib.git_helpers import (
-    get_git_history, get_head_sha, get_full_head_sha, get_current_branch, get_commit_diff,
+    get_git_history, get_branch_history, get_head_sha, get_full_head_sha, get_current_branch, get_commit_diff,
     get_full_commit_message, get_commit_metadata, get_commit_files,
     has_uncommitted_changes, branch_exists, get_local_branches_map, get_remote_head_sha,
     get_file_diff_only_in_commit, get_revert_commit_message, get_commit_metadata_and_message,
@@ -708,13 +708,16 @@ def highlight_button_temporarily(button, duration_ms=3000, blinks=0, color=None)
 
 
 class GitInteractiveRebaseApp(QMainWindow):
-    def __init__(self, repo_path, commit_sha, app_start_time, base_branch=None, viewer_mode=False):
-        super().__init__()
+    def __init__(self, repo_path, commit_sha, app_start_time, base_branch=None, viewer_mode=False, browse_branch=None, parent=None):
+        super().__init__(parent)
         self.repo_path = repo_path
         self.commit_sha = commit_sha
         self.app_start_time = app_start_time
         self.base_branch = base_branch  # set only when auto-detected; None when SHA provided manually
         self.viewer_mode = viewer_mode
+        self.browse_branch = browse_branch
+        if browse_branch:
+            self.viewer_mode = True
         self.start_time_full_head = get_full_head_sha(self.repo_path)
         self.start_time_head = get_head_sha(self.repo_path)
         self.cached_current_head_full_sha = self.start_time_full_head
@@ -729,6 +732,9 @@ class GitInteractiveRebaseApp(QMainWindow):
 
         # Persistence
         self.settings = QSettings("shyjun", "GitInteractiveRebase")
+        # Window-type specific key prefix so main and browse windows don't
+        # clobber each other's saved size/position across sessions.
+        self.settings_scope = "browse" if browse_branch else "main"
         self.current_font_size = int(self.settings.value("font_size", 10))
         self.show_diffs = self.settings.value("show_diffs", False, type=bool)
         self.show_origin_options = self.settings.value("show_origin_options", False, type=bool)
@@ -737,6 +743,13 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.show_local_branches = self.settings.value("show_local_branches", False, type=bool)
         self.show_stats = self.settings.value("show_stats", True, type=bool)
         self.show_date = self.settings.value("show_date", True, type=bool)
+
+        # Browse mode is a strict read-only history viewer: force-hide the
+        # mutating groups so the user only sees the commit list + diffs.
+        if self.browse_branch:
+            self.show_squash_options = False
+            self.show_origin_options = False
+            self.show_rebase_options = False
 
         self.setWindowTitle(f"git-interactive-rebase-gui-tool : branch=..., HEAD=..., path={self.repo_path}") # Temporary name until load_history updates it
         self.resize(1100, 800)
@@ -754,11 +767,14 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.update_diff_timer.setSingleShot(True)
         self.update_diff_timer.timeout.connect(self._do_update_side_diff)
 
-        self.load_history()
+        if self.browse_branch:
+            self.load_browse_history_async()
+        else:
+            self.load_history()
         self.update_rebase_buttons()
         self.list_widget.setFocus()
 
-        if self.viewer_mode:
+        if self.viewer_mode and not self.browse_branch:
             QTimer.singleShot(0, self._notify_viewer_mode)
 
     def load_settings(self):
@@ -783,30 +799,34 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.apply_theme(theme)
 
         # Window Geometry and State
-        geometry = self.settings.value("geometry")
+        geometry = self.settings.value(f"{self.settings_scope}/geometry")
         if geometry:
             self.restoreGeometry(geometry)
 
-        window_state = self.settings.value("windowState")
+        window_state = self.settings.value(f"{self.settings_scope}/windowState")
         if window_state:
             self.restoreState(window_state)
 
-        is_maximized = self.settings.value("isMaximized", False, type=bool)
+        is_maximized = self.settings.value(f"{self.settings_scope}/isMaximized", False, type=bool)
         if is_maximized:
             self.showMaximized()
 
     def closeEvent(self, event):
         """Save settings before exiting."""
-        self.settings.setValue("geometry", self.saveGeometry())
-        self.settings.setValue("windowState", self.saveState())
-        self.settings.setValue("isMaximized", self.isMaximized())
+        self.settings.setValue(f"{self.settings_scope}/geometry", self.saveGeometry())
+        self.settings.setValue(f"{self.settings_scope}/windowState", self.saveState())
+        self.settings.setValue(f"{self.settings_scope}/isMaximized", self.isMaximized())
         self.settings.setValue("show_stats", self.show_stats)
         self.settings.setValue("show_date", self.show_date)
         super().closeEvent(event)
     def update_window_title(self):
         """Updates window title with branch, HEAD, and path."""
-        branch = get_current_branch(self.repo_path)
         app_time = self.app_start_time if self.app_start_time else "N/A"
+        if self.browse_branch:
+            title = f"Browse Branch: {self.browse_branch} (read-only), path={self.repo_path}"
+            self.setWindowTitle(title)
+            return
+        branch = get_current_branch(self.repo_path)
         mode_str = " [VIEWER MODE]" if self.viewer_mode else ""
         title = f"git-interactive-rebase-gui-tool{mode_str} : branch={branch}, path={self.repo_path}, app_start_time={app_time}"
         self.setWindowTitle(title)
@@ -931,8 +951,10 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.list_widget = CommitListWidget(self)
         self.list_widget.setItemDelegate(CommitItemDelegate(self.list_widget))
         self.update_font()
-        self.list_widget.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.list_widget.customContextMenuRequested.connect(self.show_context_menu)
+        self.list_widget.setContextMenuPolicy(Qt.NoContextMenu)
+        if not self.browse_branch:
+            self.list_widget.setContextMenuPolicy(Qt.CustomContextMenu)
+            self.list_widget.customContextMenuRequested.connect(self.show_context_menu)
 
         # Search / Filter Bar row
         search_row_widget = QWidget()
@@ -1166,7 +1188,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.exit_viewer_mode_btn = QPushButton("Exit Viewer Mode")
         self.exit_viewer_mode_btn.setToolTip("Re-enable history-modifying operations.")
         self._set_exit_viewer_mode_icon(self.exit_viewer_mode_btn)
-        self.exit_viewer_mode_btn.setVisible(self.viewer_mode)
+        self.exit_viewer_mode_btn.setVisible(self.viewer_mode and not self.browse_branch)
         self.rescan_btn = QPushButton("Rescan Repo")
         self.rescan_btn.setToolTip("Re-scan the repository and rebuild the commit list.")
         self._set_rescan_icon(self.rescan_btn)
@@ -1175,6 +1197,8 @@ class GitInteractiveRebaseApp(QMainWindow):
         self._set_pr_diff_icon(self.pr_diff_btn)
         self.cherry_pick_btn = QPushButton("Cherry-pick 1 Commit")
         self.cherry_pick_btn.setToolTip("Cherry-pick a single commit by SHA.")
+        self.browse_branch_btn = QPushButton("Browse Branch")
+        self.browse_branch_btn.setToolTip("Open a read-only viewer of another branch's full history.")
         self.pop_stash_btn = QPushButton("Pop app created stash")
         self.pop_stash_btn.setToolTip("Pop the app-created stash (git stash pop).")
         self._set_pop_stash_icon(self.pop_stash_btn)
@@ -1205,6 +1229,9 @@ class GitInteractiveRebaseApp(QMainWindow):
         for btn in [self.toggle_diff_btn, self.help_btn, self.exit_viewer_mode_btn, self.rescan_btn, self.pr_diff_btn, self.cherry_pick_btn, self.pop_stash_btn, self.check_update_btn, self.undo_btn, self.refresh_btn, self.exit_btn, self.theme_menu_btn]:
             btn.setMinimumHeight(40)
             btn.setMinimumWidth(100)
+        self.browse_branch_btn.setMinimumHeight(40)
+        self.browse_branch_btn.setMinimumWidth(100)
+        self.browse_branch_btn.setVisible(not self.browse_branch)
         self.failsafe_btn.setMinimumHeight(40)
         self.best_commit_btn.setMinimumHeight(40)
         self.custom_reset_btn.setMinimumHeight(40)
@@ -1215,6 +1242,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.rescan_btn.clicked.connect(self.handle_rescan_repo)
         self.pr_diff_btn.clicked.connect(self.handle_view_branch_diff)
         self.cherry_pick_btn.clicked.connect(self.handle_cherry_pick)
+        self.browse_branch_btn.clicked.connect(self.handle_browse_branch)
         self.pop_stash_btn.clicked.connect(self.handle_pop_managed_stash)
         self.undo_btn.clicked.connect(self.handle_undo)
         self.check_update_btn.clicked.connect(self.handle_check_for_updates)
@@ -1233,23 +1261,30 @@ class GitInteractiveRebaseApp(QMainWindow):
         controls_layout.addWidget(self.pop_stash_btn)
         controls_layout.addWidget(self.pr_diff_btn)
         controls_layout.addWidget(self.cherry_pick_btn)
+        controls_layout.addWidget(self.browse_branch_btn)
         controls_layout.addWidget(self.exit_viewer_mode_btn)
         controls_layout.addWidget(self.rescan_btn)
         controls_layout.addWidget(self.undo_btn)
         controls_layout.addWidget(self.refresh_btn)
         controls_layout.addWidget(self.exit_btn)
 
+        if self.browse_branch:
+            for btn in [self.theme_menu_btn, self.help_btn, self.check_update_btn,
+                        self.pr_diff_btn, self.cherry_pick_btn, self.rescan_btn]:
+                btn.setVisible(False)
+
         layout.addLayout(controls_layout)
 
         # Add failsafe options as a distinct row below the other controls
-        failsafe_group = QGroupBox("Fail-safe")
-        failsafe_group.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        self.failsafe_group = QGroupBox("Fail-safe")
+        self.failsafe_group.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
         failsafe_layout = QHBoxLayout()
         failsafe_layout.addWidget(self.failsafe_btn)
         failsafe_layout.addWidget(self.best_commit_btn)
         failsafe_layout.addWidget(self.custom_reset_btn)
-        failsafe_group.setLayout(failsafe_layout)
-        layout.addWidget(failsafe_group)
+        self.failsafe_group.setLayout(failsafe_layout)
+        layout.addWidget(self.failsafe_group)
+        self.failsafe_group.setVisible(not self.browse_branch)
 
         # Squash multiple commits group
         self.multi_select_mode = False
@@ -1347,9 +1382,16 @@ class GitInteractiveRebaseApp(QMainWindow):
         status_layout.addWidget(self.zoom_percent_label)
         status_layout.addWidget(self.sb_zoom_in_btn)
 
+        if self.browse_branch:
+            for w in [zoom_label, self.sb_zoom_out_btn, self.zoom_percent_label,
+                      self.sb_zoom_in_btn]:
+                w.setVisible(False)
+
         sep1 = QLabel("|")
         sep1.setStyleSheet("color: gray;")
         status_layout.addWidget(sep1)
+        if self.browse_branch:
+            sep1.setVisible(False)
 
         # Visibility checkboxes
         self.show_origin_cb = QCheckBox("Show Origin")
@@ -1370,6 +1412,10 @@ class GitInteractiveRebaseApp(QMainWindow):
         status_layout.addWidget(self.show_rebase_cb)
         status_layout.addWidget(self.show_squash_cb)
         status_layout.addWidget(self.show_local_branches_cb)
+
+        if self.browse_branch:
+            for cb in [self.show_origin_cb, self.show_rebase_cb, self.show_squash_cb]:
+                cb.setVisible(False)
 
         sep2 = QLabel("|")
         sep2.setStyleSheet("color: gray;")
@@ -2361,6 +2407,25 @@ class GitInteractiveRebaseApp(QMainWindow):
             )
         except Exception as e:
             QMessageBox.critical(self, "Error", f"An error occurred while cherry-picking: {str(e)}")
+
+    def handle_browse_branch(self):
+        """Opens a read-only viewer window showing another branch's full history."""
+        branch_name, ok = QInputDialog.getText(
+            self, "Browse Branch", "Enter branch name to browse:"
+        )
+        if not ok or not branch_name.strip():
+            return
+        branch_name = branch_name.strip()
+        if not branch_exists(self.repo_path, branch_name):
+            QMessageBox.critical(self, "Branch does not exist",
+                                 f"The branch '{branch_name}' does not exist.")
+            return
+
+        viewer = GitInteractiveRebaseApp(
+            self.repo_path, self.commit_sha, self.app_start_time,
+            viewer_mode=True, browse_branch=branch_name, parent=self,
+        )
+        viewer.show()
 
     def handle_git_fetch(self):
         """Runs git fetch."""
@@ -5189,7 +5254,91 @@ for i, filename in enumerate(files):
                 return
 
         # Finally, we reload the tree to correctly align matching local state
-        self.load_history()
+        if self.browse_branch:
+            self.load_browse_history_async()
+        else:
+            self.load_history()
+
+    def show_consolidated_diff(self, start_sha, end_sha, title=None, description=None):
+        """Displays the consolidated diff between *start_sha* and *end_sha* using the shared diff dialog."""
+        try:
+            if not start_sha or not end_sha:
+                return
+            if start_sha[:8].lower() == end_sha[:8].lower():
+                QMessageBox.information(
+                    self, "Consolidated Diff",
+                    "The start and end commits are the same, so there is nothing to compare.\n\n"
+                    f"Commit: {start_sha[:8]}"
+                )
+                return
+            progress = ProgressDialog(title or "Consolidated Diff", "Computing diff...", self)
+            progress.show()
+            QApplication.processEvents()
+            try:
+                diff_text = get_diff_between(self.repo_path, start_sha, end_sha)
+                files = get_files_between(self.repo_path, start_sha, end_sha)
+                file_stats = get_file_stats_between(self.repo_path, start_sha, end_sha)
+                num_commits = len(get_git_history(self.repo_path, start_sha, end_sha))
+            finally:
+                progress.close()
+
+            if len(diff_text) > PR_DIFF_SIZE_WARN_THRESHOLD:
+                answer = QMessageBox.warning(
+                    self, "Large Consolidated Diff",
+                    f"This consolidated diff is large (~{len(diff_text)/1024:.0f} KB) and may be slow or hard to digest.\n\n"
+                    "Do you want to open it anyway?",
+                    QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+                if answer != QMessageBox.Yes:
+                    return
+
+            dialog = BranchDiffDialog(self.repo_path, start_sha, end_sha, num_commits, diff_text, files,
+                                      file_stats, self.current_font_size, self, title=title, description=description)
+            dialog.exec()
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Could not fetch consolidated diff: {str(e)}")
+
+    def _set_consolidated_diff_start(self, sha):
+        """Stores the selected commit as the start point for a consolidated diff."""
+        self.consolidated_diff_start_sha = sha
+        # Repaint so the left accent bar moves to the newly selected start commit
+        self.list_widget.viewport().update()
+
+    def handle_view_branch_diff(self):
+        """Opens a PR preview dialog showing the combined branch diff vs its base."""
+        try:
+            # Resolve the base: fresh merge-base with the detected upstream, else ask the user
+            base_sha = None
+            if self.base_branch:
+                base_sha = get_merge_base(self.repo_path, self.base_branch)
+
+            if not base_sha:
+                if self.base_branch is None:
+                    # No parent branch detected (e.g. viewer/gitk mode): ask the user for a base ref
+                    text, ok = QInputDialog.getText(
+                        self, "PR Preview - Base Commit",
+                        "No parent branch was detected.\n\n"
+                        "Enter a base commit/ref to diff against (e.g. a SHA, 'HEAD~5', 'origin/main'):",
+                        text=str(self.commit_sha or ""),
+                    )
+                    if not ok or not text.strip():
+                        return  # user cancelled
+                    base_sha = resolve_ref(self.repo_path, text.strip())
+                    if not base_sha:
+                        QMessageBox.warning(self, "PR Preview", f"Could not resolve base ref: '{text.strip()}'")
+                        return
+                else:
+                    # base_branch set but merge-base failed
+                    base_sha = self.commit_sha
+
+            if not base_sha:
+                QMessageBox.information(self, "PR Preview", "Could not determine the base commit to diff against.")
+                return
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Could not fetch branch diff: {str(e)}")
+            return
+
+        branch = get_current_branch(self.repo_path) or "HEAD"
+        self.show_consolidated_diff(base_sha, self.get_head_sha(), title="PR Preview", description=branch)
 
     def show_consolidated_diff(self, start_sha, end_sha, title=None, description=None):
         """Displays the consolidated diff between *start_sha* and *end_sha* using the shared diff dialog."""
@@ -5274,6 +5423,9 @@ for i, filename in enumerate(files):
 
     def handle_manual_refresh(self):
         """Shows a progress dialog during manual refresh."""
+        if self.browse_branch:
+            self.load_browse_history_async()
+            return
         progress = ProgressDialog("Refreshing", "Refreshing git history. Please wait...", self)
         progress.show()
         QApplication.processEvents()
@@ -5303,38 +5455,13 @@ for i, filename in enumerate(files):
         self.list_widget.setUpdatesEnabled(False)
         self.list_widget.blockSignals(True)
         try:
-            history = get_git_history(self.repo_path, self.commit_sha, self.get_head_sha())
+            if self.browse_branch:
+                history = get_branch_history(self.repo_path, self.browse_branch)
+            else:
+                history = get_git_history(self.repo_path, self.commit_sha, self.get_head_sha())
             branch_map = get_local_branches_map(self.repo_path, current_branch=current_branch)
 
-            for entry in history:
-                if isinstance(entry, dict):
-                    line = entry["raw_text"]
-                    sha = entry["sha"]
-                    item = QListWidgetItem(line)
-                    item.setData(Qt.UserRole + 2, entry.get("date", ""))
-                    item.setData(Qt.UserRole + 3, (entry.get("added", 0), entry.get("deleted", 0)))
-                    item.setData(Qt.UserRole + 4, entry.get("author", ""))
-                    item.setData(Qt.UserRole + 6, entry.get("message", ""))
-                    parents = entry.get("parents", "")
-                    item.setData(Qt.UserRole + 5, " " in parents)
-                else:
-                    line = entry
-                    sha = line.split()[0]
-                    item = QListWidgetItem(line)
-
-                if sha in branch_map:
-                    branches_str = ", ".join(branch_map[sha])
-                    item.setData(Qt.UserRole + 1, branches_str)
-
-                self.list_widget.addItem(item)
-
-            if self.list_widget.count() > 0:
-                # If nothing was selected before (-1), default to topmost commit (0)
-                # Otherwise, bound it to the new list size
-                new_row = max(0, min(old_row if old_row >= 0 else 0, self.list_widget.count() - 1))
-                self.list_widget.setCurrentRow(new_row)
-            else:
-                self.update_side_diff()
+            self._populate_list_widget(history, branch_map, old_row)
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))
         finally:
@@ -5342,6 +5469,40 @@ for i, filename in enumerate(files):
             self.list_widget.blockSignals(False)
             self.update_side_diff()
 
+        self._refresh_history_load()
+
+    def _populate_list_widget(self, history, branch_map, old_row):
+        """Builds QListWidgetItems from fetched history (main thread only)."""
+        for entry in history:
+            if isinstance(entry, dict):
+                line = entry["raw_text"]
+                sha = entry["sha"]
+                item = QListWidgetItem(line)
+                item.setData(Qt.UserRole + 2, entry.get("date", ""))
+                item.setData(Qt.UserRole + 3, (entry.get("added", 0), entry.get("deleted", 0)))
+                item.setData(Qt.UserRole + 4, entry.get("author", ""))
+                item.setData(Qt.UserRole + 6, entry.get("message", ""))
+                parents = entry.get("parents", "")
+                item.setData(Qt.UserRole + 5, " " in parents)
+            else:
+                line = entry
+                sha = line.split()[0]
+                item = QListWidgetItem(line)
+
+            if sha in branch_map:
+                branches_str = ", ".join(branch_map[sha])
+                item.setData(Qt.UserRole + 1, branches_str)
+
+            self.list_widget.addItem(item)
+
+        if self.list_widget.count() > 0:
+            # If nothing was selected before (-1), default to topmost commit (0)
+            # Otherwise, bound it to the new list size
+            new_row = max(0, min(old_row if old_row >= 0 else 0, self.list_widget.count() - 1))
+            self.list_widget.setCurrentRow(new_row)
+
+    def _refresh_history_load(self):
+        """Post-load updates shared by sync and async history loading."""
         # Update Failsafe button state
         current_head = get_head_sha(self.repo_path)
         uncommitted = has_uncommitted_changes(self.repo_path)
@@ -5364,3 +5525,53 @@ for i, filename in enumerate(files):
         else:
             self.failsafe_btn.setEnabled(True)
             self.failsafe_btn.setText(f"⚠ Reset Hard to START_TIME_HEAD ({self.start_time_head[:8]}) ⚠")
+
+    def load_browse_history_async(self):
+        """Loads a browse window's full branch history in a background thread so the
+        GUI stays responsive even for repos with tens of thousands of commits.
+
+        Results are passed to the main thread via a polling timer (no cross-thread
+        signal marshalling), which is reliable in every PySide6 environment.
+        """
+        self.list_widget.clear()
+        self.total_commits_label.setText("Total: counting...")
+        self._browse_load_done = False
+        self._browse_load_result = None
+
+        repo_path = self.repo_path
+        branch = self.browse_branch
+
+        def worker():
+            try:
+                history = get_branch_history(repo_path, branch)
+                branch_map = get_local_branches_map(repo_path)
+                self._browse_load_result = (True, history, branch_map)
+            except Exception as e:
+                self._browse_load_result = (False, [], str(e))
+            finally:
+                self._browse_load_done = True
+
+        import threading
+        thread = threading.Thread(target=worker, daemon=True)
+        thread.start()
+
+        self._start_browse_load_poll()
+
+    def _start_browse_load_poll(self):
+        """Polls for the background browse load to finish, then populates on the main thread."""
+        if not self._browse_load_done:
+            QTimer.singleShot(50, self._start_browse_load_poll)
+            return
+        success, history, branch_map_or_error = self._browse_load_result
+        if not success:
+            QMessageBox.critical(self, "Error", branch_map_or_error)
+            return
+        self.list_widget.setUpdatesEnabled(False)
+        self.list_widget.blockSignals(True)
+        try:
+            self._populate_list_widget(history, branch_map_or_error, -1)
+        finally:
+            self.list_widget.setUpdatesEnabled(True)
+            self.list_widget.blockSignals(False)
+            self.update_side_diff()
+        self._refresh_history_load()
