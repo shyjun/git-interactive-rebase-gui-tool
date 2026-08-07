@@ -108,8 +108,13 @@ def get_git_history(repo_path, start_sha, end_sha):
         raise Exception(f"Failed to fetch git history: {e.stderr}")
 
 
-def get_branch_history(repo_path, branch):
-    """Fetches the full history of a branch (all commits reachable from its tip).
+def get_branch_history(repo_path, branch, limit=None):
+    """Fetches a branch's history (commits reachable from its tip).
+
+    Args:
+        repo_path: repository path.
+        branch: branch name/ref.
+        limit: max number of commits to return (None = unlimited).
 
     Returns parsed commit dicts in the same shape as get_git_history."""
     try:
@@ -119,6 +124,8 @@ def get_branch_history(repo_path, branch):
             "--date=format:%d %b %Y",
             "--shortstat"
         ]
+        if limit is not None:
+            log_cmd.append(f"-n{limit}")
         result = subprocess.run(log_cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
         commits = _parse_log_records(result.stdout)
         return _attach_full_messages(repo_path, commits, log_cmd)
