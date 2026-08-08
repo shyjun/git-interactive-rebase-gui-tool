@@ -2532,7 +2532,10 @@ class GitInteractiveRebaseApp(QMainWindow):
         """Returns the SHAs to cherry-pick from the browse window.
 
         In multi-select mode, gathers the checked commits (in list order, which
-        is newest first). Otherwise returns the single currently selected commit.
+        is newest first) and then reverses them so cherry-picks apply oldest
+        first, matching the original branch chronology (e.g. branch
+        A-B-C-D-E-F pick B, D, F in that order).
+        Otherwise returns the single currently selected commit.
         """
         if self.multi_select_mode:
             shas = [
@@ -2540,6 +2543,7 @@ class GitInteractiveRebaseApp(QMainWindow):
                 for i in range(self.list_widget.count())
                 if self.list_widget.item(i).checkState() == Qt.Checked
             ]
+            shas.reverse()
         else:
             item = self.list_widget.currentItem()
             shas = [item.text().split()[0]] if item else []
