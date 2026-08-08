@@ -2807,7 +2807,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         not_cherry_picked = 0
         stop = False
 
-        for sha in shas:
+        for current_index, sha in enumerate(shas):
             success, err = self._run_cherry_pick(sha)
             if success:
                 cherry_picked += 1
@@ -2823,14 +2823,30 @@ class GitInteractiveRebaseApp(QMainWindow):
                 reason = "The commit is already present or produces no change."
             else:
                 reason = detail.splitlines()[0] if detail else "unknown error"
+            def format_sha_list(shas_list):
+                lines = []
+                for s in shas_list:
+                    try:
+                        subject = get_commit_subject(self.repo_path, s)
+                    except Exception:
+                        subject = ""
+                    if len(subject) > 80:
+                        subject = subject[:80] + "..."
+                    lines.append(f"{s[:7]}: {subject}".rstrip())
+                return "<br/>".join(lines) if lines else "<i>none</i>"
+
+            pending_shas = shas[current_index + 1:]
             box = QMessageBox(self)
             box.setWindowTitle("Cherry-pick Failed")
+            box.setSizeGripEnabled(True)
             box.setTextFormat(Qt.RichText)
             box.setText(
-                f"<b>{sha[:10]}</b> cherry-pick failed.<br/><br/>"
-                f"Reason: {reason}<br/><br/>"
-                f"Successfully cherry-picked so far: <b>{cherry_picked}</b><br/>"
-                f"Pending commits: <b>{remaining_after}</b>"
+                f"<p>Cherry-pick of <b>{sha[:10]}</b> failed.</p>"
+                f"<p>Reason: {reason}</p>"
+                f"<p>Successfully cherry-picked so far: <b>{cherry_picked}</b><br/>"
+                f"{format_sha_list(cherry_picked_shas)}</p>"
+                f"<p>Pending commits: <b>{remaining_after}</b><br/>"
+                f"{format_sha_list(pending_shas)}</p>"
             )
             undo_btn = box.addButton("Undo entire cherry-pick", QMessageBox.DestructiveRole)
             skip_btn = box.addButton("Skip this and continue with next", QMessageBox.AcceptRole)
