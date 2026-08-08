@@ -2758,6 +2758,8 @@ class GitInteractiveRebaseApp(QMainWindow):
         cherry_picked_total = len(shas)
         cherry_picked = 0
         skipped = 0
+        cherry_picked_shas = []
+        skipped_shas = []
         # 'not_cherry_picked' counts commits that were neither applied nor skipped
         # (failures the user stopped on, plus everything left after a stop/undo).
         not_cherry_picked = 0
@@ -2767,6 +2769,7 @@ class GitInteractiveRebaseApp(QMainWindow):
             success, err = self._run_cherry_pick(sha)
             if success:
                 cherry_picked += 1
+                cherry_picked_shas.append(sha)
                 continue
 
             # A cherry-pick failed. Offer recovery choices.
@@ -2804,18 +2807,22 @@ class GitInteractiveRebaseApp(QMainWindow):
                     self._warn_abort_failure(detail)
                 # Nothing remains applied; skipped commits were never applied.
                 skipped += 1  # the failed one counts as skipped
+                skipped_shas.append(sha)
                 cherry_picked = 0
+                cherry_picked_shas = []
                 stop = True
             elif clicked is skip_btn:
                 ok, detail = self._run_abort_cherry_pick()
                 if not ok:
                     self._warn_abort_failure(detail)
                 skipped += 1
+                skipped_shas.append(sha)
             else:  # stop
                 ok, detail = self._run_abort_cherry_pick()
                 if not ok:
                     self._warn_abort_failure(detail)
                 skipped += 1
+                skipped_shas.append(sha)
                 stop = True
 
             if stop:
@@ -2823,6 +2830,8 @@ class GitInteractiveRebaseApp(QMainWindow):
 
         # Everything not cherry-picked or skipped is "not cherry-picked".
         not_cherry_picked = cherry_picked_total - cherry_picked - skipped
+        not_cherry_picked_shas = [s for s in shas
+                                  if s not in cherry_picked_shas and s not in skipped_shas]
 
         self.load_history()
         if cherry_picked > 0:
@@ -2835,12 +2844,18 @@ class GitInteractiveRebaseApp(QMainWindow):
         else:
             headline = "Cherry-pick partially succeeded."
 
+        def _summary_block(label, shas_list):
+            if not shas_list:
+                return f"<b>{label}:</b> 0"
+            body = "<br/>".join(s[:7] for s in shas_list)
+            return f"<b>{label}:</b> {len(shas_list)}<br/>{body}"
+
         QMessageBox.information(
             self, "Cherry-pick Summary",
             f"<p><b>{headline}</b></p>"
-            f"<p>Cherry-picked: {cherry_picked}<br/>"
-            f"Skipped: {skipped}<br/>"
-            f"Not cherry-picked: {not_cherry_picked}</p>"
+            f"<p>{summary_block('Cherry-picked', cherry_picked_shas)}<br/><br/>"
+            f"{summary_block('Skipped', skipped_shas)}<br/><br/>"
+            f"{summary_block('Not cherry-picked', not_cherry_picked_shas)}</p>"
         )
 
     def handle_git_fetch(self):
