@@ -1574,18 +1574,18 @@ class GitInteractiveRebaseApp(QMainWindow):
         # A grey veil over the whole browse window marks it as a read-only viewer.
         self._browse_overlay = None
         if self.browse_branch:
-            self._browse_overlay = BrowseDimOverlay(self.centralWidget(), self.is_dark_theme)
+            self._browse_overlay = BrowseDimOverlay(self, self.is_dark_theme)
             self._browse_overlay.raise_()
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
         if getattr(self, '_browse_overlay', None) is not None:
-            self._browse_overlay.setGeometry(self.centralWidget().rect())
+            self._browse_overlay.setGeometry(self.rect())
 
     def showEvent(self, event):
         super().showEvent(event)
         if getattr(self, '_browse_overlay', None) is not None:
-            self._browse_overlay.setGeometry(self.centralWidget().rect())
+            self._browse_overlay.setGeometry(self.rect())
             self._browse_overlay.raise_()
 
     def show_search_bar(self):
