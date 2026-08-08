@@ -2633,10 +2633,12 @@ class GitInteractiveRebaseApp(QMainWindow):
         each failure, then shows a summary."""
         # (Safety checks already done by the caller.)
         order_str = ", ".join(sha[:7] for sha in shas)
+        target_branch = get_current_branch(self.repo_path)
         box = QMessageBox(self)
         box.setWindowTitle("Cherry-pick Selected Commits")
         box.setText(
-            "Cherry-pick will be applied in this order:\n\n"
+            f"Cherry-pick selected commit(s) to <b>{target_branch}</b>?\n\n"
+            "They will be applied in this order:\n\n"
             f"A: {order_str}\n\n"
             "Continue?"
         )
