@@ -2629,22 +2629,24 @@ class GitInteractiveRebaseApp(QMainWindow):
         kind, detail = classify_cherry_pick_failure(self.repo_path, stderr)
         short = sha[:10] if sha else "commit"
         if kind == "conflict":
-            files = "".join(f"    {path}\n" for path in detail.splitlines())
+            files = "<br/>".join(f"&nbsp;&nbsp;&nbsp;&nbsp;{path}" for path in detail.splitlines())
             return (
-                f"Cherry-pick of <b>{short}</b> failed because it conflicts with "
-                f"the current branch.\n\nThe cherry-pick was <b>aborted</b>, so no "
-                f"changes were made.\n\nConflicting files:\n{files}"
+                f"<p>Cherry-pick of <b>{short}</b> failed because it conflicts with "
+                f"the current branch.</p>"
+                f"<p>The cherry-pick was <b>aborted</b>, so no changes were made.</p>"
+                f"<p>Conflicting files:<br/>{files}</p>"
             )
         if kind == "empty":
             return (
-                f"Cherry-pick of <b>{short}</b> failed - the commit is already "
-                f"present in this branch or produces no change here.\n\nNo changes "
-                f"were made."
+                f"<p>Cherry-pick of <b>{short}</b> failed - the commit is already "
+                f"present in this branch or produces no change here.</p>"
+                f"<p>No changes were made.</p>"
             )
         first_line = detail.splitlines()[0] if detail else "no error details"
         return (
-            f"Cherry-pick of <b>{short}</b> failed.\n\nNo changes were made, and "
-            f"the cherry-pick was aborted.\n\n{first_line}"
+            f"<p>Cherry-pick of <b>{short}</b> failed.</p>"
+            f"<p>No changes were made, and the cherry-pick was aborted.</p>"
+            f"<p>{first_line}</p>"
         )
 
     def _warn_abort_failure(self, detail):
@@ -2709,11 +2711,22 @@ class GitInteractiveRebaseApp(QMainWindow):
     def _refresh_parent_main_window(self):
         """Reloads the commit list of the main (parent) window that owns this
         browse viewer, so cherry-picks done from the browse window are reflected
-        there immediately."""
+        there immediately. The cached HEAD is updated directly too, so immediate
+        re-checks never see a stale 'repository has changed' state even before
+        the (async) history reload finishes."""
         parent = self.parent()
         if parent is None or getattr(parent, "browse_branch", None):
             return
+        parent.cached_current_head_full_sha = get_full_head_sha(self.repo_path)
+        parent.cached_has_uncommitted = has_uncommitted_changes(self.repo_path)
         parent.load_history()
+
+    def _sync_cached_head(self):
+        """Refreshes this window's cached HEAD/status synchronously so that
+        subsequent pre-checks do not report a bogus 'repository has changed'
+        while the asynchronous history reload is still running."""
+        self.cached_current_head_full_sha = get_full_head_sha(self.repo_path)
+        self.cached_has_uncommitted = has_uncommitted_changes(self.repo_path)
 
     def _cherry_pick_single(self, sha):
         """Cherry-picks a single commit with the standard safety checks."""
@@ -2725,6 +2738,7 @@ class GitInteractiveRebaseApp(QMainWindow):
 
         success, err = self._run_cherry_pick(sha)
         if success:
+            self._sync_cached_head()
             self.load_history()
             self._refresh_parent_main_window()
             self._show_cherry_pick_result("Cherry-pick succeeded.", [sha], [])
@@ -2733,6 +2747,7 @@ class GitInteractiveRebaseApp(QMainWindow):
             ok, detail = self._run_abort_cherry_pick()
             if not ok:
                 self._warn_abort_failure(detail)
+            self._sync_cached_head()
             self.load_history()
             self._refresh_parent_main_window()
             QMessageBox.critical(
@@ -2860,6 +2875,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         not_cherry_picked_shas = [s for s in shas
                                   if s not in cherry_picked_shas and s not in skipped_shas]
 
+        self._sync_cached_head()
         self.load_history()
         if cherry_picked > 0:
             self._refresh_parent_main_window()
