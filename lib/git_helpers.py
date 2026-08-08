@@ -395,6 +395,17 @@ def has_uncommitted_changes(repo_path):
     except subprocess.CalledProcessError:
         return False
 
+def cherry_pick_in_progress(repo_path):
+    """Returns True if a cherry-pick is pending (CHERRY_PICK_HEAD exists)."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--verify", "--quiet", "CHERRY_PICK_HEAD"],
+            cwd=repo_path, capture_output=True, text=True, encoding='utf-8', errors='replace'
+        )
+        return result.returncode == 0
+    except Exception:
+        return False
+
 def classify_tracked_changes(repo_path):
     """Returns (has_staged, has_unstaged) for tracked changes.
 

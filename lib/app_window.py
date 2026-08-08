@@ -42,7 +42,7 @@ from PySide6.QtCore import Qt, QSize, QSettings, QThread, Signal, QRect, QTimer,
 from lib.git_helpers import (
     get_git_history, get_branch_history, get_head_sha, get_full_head_sha, get_current_branch, get_commit_diff,
     get_full_commit_message, get_commit_metadata, get_commit_files,
-    has_uncommitted_changes, branch_exists, get_local_branches_map, get_remote_head_sha,
+    has_uncommitted_changes, cherry_pick_in_progress, branch_exists, get_local_branches_map, get_remote_head_sha,
     get_file_diff_only_in_commit, get_revert_commit_message, get_commit_metadata_and_message,
     get_commit_file_stats,     get_unstaged_files, stash_changes, commit_file, bulk_commit_all, amend_with_head, discard_changes, stash_pop, get_stash_subject, stash_pop_can_apply, get_stash_status, STASH_NOTHING_STASHED, merge_into_stash,
     get_merge_base, get_diff_between, get_diff_stat_between,
@@ -2525,10 +2525,9 @@ class GitInteractiveRebaseApp(QMainWindow):
                 return
 
             try:
-                subprocess.run(
-                    ["git", "cherry-pick", "--abort"], cwd=self.repo_path,
-                    capture_output=True, text=True, encoding='utf-8', errors='replace'
-                )
+                ok, detail = self._run_abort_cherry_pick()
+                if not ok:
+                    self._warn_abort_failure(detail)
             except Exception:
                 pass
             self.load_history()
@@ -2605,14 +2604,31 @@ class GitInteractiveRebaseApp(QMainWindow):
         return False, result.stderr.strip()
 
     def _run_abort_cherry_pick(self):
-        """Runs 'git cherry-pick --abort' silently."""
+        """Runs 'git cherry-pick --abort' and verifies the repo is clean again.
+
+        Returns (ok, detail). ok is True only if the abort ran successfully and
+        no pending cherry-pick state remains, so callers can alert the user if
+        cleanup silently failed."""
         try:
-            subprocess.run(
+            result = subprocess.run(
                 ["git", "cherry-pick", "--abort"], cwd=self.repo_path,
                 capture_output=True, text=True, encoding='utf-8', errors='replace'
             )
-        except Exception:
-            pass
+        except Exception as e:
+            return False, f"{e}"
+        if result.returncode != 0:
+            return False, result.stderr.strip() or result.stdout.strip()
+        if cherry_pick_in_progress(self.repo_path):
+            return False, "repo is still in a cherry-pick state"
+        return True, ""
+
+    def _warn_abort_failure(self, detail):
+        """Shows a warning when cleanup after a failed cherry-pick did not fully
+        succeed, so the user is never left mid-pick without knowing it."""
+        QMessageBox.warning(
+            self, "Cherry-pick Cleanup Failed",
+            f"The repository may still be in a cherry-pick state:\n\n{detail}"
+        )
 
     def handle_browse_cherry_pick(self):
         """Cherry-picks the selected commit(s) from the browse window.
@@ -2662,7 +2678,9 @@ class GitInteractiveRebaseApp(QMainWindow):
             self._refresh_parent_main_window()
             QMessageBox.information(self, "Success", "Cherry-pick completed successfully.")
         else:
-            self._run_abort_cherry_pick()
+            ok, detail = self._run_abort_cherry_pick()
+            if not ok:
+                self._warn_abort_failure(detail)
             self.load_history()
             self._refresh_parent_main_window()
             QMessageBox.critical(
@@ -2727,16 +2745,22 @@ class GitInteractiveRebaseApp(QMainWindow):
                     ["git", "reset", "--hard", head_before], cwd=self.repo_path,
                     capture_output=True, text=True, encoding='utf-8', errors='replace'
                 )
-                self._run_abort_cherry_pick()
+                ok, detail = self._run_abort_cherry_pick()
+                if not ok:
+                    self._warn_abort_failure(detail)
                 # Nothing remains applied; skipped commits were never applied.
                 skipped += 1  # the failed one counts as skipped
                 cherry_picked = 0
                 stop = True
             elif clicked is skip_btn:
-                self._run_abort_cherry_pick()
+                ok, detail = self._run_abort_cherry_pick()
+                if not ok:
+                    self._warn_abort_failure(detail)
                 skipped += 1
             else:  # stop
-                self._run_abort_cherry_pick()
+                ok, detail = self._run_abort_cherry_pick()
+                if not ok:
+                    self._warn_abort_failure(detail)
                 skipped += 1
                 stop = True
 
