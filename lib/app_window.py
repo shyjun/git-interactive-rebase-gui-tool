@@ -41,7 +41,7 @@ from PySide6.QtCore import Qt, QSize, QSettings, QThread, Signal, QRect, QTimer,
 
 from lib.git_helpers import (
     get_git_history, get_branch_history, get_head_sha, get_full_head_sha, get_current_branch, get_commit_diff,
-    get_full_commit_message, get_commit_metadata, get_commit_files,
+    get_full_commit_message, get_commit_subject, get_commit_metadata, get_commit_files,
     has_uncommitted_changes, cherry_pick_in_progress, classify_cherry_pick_failure, branch_exists, get_local_branches_map, get_remote_head_sha,
     get_file_diff_only_in_commit, get_revert_commit_message, get_commit_metadata_and_message,
     get_commit_file_stats,     get_unstaged_files, stash_changes, commit_file, bulk_commit_all, amend_with_head, discard_changes, stash_pop, get_stash_subject, stash_pop_can_apply, get_stash_status, STASH_NOTHING_STASHED, merge_into_stash,
@@ -2719,14 +2719,32 @@ class GitInteractiveRebaseApp(QMainWindow):
         """Cherry-picks a list of SHAs one by one, asking how to proceed on
         each failure, then shows a summary."""
         # (Safety checks already done by the caller.)
-        order_str = ", ".join(sha[:7] for sha in shas)
         target_branch = get_current_branch(self.repo_path)
+
+        n = len(shas)
+        lines = []
+        for i, sha in enumerate(shas):
+            try:
+                subject = get_commit_subject(self.repo_path, sha)
+            except Exception:
+                subject = ""
+            marker = ""
+            if n > 1:
+                if i == 0:
+                    marker = "OLDEST"
+                elif i == n - 1:
+                    marker = "HEAD"
+            suffix = f" <i>{marker}</i>" if marker else ""
+            lines.append(f"{sha[:7]} {subject}{suffix}".rstrip())
+        order_html = "<br/>".join(lines) if lines else ", ".join(sha[:7] for sha in shas)
+
         box = QMessageBox(self)
         box.setWindowTitle("Cherry-pick Selected Commits")
+        box.setTextFormat(Qt.RichText)
         box.setText(
             f"<p>Cherry-pick selected commit(s) to <b>{target_branch}</b>?</p>"
             f"<p>They will be applied in this order:</p>"
-            f"<p>A: {order_str}</p>"
+            f"<p>{order_html}</p>"
             f"<p>Continue?</p>"
         )
         yes_btn = box.addButton("Yes", QMessageBox.YesRole)
@@ -2762,10 +2780,11 @@ class GitInteractiveRebaseApp(QMainWindow):
                 reason = detail.splitlines()[0] if detail else "unknown error"
             box = QMessageBox(self)
             box.setWindowTitle("Cherry-pick Failed")
+            box.setTextFormat(Qt.RichText)
             box.setText(
-                f"<b>{sha[:10]}</b> cherry-pick failed.\n\n"
-                f"Reason: {reason}\n"
-                f"Successfully cherry-picked so far: <b>{cherry_picked}</b>\n"
+                f"<b>{sha[:10]}</b> cherry-pick failed.<br/><br/>"
+                f"Reason: {reason}<br/><br/>"
+                f"Successfully cherry-picked so far: <b>{cherry_picked}</b><br/>"
                 f"Pending commits: <b>{remaining_after}</b>"
             )
             undo_btn = box.addButton("Undo entire cherry-pick", QMessageBox.DestructiveRole)

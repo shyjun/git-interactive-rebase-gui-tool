@@ -304,6 +304,15 @@ def get_full_commit_message(repo_path, commit_sha):
     except subprocess.CalledProcessError as e:
         raise Exception(f"Failed to fetch commit message: {e.stderr}")
 
+def get_commit_subject(repo_path, commit_sha):
+    """Fetches the single-line subject of a commit."""
+    try:
+        cmd = ["git", "log", "-1", "--format=%s", commit_sha]
+        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
+        return result.stdout.strip()
+    except subprocess.CalledProcessError as e:
+        raise Exception(f"Failed to fetch commit subject: {e.stderr}")
+
 def get_commit_metadata_and_message(repo_path, commit_sha):
     """Fetches both metadata and message in a single git log call for performance."""
     try:
