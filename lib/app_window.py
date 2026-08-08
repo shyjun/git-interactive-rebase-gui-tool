@@ -2519,9 +2519,7 @@ class GitInteractiveRebaseApp(QMainWindow):
                         "Changes have been applied without creating a commit."
                     )
                 else:
-                    QMessageBox.information(
-                        self, "Success", "Cherry-pick completed successfully."
-                    )
+                    self._show_cherry_pick_result("Cherry-pick succeeded.", [sha], [])
                 return
 
             message = self._cherry_pick_failure_message(sha, result.stderr or "")
@@ -2606,9 +2604,10 @@ class GitInteractiveRebaseApp(QMainWindow):
     def _run_abort_cherry_pick(self):
         """Runs 'git cherry-pick --abort' and verifies the repo is clean again.
 
-        Returns (ok, detail). ok is True only if the abort ran successfully and
-        no pending cherry-pick state remains, so callers can alert the user if
-        cleanup silently failed."""
+        Returns (ok, detail). ok is True only if no pending cherry-pick state
+        remains. '--abort' failing because nothing was in progress counts as
+        clean, so ok is based on CHERRY_PICK_HEAD being gone, not the command's
+        exit code."""
         try:
             result = subprocess.run(
                 ["git", "cherry-pick", "--abort"], cwd=self.repo_path,
@@ -2616,10 +2615,9 @@ class GitInteractiveRebaseApp(QMainWindow):
             )
         except Exception as e:
             return False, f"{e}"
-        if result.returncode != 0:
-            return False, result.stderr.strip() or result.stdout.strip()
         if cherry_pick_in_progress(self.repo_path):
-            return False, "repo is still in a cherry-pick state"
+            detail = result.stderr.strip() or result.stdout.strip()
+            return False, detail or "repo is still in a cherry-pick state"
         return True, ""
 
     def _cherry_pick_failure_message(self, sha, stderr):
@@ -2655,6 +2653,27 @@ class GitInteractiveRebaseApp(QMainWindow):
         QMessageBox.warning(
             self, "Cherry-pick Cleanup Failed",
             f"The repository may still be in a cherry-pick state:\n\n{detail}"
+        )
+
+    def _show_cherry_pick_result(self, headline, cherry_picked_shas, skipped_shas):
+        """Shows a summary of a cherry-pick operation (single or batch).
+
+        Lists how many commits succeeded and failed, plus the SHAs of the
+        failed ones, so the user always gets pass/fail counts."""
+        picked = cherry_picked_shas or []
+        failed = skipped_shas or []
+
+        def block(label, shas_list):
+            if not shas_list:
+                return f"<b>{label}:</b> 0"
+            body = "<br/>".join(s[:7] for s in shas_list)
+            return f"<b>{label}:</b> {len(shas_list)}<br/>{body}"
+
+        QMessageBox.information(
+            self, "Cherry-pick Result",
+            f"<p><b>{headline}</b></p>"
+            f"<p>{block('Cherry-picked', picked)}<br/><br/>"
+            f"{block('Failed', failed)}</p>"
         )
 
     def handle_browse_cherry_pick(self):
@@ -2703,7 +2722,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         if success:
             self.load_history()
             self._refresh_parent_main_window()
-            QMessageBox.information(self, "Success", "Cherry-pick completed successfully.")
+            self._show_cherry_pick_result("Cherry-pick succeeded.", [sha], [])
         else:
             message = self._cherry_pick_failure_message(sha, err)
             ok, detail = self._run_abort_cherry_pick()
@@ -2728,6 +2747,8 @@ class GitInteractiveRebaseApp(QMainWindow):
                 subject = get_commit_subject(self.repo_path, sha)
             except Exception:
                 subject = ""
+            if len(subject) > 80:
+                subject = subject[:80] + "..."
             marker = ""
             if n > 1:
                 if i == 0:
@@ -2735,11 +2756,12 @@ class GitInteractiveRebaseApp(QMainWindow):
                 elif i == n - 1:
                     marker = "HEAD"
             suffix = f" <i>{marker}</i>" if marker else ""
-            lines.append(f"{sha[:7]} {subject}{suffix}".rstrip())
+            lines.append(f"{sha[:7]}: {subject}{suffix}".rstrip())
         order_html = "<br/>".join(lines) if lines else ", ".join(sha[:7] for sha in shas)
 
         box = QMessageBox(self)
         box.setWindowTitle("Cherry-pick Selected Commits")
+        box.setSizeGripEnabled(True)
         box.setTextFormat(Qt.RichText)
         box.setText(
             f"<p>Cherry-pick selected commit(s) to <b>{target_branch}</b>?</p>"
@@ -2853,9 +2875,9 @@ class GitInteractiveRebaseApp(QMainWindow):
         QMessageBox.information(
             self, "Cherry-pick Summary",
             f"<p><b>{headline}</b></p>"
-            f"<p>{summary_block('Cherry-picked', cherry_picked_shas)}<br/><br/>"
-            f"{summary_block('Skipped', skipped_shas)}<br/><br/>"
-            f"{summary_block('Not cherry-picked', not_cherry_picked_shas)}</p>"
+            f"<p>{_summary_block('Cherry-picked', cherry_picked_shas)}<br/><br/>"
+            f"{_summary_block('Skipped', skipped_shas)}<br/><br/>"
+            f"{_summary_block('Not cherry-picked', not_cherry_picked_shas)}</p>"
         )
 
     def handle_git_fetch(self):
