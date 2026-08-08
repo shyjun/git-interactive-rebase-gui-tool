@@ -2705,11 +2705,20 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.load_history()
         if cherry_picked > 0:
             self._refresh_parent_main_window()
+
+        if not_cherry_picked == 0 and skipped == 0:
+            headline = "Cherry-pick(s) succeeded."
+        elif cherry_picked == 0:
+            headline = "Cherry-pick failed - no commits were applied."
+        else:
+            headline = "Cherry-pick partially succeeded."
+
         QMessageBox.information(
             self, "Cherry-pick Summary",
-            f"Cherry-picked: <b>{cherry_picked}</b>\n"
-            f"Skipped: <b>{skipped}</b>\n"
-            f"Not cherry-picked: <b>{not_cherry_picked}</b>"
+            f"{headline}\n\n"
+            f"Cherry-picked:\n<b>{cherry_picked}</b>\n\n"
+            f"Skipped:\n<b>{skipped}</b>\n\n"
+            f"Not cherry-picked:\n<b>{not_cherry_picked}</b>"
         )
 
     def handle_git_fetch(self):
