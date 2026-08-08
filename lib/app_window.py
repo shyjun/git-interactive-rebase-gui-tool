@@ -3717,10 +3717,13 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.multi_select_mode = True
         # Block signals to prevent spurious itemChanged during setup
         self.list_widget.blockSignals(True)
+        saved_flags = {}
         for i in range(self.list_widget.count()):
             item = self.list_widget.item(i)
+            saved_flags[i] = item.flags()
             item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
             item.setCheckState(Qt.Unchecked)
+        self._saved_item_flags = saved_flags
         self.list_widget.blockSignals(False)
         self.list_widget.itemChanged.connect(self.on_multi_select_changed)
         self.multi_select_btn.setEnabled(False)
@@ -3734,10 +3737,11 @@ class GitInteractiveRebaseApp(QMainWindow):
             self.list_widget.itemChanged.disconnect(self.on_multi_select_changed)
         except Exception: # Widened exception catch
             pass
+        saved_flags = getattr(self, '_saved_item_flags', {})
         self.list_widget.blockSignals(True)
         for i in range(self.list_widget.count()):
             item = self.list_widget.item(i)
-            item.setFlags(item.flags() & ~Qt.ItemIsUserCheckable)
+            item.setFlags(saved_flags.get(i, item.flags() & ~Qt.ItemIsUserCheckable))
             item.setData(Qt.CheckStateRole, None)
         self.list_widget.blockSignals(False)
         self.multi_select_btn.setEnabled(True)
@@ -3763,12 +3767,19 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.enter_multi_select_mode()
         self.browse_select_btn.setEnabled(False)
         self.browse_cancel_select_btn.setEnabled(True)
+        # Give the commit list keyboard focus so Space toggles the current
+        # item's checkbox instead of falling onto the newly-enabled Cancel
+        # button (which would immediately exit selection mode).
+        self.list_widget.setFocus()
 
     def exit_browse_multi_select(self):
         """Exits checkbox multi-select mode in the browse window."""
         self.exit_multi_select_mode()
         self.browse_select_btn.setEnabled(True)
         self.browse_cancel_select_btn.setEnabled(False)
+        # 'multi_select_mode' is now False; force the commit-graph icons to be
+        # redrawn for every row.
+        self.list_widget.viewport().update()
 
     def handle_squash_selected(self):
         """Collects checked commits, validates contiguity, confirms, then squashes."""
