@@ -2715,10 +2715,10 @@ class GitInteractiveRebaseApp(QMainWindow):
 
         QMessageBox.information(
             self, "Cherry-pick Summary",
-            f"{headline}\n\n"
-            f"Cherry-picked:\n<b>{cherry_picked}</b>\n\n"
-            f"Skipped:\n<b>{skipped}</b>\n\n"
-            f"Not cherry-picked:\n<b>{not_cherry_picked}</b>"
+            f"<p><b>{headline}</b></p>"
+            f"<p>Cherry-picked: {cherry_picked}<br/>"
+            f"Skipped: {skipped}<br/>"
+            f"Not cherry-picked: {not_cherry_picked}</p>"
         )
 
     def handle_git_fetch(self):
