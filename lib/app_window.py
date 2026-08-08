@@ -2671,12 +2671,16 @@ class GitInteractiveRebaseApp(QMainWindow):
             body = "<br/>".join(s[:7] for s in shas_list)
             return f"<b>{label}:</b> {len(shas_list)}<br/>{body}"
 
-        QMessageBox.information(
-            self, "Cherry-pick Result",
+        box = self._make_resizable_message_box(self)
+        box.setWindowTitle("Cherry-pick Result")
+        box.setTextFormat(Qt.RichText)
+        box.setText(
             f"<p><b>{headline}</b></p>"
             f"<p>{block('Cherry-picked', picked)}<br/><br/>"
             f"{block('Failed', failed)}</p>"
         )
+        box.addButton("OK", QMessageBox.AcceptRole)
+        box.exec()
 
     def handle_browse_cherry_pick(self):
         """Cherry-picks the selected commit(s) from the browse window.
@@ -2708,12 +2712,33 @@ class GitInteractiveRebaseApp(QMainWindow):
         if self.multi_select_mode:
             self.exit_browse_multi_select()
 
+    @staticmethod
+    def _make_resizable_message_box(parent):
+        """Creates a QMessageBox that is genuinely resizable.
+
+        QMessageBox caps its own maximum size when it builds its layout, so
+        enabling the size grip alone shows the grab-handle but the window will
+        not grow. Keeps lifting the cap for the first second the box is shown,
+        at which point Qt has finished its internal layout passes."""
+        box = QMessageBox(parent)
+        box.setSizeGripEnabled(True)
+
+        def unlock():
+            box.setMaximumSize(16777215, 16777215)
+
+        unlock_timer = QTimer(box)
+        unlock_timer.setInterval(15)
+        unlock_timer.timeout.connect(unlock)
+        unlock_timer.start()
+        QTimer.singleShot(1000, unlock_timer.stop)
+        return box
+
     def _refresh_parent_main_window(self):
         """Reloads the commit list of the main (parent) window that owns this
         browse viewer, so cherry-picks done from the browse window are reflected
-        there immediately. The cached HEAD is updated directly too, so immediate
-        re-checks never see a stale 'repository has changed' state even before
-        the (async) history reload finishes."""
+        there immediately. The cached HEAD is updated before sync too, so
+        immediate re-checks never see a stale 'repository has changed' state
+        even before the async history reload finishes."""
         parent = self.parent()
         if parent is None or getattr(parent, "browse_branch", None):
             return
@@ -2750,9 +2775,13 @@ class GitInteractiveRebaseApp(QMainWindow):
             self._sync_cached_head()
             self.load_history()
             self._refresh_parent_main_window()
-            QMessageBox.critical(
-                self, "Cherry-pick Failed", message
-            )
+            box = self._make_resizable_message_box(self)
+            box.setWindowTitle("Cherry-pick Failed")
+            box.setTextFormat(Qt.RichText)
+            box.setText(message)
+            box.setIcon(QMessageBox.Critical)
+            box.addButton("OK", QMessageBox.AcceptRole)
+            box.exec()
 
     def _cherry_pick_sequence(self, shas):
         """Cherry-picks a list of SHAs one by one, asking how to proceed on
@@ -2779,9 +2808,8 @@ class GitInteractiveRebaseApp(QMainWindow):
             lines.append(f"{sha[:7]}: {subject}{suffix}".rstrip())
         order_html = "<br/>".join(lines) if lines else ", ".join(sha[:7] for sha in shas)
 
-        box = QMessageBox(self)
+        box = self._make_resizable_message_box(self)
         box.setWindowTitle("Cherry-pick Selected Commits")
-        box.setSizeGripEnabled(True)
         box.setTextFormat(Qt.RichText)
         box.setText(
             f"<p>Cherry-pick selected commit(s) to <b>{target_branch}</b>?</p>"
@@ -2836,9 +2864,8 @@ class GitInteractiveRebaseApp(QMainWindow):
                 return "<br/>".join(lines) if lines else "<i>none</i>"
 
             pending_shas = shas[current_index + 1:]
-            box = QMessageBox(self)
+            box = self._make_resizable_message_box(self)
             box.setWindowTitle("Cherry-pick Failed")
-            box.setSizeGripEnabled(True)
             box.setTextFormat(Qt.RichText)
             box.setText(
                 f"<p>Cherry-pick of <b>{sha[:10]}</b> failed.</p>"
@@ -2909,13 +2936,17 @@ class GitInteractiveRebaseApp(QMainWindow):
             body = "<br/>".join(s[:7] for s in shas_list)
             return f"<b>{label}:</b> {len(shas_list)}<br/>{body}"
 
-        QMessageBox.information(
-            self, "Cherry-pick Summary",
+        box = self._make_resizable_message_box(self)
+        box.setWindowTitle("Cherry-pick Summary")
+        box.setTextFormat(Qt.RichText)
+        box.setText(
             f"<p><b>{headline}</b></p>"
             f"<p>{_summary_block('Cherry-picked', cherry_picked_shas)}<br/><br/>"
             f"{_summary_block('Skipped', skipped_shas)}<br/><br/>"
             f"{_summary_block('Not cherry-picked', not_cherry_picked_shas)}</p>"
         )
+        box.addButton("OK", QMessageBox.AcceptRole)
+        box.exec()
 
     def handle_git_fetch(self):
         """Runs git fetch."""
