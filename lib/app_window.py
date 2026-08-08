@@ -2593,6 +2593,15 @@ class GitInteractiveRebaseApp(QMainWindow):
 
         self._cherry_pick_sequence(shas)
 
+    def _refresh_parent_main_window(self):
+        """Reloads the commit list of the main (parent) window that owns this
+        browse viewer, so cherry-picks done from the browse window are reflected
+        there immediately."""
+        parent = self.parent()
+        if parent is None or getattr(parent, "browse_branch", None):
+            return
+        parent.load_history()
+
     def _cherry_pick_single(self, sha):
         """Cherry-picks a single commit with the standard safety checks."""
         # Safety checks: repo unchanged and no unstaged changes.
@@ -2604,10 +2613,12 @@ class GitInteractiveRebaseApp(QMainWindow):
         success, err = self._run_cherry_pick(sha)
         if success:
             self.load_history()
+            self._refresh_parent_main_window()
             QMessageBox.information(self, "Success", "Cherry-pick completed successfully.")
         else:
             self._run_abort_cherry_pick()
             self.load_history()
+            self._refresh_parent_main_window()
             QMessageBox.critical(
                 self, "Cherry-pick Failed",
                 f"Cherry-pick failed.\n\n{err}"
@@ -2688,6 +2699,8 @@ class GitInteractiveRebaseApp(QMainWindow):
         not_cherry_picked = cherry_picked_total - cherry_picked - skipped
 
         self.load_history()
+        if cherry_picked > 0:
+            self._refresh_parent_main_window()
         QMessageBox.information(
             self, "Cherry-pick Summary",
             f"Cherry-picked: <b>{cherry_picked}</b>\n"
