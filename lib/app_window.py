@@ -2637,10 +2637,10 @@ class GitInteractiveRebaseApp(QMainWindow):
         box = QMessageBox(self)
         box.setWindowTitle("Cherry-pick Selected Commits")
         box.setText(
-            f"Cherry-pick selected commit(s) to <b>{target_branch}</b>?\n\n"
-            "They will be applied in this order:\n\n"
-            f"A: {order_str}\n\n"
-            "Continue?"
+            f"<p>Cherry-pick selected commit(s) to <b>{target_branch}</b>?</p>"
+            f"<p>They will be applied in this order:</p>"
+            f"<p>A: {order_str}</p>"
+            f"<p>Continue?</p>"
         )
         yes_btn = box.addButton("Yes", QMessageBox.YesRole)
         no_btn = box.addButton("No", QMessageBox.NoRole)
