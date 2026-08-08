@@ -42,7 +42,7 @@ from PySide6.QtCore import Qt, QSize, QSettings, QThread, Signal, QRect, QTimer,
 from lib.git_helpers import (
     get_git_history, get_branch_history, get_head_sha, get_full_head_sha, get_current_branch, get_commit_diff,
     get_full_commit_message, get_commit_metadata, get_commit_files,
-    has_uncommitted_changes, cherry_pick_in_progress, branch_exists, get_local_branches_map, get_remote_head_sha,
+    has_uncommitted_changes, cherry_pick_in_progress, classify_cherry_pick_failure, branch_exists, get_local_branches_map, get_remote_head_sha,
     get_file_diff_only_in_commit, get_revert_commit_message, get_commit_metadata_and_message,
     get_commit_file_stats,     get_unstaged_files, stash_changes, commit_file, bulk_commit_all, amend_with_head, discard_changes, stash_pop, get_stash_subject, stash_pop_can_apply, get_stash_status, STASH_NOTHING_STASHED, merge_into_stash,
     get_merge_base, get_diff_between, get_diff_stat_between,
@@ -2524,6 +2524,7 @@ class GitInteractiveRebaseApp(QMainWindow):
                     )
                 return
 
+            message = self._cherry_pick_failure_message(sha, result.stderr or "")
             try:
                 ok, detail = self._run_abort_cherry_pick()
                 if not ok:
@@ -2532,8 +2533,7 @@ class GitInteractiveRebaseApp(QMainWindow):
                 pass
             self.load_history()
             QMessageBox.critical(
-                self, "Cherry-pick Failed",
-                f"Cherry-pick failed.\n\n{result.stderr.strip()}"
+                self, "Cherry-pick Failed", message
             )
         except Exception as e:
             QMessageBox.critical(self, "Error", f"An error occurred while cherry-picking: {str(e)}")
@@ -2622,6 +2622,33 @@ class GitInteractiveRebaseApp(QMainWindow):
             return False, "repo is still in a cherry-pick state"
         return True, ""
 
+    def _cherry_pick_failure_message(self, sha, stderr):
+        """Builds a user-friendly failure message for a failed cherry-pick.
+
+        The cherry-pick is aborted by callers shortly after, so the message
+        avoids git's own 'resolve conflicts / --continue / --skip / --abort'
+        hints that would no longer apply."""
+        kind, detail = classify_cherry_pick_failure(self.repo_path, stderr)
+        short = sha[:10] if sha else "commit"
+        if kind == "conflict":
+            files = "".join(f"    {path}\n" for path in detail.splitlines())
+            return (
+                f"Cherry-pick of <b>{short}</b> failed because it conflicts with "
+                f"the current branch.\n\nThe cherry-pick was <b>aborted</b>, so no "
+                f"changes were made.\n\nConflicting files:\n{files}"
+            )
+        if kind == "empty":
+            return (
+                f"Cherry-pick of <b>{short}</b> failed - the commit is already "
+                f"present in this branch or produces no change here.\n\nNo changes "
+                f"were made."
+            )
+        first_line = detail.splitlines()[0] if detail else "no error details"
+        return (
+            f"Cherry-pick of <b>{short}</b> failed.\n\nNo changes were made, and "
+            f"the cherry-pick was aborted.\n\n{first_line}"
+        )
+
     def _warn_abort_failure(self, detail):
         """Shows a warning when cleanup after a failed cherry-pick did not fully
         succeed, so the user is never left mid-pick without knowing it."""
@@ -2678,14 +2705,14 @@ class GitInteractiveRebaseApp(QMainWindow):
             self._refresh_parent_main_window()
             QMessageBox.information(self, "Success", "Cherry-pick completed successfully.")
         else:
+            message = self._cherry_pick_failure_message(sha, err)
             ok, detail = self._run_abort_cherry_pick()
             if not ok:
                 self._warn_abort_failure(detail)
             self.load_history()
             self._refresh_parent_main_window()
             QMessageBox.critical(
-                self, "Cherry-pick Failed",
-                f"Cherry-pick failed.\n\n{err}"
+                self, "Cherry-pick Failed", message
             )
 
     def _cherry_pick_sequence(self, shas):
@@ -2719,17 +2746,25 @@ class GitInteractiveRebaseApp(QMainWindow):
         stop = False
 
         for sha in shas:
-            success, _ = self._run_cherry_pick(sha)
+            success, err = self._run_cherry_pick(sha)
             if success:
                 cherry_picked += 1
                 continue
 
             # A cherry-pick failed. Offer recovery choices.
             remaining_after = cherry_picked_total - cherry_picked - skipped - 1
+            kind, detail = classify_cherry_pick_failure(self.repo_path, err)
+            if kind == "conflict":
+                reason = "It conflicts with the current branch."
+            elif kind == "empty":
+                reason = "The commit is already present or produces no change."
+            else:
+                reason = detail.splitlines()[0] if detail else "unknown error"
             box = QMessageBox(self)
             box.setWindowTitle("Cherry-pick Failed")
             box.setText(
                 f"<b>{sha[:10]}</b> cherry-pick failed.\n\n"
+                f"Reason: {reason}\n"
                 f"Successfully cherry-picked so far: <b>{cherry_picked}</b>\n"
                 f"Pending commits: <b>{remaining_after}</b>"
             )

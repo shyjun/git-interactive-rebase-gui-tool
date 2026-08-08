@@ -406,6 +406,48 @@ def cherry_pick_in_progress(repo_path):
     except Exception:
         return False
 
+def classify_cherry_pick_failure(repo_path, stderr):
+    """Classifies why a cherry-pick failed, before it is aborted.
+
+    Uses the index/working tree state (not stderr text) so it is robust across
+    git versions. Returns (kind, detail) where kind is one of
+    'conflict', 'empty', or 'other'.
+    """
+    try:
+        unmerged_result = subprocess.run(
+            ["git", "ls-files", "--unmerged"], cwd=repo_path,
+            capture_output=True, text=True, encoding='utf-8', errors='replace'
+        )
+        unmerged = unmerged_result.stdout.strip().split('\n') if unmerged_result.stdout.strip() else []
+    except Exception:
+        unmerged = []
+    if unmerged:
+        paths = []
+        for line in unmerged:
+            if "\t" in line:
+                path = line.split("\t", 1)[-1]
+                if path not in paths:
+                    paths.append(path)
+        return "conflict", "\n".join(paths) or "conflicting files"
+
+    try:
+        staged_result = subprocess.run(
+            ["git", "diff", "--cached", "--quiet"], cwd=repo_path,
+            capture_output=True, text=True, encoding='utf-8', errors='replace'
+        )
+        no_staged = staged_result.returncode == 0
+    except Exception:
+        no_staged = False
+    if no_staged:
+        return "empty", ""
+
+    if stderr:
+        for line in stderr.splitlines():
+            stripped = line.strip()
+            if stripped and not stripped.startswith("hint:"):
+                return "other", stripped
+    return "other", "unknown error"
+
 def classify_tracked_changes(repo_path):
     """Returns (has_staged, has_unstaged) for tracked changes.
 
