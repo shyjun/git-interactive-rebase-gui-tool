@@ -449,6 +449,30 @@ class CommitListWidget(QListWidget):
             import traceback
             traceback.print_exc()
 
+class BrowseDimOverlay(QWidget):
+    """A semi-transparent grey veil laid over the whole browse window so it
+    reads as a read-only/dimmed viewer at first glance.
+
+    Mouse events pass straight through (WA_TransparentForMouseEvents), so the
+    commit list stays fully interactive beneath the veil."""
+
+    def __init__(self, parent, is_dark_theme):
+        super().__init__(parent)
+        self.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+        self.setAttribute(Qt.WA_TranslucentBackground, True)
+        self.set_is_dark(is_dark_theme)
+
+    def set_is_dark(self, is_dark):
+        self._is_dark = is_dark
+        # ~30% grey: dark theme dims toward black, light theme desaturates.
+        self._color = QColor(80, 80, 80, 77) if not is_dark else QColor(30, 30, 30, 77)
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.fillRect(self.rect(), self._color)
+        painter.end()
+
+
 def get_theme_stylesheet(theme_name):
     """Return the QSS stylesheet for the given theme name (\"dark\" or \"light\")."""
     if theme_name == "dark":
@@ -718,6 +742,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.browse_branch = browse_branch
         if browse_branch:
             self.viewer_mode = True
+        self.is_dark_theme = False  # refined in load_settings/apply_theme
         self.start_time_full_head = get_full_head_sha(self.repo_path)
         self.start_time_head = get_head_sha(self.repo_path)
         self.cached_current_head_full_sha = self.start_time_full_head
@@ -1545,6 +1570,23 @@ class GitInteractiveRebaseApp(QMainWindow):
 
         self.ctrl_z_shortcut = QShortcut(QKeySequence("Ctrl+Z"), self)
         self.ctrl_z_shortcut.activated.connect(self.handle_undo_shortcut)
+
+        # A grey veil over the whole browse window marks it as a read-only viewer.
+        self._browse_overlay = None
+        if self.browse_branch:
+            self._browse_overlay = BrowseDimOverlay(self.centralWidget(), self.is_dark_theme)
+            self._browse_overlay.raise_()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if getattr(self, '_browse_overlay', None) is not None:
+            self._browse_overlay.setGeometry(self.centralWidget().rect())
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        if getattr(self, '_browse_overlay', None) is not None:
+            self._browse_overlay.setGeometry(self.centralWidget().rect())
+            self._browse_overlay.raise_()
 
     def show_search_bar(self):
         if not self.right_panel.isVisible():
@@ -3011,6 +3053,10 @@ class GitInteractiveRebaseApp(QMainWindow):
             )
 
         self.update_font()
+
+        if getattr(self, '_browse_overlay', None) is not None:
+            self._browse_overlay.set_is_dark(self.is_dark_theme)
+            self._browse_overlay.update()
 
     def update_font(self):
         font = QFont("Monospace", self.current_font_size)
