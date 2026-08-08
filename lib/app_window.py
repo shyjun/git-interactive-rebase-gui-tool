@@ -2697,9 +2697,14 @@ class GitInteractiveRebaseApp(QMainWindow):
 
         if len(shas) == 1:
             self._cherry_pick_single(shas[0])
-            return
+        else:
+            self._cherry_pick_sequence(shas)
 
-        self._cherry_pick_sequence(shas)
+        # The pick reloaded the list asynchronously with fresh items that carry
+        # no checkboxes, but the button/checkbox state from select-mode is still
+        # active. Drop it so the UI returns to the normal single-select state.
+        if self.multi_select_mode:
+            self.exit_browse_multi_select()
 
     def _refresh_parent_main_window(self):
         """Reloads the commit list of the main (parent) window that owns this
