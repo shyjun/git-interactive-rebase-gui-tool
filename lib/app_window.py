@@ -1302,25 +1302,6 @@ class GitInteractiveRebaseApp(QMainWindow):
         # Single row of main buttons
         controls_layout.addWidget(self.theme_menu_btn)
         controls_layout.addWidget(self.toggle_diff_btn)
-        # Browse-mode cherry-pick of the selected commit(s); placed right after
-        # the show/hide diff button.
-        self.browse_cherry_pick_btn = QPushButton("Cherry-pick selected commit(s)")
-        self.browse_cherry_pick_btn.setToolTip(
-            "Cherry-pick the currently selected commit (single) or the checked "
-            "commits (in multi-select mode).")
-        self.browse_cherry_pick_btn.clicked.connect(self.handle_browse_cherry_pick)
-        self.browse_cherry_pick_btn.setMinimumHeight(40)
-        self.browse_cherry_pick_btn.setMinimumWidth(100)
-        self.browse_cherry_pick_btn.setVisible(bool(self.browse_branch))
-        controls_layout.addWidget(self.browse_cherry_pick_btn)
-        controls_layout.addWidget(self.help_btn)
-        controls_layout.addWidget(self.check_update_btn)
-        controls_layout.addStretch()
-        controls_layout.addWidget(self.pop_stash_btn)
-        controls_layout.addWidget(self.pr_diff_btn)
-        controls_layout.addWidget(self.cherry_pick_btn)
-        controls_layout.addWidget(self.browse_branch_btn)
-        controls_layout.addWidget(self.exit_viewer_mode_btn)
         self.browse_select_btn = QPushButton("Select commits")
         self.browse_select_btn.setToolTip("Enter checkbox selection mode on the commit list.")
         self.browse_select_btn.clicked.connect(self.enter_browse_multi_select)
@@ -1332,11 +1313,27 @@ class GitInteractiveRebaseApp(QMainWindow):
             btn.setMinimumHeight(40)
             btn.setMinimumWidth(100)
             btn.setVisible(bool(self.browse_branch))
-
-        controls_layout.addWidget(self.rescan_btn)
-        controls_layout.addWidget(self.undo_btn)
         controls_layout.addWidget(self.browse_select_btn)
         controls_layout.addWidget(self.browse_cancel_select_btn)
+        controls_layout.addWidget(self.help_btn)
+        controls_layout.addWidget(self.check_update_btn)
+        controls_layout.addStretch()
+        controls_layout.addWidget(self.pop_stash_btn)
+        controls_layout.addWidget(self.pr_diff_btn)
+        controls_layout.addWidget(self.cherry_pick_btn)
+        controls_layout.addWidget(self.browse_branch_btn)
+        controls_layout.addWidget(self.exit_viewer_mode_btn)
+        self.browse_cherry_pick_btn = QPushButton("Cherry-pick selected commit(s)")
+        self.browse_cherry_pick_btn.setToolTip(
+            "Cherry-pick the currently selected commit (single) or the checked "
+            "commits (in multi-select mode).")
+        self.browse_cherry_pick_btn.clicked.connect(self.handle_browse_cherry_pick)
+        self.browse_cherry_pick_btn.setMinimumHeight(40)
+        self.browse_cherry_pick_btn.setMinimumWidth(100)
+        self.browse_cherry_pick_btn.setVisible(bool(self.browse_branch))
+        controls_layout.addWidget(self.browse_cherry_pick_btn)
+        controls_layout.addWidget(self.rescan_btn)
+        controls_layout.addWidget(self.undo_btn)
         controls_layout.addWidget(self.refresh_btn)
         controls_layout.addWidget(self.exit_btn)
 
