@@ -2798,14 +2798,7 @@ class GitInteractiveRebaseApp(QMainWindow):
                 subject = ""
             if len(subject) > 80:
                 subject = subject[:80] + "..."
-            marker = ""
-            if n > 1:
-                if i == 0:
-                    marker = "OLDEST"
-                elif i == n - 1:
-                    marker = "HEAD"
-            suffix = f" <i>{marker}</i>" if marker else ""
-            lines.append(f"{sha[:7]}: {subject}{suffix}".rstrip())
+            lines.append(f"{i + 1}. {sha[:7]}: {subject}".rstrip())
         order_html = "<br/>".join(lines) if lines else ", ".join(sha[:7] for sha in shas)
 
         box = self._make_resizable_message_box(self)
