@@ -1695,7 +1695,7 @@ class CherryPickDialog(QDialog):
     def __init__(self, font_size=10, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Cherry-pick Commit")
-        self.setMinimumSize(500, 160)
+        self.setFixedSize(600, 180)
         self.font_size = font_size
         self.chosen = None
 
