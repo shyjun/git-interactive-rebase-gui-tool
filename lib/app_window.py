@@ -2668,16 +2668,12 @@ class GitInteractiveRebaseApp(QMainWindow):
             body = "<br/>".join(s[:7] for s in shas_list)
             return f"<b>{label}:</b> {len(shas_list)}<br/>{body}"
 
-        box = self._make_resizable_message_box(self)
-        box.setWindowTitle("Cherry-pick Result")
-        box.setTextFormat(Qt.RichText)
-        box.setText(
+        QMessageBox.information(
+            self, "Cherry-pick Result",
             f"<p><b>{headline}</b></p>"
             f"<p>{block('Cherry-picked', picked)}<br/><br/>"
             f"{block('Failed', failed)}</p>"
         )
-        box.addButton("OK", QMessageBox.AcceptRole)
-        box.exec()
 
     def handle_browse_cherry_pick(self):
         """Cherry-picks the selected commit(s) from the browse window.
