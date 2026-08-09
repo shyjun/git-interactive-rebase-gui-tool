@@ -383,10 +383,15 @@ class CommitListWidget(QListWidget):
         super().__init__(main_window)
         self.main_window = main_window
         self.setSelectionMode(QListWidget.SingleSelection)
-        self.setDragEnabled(True)
-        self.setAcceptDrops(True)
-        self.setDropIndicatorShown(True)
-        self.setDragDropMode(QListWidget.InternalMove)
+        # Drag & drop reordering performs a rebase, so it is not allowed in the
+        # read-only branch browser (just like viewer mode).
+        if getattr(main_window, "browse_branch", None):
+            self.setDragDropMode(QListWidget.NoDragDrop)
+        else:
+            self.setDragEnabled(True)
+            self.setAcceptDrops(True)
+            self.setDropIndicatorShown(True)
+            self.setDragDropMode(QListWidget.InternalMove)
         self.setUniformItemSizes(True)
 
     def dropEvent(self, event):
