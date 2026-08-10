@@ -5736,7 +5736,8 @@ for i, filename in enumerate(files):
         result = dialog.exec()
 
         if result not in (CommitSelectivelyDialog.CommitSelectedResult,
-                          CommitSelectivelyDialog.GitAddPResult):
+                          CommitSelectivelyDialog.GitAddPResult,
+                          CommitSelectivelyDialog.AmendSelectedResult):
             return  # Cancelled - nothing was committed
 
         checked = dialog.checked_files()
@@ -5747,6 +5748,8 @@ for i, filename in enumerate(files):
 
         if result == CommitSelectivelyDialog.CommitSelectedResult:
             self._selective_commit_whole_files(checked)
+        elif result == CommitSelectivelyDialog.AmendSelectedResult:
+            self._selective_amend_files(checked)
         else:
             self._selective_commit_hunks(checked)
 
@@ -5790,6 +5793,47 @@ for i, filename in enumerate(files):
         QMessageBox.information(
             self, "Commit Successful",
             f"Done. Successfully committed the selected file(s).\n\nCommit ID:\n{self.get_head_sha()[:8]}"
+        )
+
+    def _selective_amend_files(self, checked):
+        """Amend only the checked files into the HEAD commit. The message dialog is
+        pre-filled with the current HEAD message (editable)."""
+        try:
+            default_msg = get_full_commit_message(self.repo_path, "HEAD")
+        except Exception:
+            default_msg = ""
+        msg_dlg = NewCommitMessageDialog(
+            "Amend Selected Files",
+            "Enter the new commit message for the amend:",
+            default_msg,
+            self.current_font_size,
+            self
+        )
+        if msg_dlg.exec() != QDialog.Accepted:
+            return  # Cancelled - nothing staged yet
+        message = msg_dlg.get_message()
+
+        progress = ProgressDialog("Amending Changes", "Staging selected files...", self)
+        progress.show()
+        QApplication.processEvents()
+        try:
+            if not stage_files(self.repo_path, checked):
+                raise Exception("Failed to stage the selected files.")
+            if not amend_staged(self.repo_path, message):
+                raise Exception("Git commit --amend failed.")
+        except Exception as e:
+            subprocess.run(["git", "reset", "-q"], cwd=self.repo_path)
+            progress.close()
+            QMessageBox.critical(self, "Error", f"Amend failed: {e}")
+            return
+        progress.close()
+
+        self.save_undo_state()
+        self.load_history()
+        QMessageBox.information(
+            self, "Amend Successful",
+            f"Done. Selected files were amended into the HEAD commit.\n\n"
+            f"Commit ID:\n{self.get_head_sha()[:8]}"
         )
 
     def _selective_commit_hunks(self, checked):
