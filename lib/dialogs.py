@@ -2197,8 +2197,9 @@ class UnstagedChangesDialog(QDialog):
 
 class CommitSelectivelyDialog(QDialog):
     """Dialog to pick which files (with stats) to commit from the unstaged worktree
-    changes. Selecting a file in the list only previews its diff; the checkboxes
-    (Select All / Deselect All) independently decide what gets committed."""
+    changes. The bottom pane shows the combined (consolidated) diff of all CHECKED
+    files, with a separator line before each file's diff, like the main diff pane.
+    The commit buttons are greyed out while no file is checked."""
     CommitSelectedResult = 1
     GitAddPResult = 2
 
@@ -2227,7 +2228,8 @@ class CommitSelectivelyDialog(QDialog):
         branch = get_current_branch(repo_path) or "HEAD"
         header = QLabel(
             f"Unstaged Changes: <b>{branch}</b> - {len(self.files)} file{'s' if len(self.files) != 1 else ''}<br>"
-            "Select the files to commit. Click a file to preview its unstaged diff."
+            "Select the files to commit. The bottom pane shows the combined diff "
+            "of the selected (checked) files."
         )
         header.setTextFormat(Qt.RichText)
         header.setWordWrap(True)
@@ -2239,8 +2241,8 @@ class CommitSelectivelyDialog(QDialog):
         deselect_all_btn = QPushButton("Deselect All")
         select_all_btn.setFixedWidth(110)
         deselect_all_btn.setFixedWidth(110)
-        select_all_btn.setToolTip("Check all files. This does not change which file is previewed.")
-        deselect_all_btn.setToolTip("Uncheck all files. This does not change which file is previewed.")
+        select_all_btn.setToolTip("Check all files.")
+        deselect_all_btn.setToolTip("Uncheck all files.")
         select_all_btn.clicked.connect(lambda: self._set_all(True))
         deselect_all_btn.clicked.connect(lambda: self._set_all(False))
         top_row.addWidget(select_all_btn)
@@ -2265,15 +2267,15 @@ class CommitSelectivelyDialog(QDialog):
             parent=self.file_list
         )
         self.file_list.setItemDelegate(self.stats_delegate)
-        self.file_list.currentItemChanged.connect(self.on_file_selected)
         self.file_list.itemChanged.connect(self._update_counter)
+        self.file_list.itemChanged.connect(self._refresh_diff)
         layout.addWidget(self.file_list, stretch=1)
 
         # Diff preview with the shared search bar
         self.diff_view = DiffView()
         self.diff_view.setReadOnly(True)
         self.diff_view.setFont(QFont("Courier New", font_size))
-        self.diff_view.setPlaceholderText("Select a file above to view its diff...")
+        self.diff_view.setPlaceholderText("No files selected. Check files to preview their combined diff...")
         self.highlighter = DiffHighlighter(
             self.diff_view.document(),
             added_color=colors["added"],
@@ -2350,17 +2352,26 @@ class CommitSelectivelyDialog(QDialog):
         layout.addLayout(bot_row)
 
         self._update_counter()
-        if self.files:
-            self.file_list.setCurrentRow(0)
+        self._refresh_diff()
 
-    def on_file_selected(self, current, previous):
-        if not current:
+    def _refresh_diff(self, _=None):
+        """Show the combined diff of the currently checked files (separator line
+        before each file, like the main window diff pane). With no files checked,
+        the pane is cleared and the commit actions are greyed out."""
+        checked = self.checked_files()
+        self.commit_btn.setEnabled(bool(checked))
+        self.add_p_btn.setEnabled(bool(checked))
+        if not checked:
             self.diff_view.clear()
             return
-        filepath = current.text()
         try:
-            diff = get_unstaged_file_diff(self.repo_path, filepath)
-            self.diff_view.setPlainText(diff)
+            parts = []
+            for f in checked:
+                d = get_unstaged_file_diff(self.repo_path, f).rstrip("\n")
+                if d:
+                    parts.append(d)
+            text = "\n\n".join(parts) + ("\n" if parts else "")
+            self.diff_view.setPlainText(text)
             self.diff_view.set_separator_color(self.colors.get("separator", "#444444"))
             self.search_bar._perform_search()
         except Exception as e:
