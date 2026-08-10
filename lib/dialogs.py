@@ -2045,7 +2045,7 @@ class UnstagedChangesDialog(QDialog):
         self.stash_btn.setToolTip("Stash all uncommitted changes and proceed to the app.")
 
         self.commit_selectively_btn = QPushButton("Commit Selectively")
-        self.commit_selectively_btn.setToolTip("Choose which files to commit. (Not yet implemented.)")
+        self.commit_selectively_btn.setToolTip("Choose which files (or diff hunks) to commit before starting the app.")
 
         commit_each_text = f"Commit each file changes separately and start app ({num_files} files modified, {num_files} commits)"
         self.commit_each_btn = QPushButton(commit_each_text)
@@ -2190,6 +2190,366 @@ class UnstagedChangesDialog(QDialog):
         )
         if answer == QMessageBox.Yes:
             self.done(self.DiscardResult)
+
+
+class CommitSelectivelyDialog(QDialog):
+    """Dialog to pick which files (with stats) to commit from the unstaged worktree
+    changes. Selecting a file in the list only previews its diff; the checkboxes
+    (Select All / Deselect All) independently decide what gets committed."""
+    CommitSelectedResult = 1
+    GitAddPResult = 2
+
+    def __init__(self, repo_path, files, file_stats, font_size=10, parent=None, colors=None):
+        super().__init__(parent)
+        self.repo_path = repo_path
+        self.files = list(files)
+        self.file_stats = file_stats or {}
+        self.font_size = font_size
+
+        if colors is None:
+            main_win = parent if isinstance(parent, QMainWindow) else None
+            if main_win and hasattr(main_win, 'current_theme_colors'):
+                colors = main_win.current_theme_colors
+            else:
+                colors = {"added": "#a6e22e", "removed": "#f92672", "header": "#66d9ef", "separator": "#444444"}
+        self.colors = colors
+
+        self.setWindowTitle("Commit Selectively")
+        self.setMinimumSize(860, 620)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(8)
+
+        branch = get_current_branch(repo_path) or "HEAD"
+        header = QLabel(
+            f"Unstaged Changes: <b>{branch}</b> - {len(self.files)} file{'s' if len(self.files) != 1 else ''}<br>"
+            "Select the files to commit. Click a file to preview its unstaged diff."
+        )
+        header.setTextFormat(Qt.RichText)
+        header.setWordWrap(True)
+        layout.addWidget(header)
+
+        top_row = QHBoxLayout()
+        top_row.setSpacing(6)
+        select_all_btn = QPushButton("Select All")
+        deselect_all_btn = QPushButton("Deselect All")
+        select_all_btn.setFixedWidth(110)
+        deselect_all_btn.setFixedWidth(110)
+        select_all_btn.setToolTip("Check all files. This does not change which file is previewed.")
+        deselect_all_btn.setToolTip("Uncheck all files. This does not change which file is previewed.")
+        select_all_btn.clicked.connect(lambda: self._set_all(True))
+        deselect_all_btn.clicked.connect(lambda: self._set_all(False))
+        top_row.addWidget(select_all_btn)
+        top_row.addWidget(deselect_all_btn)
+        top_row.addStretch()
+        self.counter_label = QLabel()
+        top_row.addWidget(self.counter_label)
+        layout.addLayout(top_row)
+
+        # File list with per-file stats; highlight/selection is independent of checkboxes
+        self.file_list = QListWidget()
+        self.file_list.setFont(QFont("Courier New", font_size))
+        for f in self.files:
+            item = QListWidgetItem(f)
+            item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsUserCheckable)
+            item.setCheckState(Qt.Checked)
+            item.setData(Qt.UserRole, self.file_stats.get(f))
+            self.file_list.addItem(item)
+        self.stats_delegate = StatsItemDelegate(
+            added_color=colors.get("added", "#22863a"),
+            removed_color=colors.get("removed", "#cb2431"),
+            parent=self.file_list
+        )
+        self.file_list.setItemDelegate(self.stats_delegate)
+        self.file_list.currentItemChanged.connect(self.on_file_selected)
+        self.file_list.itemChanged.connect(self._update_counter)
+        layout.addWidget(self.file_list, stretch=1)
+
+        # Diff preview with the shared search bar
+        self.diff_view = DiffView()
+        self.diff_view.setReadOnly(True)
+        self.diff_view.setFont(QFont("Courier New", font_size))
+        self.diff_view.setPlaceholderText("Select a file above to view its diff...")
+        self.highlighter = DiffHighlighter(
+            self.diff_view.document(),
+            added_color=colors["added"],
+            removed_color=colors["removed"],
+            header_color=colors["header"]
+        )
+        self.search_bar = DiffSearchBar(target_view=self.diff_view, parent=self)
+        self.ctrl_f_shortcut = QShortcut(QKeySequence("Ctrl+F"), self)
+        self.ctrl_f_shortcut.activated.connect(self.search_bar.show_and_focus)
+        layout.addWidget(self.search_bar)
+        layout.addWidget(self.diff_view, stretch=2)
+
+        # Bottom actions
+        bot_row = QHBoxLayout()
+        bot_row.setSpacing(10)
+
+        self.commit_btn = QPushButton("Commit Selected Files")
+        self.commit_btn.setDefault(True)
+        self.commit_btn.setToolTip("Stage only the checked files and commit them in a single commit.")
+        self.commit_btn.setStyleSheet(
+            "QPushButton { color: #0055cc; border: 2px solid #0055cc; padding: 10px 18px; "
+            "border-radius: 6px; font-weight: bold; } "
+            "QPushButton:hover { background-color: #eef4ff; }"
+        )
+
+        self.add_p_btn = QPushButton("git add -p")
+        self.add_p_btn.setToolTip("Pick individual diff hunks to stage, then commit/amend.")
+        self.add_p_btn.setStyleSheet(
+            "QPushButton { color: #e67e22; border: 2px solid #e67e22; padding: 10px 18px; "
+            "border-radius: 6px; font-weight: bold; } "
+            "QPushButton:hover { background-color: #fff9f0; }"
+        )
+
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.setToolTip("Close without committing anything.")
+        cancel_btn.setStyleSheet(
+            "QPushButton { color: #555; border: 2px solid #555; padding: 10px 18px; "
+            "border-radius: 6px; font-weight: bold; } "
+            "QPushButton:hover { background-color: #f5f5f5; }"
+        )
+
+        self.commit_btn.clicked.connect(lambda: self.done(self.CommitSelectedResult))
+        self.add_p_btn.clicked.connect(lambda: self.done(self.GitAddPResult))
+        cancel_btn.clicked.connect(self.reject)
+
+        commit_col = QVBoxLayout()
+        commit_col.setSpacing(2)
+        commit_col.addWidget(self.commit_btn)
+        commit_note = QLabel("(unchecked files stay unstaged)")
+        commit_note.setStyleSheet("color: #0055cc; font-size: 11px;")
+        commit_note.setAlignment(Qt.AlignCenter)
+        commit_col.addWidget(commit_note)
+
+        addp_col = QVBoxLayout()
+        addp_col.setSpacing(2)
+        addp_col.addWidget(self.add_p_btn)
+        addp_note = QLabel("(stage hunk by hunk)")
+        addp_note.setStyleSheet("color: #e67e22; font-size: 11px;")
+        addp_note.setAlignment(Qt.AlignCenter)
+        addp_col.addWidget(addp_note)
+
+        cancel_col = QVBoxLayout()
+        cancel_col.setSpacing(2)
+        cancel_col.addWidget(cancel_btn)
+        cancel_note = QLabel("Cancel")
+        cancel_note.setStyleSheet("color: #555; font-size: 11px;")
+        cancel_note.setAlignment(Qt.AlignCenter)
+        cancel_col.addWidget(cancel_note)
+
+        bot_row.addStretch()
+        bot_row.addLayout(commit_col)
+        bot_row.addLayout(addp_col)
+        bot_row.addLayout(cancel_col)
+        layout.addLayout(bot_row)
+
+        self._update_counter()
+        if self.files:
+            self.file_list.setCurrentRow(0)
+
+    def on_file_selected(self, current, previous):
+        if not current:
+            self.diff_view.clear()
+            return
+        filepath = current.text()
+        try:
+            diff = get_unstaged_file_diff(self.repo_path, filepath)
+            self.diff_view.setPlainText(diff)
+            self.diff_view.set_separator_color(self.colors.get("separator", "#444444"))
+            self.search_bar._perform_search()
+        except Exception as e:
+            self.diff_view.setPlainText(f"Error loading diff: {e}")
+
+    def _set_all(self, state):
+        for i in range(self.file_list.count()):
+            self.file_list.item(i).setCheckState(Qt.Checked if state else Qt.Unchecked)
+
+    def _update_counter(self, _=None):
+        total = self.file_list.count()
+        sel = len(self.checked_files())
+        self.counter_label.setText(f"<b>Selected:</b> {sel}&nbsp;&nbsp;<b>Total:</b> {total}")
+        self.counter_label.setTextFormat(Qt.RichText)
+
+    def checked_files(self):
+        return [self.file_list.item(i).text()
+                for i in range(self.file_list.count())
+                if self.file_list.item(i).checkState() == Qt.Checked]
+
+
+class SelectiveHunkDialog(QDialog):
+    """Hunk-level selection for 'git add -p'. Lists every hunk of all chosen files
+    grouped under a per-file header. Only the checked hunks are staged (and then
+    committed or amended); unchecked hunks are left untouched in the working tree."""
+    CommitResult = 1
+    AmendResult = 2
+
+    def __init__(self, repo_path, files, diff_by_file, hunks_by_file, font_size=10, parent=None, colors=None):
+        super().__init__(parent)
+        self.repo_path = repo_path
+        self.files = list(files)
+        self.diff_by_file = diff_by_file
+        self.hunks_by_file = hunks_by_file
+        self.font_size = font_size
+        self.result_action = None
+
+        if colors is None:
+            main_win = parent if isinstance(parent, QMainWindow) else None
+            if main_win and hasattr(main_win, 'current_theme_colors'):
+                colors = main_win.current_theme_colors
+            else:
+                colors = {"added": "#a6e22e", "removed": "#f92672", "header": "#66d9ef", "separator": "#444444"}
+        self.colors = colors
+
+        self.setWindowTitle("Commit Selectively - git add -p")
+        self.setMinimumSize(920, 720)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(8)
+
+        header = QLabel(
+            "<b>git add -p</b> - pick individual hunks to stage.<br>"
+            "Only the checked hunks will be staged and committed. "
+            "Unchecked hunks stay in the working tree untouched."
+        )
+        header.setTextFormat(Qt.RichText)
+        header.setWordWrap(True)
+        layout.addWidget(header)
+
+        top_row = QHBoxLayout()
+        top_row.setSpacing(6)
+        select_all_btn = QPushButton("Select All")
+        deselect_all_btn = QPushButton("Deselect All")
+        select_all_btn.setFixedWidth(110)
+        deselect_all_btn.setFixedWidth(110)
+        select_all_btn.clicked.connect(lambda: self._set_all(True))
+        deselect_all_btn.clicked.connect(lambda: self._set_all(False))
+        top_row.addWidget(select_all_btn)
+        top_row.addWidget(deselect_all_btn)
+        top_row.addStretch()
+        self.counter_label = QLabel()
+        top_row.addWidget(self.counter_label)
+        layout.addLayout(top_row)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        container = QWidget()
+        hunks_layout = QVBoxLayout(container)
+        hunks_layout.setSpacing(8)
+
+        self.hunk_widgets = []   # list of (filepath, HunkWidget) in display order
+        for f in self.files:
+            hunks = self.hunks_by_file.get(f, [])
+            if not hunks:
+                continue
+            file_label = QLabel(f"<b>File:</b> {f}")
+            file_label.setTextFormat(Qt.RichText)
+            file_label.setWordWrap(True)
+            hunks_layout.addWidget(file_label)
+            for i, (hdr, body) in enumerate(hunks):
+                hw = HunkWidget(i + 1, hdr, body, self.colors, font_size,
+                                sha=None, filepath=f, allow_edit=False)
+                hw.checkbox.stateChanged.connect(self._update_counter)
+                self.hunk_widgets.append((f, hw))
+                hunks_layout.addWidget(hw)
+
+        hunks_layout.addStretch()
+        scroll.setWidget(container)
+        layout.addWidget(scroll)
+
+        # Bottom: exactly git commit / git commit --amend / Cancel
+        bot_row = QHBoxLayout()
+        bot_row.setSpacing(10)
+
+        self.commit_btn = QPushButton("git commit")
+        self.commit_btn.setDefault(True)
+        self.commit_btn.setToolTip("Stage the checked hunks and commit them with a new message.")
+        self.commit_btn.setStyleSheet(
+            "QPushButton { color: #0055cc; border: 2px solid #0055cc; padding: 10px 18px; "
+            "border-radius: 6px; font-weight: bold; } "
+            "QPushButton:hover { background-color: #eef4ff; }"
+        )
+
+        self.amend_btn = QPushButton("git commit --amend")
+        self.amend_btn.setToolTip("Stage the checked hunks and amend them into the HEAD commit (message is editable).")
+        self.amend_btn.setStyleSheet(
+            "QPushButton { color: #e67e22; border: 2px solid #e67e22; padding: 10px 18px; "
+            "border-radius: 6px; font-weight: bold; } "
+            "QPushButton:hover { background-color: #fff9f0; }"
+        )
+
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.setToolTip("Close without staging anything.")
+        cancel_btn.setStyleSheet(
+            "QPushButton { color: #555; border: 2px solid #555; padding: 10px 18px; "
+            "border-radius: 6px; font-weight: bold; } "
+            "QPushButton:hover { background-color: #f5f5f5; }"
+        )
+
+        self.commit_btn.clicked.connect(lambda: self._finish("commit"))
+        self.amend_btn.clicked.connect(lambda: self._finish("amend"))
+        cancel_btn.clicked.connect(self.reject)
+
+        commit_col = QVBoxLayout()
+        commit_col.setSpacing(2)
+        commit_col.addWidget(self.commit_btn)
+        commit_note = QLabel("(new message)")
+        commit_note.setStyleSheet("color: #0055cc; font-size: 11px;")
+        commit_note.setAlignment(Qt.AlignCenter)
+        commit_col.addWidget(commit_note)
+
+        amend_col = QVBoxLayout()
+        amend_col.setSpacing(2)
+        amend_col.addWidget(self.amend_btn)
+        amend_note = QLabel("(edit HEAD message)")
+        amend_note.setStyleSheet("color: #e67e22; font-size: 11px;")
+        amend_note.setAlignment(Qt.AlignCenter)
+        amend_col.addWidget(amend_note)
+
+        cancel_col = QVBoxLayout()
+        cancel_col.setSpacing(2)
+        cancel_col.addWidget(cancel_btn)
+        cancel_note = QLabel("Cancel")
+        cancel_note.setStyleSheet("color: #555; font-size: 11px;")
+        cancel_note.setAlignment(Qt.AlignCenter)
+        cancel_col.addWidget(cancel_note)
+
+        bot_row.addStretch()
+        bot_row.addLayout(commit_col)
+        bot_row.addLayout(amend_col)
+        bot_row.addLayout(cancel_col)
+        layout.addLayout(bot_row)
+
+        self._update_counter()
+
+    def _set_all(self, state):
+        for _, hw in self.hunk_widgets:
+            hw.set_selected(state)
+
+    def _update_counter(self, _=None):
+        total = len(self.hunk_widgets)
+        sel = sum(1 for _, hw in self.hunk_widgets if hw.is_selected())
+        self.counter_label.setText(f"<b>Selected hunks:</b> {sel}&nbsp;&nbsp;<b>Total:</b> {total}")
+        self.counter_label.setTextFormat(Qt.RichText)
+
+    def _finish(self, action):
+        self.result_action = action
+        self.done(self.CommitResult if action == "commit" else self.AmendResult)
+
+    def selected_indices_by_file(self):
+        """Returns {filepath: [kept hunk indices]} from the current checkbox states."""
+        idx = 0
+        kept = {}
+        for f in self.files:
+            n = len(self.hunks_by_file.get(f, []))
+            kept[f] = [j for j in range(n)
+                       if self.hunk_widgets[idx + j][1].is_selected()]
+            idx += n
+        return kept
+
 
 class RefineFileSelectDialog(SplitCommitDialog):
     """File-selection dialog for Refine Changes. Reuses SplitCommitDialog layout."""
@@ -2409,7 +2769,7 @@ class HunkWidget(QFrame):
     apply_hunk_modification = Signal(int)
     drop_hunk = Signal(int)
 
-    def __init__(self, hunk_index, hunk_header, hunk_text, colors, font_size, sha=None, filepath=None, is_only_hunk=False, is_only_file=False):
+    def __init__(self, hunk_index, hunk_header, hunk_text, colors, font_size, sha=None, filepath=None, is_only_hunk=False, is_only_file=False, allow_edit=True):
         super().__init__()
         self.hunk_index = hunk_index
         self.hunk_header = hunk_header
@@ -2422,6 +2782,7 @@ class HunkWidget(QFrame):
         self.filepath = filepath
         self.is_only_hunk = is_only_hunk
         self.is_only_file = is_only_file
+        self.allow_edit = allow_edit
 
         self.setFrameShape(QFrame.StyledPanel)
         self.setFrameShadow(QFrame.Raised)
@@ -2461,12 +2822,13 @@ class HunkWidget(QFrame):
         self.line_count_label.setStyleSheet("color: gray;")
         header_row.addWidget(self.line_count_label)
         
-        self.edit_btn = QPushButton("Edit")
-        self.edit_btn.setFixedWidth(70)
-        self.edit_btn.setFixedHeight(26)
-        self.edit_btn.setCursor(Qt.PointingHandCursor)
-        self.edit_btn.clicked.connect(self.show_hunk_menu)
-        header_row.addWidget(self.edit_btn)
+        if self.allow_edit:
+            self.edit_btn = QPushButton("Edit")
+            self.edit_btn.setFixedWidth(70)
+            self.edit_btn.setFixedHeight(26)
+            self.edit_btn.setCursor(Qt.PointingHandCursor)
+            self.edit_btn.clicked.connect(self.show_hunk_menu)
+            header_row.addWidget(self.edit_btn)
         
         layout.addWidget(header_widget)
 

@@ -4,7 +4,9 @@ if __name__ == "__main__":
     print("Please run the main app: git_interactive_rebase.py (git-interactive-rebase-gui-tool)")
     sys.exit(1)
 
+import os
 import subprocess
+import tempfile
 
 def _parse_log_records(stdout):
     """Parses `git log --shortstat` output (pipe-separated records) into commit dicts."""
@@ -889,6 +891,81 @@ def amend_with_head(repo_path):
         return True
     except subprocess.CalledProcessError:
         return False
+
+
+def stage_files(repo_path, files):
+    """Stages only the given files (never 'git add .'). Returns True on success."""
+    if not files:
+        return True
+    try:
+        subprocess.run(["git", "add", "--"] + list(files), cwd=repo_path,
+                       check=True, capture_output=True)
+        return True
+    except subprocess.CalledProcessError as e:
+        err = e.stderr.decode('utf-8') if e.stderr else str(e)
+        print(f"git add failed: {err}")
+        return False
+
+
+def commit_staged(repo_path, message):
+    """Commits the currently staged changes with the given message. Returns True on success."""
+    try:
+        subprocess.run(["git", "commit", "-m", message], cwd=repo_path,
+                       check=True, capture_output=True)
+        return True
+    except subprocess.CalledProcessError as e:
+        err = e.stderr.decode('utf-8') if e.stderr else str(e)
+        print(f"git commit failed: {err}")
+        return False
+
+
+def amend_staged(repo_path, message):
+    """Amends HEAD with the currently staged changes using the given message.
+
+    Unlike amend_with_head(), this does NOT run 'git add -u' - the caller is
+    responsible for staging exactly the changes that should be amended."""
+    msg_fd, msg_path = tempfile.mkstemp(prefix='git_amend_msg_', text=True)
+    with os.fdopen(msg_fd, 'w', encoding='utf-8') as f:
+        f.write(message)
+    try:
+        try:
+            subprocess.run(["git", "commit", "--amend", "-F", msg_path],
+                           cwd=repo_path, check=True, capture_output=True)
+        finally:
+            try:
+                os.unlink(msg_path)
+            except OSError:
+                pass
+        return True
+    except subprocess.CalledProcessError as e:
+        err = e.stderr.decode('utf-8') if e.stderr else str(e)
+        print(f"git commit --amend failed: {err}")
+        return False
+
+
+def apply_patch_to_index(repo_path, patch_text):
+    """Stages the given unified-diff patch with 'git apply --cached',
+    so only the hunks present in the patch reach the index.
+
+    On failure the index is reset to HEAD ("git reset -q") so a partial/erroneous
+    apply can never leave the index in a half-staged state, then re-raises."""
+    if not patch_text.strip():
+        return
+    patch_fd, patch_path = tempfile.mkstemp(prefix='git_selective_', suffix='.patch', text=True)
+    with os.fdopen(patch_fd, 'w', encoding='utf-8') as pf:
+        pf.write(patch_text)
+    try:
+        subprocess.run(["git", "apply", "--cached", "--ignore-whitespace", patch_path],
+                       cwd=repo_path, check=True, capture_output=True)
+    except subprocess.CalledProcessError as e:
+        subprocess.run(["git", "reset", "-q"], cwd=repo_path)
+        err = e.stderr.decode('utf-8') if e.stderr else str(e)
+        raise Exception(f"Failed to stage patch: {err}")
+    finally:
+        try:
+            os.unlink(patch_path)
+        except OSError:
+            pass
 
 
 def get_merge_base(repo_path, ref):

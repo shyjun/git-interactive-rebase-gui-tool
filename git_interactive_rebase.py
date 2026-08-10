@@ -109,14 +109,16 @@ def main():
     # Check for unstaged changes (ignoring submodules as per design)
     created_stash_sha = None
     ack_messages = []  # (kind, title, text) shown after the main window appears
+    deferred_selective_commit = False
     unstaged_files = get_unstaged_files(repo_path, ignore_submodules=True)
     if unstaged_files and not args.viewer_mode:
         dialog = UnstagedChangesDialog(len(unstaged_files), repo_path=repo_path, unstaged_files=unstaged_files)
         result = dialog.exec()
 
         if result == UnstagedChangesDialog.SelectiveCommitResult:
-            ack_messages.append(("info", "Commit Selectively",
-                                 "Not implemented yet - coming soon."))
+            # Defer until the main window exists so the dialog gets the app's
+            # font/theme; runs through the shared handler.
+            deferred_selective_commit = True
         elif result == UnstagedChangesDialog.Accepted:
             created_stash_sha = stash_changes(repo_path)
             if created_stash_sha is not None and created_stash_sha is not STASH_NOTHING_STASHED:
@@ -194,6 +196,10 @@ def main():
         window.app_managed_stash_sha = created_stash_sha
         window._update_stash_btn_visibility()
         window._flash_pop_stash_btn()
+
+    # Deferred 'Commit Selectively' chosen at startup - run once the window is up.
+    if deferred_selective_commit:
+        QTimer.singleShot(0, window._commit_selectively_from_dialog)
 
     # Show any acknowledgment/error boxes only after the main window is up.
     if ack_messages:
