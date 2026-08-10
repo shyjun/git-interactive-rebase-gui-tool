@@ -2202,6 +2202,7 @@ class CommitSelectivelyDialog(QDialog):
     The commit buttons are greyed out while no file is checked."""
     CommitSelectedResult = 1
     GitAddPResult = 2
+    AmendSelectedResult = 3
 
     def __init__(self, repo_path, files, file_stats, font_size=10, parent=None, colors=None):
         super().__init__(parent)
@@ -2292,6 +2293,14 @@ class CommitSelectivelyDialog(QDialog):
         bot_row = QHBoxLayout()
         bot_row.setSpacing(10)
 
+        self.amend_btn = QPushButton("commit --amend selected files")
+        self.amend_btn.setToolTip("Stage only the checked files and amend them into the HEAD commit (message is editable).")
+        self.amend_btn.setStyleSheet(
+            "QPushButton { color: #8e44ad; border: 2px solid #8e44ad; padding: 10px 18px; "
+            "border-radius: 6px; font-weight: bold; } "
+            "QPushButton:hover { background-color: #f6eefb; }"
+        )
+
         self.commit_btn = QPushButton("Commit Selected Files")
         self.commit_btn.setDefault(True)
         self.commit_btn.setToolTip("Stage only the checked files and commit them in a single commit.")
@@ -2317,9 +2326,18 @@ class CommitSelectivelyDialog(QDialog):
             "QPushButton:hover { background-color: #f5f5f5; }"
         )
 
+        self.amend_btn.clicked.connect(lambda: self.done(self.AmendSelectedResult))
         self.commit_btn.clicked.connect(lambda: self.done(self.CommitSelectedResult))
         self.add_p_btn.clicked.connect(lambda: self.done(self.GitAddPResult))
         cancel_btn.clicked.connect(self.reject)
+
+        amend_col = QVBoxLayout()
+        amend_col.setSpacing(2)
+        amend_col.addWidget(self.amend_btn)
+        amend_note = QLabel("(amend HEAD message)")
+        amend_note.setStyleSheet("color: #8e44ad; font-size: 11px;")
+        amend_note.setAlignment(Qt.AlignCenter)
+        amend_col.addWidget(amend_note)
 
         commit_col = QVBoxLayout()
         commit_col.setSpacing(2)
@@ -2346,6 +2364,7 @@ class CommitSelectivelyDialog(QDialog):
         cancel_col.addWidget(cancel_note)
 
         bot_row.addStretch()
+        bot_row.addLayout(amend_col)
         bot_row.addLayout(commit_col)
         bot_row.addLayout(addp_col)
         bot_row.addLayout(cancel_col)
@@ -2359,6 +2378,7 @@ class CommitSelectivelyDialog(QDialog):
         before each file, like the main window diff pane). With no files checked,
         the pane is cleared and the commit actions are greyed out."""
         checked = self.checked_files()
+        self.amend_btn.setEnabled(bool(checked))
         self.commit_btn.setEnabled(bool(checked))
         self.add_p_btn.setEnabled(bool(checked))
         if not checked:
