@@ -45,6 +45,8 @@ from lib.git_helpers import (
     has_uncommitted_changes, cherry_pick_in_progress, classify_cherry_pick_failure, branch_exists, get_local_branches_map, get_remote_head_sha,
     get_file_diff_only_in_commit, get_revert_commit_message, get_commit_metadata_and_message,
     get_commit_file_stats,     get_unstaged_files, stash_changes, commit_file, bulk_commit_all, amend_with_head, discard_changes, stash_pop, get_stash_subject, stash_pop_can_apply, get_stash_status, STASH_NOTHING_STASHED, merge_into_stash,
+    get_unstaged_file_stats, get_unstaged_file_diff,
+    stage_files, commit_staged, amend_staged, apply_patch_to_index,
     get_merge_base, get_diff_between, get_diff_stat_between,
     get_files_between, get_file_stats_between, resolve_ref
 )
@@ -55,7 +57,8 @@ from lib.dialogs import (
     ConfirmMoveFileDialog, ConfirmRemoveFileOnwardsDialog, AggressiveRemoveConfirmationDialog,
     RefineFileSelectDialog, RefineChangesDialog, NewCommitMessageDialog,
     DiffView, StatsItemDelegate, DiffSearchBar, UnstagedChangesDialog, BranchDiffDialog, StashNoticeDialog,
-    CherryPickDialog, BrowseBranchDialog
+    CherryPickDialog, BrowseBranchDialog,
+    CommitSelectivelyDialog, SelectiveHunkDialog
 )
 from lib.utils import get_assets_path
 
@@ -5706,20 +5709,189 @@ for i, filename in enumerate(files):
         )
 
     def _commit_selectively_from_dialog(self):
-        """Placeholder for 'Commit Selectively'.
-
-        Runs the same safety re-checks as other history-modifying operations
-        (repo not stale, not in viewer mode) before doing anything, then shows
-        a notice that this feature is not implemented yet."""
+        """Opens the 'Commit Selectively' dialog where the user chooses which files
+        to commit, then either commits those files whole or drills into 'git add -p'
+        for hunk-level staging. Re-runs the same safety checks as every other
+        history-modifying operation first."""
         if not self._check_not_viewer_mode():
             return
         if not self._check_head_unchanged():
             return
-        if not self._check_no_unstaged_changes():
+
+        try:
+            unstaged_files = get_unstaged_files(self.repo_path, ignore_submodules=True)
+            if not unstaged_files:
+                QMessageBox.information(self, "Commit Selectively",
+                                        "No unstaged changes to commit.")
+                return
+            file_stats = get_unstaged_file_stats(self.repo_path, ignore_submodules=True)
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Could not load unstaged changes: {e}")
             return
+
+        dialog = CommitSelectivelyDialog(
+            self.repo_path, unstaged_files, file_stats,
+            self.current_font_size, self
+        )
+        result = dialog.exec()
+
+        if result not in (CommitSelectivelyDialog.CommitSelectedResult,
+                          CommitSelectivelyDialog.GitAddPResult):
+            return  # Cancelled - nothing was committed
+
+        checked = dialog.checked_files()
+        if not checked:
+            QMessageBox.information(self, "No Files Selected",
+                                    "No files were selected. Nothing was committed.")
+            return
+
+        if result == CommitSelectivelyDialog.CommitSelectedResult:
+            self._selective_commit_whole_files(checked)
+        else:
+            self._selective_commit_hunks(checked)
+
+    @staticmethod
+    def _selective_default_message(checked):
+        """Default commit message: 'Changes in <file1>, <file2>' (short if many files)."""
+        if len(checked) == 1:
+            return f"Changes in {checked[0]}"
+        return "Changes in " + ", ".join(checked[:3]) + ("..." if len(checked) > 3 else "")
+
+    def _selective_commit_whole_files(self, checked):
+        """Commit only the checked files, as a single commit."""
+        msg_dlg = NewCommitMessageDialog(
+            "Commit Selected Files",
+            "Enter commit message for the selected files:",
+            self._selective_default_message(checked),
+            self.current_font_size,
+            self
+        )
+        if msg_dlg.exec() != QDialog.Accepted:
+            return  # Cancelled - nothing staged yet
+        message = msg_dlg.get_message()
+
+        progress = ProgressDialog("Committing Changes", "Staging selected files...", self)
+        progress.show()
+        QApplication.processEvents()
+        try:
+            if not stage_files(self.repo_path, checked):
+                raise Exception("Failed to stage the selected files.")
+            if not commit_staged(self.repo_path, message):
+                raise Exception("Git commit failed.")
+        except Exception as e:
+            subprocess.run(["git", "reset", "-q"], cwd=self.repo_path)
+            progress.close()
+            QMessageBox.critical(self, "Error", f"Commit failed: {e}")
+            return
+        progress.close()
+
+        self.save_undo_state()
+        self.load_history()
         QMessageBox.information(
-            self, "Commit Selectively",
-            "Not implemented yet - coming soon."
+            self, "Commit Successful",
+            f"Done. Successfully committed the selected file(s).\n\nCommit ID:\n{self.get_head_sha()[:8]}"
+        )
+
+    def _selective_commit_hunks(self, checked):
+        """Interactive 'git add -p': stage only the selected hunks of the checked
+        files (git apply --cached), then commit or amend exactly those."""
+        diff_by_file = {}
+        hunks_by_file = {}
+        try:
+            for f in checked:
+                diff_text = get_unstaged_file_diff(self.repo_path, f)
+                diff_by_file[f] = diff_text
+                hunks_by_file[f] = self._parse_hunks(diff_text)
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Could not load diffs for hunk selection: {e}")
+            return
+
+        if not any(hunks_by_file.get(f) for f in checked):
+            QMessageBox.information(
+                self, "No Hunks",
+                "None of the checked files contain individual diff hunks "
+                "(they may be binary). No changes were staged."
+            )
+            return
+
+        dialog = SelectiveHunkDialog(
+            self.repo_path, checked, diff_by_file, hunks_by_file,
+            self.current_font_size, self
+        )
+        result = dialog.exec()
+        if result not in (SelectiveHunkDialog.CommitResult, SelectiveHunkDialog.AmendResult):
+            return  # Cancelled - nothing staged
+
+        kept_by_file = dialog.selected_indices_by_file()
+
+        patch_by_file = {}
+        for f in checked:
+            hunks = hunks_by_file.get(f, [])
+            kept = kept_by_file.get(f, [])
+            if not kept:
+                continue
+            header_lines = []
+            for line in diff_by_file[f].splitlines():
+                if line.startswith("@@"):
+                    break
+                header_lines.append(line)
+            patch_by_file[f] = self._rebuild_patch("\n".join(header_lines), hunks, kept)
+
+        # Checked files with no parseable hunks (e.g. binaries) are staged whole
+        whole_files = [f for f in checked if not hunks_by_file.get(f)]
+
+        if not patch_by_file and not whole_files:
+            QMessageBox.information(self, "No Hunks Selected",
+                                    "No hunks were selected. Nothing was staged.")
+            return
+
+        # Ask for the message here so that cancelling leaves nothing staged
+        if result == SelectiveHunkDialog.CommitResult:
+            default_msg = self._selective_default_message(checked)
+            label = "Enter commit message for the selected hunks:"
+        else:
+            try:
+                default_msg = get_full_commit_message(self.repo_path, "HEAD")
+            except Exception:
+                default_msg = ""
+            label = "Enter the new commit message for the amend:"
+        msg_dlg = NewCommitMessageDialog("Commit Message", label, default_msg,
+                                        self.current_font_size, self)
+        if msg_dlg.exec() != QDialog.Accepted:
+            return  # Cancelled - nothing staged
+        message = msg_dlg.get_message()
+
+        progress = ProgressDialog("Staging Selected Hunks", "Staging selected hunks...", self)
+        progress.show()
+        QApplication.processEvents()
+        try:
+            for f, patch in patch_by_file.items():
+                apply_patch_to_index(self.repo_path, patch)
+            if whole_files:
+                if not stage_files(self.repo_path, whole_files):
+                    raise Exception("Failed to stage whole files (no-hunk files).")
+            if result == SelectiveHunkDialog.CommitResult:
+                if not commit_staged(self.repo_path, message):
+                    raise Exception("Git commit failed.")
+            else:
+                if not amend_staged(self.repo_path, message):
+                    raise Exception("Git commit --amend failed.")
+        except Exception as e:
+            subprocess.run(["git", "reset", "-q"], cwd=self.repo_path)
+            progress.close()
+            QMessageBox.critical(self, "Error",
+                                 f"Staging/commit failed: {e}\n\nThe index was reset, "
+                                 "so nothing was committed.")
+            return
+        progress.close()
+
+        self.save_undo_state()
+        self.load_history()
+        kind = "Amended" if result == SelectiveHunkDialog.AmendResult else "Committed"
+        QMessageBox.information(
+            self, f"{kind} Successfully",
+            f"Done. Selected hunks were staged and committed.\n\n"
+            f"{kind} ID:\n{self.get_head_sha()[:8]}"
         )
 
     def handle_rescan_repo(self):
