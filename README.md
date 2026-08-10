@@ -58,6 +58,12 @@ A Python-based Git Interactive Rebase GUI tool to visually manage commit history
 * **Rebase onto**: One-click `git rebase main` / `git rebase master`, or rebase onto any branch/SHA you type.
 * **Origin helpers**: `git fetch`, `git reset --hard origin/<branch>`, and `git push --force`.
 * **Stash management**: Unstaged changes at startup can be **stashed**, **committed** (per file or all at once), **amended into HEAD**, or **discarded**. The app-created stash is tracked and offered for pop at exit, with conflict warnings before doing so.
+* **Commit Selectively**: Instead of committing everything at once, choose exactly what to commit from the unstaged-changes dialog:
+  * Per-file **checkboxes** with `+N -M` stats; the bottom pane previews the **combined diff** of the checked files, with separator lines between files (like the main diff pane)
+  * **Commit Selected Files** — a single commit containing only the checked files
+  * **commit --amend selected files** — amend only the checked files into the HEAD commit, with the message pre-filled from HEAD (editable)
+  * **git add -p** — interactive hunk-by-hunk selection (all checked files in one view) followed by `git commit` or `git commit --amend`
+  * Unchecked files stay completely untouched, and cancelling at any point leaves the repository unchanged
 
 ### 🎨 Premium User Experience
 
