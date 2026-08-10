@@ -2001,6 +2001,7 @@ class UnstagedChangesDialog(QDialog):
     ViewerModeResult = 5
     DiscardResult = 6
     MergeResult = 7
+    SelectiveCommitResult = 8
 
     def __init__(self, num_files, parent=None, from_rescan=False, repo_path=None, unstaged_files=None, font_size=None, managed_stash_exists=False, managed_stash_sha=None, viewer_mode=False):
         super().__init__(parent)
@@ -2042,7 +2043,10 @@ class UnstagedChangesDialog(QDialog):
         
         self.stash_btn = QPushButton("Stash and proceed to app")
         self.stash_btn.setToolTip("Stash all uncommitted changes and proceed to the app.")
-        
+
+        self.commit_selectively_btn = QPushButton("Commit Selectively")
+        self.commit_selectively_btn.setToolTip("Choose which files to commit. (Not yet implemented.)")
+
         commit_each_text = f"Commit each file changes separately and start app ({num_files} files modified, {num_files} commits)"
         self.commit_each_btn = QPushButton(commit_each_text)
         self.commit_each_btn.setToolTip("Commit each file's changes as its own commit, then start the app.")
@@ -2066,11 +2070,12 @@ class UnstagedChangesDialog(QDialog):
         self.exit_btn.setToolTip("Exit the application.")
         
         # Style buttons a bit
-        for btn in [self.view_changes_btn, self.stash_btn, self.commit_each_btn, self.bulk_commit_btn, self.amend_btn, self.discard_btn, self.viewer_mode_btn, self.exit_btn]:
+        for btn in [self.view_changes_btn, self.stash_btn, self.commit_selectively_btn, self.commit_each_btn, self.bulk_commit_btn, self.amend_btn, self.discard_btn, self.viewer_mode_btn, self.exit_btn]:
             btn.setMinimumHeight(35)
         
         self.view_changes_btn.clicked.connect(self.show_unstaged_changes)
         self.stash_btn.clicked.connect(self._on_stash)
+        self.commit_selectively_btn.clicked.connect(lambda: self.done(self.SelectiveCommitResult))
         self.commit_each_btn.clicked.connect(lambda: self.done(self.CommitEachResult))
         self.bulk_commit_btn.clicked.connect(lambda: self.done(self.BulkCommitResult))
         self.amend_btn.clicked.connect(lambda: self.done(self.AmendResult))
@@ -2082,13 +2087,14 @@ class UnstagedChangesDialog(QDialog):
             # In Viewer Mode no history-modifying / committing actions are allowed.
             # Discarding unstaged changes is still permitted.
             not_allowed = "Not allowed in Viewer Mode."
-            for btn in [self.stash_btn, self.commit_each_btn, self.bulk_commit_btn, self.amend_btn]:
+            for btn in [self.stash_btn, self.commit_selectively_btn, self.commit_each_btn, self.bulk_commit_btn, self.amend_btn]:
                 btn.setEnabled(False)
                 btn.setToolTip(not_allowed)
             self.viewer_mode_btn.setVisible(False)
         
         btn_layout.addWidget(self.view_changes_btn)
         btn_layout.addWidget(self.stash_btn)
+        btn_layout.addWidget(self.commit_selectively_btn)
         btn_layout.addWidget(self.commit_each_btn)
         btn_layout.addWidget(self.bulk_commit_btn)
         btn_layout.addWidget(self.amend_btn)

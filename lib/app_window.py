@@ -5705,6 +5705,23 @@ for i, filename in enumerate(files):
             f"New app-created stash:\n    {new_sha}"
         )
 
+    def _commit_selectively_from_dialog(self):
+        """Placeholder for 'Commit Selectively'.
+
+        Runs the same safety re-checks as other history-modifying operations
+        (repo not stale, not in viewer mode) before doing anything, then shows
+        a notice that this feature is not implemented yet."""
+        if not self._check_not_viewer_mode():
+            return
+        if not self._check_head_unchanged():
+            return
+        if not self._check_no_unstaged_changes():
+            return
+        QMessageBox.information(
+            self, "Commit Selectively",
+            "Not implemented yet - coming soon."
+        )
+
     def handle_rescan_repo(self):
         """Safely rescan repository state, prompting user for unstaged changes identically to app startup if found."""
         unstaged_files = get_unstaged_files(self.repo_path, ignore_submodules=True)
@@ -5721,12 +5738,15 @@ for i, filename in enumerate(files):
                 UnstagedChangesDialog.CommitEachResult,
                 UnstagedChangesDialog.BulkCommitResult,
                 UnstagedChangesDialog.AmendResult,
+                UnstagedChangesDialog.SelectiveCommitResult,
             ):
                 QMessageBox.warning(self, "Viewer Mode", "This operation is not allowed in Viewer Mode.")
                 return
 
             if result == UnstagedChangesDialog.MergeResult:
                 self._merge_into_managed_stash()
+            elif result == UnstagedChangesDialog.SelectiveCommitResult:
+                self._commit_selectively_from_dialog()
             elif result == UnstagedChangesDialog.Accepted:
                 created_stash_sha = stash_changes(
                     self.repo_path,

@@ -114,7 +114,10 @@ def main():
         dialog = UnstagedChangesDialog(len(unstaged_files), repo_path=repo_path, unstaged_files=unstaged_files)
         result = dialog.exec()
 
-        if result == UnstagedChangesDialog.Accepted:
+        if result == UnstagedChangesDialog.SelectiveCommitResult:
+            ack_messages.append(("info", "Commit Selectively",
+                                 "Not implemented yet - coming soon."))
+        elif result == UnstagedChangesDialog.Accepted:
             created_stash_sha = stash_changes(repo_path)
             if created_stash_sha is not None and created_stash_sha is not STASH_NOTHING_STASHED:
                 print(f"Changes stashed successfully (SHA: {created_stash_sha}).")
