@@ -428,13 +428,31 @@ class StatsItemDelegate(QStyledItemDelegate):
         opt.text = ""   # make sure the style doesn't sneak text in
         style.drawPrimitive(_QStyle.PrimitiveElement.PE_PanelItemViewItem, opt, painter, opt.widget)
 
+        # Step 2b: Draw the check indicator for user-checkable items. The default
+        # delegate would draw it; our custom paint() skips that, so checkable
+        # items (e.g. the selective-commit file list) end up without a tick box.
+        check_w = 0
+        if index.flags() & Qt.ItemIsUserCheckable:
+            opt_check = QStyleOptionViewItem(opt)
+            try:
+                check_rect = style.subElementRect(
+                    _QStyle.SubElement.SE_ItemViewItemCheckIndicator, opt_check, opt.widget)
+            except Exception:
+                check_rect = QRect()
+            if not check_rect.isNull():
+                check_w = check_rect.width() + 2
+                painter.save()
+                style.drawPrimitive(_QStyle.PrimitiveElement.PE_IndicatorItemViewItemCheck,
+                                    opt_check, painter, opt.widget)
+                painter.restore()
+
         # Step 3: Everything else is drawn by us
         painter.save()
         painter.setFont(opt.font)
 
         is_selected = bool(option.state & QStyle.State_Selected)
         text_color = QColor("white") if is_selected else option.palette.text().color()
-        rect = option.rect.adjusted(6, 0, -6, 0)
+        rect = option.rect.adjusted(6 + check_w, 0, -6, 0)
         fm = QFontMetrics(opt.font)
 
         stats = index.data(Qt.UserRole)
