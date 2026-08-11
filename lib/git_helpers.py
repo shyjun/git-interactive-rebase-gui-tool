@@ -62,7 +62,12 @@ def _parse_log_records(stdout):
 def _attach_full_messages(repo_path, commits, log_cmd):
     """Batch-fetches full commit messages (subject + body) and fills them into commits."""
     try:
-        msg_cmd = list(log_cmd) + ["--format=%h%x1f%B%x1e"]
+        msg_cmd = list(log_cmd)
+        if "--" in msg_cmd:
+            idx = msg_cmd.index("--")
+            msg_cmd = msg_cmd[:idx] + ["--format=%h%x1f%B%x1e"] + msg_cmd[idx:]
+        else:
+            msg_cmd += ["--format=%h%x1f%B%x1e"]
         msg_result = subprocess.run(msg_cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
         full_msgs = {}
         for record in msg_result.stdout.split('\x1e'):
@@ -133,6 +138,34 @@ def get_branch_history(repo_path, branch, limit=None):
         return _attach_full_messages(repo_path, commits, log_cmd)
     except subprocess.CalledProcessError as e:
         raise Exception(f"Failed to fetch branch history: {e.stderr}")
+
+def get_file_history(repo_path, filepath, limit=None):
+    """Fetches the history of a single file (commits that touched it).
+
+    Uses ``git log --follow`` so the history persists across renames, and the
+    ``--shortstat`` stats reflect only that file's changes per commit.
+
+    Args:
+        repo_path: repository path.
+        filepath: repo-relative path of the file to browse.
+        limit: max number of commits to return (None = unlimited).
+
+    Returns parsed commit dicts in the same shape as get_git_history."""
+    try:
+        log_cmd = [
+            "git", "log", "--follow",
+            "--format=%h|%cd|%an <%ae>|%s|%P",
+            "--date=format:%d %b %Y",
+            "--shortstat"
+        ]
+        if limit is not None:
+            log_cmd.append(f"-n{limit}")
+        log_cmd += ["--", filepath]
+        result = subprocess.run(log_cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
+        commits = _parse_log_records(result.stdout)
+        return _attach_full_messages(repo_path, commits, log_cmd)
+    except subprocess.CalledProcessError as e:
+        raise Exception(f"Failed to fetch file history: {e.stderr}")
 
 def get_current_branch(repo_path):
     """Fetches current branch name."""

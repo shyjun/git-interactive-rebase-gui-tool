@@ -41,7 +41,7 @@ from PySide6.QtGui import QFont, QSyntaxHighlighter, QTextCharFormat, QColor, QA
 from PySide6.QtCore import Qt, QSize, QSettings, QThread, Signal, QRect, QTimer, Slot, QPoint
 
 from lib.git_helpers import (
-    get_git_history, get_branch_history, get_head_sha, get_full_head_sha, get_current_branch, get_commit_diff,
+    get_git_history, get_branch_history, get_file_history, get_head_sha, get_full_head_sha, get_current_branch, get_commit_diff,
     get_full_commit_message, get_commit_subject, get_commit_metadata, get_commit_files,
     has_uncommitted_changes, cherry_pick_in_progress, classify_cherry_pick_failure, branch_exists, normalize_branch_ref, get_local_branches_map, get_remote_head_sha,
     get_file_diff_only_in_commit, get_revert_commit_message, get_commit_metadata_and_message,
@@ -59,7 +59,7 @@ from lib.dialogs import (
     ConfirmMoveFileDialog, ConfirmRemoveFileOnwardsDialog, AggressiveRemoveConfirmationDialog,
     RefineFileSelectDialog, RefineChangesDialog, NewCommitMessageDialog,
     DiffView, StatsItemDelegate, DiffSearchBar, UnstagedChangesDialog, BranchDiffDialog, StashNoticeDialog,
-    CherryPickDialog, BrowseBranchDialog,
+    CherryPickDialog, BrowseBranchDialog, BrowseFileLogDialog,
     CommitSelectivelyDialog, SelectiveHunkDialog, FILE_ENTRY_ROLE
 )
 from lib.utils import get_assets_path
@@ -402,8 +402,8 @@ class CommitListWidget(QListWidget):
         self.main_window = main_window
         self.setSelectionMode(QListWidget.SingleSelection)
         # Drag & drop reordering performs a rebase, so it is not allowed in the
-        # read-only branch browser (just like viewer mode).
-        if getattr(main_window, "browse_branch", None):
+        # read-only browse windows (just like viewer mode).
+        if getattr(main_window, "browse_mode", False):
             self.setDragDropMode(QListWidget.NoDragDrop)
         else:
             self.setDragEnabled(True)
@@ -755,7 +755,7 @@ def highlight_button_temporarily(button, duration_ms=3000, blinks=0, color=None)
 
 
 class GitInteractiveRebaseApp(QMainWindow):
-    def __init__(self, repo_path, commit_sha, app_start_time, base_branch=None, viewer_mode=False, browse_branch=None, parent=None, browse_limit=50):
+    def __init__(self, repo_path, commit_sha, app_start_time, base_branch=None, viewer_mode=False, browse_branch=None, parent=None, browse_limit=50, browse_file=None):
         super().__init__(parent)
         self.repo_path = repo_path
         self.commit_sha = commit_sha
@@ -763,7 +763,9 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.base_branch = base_branch  # set only when auto-detected; None when SHA provided manually
         self.viewer_mode = viewer_mode
         self.browse_branch = browse_branch
-        if browse_branch:
+        self.browse_file = browse_file
+        self.browse_mode = bool(browse_branch or browse_file)
+        if browse_branch or browse_file:
             self.viewer_mode = True
         self.is_dark_theme = False  # refined in load_settings/apply_theme
         self.start_time_full_head = get_full_head_sha(self.repo_path)
@@ -789,7 +791,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.settings = QSettings("shyjun", "GitInteractiveRebase")
         # Window-type specific key prefix so main and browse windows don't
         # clobber each other's saved size/position across sessions.
-        self.settings_scope = "browse" if browse_branch else "main"
+        self.settings_scope = "browse" if self.browse_mode else "main"
         self.current_font_size = int(self.settings.value("font_size", 10))
         self.show_diffs = self.settings.value(self._sk("show_diffs"), False, type=bool)
         self.show_origin_options = self.settings.value(self._sk("show_origin_options"), False, type=bool)
@@ -801,7 +803,7 @@ class GitInteractiveRebaseApp(QMainWindow):
 
         # Browse mode is a strict read-only history viewer: force-hide the
         # mutating groups so the user only sees the commit list + diffs.
-        if self.browse_branch:
+        if self.browse_mode:
             self.show_squash_options = False
             self.show_origin_options = False
             self.show_rebase_options = False
@@ -822,14 +824,14 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.update_diff_timer.setSingleShot(True)
         self.update_diff_timer.timeout.connect(self._do_update_side_diff)
 
-        if self.browse_branch:
+        if self.browse_mode:
             self.load_browse_history_async()
         else:
             self.load_history()
         self.update_rebase_buttons()
         self.list_widget.setFocus()
 
-        if self.viewer_mode and not self.browse_branch:
+        if self.viewer_mode and not self.browse_mode:
             QTimer.singleShot(0, self._notify_viewer_mode)
 
     def _sk(self, key):
@@ -840,7 +842,7 @@ class GitInteractiveRebaseApp(QMainWindow):
     def load_settings(self):
         """Loads persistent user settings like font size and theme."""
         # Diff Tab
-        if self.browse_branch:
+        if self.browse_mode:
             # Always land on the plain-diff tab in browse mode so a diff is
             # visible immediately (the file-wise pane looks empty without a selection).
             diff_tab_index = 0
@@ -896,7 +898,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.settings.setValue(self._sk("isMaximized"), self.isMaximized())
         self.settings.setValue(self._sk("show_stats"), self.show_stats)
         self.settings.setValue(self._sk("show_date"), self.show_date)
-        if self.browse_branch and self.parent():
+        if self.browse_mode and self.parent():
             parent = self.parent()
             if hasattr(parent, 'browse_windows') and self in parent.browse_windows:
                 parent.browse_windows.remove(self)
@@ -904,6 +906,11 @@ class GitInteractiveRebaseApp(QMainWindow):
     def update_window_title(self):
         """Updates window title with branch, HEAD, and path."""
         app_time = self.app_start_time if self.app_start_time else "N/A"
+        if self.browse_file:
+            title = (f"Browse File: {self.browse_file} (read-only, latest "
+                     f"{self.browse_limit}), path={self.repo_path}")
+            self.setWindowTitle(title)
+            return
         if self.browse_branch:
             title = (f"Browse Branch: {self.browse_branch} (read-only, latest "
                      f"{self.browse_limit}), path={self.repo_path}")
@@ -1029,7 +1036,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.list_widget.setItemDelegate(CommitItemDelegate(self.list_widget))
         self.update_font()
         self.list_widget.setContextMenuPolicy(Qt.NoContextMenu)
-        if not self.browse_branch:
+        if not self.browse_mode:
             self.list_widget.setContextMenuPolicy(Qt.CustomContextMenu)
             self.list_widget.customContextMenuRequested.connect(self.show_context_menu)
 
@@ -1226,7 +1233,11 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.filewise_splitter.setSizes([100, 300]) # default split
 
         filewise_layout.addWidget(self.filewise_splitter)
-        self.diff_tab_widget.addTab(filewise_widget, "File-wise Diff")
+        # Keep a strong reference: in file-log mode the tab page is not added to
+        # the tab widget, so it would otherwise be garbage-collected.
+        self.filewise_widget = filewise_widget
+        if not self.browse_file:
+            self.diff_tab_widget.addTab(filewise_widget, "File-wise Diff")
 
         self.right_splitter.addWidget(self.diff_tab_widget)
 
@@ -1258,7 +1269,7 @@ class GitInteractiveRebaseApp(QMainWindow):
 
         # In browse (read-only) mode use only the right-side pane for details;
         # no commit-viewer dialog on double-click.
-        if not self.browse_branch:
+        if not self.browse_mode:
             self.list_widget.itemDoubleClicked.connect(self.view_commit)
         self.list_widget.itemSelectionChanged.connect(self.on_selection_changed)
 
@@ -1293,7 +1304,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.exit_viewer_mode_btn = QPushButton("Exit Viewer Mode")
         self.exit_viewer_mode_btn.setToolTip("Re-enable history-modifying operations.")
         self._set_exit_viewer_mode_icon(self.exit_viewer_mode_btn)
-        self.exit_viewer_mode_btn.setVisible(self.viewer_mode and not self.browse_branch)
+        self.exit_viewer_mode_btn.setVisible(self.viewer_mode and not self.browse_mode)
         self.rescan_btn = QPushButton("Rescan Repo")
         self.rescan_btn.setToolTip("Re-scan the repository and rebuild the commit list.")
         self._set_rescan_icon(self.rescan_btn)
@@ -1377,7 +1388,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         controls_layout.addWidget(self.refresh_btn)
         controls_layout.addWidget(self.exit_btn)
 
-        if self.browse_branch:
+        if self.browse_mode:
             for btn in [self.theme_menu_btn, self.repo_btn, self.rescan_btn, self.undo_btn]:
                 btn.setVisible(False)
 
@@ -1392,7 +1403,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         failsafe_layout.addWidget(self.custom_reset_btn)
         self.failsafe_group.setLayout(failsafe_layout)
         layout.addWidget(self.failsafe_group)
-        self.failsafe_group.setVisible(not self.browse_branch)
+        self.failsafe_group.setVisible(not self.browse_mode)
 
         # Squash multiple commits group
         self.multi_select_mode = False
@@ -1490,7 +1501,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         status_layout.addWidget(self.zoom_percent_label)
         status_layout.addWidget(self.sb_zoom_in_btn)
 
-        if self.browse_branch:
+        if self.browse_mode:
             for w in [zoom_label, self.sb_zoom_out_btn, self.zoom_percent_label,
                       self.sb_zoom_in_btn]:
                 w.setVisible(False)
@@ -1498,7 +1509,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         sep1 = QLabel("|")
         sep1.setStyleSheet("color: gray;")
         status_layout.addWidget(sep1)
-        if self.browse_branch:
+        if self.browse_mode:
             sep1.setVisible(False)
 
         # Configure button replaces the visibility checkboxes (origin, rebase,
@@ -1511,7 +1522,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.configure_btn.clicked.connect(self._show_configure_menu)
 
         self.configure_menu = self._build_configure_menu()
-        if self.browse_branch:
+        if self.browse_mode:
             for action in [self.show_origin_action, self.show_rebase_action,
                            self.show_squash_action]:
                 action.setEnabled(False)
@@ -1583,7 +1594,7 @@ class GitInteractiveRebaseApp(QMainWindow):
 
         # A grey veil over the whole browse window marks it as a read-only viewer.
         self._browse_overlay = None
-        if self.browse_branch:
+        if self.browse_mode:
             self._browse_overlay = BrowseDimOverlay(self, self.is_dark_theme)
             self._browse_overlay.raise_()
 
@@ -1645,10 +1656,19 @@ class GitInteractiveRebaseApp(QMainWindow):
             self.side_commit_msg.setPlainText(msg)
 
             if self.diff_tab_widget.currentIndex() == 0:
-                if 'diff' not in cache_entry:
-                    cache_entry['diff'] = get_commit_diff(self.repo_path, sha)
-                    self.commit_cache[sha] = cache_entry
-                self.side_diff_view.setPlainText(cache_entry['diff'])
+                if self.browse_file:
+                    diff_key = f'file_diff:{self.browse_file}'
+                    if diff_key not in cache_entry:
+                        cache_entry[diff_key] = get_file_diff_only_in_commit(
+                            self.repo_path, sha, self.browse_file)
+                        self.commit_cache[sha] = cache_entry
+                    diff_text = cache_entry[diff_key]
+                else:
+                    if 'diff' not in cache_entry:
+                        cache_entry['diff'] = get_commit_diff(self.repo_path, sha)
+                        self.commit_cache[sha] = cache_entry
+                    diff_text = cache_entry['diff']
+                self.side_diff_view.setPlainText(diff_text)
                 self.side_diff_view.set_separator_color(self.current_theme_colors.get("separator", "#444444"))
                 # Re-evaluate search if the search bar is visible
                 if self.plain_diff_search.isVisible():
@@ -1731,6 +1751,12 @@ class GitInteractiveRebaseApp(QMainWindow):
         refine_action = QAction("Refine/Edit changes in selected file", self)
         refine_action.triggered.connect(lambda checked=False, text=target_path: self.handle_context_refine_changes(text))
         menu.addAction(refine_action)
+
+        menu.addSeparator()
+        browse_log_action = QAction("Browse file log", self)
+        browse_log_action.setToolTip("Open a read-only viewer of this file's history.")
+        browse_log_action.triggered.connect(lambda checked=False, text=target_path: self.open_file_log_for(text))
+        menu.addAction(browse_log_action)
 
         menu.exec(self.filewise_file_list.mapToGlobal(pos))
 
@@ -2017,11 +2043,17 @@ class GitInteractiveRebaseApp(QMainWindow):
     def _count_total_commits_async(self):
         """Count total commits in repo in background thread to avoid blocking startup."""
         import threading
+        repo_path = self.repo_path
+        filepath = self.browse_file
+
         def worker():
             try:
+                cmd = ["git", "rev-list", "--count", "HEAD"]
+                if filepath:
+                    cmd += ["--", filepath]
                 total = subprocess.check_output(
-                    ["git", "rev-list", "--count", "HEAD"],
-                    cwd=self.repo_path, encoding='utf-8', errors='replace'
+                    cmd,
+                    cwd=repo_path, encoding='utf-8', errors='replace'
                 ).strip()
                 from PySide6.QtCore import QMetaObject, Qt, Q_ARG
                 print(f"Total commits in repo: {total}")
@@ -2043,7 +2075,10 @@ class GitInteractiveRebaseApp(QMainWindow):
 
     @Slot(str)
     def _set_total_commit_count(self, count_str):
-        self.total_commits_label.setText(f"Total commits in repo: {count_str}")
+        if self.browse_file:
+            self.total_commits_label.setText(f"Total commits touching file: {count_str}")
+        else:
+            self.total_commits_label.setText(f"Total commits in repo: {count_str}")
 
     def _set_icon(self, button, fallback_icon, theme_name=None):
         if theme_name:
@@ -2674,6 +2709,47 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.browse_windows.append(viewer)
         viewer.show()
 
+    def handle_browse_file_log(self):
+        """Opens a read-only viewer showing the history of a single file.
+        Prompts for a repo-relative file path and the number of commits to load."""
+        dialog = BrowseFileLogDialog(self.repo_path, parent=self)
+        if dialog.exec() != QDialog.Accepted:
+            return
+        file_path = dialog.file_path
+        commit_limit = dialog.commit_limit
+        if not file_path:
+            QMessageBox.warning(self, "No file path",
+                                "Please enter a file path to browse.")
+            return
+        full_path = os.path.join(self.repo_path, file_path)
+        if not os.path.isfile(full_path):
+            QMessageBox.critical(self, "File does not exist",
+                                 f"The file '{file_path}' does not exist.")
+            return
+        self._open_file_log_viewer(file_path, commit_limit)
+
+    def open_file_log_for(self, file_path, commit_limit=None):
+        """Opens a read-only file-log viewer for an existing repo-relative path
+        without prompting (used by file-wise context menus)."""
+        if commit_limit is None:
+            commit_limit = self.browse_limit
+        self._open_file_log_viewer(file_path, commit_limit)
+
+    def _open_file_log_viewer(self, file_path, commit_limit):
+        viewer = GitInteractiveRebaseApp(
+            self.repo_path, self.commit_sha, self.app_start_time,
+            viewer_mode=True, browse_file=file_path, parent=self,
+            browse_limit=commit_limit,
+        )
+        # The browse viewer inherits the main window's current zoom and theme.
+        viewer.current_font_size = self.current_font_size
+        viewer.update_font()
+        if viewer.is_dark_theme != self.is_dark_theme:
+            viewer.is_dark_theme = self.is_dark_theme
+            viewer.apply_theme("dark" if self.is_dark_theme else "light")
+        self.browse_windows.append(viewer)
+        viewer.show()
+
     def _collect_browse_cherry_pick_shas(self):
         """Returns the SHAs to cherry-pick from the browse window.
 
@@ -2843,7 +2919,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         immediate re-checks never see a stale 'repository has changed' state
         even before the async history reload finishes."""
         parent = self.parent()
-        if parent is None or getattr(parent, "browse_branch", None):
+        if parent is None or getattr(parent, "browse_mode", False):
             return
         parent.cached_current_head_full_sha = get_full_head_sha(self.repo_path)
         parent.cached_has_uncommitted = has_uncommitted_changes(self.repo_path)
@@ -3327,7 +3403,7 @@ class GitInteractiveRebaseApp(QMainWindow):
 
     def _build_repo_menu(self):
         """Builds the Repo button's menu: View PR Diff / Cherry-pick 1 Commit /
-        Browse Branch (previously separate toolbar buttons)."""
+        Browse Branch / Browse File Log (previously separate toolbar buttons)."""
         menu = QMenu(self)
 
         pr_diff_action = QAction("View PR Diff", self)
@@ -3342,9 +3418,14 @@ class GitInteractiveRebaseApp(QMainWindow):
         browse_action.setToolTip("Open a read-only viewer of another branch's full history.")
         browse_action.triggered.connect(lambda *_: self.handle_browse_branch())
 
+        browse_file_action = QAction("Browse File Log", self)
+        browse_file_action.setToolTip("Open a read-only viewer of a single file's history.")
+        browse_file_action.triggered.connect(lambda *_: self.handle_browse_file_log())
+
         menu.addAction(pr_diff_action)
         menu.addAction(cherry_pick_action)
         menu.addAction(browse_action)
+        menu.addAction(browse_file_action)
         return menu
 
     def _on_always_on_top_toggled(self, checked):
@@ -6236,7 +6317,7 @@ for i, filename in enumerate(files):
                 return
 
         # Finally, we reload the tree to correctly align matching local state
-        if self.browse_branch:
+        if self.browse_mode:
             self.load_browse_history_async()
         else:
             self.load_history()
@@ -6405,7 +6486,7 @@ for i, filename in enumerate(files):
 
     def handle_manual_refresh(self):
         """Shows a progress dialog during manual refresh."""
-        if self.browse_branch:
+        if self.browse_mode:
             self.load_browse_history_async()
             return
         progress = ProgressDialog("Refreshing", "Refreshing git history. Please wait...", self)
@@ -6421,7 +6502,7 @@ for i, filename in enumerate(files):
         # In browse mode, always reload via the async, limit-bounded loader so we
         # never block the GUI thread on an unlimited full-history scan (which hangs
         # on large repos like vim).
-        if self.browse_branch:
+        if self.browse_mode:
             self.load_browse_history_async()
             return
 
@@ -6533,11 +6614,15 @@ for i, filename in enumerate(files):
 
         repo_path = self.repo_path
         branch = self.browse_branch
+        filepath = self.browse_file
         browse_limit = self.browse_limit
 
         def worker():
             try:
-                history = get_branch_history(repo_path, branch, limit=browse_limit)
+                if filepath:
+                    history = get_file_history(repo_path, filepath, limit=browse_limit)
+                else:
+                    history = get_branch_history(repo_path, branch, limit=browse_limit)
                 branch_map = get_local_branches_map(
                     repo_path,
                     extra_remotes=[branch] if branch else None,

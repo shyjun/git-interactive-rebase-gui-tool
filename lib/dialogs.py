@@ -4,6 +4,8 @@ if __name__ == "__main__":
     print("Please run the main app: git_interactive_rebase.py (git-interactive-rebase-gui-tool)")
     sys.exit(1)
 
+import os
+
 # pyrefly: ignore [missing-import]
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QListWidget, QVBoxLayout,
@@ -11,7 +13,7 @@ from PySide6.QtWidgets import (
     QTextEdit, QPlainTextEdit, QPushButton, QHBoxLayout, QLabel, QRadioButton,
     QLineEdit, QSplitter, QInputDialog, QProgressBar, QScrollArea,
     QFrame, QCheckBox, QSizePolicy, QToolButton, QTabWidget, QSpinBox,
-    QComboBox
+    QComboBox, QFileDialog
 )
 # pyrefly: ignore [missing-import]
 from PySide6.QtCore import Qt, QSize, QSettings, QTimer, Signal, QRect, QEvent
@@ -1314,7 +1316,18 @@ class FileWiseViewDialog(QDialog):
         refine_action.triggered.connect(lambda checked=False, text=target_path: self.refine_file(text))
         menu.addAction(refine_action)
 
+        menu.addSeparator()
+        browse_log_action = QAction("Browse file log", self)
+        browse_log_action.setToolTip("Open a read-only viewer of this file's history.")
+        browse_log_action.triggered.connect(lambda checked=False, text=target_path: self.browse_file_log(text))
+        menu.addAction(browse_log_action)
+
         menu.exec(self.file_list.mapToGlobal(pos))
+
+    def browse_file_log(self, filepath):
+        main_win = self.parent() if isinstance(self.parent(), QMainWindow) else None
+        if main_win and hasattr(main_win, 'open_file_log_for'):
+            main_win.open_file_log_for(filepath)
 
     def move_file_out(self, filepath):
         main_win = self.parent() if isinstance(self.parent(), QMainWindow) else None
@@ -3329,6 +3342,82 @@ class BrowseBranchDialog(QDialog):
     @property
     def branch_name(self):
         return self.branch_combo.currentText().strip()
+
+    @property
+    def commit_limit(self):
+        return self.limit_spin.value()
+
+
+class BrowseFileLogDialog(QDialog):
+    """Dialog to pick a file and how many recent commits to show in the
+    read-only file-log browser. Returns a repo-relative file path and an
+    integer commit count."""
+
+    def __init__(self, repo_path, parent=None, default_limit=50):
+        super().__init__(parent)
+        self.repo_path = repo_path
+        self.setWindowTitle("Browse File Log")
+        self.setMinimumWidth(420)
+        self.setModal(True)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
+
+        file_label = QLabel("File path (repo-relative):")
+        layout.addWidget(file_label)
+
+        file_row = QHBoxLayout()
+        file_row.setSpacing(6)
+        self.file_edit = QLineEdit()
+        self.file_edit.setPlaceholderText("e.g. lib/app_window.py, README.md")
+        self.file_edit.setToolTip("A path relative to the repository root; use Browse... to pick a file.")
+        file_row.addWidget(self.file_edit, 1)
+
+        browse_btn = QPushButton("Browse...")
+        browse_btn.setToolTip("Pick a file in the repository.")
+        browse_btn.clicked.connect(self._pick_file)
+        file_row.addWidget(browse_btn)
+        layout.addLayout(file_row)
+
+        limit_label = QLabel("Number of commits to show:")
+        layout.addWidget(limit_label)
+
+        self.limit_spin = QSpinBox()
+        self.limit_spin.setRange(1, 1000000)
+        self.limit_spin.setValue(default_limit)
+        self.limit_spin.setToolTip("How many most-recent commits touching the file to load.")
+        layout.addWidget(self.limit_spin)
+
+        open_btn = QPushButton("Open Browser")
+        open_btn.setDefault(True)
+        open_btn.setToolTip("Open a read-only viewer of this file's history.")
+        open_btn.clicked.connect(self.accept)
+
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(self.reject)
+
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+        btn_layout.addWidget(cancel_btn)
+        btn_layout.addWidget(open_btn)
+        layout.addLayout(btn_layout)
+
+        self.file_edit.setFocus()
+
+    def _pick_file(self):
+        file_path, _ = QFileDialog.getOpenFileName(self, "Select file to browse", self.repo_path)
+        if file_path:
+            rel = os.path.relpath(file_path, self.repo_path)
+            if rel.startswith(".."):
+                QMessageBox.warning(self, "Outside repository",
+                                    "Please select a file inside the repository.")
+                return
+            self.file_edit.setText(rel.replace(os.sep, "/"))
+
+    @property
+    def file_path(self):
+        return self.file_edit.text().strip()
 
     @property
     def commit_limit(self):
