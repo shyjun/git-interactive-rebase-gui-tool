@@ -37,7 +37,7 @@ from PySide6.QtWidgets import (
 # pyrefly: ignore [missing-import]
 from PySide6.QtGui import QFont, QSyntaxHighlighter, QTextCharFormat, QColor, QAction, QShortcut, QKeySequence, QIcon, QBrush, QPainter, QPainterPath, QPen, QPixmap, QPalette
 # pyrefly: ignore [missing-import]
-from PySide6.QtCore import Qt, QSize, QSettings, QThread, Signal, QRect, QTimer, Slot
+from PySide6.QtCore import Qt, QSize, QSettings, QThread, Signal, QRect, QTimer, Slot, QPoint
 
 from lib.git_helpers import (
     get_git_history, get_branch_history, get_head_sha, get_full_head_sha, get_current_branch, get_commit_diff,
@@ -976,21 +976,15 @@ class GitInteractiveRebaseApp(QMainWindow):
         )
 
     def restore_visibility_settings(self):
-        """Restores visibility and checkbox states for optional groups."""
+        """Restores visibility of optional groups."""
         # Origin Options Visibility
-        self.show_origin_cb.setChecked(self.show_origin_options)
         self.origin_group.setVisible(self.show_origin_options)
 
         # Rebase Options Visibility
-        self.show_rebase_cb.setChecked(self.show_rebase_options)
         self.rebase_group.setVisible(self.show_rebase_options)
 
         # Squash Options Visibility
-        self.show_squash_cb.setChecked(self.show_squash_options)
         self.squash_group.setVisible(self.show_squash_options)
-
-        # Local Branches Visibility
-        self.show_local_branches_cb.setChecked(self.show_local_branches)
 
     def setup_ui(self):
         central_widget = QWidget()
@@ -1471,51 +1465,21 @@ class GitInteractiveRebaseApp(QMainWindow):
         if self.browse_branch:
             sep1.setVisible(False)
 
-        # Visibility checkboxes
-        self.show_origin_cb = QCheckBox("Show Origin")
-        self.show_origin_cb.setToolTip("Show origin markers.")
-        self.show_rebase_cb = QCheckBox("Show Rebase")
-        self.show_rebase_cb.setToolTip("Show rebase markers.")
-        self.show_squash_cb = QCheckBox("Show Squash")
-        self.show_squash_cb.setToolTip("Show squash markers.")
-        self.show_local_branches_cb = QCheckBox("Show Local Branches")
-        self.show_local_branches_cb.setToolTip("Show local branch markers.")
+        # Configure button replaces the visibility checkboxes (origin, rebase,
+        # squash, local branches, stats, date) with a Show/Hide menu.
+        self.configure_btn = QPushButton("Configure")
+        self.configure_btn.setToolTip("Configure which controls are visible.")
+        self.configure_btn.setStyleSheet("padding: 0px 8px;")
+        self.configure_btn.setFixedHeight(22)
+        self._set_configure_icon(self.configure_btn)
+        self.configure_btn.clicked.connect(self._show_configure_menu)
+        status_layout.addWidget(self.configure_btn)
 
-        self.show_origin_cb.toggled.connect(self.on_origin_visibility_toggled)
-        self.show_rebase_cb.toggled.connect(self.on_rebase_visibility_toggled)
-        self.show_squash_cb.toggled.connect(self.on_squash_visibility_toggled)
-        self.show_local_branches_cb.toggled.connect(self.on_local_branches_visibility_toggled)
-
-        status_layout.addWidget(self.show_origin_cb)
-        status_layout.addWidget(self.show_rebase_cb)
-        status_layout.addWidget(self.show_squash_cb)
-        status_layout.addWidget(self.show_local_branches_cb)
-
+        self.configure_menu = self._build_configure_menu()
         if self.browse_branch:
-            for cb in [self.show_origin_cb, self.show_rebase_cb, self.show_squash_cb]:
-                cb.setVisible(False)
-
-        sep2 = QLabel("|")
-        sep2.setStyleSheet("color: gray;")
-        status_layout.addWidget(sep2)
-
-        self.show_stats_cb = QCheckBox("show stats")
-        self.show_stats_cb.setToolTip("Show per-commit line stats.")
-        self.show_date_cb = QCheckBox("show date")
-        self.show_date_cb.setToolTip("Show commit dates.")
-
-        self.show_stats_cb.setChecked(self.show_stats)
-        self.show_date_cb.setChecked(self.show_date)
-
-        self.show_stats_cb.toggled.connect(lambda ctx: self._on_stats_toggled())
-        self.show_date_cb.toggled.connect(lambda ctx: self._on_date_toggled())
-
-        status_layout.addWidget(self.show_stats_cb)
-        status_layout.addWidget(self.show_date_cb)
-
-        sep_date = QLabel("|")
-        sep_date.setStyleSheet("color: gray;")
-        status_layout.addWidget(sep_date)
+            for action in [self.show_origin_action, self.show_rebase_action,
+                           self.show_squash_action]:
+                action.setEnabled(False)
 
         self.always_on_top_cb = QCheckBox("Always On Top")
         self.always_on_top_cb.setToolTip("Keep the window on top.")
@@ -2075,6 +2039,9 @@ class GitInteractiveRebaseApp(QMainWindow):
     def _set_exit_viewer_mode_icon(self, button):
         self._apply_toolbar_icon(button, self._draw_edit)
 
+    def _set_configure_icon(self, button):
+        self._apply_toolbar_icon(button, self._draw_gear)
+
     def _refresh_toolbar_icons(self):
         self._set_theme_icon(self.theme_menu_btn)
         self._set_toggle_diff_icon(self.toggle_diff_btn)
@@ -2089,6 +2056,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self._set_cherry_pick_icon(self.cherry_pick_btn)
         self._set_browse_branch_icon(self.browse_branch_btn)
         self._set_pop_stash_icon(self.pop_stash_btn)
+        self._set_configure_icon(self.configure_btn)
 
     def _draw_eye_slash(self, painter, color):
         pen = QPen(color, 1.7)
@@ -2269,6 +2237,23 @@ class GitInteractiveRebaseApp(QMainWindow):
         painter.drawLine(7, 7, 3, 11)
         painter.drawLine(9, 9, 3, 11)
         painter.drawLine(11, 3, 13, 5)
+
+    def _draw_gear(self, painter, color):
+        pen = QPen(color, 1.6)
+        pen.setCapStyle(Qt.RoundCap)
+        painter.setPen(pen)
+        painter.setBrush(Qt.NoBrush)
+
+        cos_45 = (1, .707, 0, -.707, -1, -.707, 0, .707)
+        sin_45 = (0, .707, 1, .707, 0, -.707, -1, -.707)
+        for i in range(8):
+            dx, dy = cos_45[i], sin_45[i]
+            painter.drawLine(QPoint(8 + dx * 5.4, 8 + dy * 5.4),
+                             QPoint(8 + dx * 7.0, 8 + dy * 7.0))
+
+        painter.drawEllipse(QPoint(8, 8), 4.0, 4.0)
+        painter.setBrush(color)
+        painter.drawEllipse(QPoint(8, 8), 1.8, 1.8)
 
     def handle_set_best_commit(self, item):
         sha = item.text().split()[0]
@@ -3127,38 +3112,92 @@ class GitInteractiveRebaseApp(QMainWindow):
             viewer.current_font_size = self.current_font_size
             viewer.update_font()
 
-    def on_origin_visibility_toggled(self):
-        visible = self.show_origin_cb.isChecked()
+    def on_origin_visibility_toggled(self, visible):
         self.origin_group.setVisible(visible)
         self.settings.setValue(self._sk("show_origin_options"), visible)
         # self.force_window_resize()  # intentionally disabled: window keeps its size instead of auto-collapsing
 
-    def on_rebase_visibility_toggled(self):
-        visible = self.show_rebase_cb.isChecked()
+    def on_rebase_visibility_toggled(self, visible):
         self.rebase_group.setVisible(visible)
         self.settings.setValue(self._sk("show_rebase_options"), visible)
         # self.force_window_resize()  # intentionally disabled: window keeps its size instead of auto-collapsing
 
-    def on_squash_visibility_toggled(self):
-        visible = self.show_squash_cb.isChecked()
+    def on_squash_visibility_toggled(self, visible):
         self.squash_group.setVisible(visible)
         self.settings.setValue(self._sk("show_squash_options"), visible)
         # self.force_window_resize()  # intentionally disabled: window keeps its size instead of auto-collapsing
 
-    def on_local_branches_visibility_toggled(self):
-        self.show_local_branches = self.show_local_branches_cb.isChecked()
+    def on_local_branches_visibility_toggled(self, visible):
+        self.show_local_branches = visible
         self.settings.setValue(self._sk("show_local_branches"), self.show_local_branches)
         self.list_widget.viewport().update()
 
-    def _on_stats_toggled(self):
-        self.show_stats = self.show_stats_cb.isChecked()
+    def _on_stats_toggled(self, visible):
+        self.show_stats = visible
         self.settings.setValue(self._sk("show_stats"), self.show_stats)
         self.list_widget.viewport().update()
 
-    def _on_date_toggled(self):
-        self.show_date = self.show_date_cb.isChecked()
+    def _on_date_toggled(self, visible):
+        self.show_date = visible
         self.settings.setValue(self._sk("show_date"), self.show_date)
         self.list_widget.viewport().update()
+
+    def _build_configure_menu(self):
+        """Builds the status-bar configure menu: a 'Show/Hide' submenu with
+        checkable actions controlling which markers/columns are visible."""
+        menu = QMenu(self)
+
+        self.show_origin_action = QAction("Show Origin", self)
+        self.show_origin_action.setCheckable(True)
+        self.show_origin_action.setChecked(self.show_origin_options)
+        self.show_origin_action.setToolTip("Show origin markers.")
+        self.show_origin_action.toggled.connect(self.on_origin_visibility_toggled)
+
+        self.show_rebase_action = QAction("Show Rebase", self)
+        self.show_rebase_action.setCheckable(True)
+        self.show_rebase_action.setChecked(self.show_rebase_options)
+        self.show_rebase_action.setToolTip("Show rebase markers.")
+        self.show_rebase_action.toggled.connect(self.on_rebase_visibility_toggled)
+
+        self.show_squash_action = QAction("Show Squash", self)
+        self.show_squash_action.setCheckable(True)
+        self.show_squash_action.setChecked(self.show_squash_options)
+        self.show_squash_action.setToolTip("Show squash markers.")
+        self.show_squash_action.toggled.connect(self.on_squash_visibility_toggled)
+
+        self.show_local_branches_action = QAction("Show Local Branches", self)
+        self.show_local_branches_action.setCheckable(True)
+        self.show_local_branches_action.setChecked(self.show_local_branches)
+        self.show_local_branches_action.setToolTip("Show local branch markers.")
+        self.show_local_branches_action.toggled.connect(self.on_local_branches_visibility_toggled)
+
+        self.show_stats_action = QAction("Show Stats", self)
+        self.show_stats_action.setCheckable(True)
+        self.show_stats_action.setChecked(self.show_stats)
+        self.show_stats_action.setToolTip("Show per-commit line stats.")
+        self.show_stats_action.toggled.connect(self._on_stats_toggled)
+
+        self.show_date_action = QAction("Show Date", self)
+        self.show_date_action.setCheckable(True)
+        self.show_date_action.setChecked(self.show_date)
+        self.show_date_action.setToolTip("Show commit dates.")
+        self.show_date_action.toggled.connect(self._on_date_toggled)
+
+        show_hide = menu.addMenu("Show/Hide")
+        show_hide.addAction(self.show_origin_action)
+        show_hide.addAction(self.show_rebase_action)
+        show_hide.addAction(self.show_squash_action)
+        show_hide.addAction(self.show_local_branches_action)
+        show_hide.addSeparator()
+        show_hide.addAction(self.show_stats_action)
+        show_hide.addAction(self.show_date_action)
+
+        return menu
+
+    def _show_configure_menu(self):
+        """Pops up the configure menu under the status-bar Configure button."""
+        self.configure_menu.popup(
+            self.configure_btn.mapToGlobal(QPoint(0, self.configure_btn.height())))
 
     def _on_always_on_top_toggled(self, checked):
         if checked:
