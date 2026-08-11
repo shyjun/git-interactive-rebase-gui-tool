@@ -26,9 +26,13 @@ from lib.git_helpers import (
     get_commit_file_stats, get_file_diff_between,
     get_unstaged_diff, get_unstaged_file_stats, get_unstaged_file_diff,
     get_current_branch, get_full_head_sha, classify_tracked_changes,
-    get_branch_names
+    get_branch_names, get_rename_diff_in_commit
 )
 from lib.utils import get_theme_colors
+
+# Data role on file-wise list items holding the (status, path1, path2) entry.
+# Qt.UserRole holds the display stats tuple.
+FILE_ENTRY_ROLE = Qt.UserRole + 1
 
 class DiffHighlighter(QSyntaxHighlighter):
     def __init__(self, parent=None, added_color="#a6e22e", removed_color="#f92672", header_color="#66d9ef"):
@@ -1209,9 +1213,15 @@ class FileWiseViewDialog(QDialog):
         self.file_list = QListWidget()
         self.file_list.setMinimumHeight(60)
         self.file_list.setFont(QFont("Courier New", font_size))
-        for f in files:
-            item = QListWidgetItem(f)
-            item.setData(Qt.UserRole, self.file_stats.get(f))
+        for entry in files:
+            status, path1, path2 = entry
+            if status == 'R':
+                display = f"{path1} => {path2}"
+            else:
+                display = path1
+            item = QListWidgetItem(display)
+            item.setData(Qt.UserRole, self.file_stats.get(display))
+            item.setData(FILE_ENTRY_ROLE, entry)
             self.file_list.addItem(item)
         stats_delegate = StatsItemDelegate(
             added_color=colors.get("added", "#22863a"),
@@ -1276,30 +1286,32 @@ class FileWiseViewDialog(QDialog):
         item = self.file_list.itemAt(pos)
         if not item:
             return
+        entry = item.data(FILE_ENTRY_ROLE)
+        target_path = entry[2] if entry and entry[0] == 'R' else item.text()
         menu = QMenu(self)
         copy_action = QAction("Copy filename to clipboard", self)
-        copy_action.triggered.connect(lambda checked=False, text=item.text(): self.copy_filename_to_clipboard(text))
+        copy_action.triggered.connect(lambda checked=False, text=target_path: self.copy_filename_to_clipboard(text))
         menu.addAction(copy_action)
         
         is_only_file = self.file_list.count() <= 1
 
         move_action = QAction("Move file changes out of this commit", self)
-        move_action.triggered.connect(lambda checked=False, text=item.text(): self.move_file_out(text))
+        move_action.triggered.connect(lambda checked=False, text=target_path: self.move_file_out(text))
         move_action.setEnabled(not is_only_file)
         menu.addAction(move_action)
 
         drop_action = QAction("Drop file changes from this commit", self)
-        drop_action.triggered.connect(lambda checked=False, text=item.text(): self.drop_file(text))
+        drop_action.triggered.connect(lambda checked=False, text=target_path: self.drop_file(text))
         drop_action.setEnabled(not is_only_file)
         menu.addAction(drop_action)
 
         remove_onwards_action = QAction("Remove file from this commit onwards", self)
-        remove_onwards_action.triggered.connect(lambda checked=False, text=item.text(): self.remove_file_onwards(text))
+        remove_onwards_action.triggered.connect(lambda checked=False, text=target_path: self.remove_file_onwards(text))
         menu.addAction(remove_onwards_action)
 
         menu.addSeparator()
         refine_action = QAction("Refine/Edit changes in selected file", self)
-        refine_action.triggered.connect(lambda checked=False, text=item.text(): self.refine_file(text))
+        refine_action.triggered.connect(lambda checked=False, text=target_path: self.refine_file(text))
         menu.addAction(refine_action)
 
         menu.exec(self.file_list.mapToGlobal(pos))
@@ -1336,7 +1348,14 @@ class FileWiseViewDialog(QDialog):
         if not filepath:
             return
         try:
-            diff = get_file_diff_only_in_commit(self.repo_path, self.sha, filepath)
+            item = self.file_list.currentItem()
+            entry = item.data(FILE_ENTRY_ROLE) if item else None
+            if entry and entry[0] == 'R':
+                diff = get_rename_diff_in_commit(self.repo_path, self.sha, entry[1], entry[2])
+            elif entry:
+                diff = get_file_diff_only_in_commit(self.repo_path, self.sha, entry[1])
+            else:
+                diff = get_file_diff_only_in_commit(self.repo_path, self.sha, filepath)
             self.diff_view.setPlainText(diff)
             self.diff_view.set_separator_color(self.colors.get("separator", "#444444"))
             self.search_bar._perform_search()

@@ -48,7 +48,8 @@ from lib.git_helpers import (
     get_unstaged_file_stats, get_unstaged_file_diff,
     stage_files, commit_staged, amend_staged, apply_patch_to_index,
     get_merge_base, get_diff_between, get_diff_stat_between,
-    get_files_between, get_file_stats_between, resolve_ref
+    get_files_between, get_file_stats_between, resolve_ref,
+    get_commit_files_with_status, get_rename_diff_in_commit
 )
 from lib.dialogs import (
     DiffHighlighter, DiffViewerDialog, SplitCommitDialog, ViewCommitDialog,
@@ -58,7 +59,7 @@ from lib.dialogs import (
     RefineFileSelectDialog, RefineChangesDialog, NewCommitMessageDialog,
     DiffView, StatsItemDelegate, DiffSearchBar, UnstagedChangesDialog, BranchDiffDialog, StashNoticeDialog,
     CherryPickDialog, BrowseBranchDialog,
-    CommitSelectivelyDialog, SelectiveHunkDialog
+    CommitSelectivelyDialog, SelectiveHunkDialog, FILE_ENTRY_ROLE
 )
 from lib.utils import get_assets_path
 
@@ -1595,10 +1596,10 @@ class GitInteractiveRebaseApp(QMainWindow):
             else:
                 self.side_diff_view.clear()
                 if 'files' not in cache_entry:
-                    cache_entry['files'] = get_commit_files(self.repo_path, sha)
+                    cache_entry['files'] = get_commit_files_with_status(self.repo_path, sha)
                     self.commit_cache[sha] = cache_entry
 
-                files = cache_entry['files']
+                file_entries = cache_entry['files']
                 # Fetch per-file stats (cached separately)
                 if 'file_stats' not in cache_entry:
                     try:
@@ -1611,13 +1612,19 @@ class GitInteractiveRebaseApp(QMainWindow):
                 # Temporarily block signals to avoid triggering on_filewise_file_selected prematurely
                 self.filewise_file_list.blockSignals(True)
                 self.filewise_file_list.clear()
-                for f in files:
-                    item = QListWidgetItem(f)
-                    item.setData(Qt.UserRole, file_stats.get(f))
+                for entry in file_entries:
+                    status, path1, path2 = entry
+                    if status == 'R':
+                        display = f"{path1} => {path2}"
+                    else:
+                        display = path1
+                    item = QListWidgetItem(display)
+                    item.setData(Qt.UserRole, file_stats.get(display))
+                    item.setData(FILE_ENTRY_ROLE, entry)
                     self.filewise_file_list.addItem(item)
                 self.filewise_file_list.blockSignals(False)
 
-                if files:
+                if file_entries:
                     self.filewise_file_list.setCurrentRow(0)
                 else:
                     self.filewise_diff_view.clear()
@@ -1637,30 +1644,32 @@ class GitInteractiveRebaseApp(QMainWindow):
         item = self.filewise_file_list.itemAt(pos)
         if not item:
             return
+        entry = item.data(FILE_ENTRY_ROLE)
+        target_path = entry[2] if entry and entry[0] == 'R' else item.text()
         menu = QMenu(self)
         copy_action = QAction("Copy filename to clipboard", self)
-        copy_action.triggered.connect(lambda checked=False, text=item.text(): self.copy_filename_to_clipboard(text))
+        copy_action.triggered.connect(lambda checked=False, text=target_path: self.copy_filename_to_clipboard(text))
         menu.addAction(copy_action)
 
         is_only_file = self.filewise_file_list.count() <= 1
 
         move_action = QAction("Move file changes out of this commit", self)
-        move_action.triggered.connect(lambda checked=False, text=item.text(): self.handle_context_move_file_out(text))
+        move_action.triggered.connect(lambda checked=False, text=target_path: self.handle_context_move_file_out(text))
         move_action.setEnabled(not is_only_file)
         menu.addAction(move_action)
 
         drop_action = QAction("Drop file changes from this commit", self)
-        drop_action.triggered.connect(lambda checked=False, text=item.text(): self.handle_context_drop_file(text))
+        drop_action.triggered.connect(lambda checked=False, text=target_path: self.handle_context_drop_file(text))
         drop_action.setEnabled(not is_only_file)
         menu.addAction(drop_action)
 
         remove_onwards_action = QAction("Remove file from this commit onwards", self)
-        remove_onwards_action.triggered.connect(lambda checked=False, text=item.text(): self.handle_context_remove_file_onwards(text))
+        remove_onwards_action.triggered.connect(lambda checked=False, text=target_path: self.handle_context_remove_file_onwards(text))
         menu.addAction(remove_onwards_action)
 
         menu.addSeparator()
         refine_action = QAction("Refine/Edit changes in selected file", self)
-        refine_action.triggered.connect(lambda checked=False, text=item.text(): self.handle_context_refine_changes(text))
+        refine_action.triggered.connect(lambda checked=False, text=target_path: self.handle_context_refine_changes(text))
         menu.addAction(refine_action)
 
         menu.exec(self.filewise_file_list.mapToGlobal(pos))
@@ -1705,8 +1714,15 @@ class GitInteractiveRebaseApp(QMainWindow):
         if not item:
             return
         sha = item.text().split()[0]
+        fw_item = self.filewise_file_list.currentItem()
         try:
-            diff = get_file_diff_only_in_commit(self.repo_path, sha, filepath)
+            entry = fw_item.data(FILE_ENTRY_ROLE) if fw_item else None
+            if entry and entry[0] == 'R':
+                diff = get_rename_diff_in_commit(self.repo_path, sha, entry[1], entry[2])
+            elif entry:
+                diff = get_file_diff_only_in_commit(self.repo_path, sha, entry[1])
+            else:
+                diff = get_file_diff_only_in_commit(self.repo_path, sha, filepath)
             self.filewise_diff_view.setPlainText(diff)
             self.filewise_diff_view.set_separator_color(self.current_theme_colors.get("separator", "#444444"))
             self.filewise_diff_search._perform_search()
@@ -1806,14 +1822,17 @@ class GitInteractiveRebaseApp(QMainWindow):
                 cache_entry = self.commit_cache.get(sha, {})
                 if 'files' not in cache_entry:
                     try:
-                        cache_entry['files'] = get_commit_files(self.repo_path, sha)
+                        cache_entry['files'] = get_commit_files_with_status(self.repo_path, sha)
                         self.commit_cache[sha] = cache_entry
                     except Exception:
                         cache_entry['files'] = []
                         self.commit_cache[sha] = cache_entry
-                files = cache_entry.get('files', [])
-                if any(search_term in f.lower() for f in files):
-                    matched = True
+                file_entries = cache_entry.get('files', [])
+                for _status, path1, path2 in file_entries:
+                    display = f"{path1} => {path2}" if _status == 'R' else path1
+                    if search_term in display.lower():
+                        matched = True
+                        break
 
             # Author match (name or email) — stored at init, instant
             if not matched and by_author:
@@ -1851,8 +1870,12 @@ class GitInteractiveRebaseApp(QMainWindow):
             already_matched = (by_msg and (search_term in item_text or search_term in (item.data(Qt.UserRole + 6) or "").lower()))
             if not already_matched and by_files:
                 cache_entry = self.commit_cache.get(sha, {})
-                files = cache_entry.get('files', [])
-                already_matched = any(search_term in f.lower() for f in files)
+                file_entries = cache_entry.get('files', [])
+                for _status, path1, path2 in file_entries:
+                    display = f"{path1} => {path2}" if _status == 'R' else path1
+                    if search_term in display.lower():
+                        already_matched = True
+                        break
             if not already_matched and by_author:
                 author = item.data(Qt.UserRole + 4) or ""
                 already_matched = search_term in author.lower()
@@ -3782,7 +3805,7 @@ class GitInteractiveRebaseApp(QMainWindow):
             return
         sha = item.text().split()[0]
         try:
-            files = get_commit_files(self.repo_path, sha)
+            files = get_commit_files_with_status(self.repo_path, sha)
             if not files:
                 QMessageBox.information(self, "No Files", f"Commit {sha} has no file changes to view.")
                 return

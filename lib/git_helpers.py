@@ -379,6 +379,51 @@ def get_commit_file_stats(repo_path, commit_sha):
         return {}
 
 
+def get_commit_files_with_status(repo_path, commit_sha):
+    """Returns a list of (status, path1, path2) tuples for files changed by a commit.
+    status is a single letter: A (added), D (deleted), M (modified), R (renamed),
+    T (type changed), C (copied), etc. For renames path1 = old path, path2 = new path;
+    otherwise path2 is empty. Uses -M so renames are detected and combined into one entry."""
+    try:
+        cmd = ["git", "diff-tree", "--no-commit-id", "--root", "-r", "-M", "--name-status", commit_sha]
+        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
+        entries = []
+        for line in result.stdout.strip().split('\n'):
+            if not line.strip():
+                continue
+            parts = line.split('\t')
+            code = parts[0][0]
+            if code == 'R' and len(parts) >= 3:
+                entries.append(('R', parts[1], parts[2]))
+            elif len(parts) >= 2:
+                entries.append((code, parts[1], ''))
+        return entries
+    except subprocess.CalledProcessError as e:
+        raise Exception(f"Failed to list commit files: {e.stderr}")
+
+def get_rename_diff_in_commit(repo_path, commit_sha, old_path, new_path):
+    """Returns the diff section for a renamed file within a commit.
+    Extracts the relevant section from the full commit diff so the rename
+    headers ('similarity index', 'rename from'/'rename to') are preserved;
+    a path-filtered diff would force git to show an add/delete instead."""
+    try:
+        cmd = ["git", "show", "--format=", commit_sha]
+        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
+        diff_text = result.stdout
+        import re
+        chunks = re.split(r'(?m)^(?=diff --git )', diff_text)
+        for chunk in chunks:
+            if f"rename from {old_path}" in chunk and f"rename to {new_path}" in chunk:
+                chunk = re.sub(r'(\n)(diff --git )', r'\1\n\2', chunk)
+                return chunk
+        for chunk in chunks:
+            if f"a/{old_path} b/{new_path}" in chunk:
+                chunk = re.sub(r'(\n)(diff --git )', r'\1\n\2', chunk)
+                return chunk
+        return ""
+    except subprocess.CalledProcessError as e:
+        raise Exception(f"Failed to get rename diff: {e.stderr}")
+
 def get_file_diff_in_commit(repo_path, commit_sha, filepath):
     """Returns the diff for a single file within a commit."""
     try:
