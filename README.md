@@ -46,12 +46,13 @@ A Python-based Git Interactive Rebase GUI tool to visually manage commit history
 ### 🔍 Discovery & Navigation
 
 * **Live search & filter**: Instantly find commits while you type.
-* **Advanced commit filtering**: Search by **SHA**, **commit message**, **filenames**, or **diff content** (with a per-keystroke debounce and a ≥3 character hint).
+* **Advanced commit filtering**: Search by **SHA**, **commit message**, **filenames**, or **diff content** (with a per-keystroke debounce and a ≥3 character hint), plus **Match Case**, **Whole Word**, and **Display Only Matching** search options (matching commits are bolded).
 * **Search inside diffs**: Press **Ctrl+F** to search within the currently displayed diff, with match-case, whole-word, and next/previous navigation.
-* **File-wise diff viewer**: Browse commit changes file by file for easier review.
+* **File-wise diff viewer**: Browse commit changes file by file for easier review (renames shown as one `old => new` row).
 * **Consolidated Diff**: Set a start commit, then diff any range of history (or from HEAD down to any commit) in one combined view.
 * **View PR Diff**: Open a read-only **PR Preview** showing the combined branch diff vs its merge-base.
 * **Browse Branch**: Open a separate read-only window for *any* other branch's history (with dimmed "viewer" styling so you always know it is read-only), then cherry-pick from it.
+* **Browse File Log**: Open a separate read-only window showing the history of a single file, via **Browse File Log…** in the Repo menu or **Browse file log** in the file-wise view's right-click menu. History follows renames (`git log --follow`), and the diff pane is scoped to that file.
 
 ### ⚡ Git Integration
 
