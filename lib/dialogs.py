@@ -10,7 +10,8 @@ from PySide6.QtWidgets import (
     QWidget, QMessageBox, QListWidgetItem, QMenu, QDialog,
     QTextEdit, QPlainTextEdit, QPushButton, QHBoxLayout, QLabel, QRadioButton,
     QLineEdit, QSplitter, QInputDialog, QProgressBar, QScrollArea,
-    QFrame, QCheckBox, QSizePolicy, QToolButton, QTabWidget, QSpinBox
+    QFrame, QCheckBox, QSizePolicy, QToolButton, QTabWidget, QSpinBox,
+    QComboBox
 )
 # pyrefly: ignore [missing-import]
 from PySide6.QtCore import Qt, QSize, QSettings, QTimer, Signal, QRect, QEvent
@@ -24,7 +25,8 @@ from lib.git_helpers import (
     get_full_commit_message, get_commit_metadata, get_revert_commit_message,
     get_commit_file_stats, get_file_diff_between,
     get_unstaged_diff, get_unstaged_file_stats, get_unstaged_file_diff,
-    get_current_branch, get_full_head_sha, classify_tracked_changes
+    get_current_branch, get_full_head_sha, classify_tracked_changes,
+    get_branch_names
 )
 from lib.utils import get_theme_colors
 
@@ -3271,9 +3273,14 @@ class BrowseBranchDialog(QDialog):
         branch_label = QLabel("Branch name:")
         layout.addWidget(branch_label)
 
-        self.branch_edit = QLineEdit()
-        self.branch_edit.setPlaceholderText("e.g. feature/login, dev, release/1.0")
-        layout.addWidget(self.branch_edit)
+        self.branch_combo = QComboBox()
+        self.branch_combo.setEditable(True)
+        self.branch_combo.addItem("")
+        self.branch_combo.addItems(get_branch_names(self.repo_path))
+        if self.branch_combo.lineEdit():
+            self.branch_combo.lineEdit().setPlaceholderText("e.g. feature/login, dev, release/1.0")
+        self.branch_combo.setToolTip("Existing branches are listed; you can also type a branch that hasn't been fetched yet.")
+        layout.addWidget(self.branch_combo)
 
         limit_label = QLabel("Number of commits to show:")
         layout.addWidget(limit_label)
@@ -3298,11 +3305,11 @@ class BrowseBranchDialog(QDialog):
         btn_layout.addWidget(open_btn)
         layout.addLayout(btn_layout)
 
-        self.branch_edit.setFocus()
+        self.branch_combo.setFocus()
 
     @property
     def branch_name(self):
-        return self.branch_edit.text().strip()
+        return self.branch_combo.currentText().strip()
 
     @property
     def commit_limit(self):
