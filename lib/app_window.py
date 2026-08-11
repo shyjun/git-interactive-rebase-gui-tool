@@ -1052,6 +1052,9 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.search_options_btn.setToolTip("Search options: Match Case, Whole Word, Display Only Matching")
         self.search_options_btn.setPopupMode(QToolButton.InstantPopup)
         self.search_options_btn.setMinimumHeight(28)
+        # The text already carries a "▼", so hide Qt's extra menu indicator at
+        # the bottom-right of the button.
+        self.search_options_btn.setStyleSheet("QToolButton::menu-indicator { image: none; width: 0px; }")
         self.search_options_menu = QMenu(self)
         self.search_match_case_action = QAction("Match Case", self)
         self.search_match_case_action.setCheckable(True)
