@@ -11,6 +11,7 @@ import tempfile
 import stat
 import time
 import pathlib
+import re
 from datetime import datetime
 
 
@@ -32,7 +33,7 @@ from PySide6.QtWidgets import (
     QTextEdit, QPlainTextEdit, QPushButton, QHBoxLayout, QLabel, QRadioButton,
     QLineEdit, QSplitter, QInputDialog, QGroupBox, QSizePolicy, QCheckBox,
     QStyledItemDelegate, QStyle, QStyleOptionViewItem, QTabWidget, QWidgetAction,
-    QStatusBar
+    QStatusBar, QToolButton
 )
 # pyrefly: ignore [missing-import]
 from PySide6.QtGui import QFont, QSyntaxHighlighter, QTextCharFormat, QColor, QAction, QShortcut, QKeySequence, QIcon, QBrush, QPainter, QPainterPath, QPen, QPixmap, QPalette
@@ -65,6 +66,10 @@ from lib.utils import get_assets_path
 
 # If the combined branch diff exceeds this many chars (~200 KB), confirm before opening the PR preview.
 PR_DIFF_SIZE_WARN_THRESHOLD = 200_000
+
+# Data role on commit-list items marking whether the item matched the active search.
+# Used by CommitItemDelegate to bold matching commits when "Display Only Matching" is off.
+MATCH_ROLE = Qt.UserRole + 7
 
 class GitWorker(QThread):
     """Generic worker for running git commands in a separate thread."""
@@ -374,8 +379,17 @@ class CommitItemDelegate(QStyledItemDelegate):
         else:
             painter.setPen(opt.palette.text().color())
 
+        # Bold matching commits when "Display Only Matching" is off
+        use_bold = bool(index.data(MATCH_ROLE)) and main_win is not None and not getattr(main_win, 'search_display_only', False)
+        if use_bold:
+            if not hasattr(self, '_bold_font') or getattr(self, '_base_font', None) != opt.font:
+                self._base_font = QFont(opt.font)
+                self._bold_font = QFont(opt.font)
+                self._bold_font.setBold(True)
+            painter.setFont(self._bold_font)
+
         main_rect = text_rect.adjusted(left_boundary - text_rect.left(), 0, right_boundary - text_rect.right() - 8, 0)
-        elided_main = fm_normal.elidedText(main_text, Qt.ElideRight, main_rect.width())
+        elided_main = painter.fontMetrics().elidedText(main_text, Qt.ElideRight, main_rect.width())
         painter.drawText(main_rect, Qt.AlignLeft | Qt.AlignVCenter, elided_main)
         painter.restore()
 
@@ -764,6 +778,11 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.app_managed_stash_sha = None
         self.consolidated_diff_start_sha = None
 
+        # Search options (synced from the Search Options dropdown in setup_ui)
+        self.search_match_case = False
+        self.search_whole_word = False
+        self.search_display_only = False
+
         # Global application icon is handled in the main entry point
 
         # Persistence
@@ -843,6 +862,19 @@ class GitInteractiveRebaseApp(QMainWindow):
         else:
             self.light_radio.setChecked(True)
         self.apply_theme(theme)
+
+        # Search options (Match Case / Whole Word / Display Only Matching)
+        if hasattr(self, 'search_match_case_action'):
+            self.search_match_case = self.settings.value(self._sk("search_match_case"), False, type=bool)
+            self.search_whole_word = self.settings.value(self._sk("search_whole_word"), False, type=bool)
+            self.search_display_only = self.settings.value(self._sk("search_display_only"), False, type=bool)
+            # Apply without firing toggled (avoids re-running the search during startup)
+            for action, value in ((self.search_match_case_action, self.search_match_case),
+                                  (self.search_whole_word_action, self.search_whole_word),
+                                  (self.search_display_only_action, self.search_display_only)):
+                action.blockSignals(True)
+                action.setChecked(value)
+                action.blockSignals(False)
 
         # Window Geometry and State
         geometry = self.settings.value(self._sk("geometry"))
@@ -1013,6 +1045,31 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.search_edit.setClearButtonEnabled(True)
         self.search_edit.textChanged.connect(self.filter_commits)
         search_row_layout.addWidget(self.search_edit, 1)  # stretch to fill
+
+        # Search Options dropdown (HOW to search: Match Case / Whole Word / Display Only Matching)
+        self.search_options_btn = QToolButton()
+        self.search_options_btn.setText("Search Options ▼")
+        self.search_options_btn.setToolTip("Search options: Match Case, Whole Word, Display Only Matching")
+        self.search_options_btn.setPopupMode(QToolButton.InstantPopup)
+        self.search_options_btn.setMinimumHeight(28)
+        self.search_options_menu = QMenu(self)
+        self.search_match_case_action = QAction("Match Case", self)
+        self.search_match_case_action.setCheckable(True)
+        self.search_match_case_action.setToolTip("Make search case-sensitive")
+        self.search_whole_word_action = QAction("Whole Word", self)
+        self.search_whole_word_action.setCheckable(True)
+        self.search_whole_word_action.setToolTip("Match whole words only")
+        self.search_display_only_action = QAction("Display Only Matching", self)
+        self.search_display_only_action.setCheckable(True)
+        self.search_display_only_action.setToolTip("Hide commits that do not match the search")
+        self.search_options_menu.addAction(self.search_match_case_action)
+        self.search_options_menu.addAction(self.search_whole_word_action)
+        self.search_options_menu.addAction(self.search_display_only_action)
+        self.search_options_btn.setMenu(self.search_options_menu)
+        self.search_match_case_action.toggled.connect(self._on_search_option_changed)
+        self.search_whole_word_action.toggled.connect(self._on_search_option_changed)
+        self.search_display_only_action.toggled.connect(self._on_search_option_changed)
+        search_row_layout.addWidget(self.search_options_btn)
 
         # Compact filter controls: "Filter:" label + three checkboxes
         filter_label = QLabel("Filter:")
@@ -1766,9 +1823,31 @@ class GitInteractiveRebaseApp(QMainWindow):
             self.list_widget.setFocus()
 
 
+    def _on_search_option_changed(self):
+        """Persist the three search options and immediately re-run the active search."""
+        self.search_match_case = self.search_match_case_action.isChecked()
+        self.search_whole_word = self.search_whole_word_action.isChecked()
+        self.search_display_only = self.search_display_only_action.isChecked()
+        self.settings.setValue(self._sk("search_match_case"), self.search_match_case)
+        self.settings.setValue(self._sk("search_whole_word"), self.search_whole_word)
+        self.settings.setValue(self._sk("search_display_only"), self.search_display_only)
+        self.filter_commits(self.search_edit.text())
+
+    def _search_matches(self, haystack, term):
+        """Returns True if *term* matches *haystack* honoring Match Case and Whole Word.
+        Reuses the same word-boundary semantics as the DiffSearchBar."""
+        if not term:
+            return False
+        flags = 0 if self.search_match_case else re.IGNORECASE
+        if self.search_whole_word:
+            pattern = rf"\b{re.escape(term)}\b"
+        else:
+            pattern = re.escape(term)
+        return re.search(pattern, haystack, flags) is not None
+
     def filter_commits(self, text):
         """Live-filters commits. Diff search is debounced; msg/filename filtering is instant."""
-        search_term = text.strip().lower()
+        search_term = text.strip()
         by_diff = self.filter_by_diff_cb.isChecked()
 
         # Always run instant filters (msg + filenames) immediately
@@ -1790,9 +1869,12 @@ class GitInteractiveRebaseApp(QMainWindow):
             self._diff_status_label.setVisible(False)
 
     def _run_filter_no_diff(self, search_term=None):
-        """Instant filtering by commit message, filenames, and author."""
+        """Instant filtering by commit message, filenames, and author.
+        When "Display Only Matching" is off, all commits stay visible and matching
+        ones are flagged (MATCH_ROLE) for bolding; when on, non-matching commits
+        are hidden."""
         if search_term is None:
-            search_term = self.search_edit.text().strip().lower()
+            search_term = self.search_edit.text().strip()
 
         by_msg = self.filter_by_msg_cb.isChecked()
         by_files = self.filter_by_files_cb.isChecked()
@@ -1802,19 +1884,22 @@ class GitInteractiveRebaseApp(QMainWindow):
         # If no text or all disabled → show all and clear any diff-pending markers
         if not search_term or (not by_msg and not by_files and not by_diff and not by_author):
             for i in range(self.list_widget.count()):
-                self.list_widget.item(i).setHidden(False)
+                item = self.list_widget.item(i)
+                item.setHidden(False)
+                item.setData(MATCH_ROLE, False)
             self._update_commit_counts()
+            self.list_widget.viewport().update()
             return
 
         for i in range(self.list_widget.count()):
             item = self.list_widget.item(i)
-            item_text = item.text().lower()
+            item_text = item.text()
             sha = item.text().split()[0]
 
             matched = False
 
             # Commit message / SHA match (subject line or full message body)
-            if by_msg and (search_term in item_text or search_term in (item.data(Qt.UserRole + 6) or "").lower()):
+            if by_msg and (self._search_matches(item_text, search_term) or self._search_matches(item.data(Qt.UserRole + 6) or "", search_term)):
                 matched = True
 
             # Filename match — lazy-load via existing commit_cache
@@ -1830,27 +1915,36 @@ class GitInteractiveRebaseApp(QMainWindow):
                 file_entries = cache_entry.get('files', [])
                 for _status, path1, path2 in file_entries:
                     display = f"{path1} => {path2}" if _status == 'R' else path1
-                    if search_term in display.lower():
+                    if self._search_matches(display, search_term):
                         matched = True
                         break
 
             # Author match (name or email) — stored at init, instant
             if not matched and by_author:
                 author = item.data(Qt.UserRole + 4) or ""
-                if search_term in author.lower():
+                if self._search_matches(author, search_term):
                     matched = True
 
             # When diff search is enabled keep items visible for now (diff pass will correct)
-            if not matched and by_diff:
+            if not matched and by_diff and self.search_display_only:
                 matched = True  # tentatively show — diff pass will hide non-matching ones
 
-            item.setHidden(not matched)
+            item.setData(MATCH_ROLE, matched)
+            if self.search_display_only:
+                item.setHidden(not matched)
+            else:
+                item.setHidden(False)
 
         self._update_commit_counts()
+        self.list_widget.viewport().update()
 
     def _run_filter_with_diff(self):
-        """Debounced diff search: hides commits already shown that do NOT match diff text."""
-        search_term = self.search_edit.text().strip().lower()
+        """Debounced diff search: hides commits already shown that do NOT match diff text.
+        Only hides when "Display Only Matching" is on; otherwise diff matches have nothing
+        to bold in the row, so nothing is hidden."""
+        if not self.search_display_only:
+            return
+        search_term = self.search_edit.text().strip()
         if len(search_term) < 3 or not self.filter_by_diff_cb.isChecked():
             return
 
@@ -1864,21 +1958,21 @@ class GitInteractiveRebaseApp(QMainWindow):
                 continue  # already filtered out by faster passes
 
             sha = item.text().split()[0]
-            item_text = item.text().lower()
+            item_text = item.text()
 
             # If already matched by msg, files, or author, no need to check diff
-            already_matched = (by_msg and (search_term in item_text or search_term in (item.data(Qt.UserRole + 6) or "").lower()))
+            already_matched = (by_msg and (self._search_matches(item_text, search_term) or self._search_matches(item.data(Qt.UserRole + 6) or "", search_term)))
             if not already_matched and by_files:
                 cache_entry = self.commit_cache.get(sha, {})
                 file_entries = cache_entry.get('files', [])
                 for _status, path1, path2 in file_entries:
                     display = f"{path1} => {path2}" if _status == 'R' else path1
-                    if search_term in display.lower():
+                    if self._search_matches(display, search_term):
                         already_matched = True
                         break
             if not already_matched and by_author:
                 author = item.data(Qt.UserRole + 4) or ""
-                already_matched = search_term in author.lower()
+                already_matched = self._search_matches(author, search_term)
 
             if already_matched:
                 continue
@@ -1894,7 +1988,7 @@ class GitInteractiveRebaseApp(QMainWindow):
                     self.commit_cache[sha] = cache_entry
 
             diff_text = cache_entry.get('diff', '')
-            if search_term not in diff_text.lower():
+            if not self._search_matches(diff_text, search_term):
                 item.setHidden(True)
 
         self._diff_status_label.setVisible(False)
