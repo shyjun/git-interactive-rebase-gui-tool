@@ -1239,15 +1239,10 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.rescan_btn = QPushButton("Rescan Repo")
         self.rescan_btn.setToolTip("Re-scan the repository and rebuild the commit list.")
         self._set_rescan_icon(self.rescan_btn)
-        self.pr_diff_btn = QPushButton("View PR Diff")
-        self.pr_diff_btn.setToolTip("View the branch diff vs its base.")
-        self._set_pr_diff_icon(self.pr_diff_btn)
-        self.cherry_pick_btn = QPushButton("Cherry-pick 1 Commit")
-        self.cherry_pick_btn.setToolTip("Cherry-pick a single commit by SHA.")
-        self._set_cherry_pick_icon(self.cherry_pick_btn)
-        self.browse_branch_btn = QPushButton("Browse Branch")
-        self.browse_branch_btn.setToolTip("Open a read-only viewer of another branch's full history.")
-        self._set_browse_branch_icon(self.browse_branch_btn)
+        self.repo_btn = QPushButton("Repo")
+        self.repo_btn.setToolTip("Repository actions: PR diff, cherry-pick, browse branch.")
+        self.repo_btn.setMenu(self._build_repo_menu())
+        self._set_repo_icon(self.repo_btn)
         self.pop_stash_btn = QPushButton("Pop app created stash")
         self.pop_stash_btn.setToolTip("Pop the app-created stash (git stash pop).")
         self._set_pop_stash_icon(self.pop_stash_btn)
@@ -1275,12 +1270,9 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.custom_reset_btn = QPushButton("Enter commit id to reset hard to")
         self.custom_reset_btn.setToolTip("Reset hard to a commit id you enter.")
 
-        for btn in [self.toggle_diff_btn, self.help_btn, self.exit_viewer_mode_btn, self.rescan_btn, self.pr_diff_btn, self.cherry_pick_btn, self.pop_stash_btn, self.check_update_btn, self.undo_btn, self.refresh_btn, self.exit_btn, self.theme_menu_btn]:
+        for btn in [self.toggle_diff_btn, self.help_btn, self.exit_viewer_mode_btn, self.rescan_btn, self.repo_btn, self.pop_stash_btn, self.check_update_btn, self.undo_btn, self.refresh_btn, self.exit_btn, self.theme_menu_btn]:
             btn.setMinimumHeight(40)
             btn.setMinimumWidth(100)
-        self.browse_branch_btn.setMinimumHeight(40)
-        self.browse_branch_btn.setMinimumWidth(100)
-        self.browse_branch_btn.setVisible(not self.browse_branch)
         self.failsafe_btn.setMinimumHeight(40)
         self.best_commit_btn.setMinimumHeight(40)
         self.custom_reset_btn.setMinimumHeight(40)
@@ -1289,9 +1281,6 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.help_btn.clicked.connect(self._show_help_dialog)
         self.exit_viewer_mode_btn.clicked.connect(self.handle_exit_viewer_mode)
         self.rescan_btn.clicked.connect(self.handle_rescan_repo)
-        self.pr_diff_btn.clicked.connect(self.handle_view_branch_diff)
-        self.cherry_pick_btn.clicked.connect(self.handle_cherry_pick)
-        self.browse_branch_btn.clicked.connect(self.handle_browse_branch)
         self.pop_stash_btn.clicked.connect(self.handle_pop_managed_stash)
         self.undo_btn.clicked.connect(self.handle_undo)
         self.check_update_btn.clicked.connect(self.handle_check_for_updates)
@@ -1321,9 +1310,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         controls_layout.addWidget(self.check_update_btn)
         controls_layout.addStretch()
         controls_layout.addWidget(self.pop_stash_btn)
-        controls_layout.addWidget(self.pr_diff_btn)
-        controls_layout.addWidget(self.cherry_pick_btn)
-        controls_layout.addWidget(self.browse_branch_btn)
+        controls_layout.addWidget(self.repo_btn)
         controls_layout.addWidget(self.exit_viewer_mode_btn)
         self.browse_cherry_pick_btn = QPushButton("Cherry-pick selected commit(s)")
         self.browse_cherry_pick_btn.setToolTip(
@@ -1341,8 +1328,7 @@ class GitInteractiveRebaseApp(QMainWindow):
 
         if self.browse_branch:
             for btn in [self.theme_menu_btn, self.help_btn, self.check_update_btn,
-                        self.pr_diff_btn, self.cherry_pick_btn, self.rescan_btn,
-                        self.undo_btn]:
+                        self.repo_btn, self.rescan_btn, self.undo_btn]:
                 btn.setVisible(False)
 
         layout.addLayout(controls_layout)
@@ -2047,6 +2033,9 @@ class GitInteractiveRebaseApp(QMainWindow):
     def _set_configure_icon(self, button):
         self._apply_toolbar_icon(button, self._draw_gear)
 
+    def _set_repo_icon(self, button):
+        self._apply_toolbar_icon(button, self._draw_repo)
+
     def _refresh_toolbar_icons(self):
         self._set_theme_icon(self.theme_menu_btn)
         self._set_toggle_diff_icon(self.toggle_diff_btn)
@@ -2057,10 +2046,8 @@ class GitInteractiveRebaseApp(QMainWindow):
         self._set_refresh_icon(self.refresh_btn)
         self._set_exit_icon(self.exit_btn)
         self._set_exit_viewer_mode_icon(self.exit_viewer_mode_btn)
-        self._set_pr_diff_icon(self.pr_diff_btn)
-        self._set_cherry_pick_icon(self.cherry_pick_btn)
-        self._set_browse_branch_icon(self.browse_branch_btn)
         self._set_pop_stash_icon(self.pop_stash_btn)
+        self._set_repo_icon(self.repo_btn)
         self._set_configure_icon(self.configure_btn)
 
     def _draw_eye_slash(self, painter, color):
@@ -2259,6 +2246,20 @@ class GitInteractiveRebaseApp(QMainWindow):
         painter.drawEllipse(QPoint(8, 8), 4.0, 4.0)
         painter.setBrush(color)
         painter.drawEllipse(QPoint(8, 8), 1.8, 1.8)
+
+    def _draw_repo(self, painter, color):
+        pen = QPen(color, 1.5)
+        pen.setCapStyle(Qt.RoundCap)
+        pen.setJoinStyle(Qt.RoundJoin)
+        painter.setPen(pen)
+        painter.setBrush(Qt.NoBrush)
+
+        # Folder with tab
+        painter.drawRoundedRect(1.5, 5.5, 13, 8, 1.5, 1.5)
+        painter.drawLine(2, 5.5, 5.5, 5.5)
+        painter.drawLine(5.5, 5.5, 6.5, 7.5)
+        painter.drawLine(6.5, 7.5, 14.5, 7.5)
+        painter.drawLine(3.5, 10.5, 9.5, 10.5)
 
     def handle_set_best_commit(self, item):
         sha = item.text().split()[0]
@@ -3203,6 +3204,28 @@ class GitInteractiveRebaseApp(QMainWindow):
         """Pops up the configure menu under the status-bar Configure button."""
         self.configure_menu.popup(
             self.configure_btn.mapToGlobal(QPoint(0, self.configure_btn.height())))
+
+    def _build_repo_menu(self):
+        """Builds the Repo button's menu: View PR Diff / Cherry-pick 1 Commit /
+        Browse Branch (previously separate toolbar buttons)."""
+        menu = QMenu(self)
+
+        pr_diff_action = QAction("View PR Diff", self)
+        pr_diff_action.setToolTip("View the branch diff vs its base.")
+        pr_diff_action.triggered.connect(lambda *_: self.handle_view_branch_diff())
+
+        cherry_pick_action = QAction("Cherry-pick 1 Commit", self)
+        cherry_pick_action.setToolTip("Cherry-pick a single commit by SHA.")
+        cherry_pick_action.triggered.connect(lambda *_: self.handle_cherry_pick())
+
+        browse_action = QAction("Browse Branch", self)
+        browse_action.setToolTip("Open a read-only viewer of another branch's full history.")
+        browse_action.triggered.connect(lambda *_: self.handle_browse_branch())
+
+        menu.addAction(pr_diff_action)
+        menu.addAction(cherry_pick_action)
+        menu.addAction(browse_action)
+        return menu
 
     def _on_always_on_top_toggled(self, checked):
         if checked:
