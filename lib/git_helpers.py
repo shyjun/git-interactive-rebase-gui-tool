@@ -143,8 +143,13 @@ def get_current_branch(repo_path):
     except:
         return "Unknown"
 
-def get_local_branches_map(repo_path, current_branch=None):
-    """Returns a dict mapping short_sha to a list of branch names (local + specific remotes)."""
+def get_local_branches_map(repo_path, current_branch=None, extra_remotes=None):
+    """Returns a dict mapping short_sha to a list of branch names (local + specific remotes).
+
+    extra_remotes: additional remote branch names (e.g. "origin/feature") to
+    include when building the per-commit branch labels, used by the read-only
+    branch browser so the browsed remote branch tip is tagged too.
+    """
     try:
         # Get current branch to include its remote counterpart
         if current_branch is None:
@@ -159,6 +164,10 @@ def get_local_branches_map(repo_path, current_branch=None):
         target_remotes = ["origin/master", "origin/main"]
         if current_branch and current_branch != "DETACHED":
             target_remotes.append(f"origin/{current_branch}")
+        if extra_remotes:
+            for r in extra_remotes:
+                if r.startswith("origin/"):
+                    target_remotes.append(r)
             
         branch_map = {}
         for line in result.stdout.strip().split('\n'):
@@ -791,19 +800,71 @@ def merge_into_stash(repo_path, existing_stash_sha):
         return None
 
 def branch_exists(repo_path, branch_name):
-    """Checks if a local or remote branch exists."""
+    """Checks if a local or remote branch exists.
+
+    Accepts either a short name (``feature``) or an already-qualified remote
+    name (``origin/feature``).
+    """
     try:
         # Check local branch
         cmd = ["git", "show-ref", "--verify", f"refs/heads/{branch_name}"]
         result = subprocess.run(cmd, cwd=repo_path, capture_output=True)
         if result.returncode == 0:
             return True
-        # Check remote branch (origin)
+        # Check remote branch (origin) for a short name like "feature"
         cmd = ["git", "show-ref", "--verify", f"refs/remotes/origin/{branch_name}"]
+        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, encoding='utf-8', errors='replace')
+        if result.returncode == 0:
+            return True
+        # Check an already-qualified remote name like "origin/feature"
+        cmd = ["git", "show-ref", "--verify", f"refs/remotes/{branch_name}"]
         result = subprocess.run(cmd, cwd=repo_path, capture_output=True, encoding='utf-8', errors='replace')
         return result.returncode == 0
     except:
         return False
+
+
+def normalize_branch_ref(repo_path, branch_name):
+    """Converts a user-typed branch name into a ref that ``git log`` accepts.
+
+    Returns the name unchanged when it resolves to a local or qualified
+    remote ref; otherwise, if only ``origin/<name>`` exists, returns
+    ``origin/<name>`` so the history loads deterministically instead of relying
+    on git's DWIM guessing (which can be ambiguous with multiple remotes).
+    """
+    try:
+        cmd = ["git", "show-ref", "--verify", f"refs/heads/{branch_name}"]
+        if subprocess.run(cmd, cwd=repo_path, capture_output=True).returncode == 0:
+            return branch_name
+        cmd = ["git", "show-ref", "--verify", f"refs/remotes/{branch_name}"]
+        if subprocess.run(cmd, cwd=repo_path, capture_output=True).returncode == 0:
+            return branch_name
+        cmd = ["git", "show-ref", "--verify", f"refs/remotes/origin/{branch_name}"]
+        if subprocess.run(cmd, cwd=repo_path, capture_output=True).returncode == 0:
+            return f"origin/{branch_name}"
+    except Exception:
+        pass
+    return branch_name
+
+
+def get_branch_names(repo_path, include_remote=True):
+    """Returns branch display names (local ones, plus ``origin/...`` remote ones)."""
+    try:
+        patterns = ["refs/heads/"]
+        if include_remote:
+            patterns.append("refs/remotes/origin/")
+        cmd = ["git", "for-each-ref", "--format=%(refname:short)"] + patterns
+        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True,
+                                check=True, encoding='utf-8', errors='replace')
+        names = []
+        for line in result.stdout.strip().split('\n'):
+            name = line.strip()
+            if not name or name == "origin/HEAD" or name.endswith("/HEAD"):
+                continue
+            names.append(name)
+        return names
+    except subprocess.CalledProcessError:
+        return []
 
 def get_remote_head_sha(repo_url):
     """Fetches the current HEAD SHA from the remote repository without fetching objects."""

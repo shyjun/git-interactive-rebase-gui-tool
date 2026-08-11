@@ -42,7 +42,7 @@ from PySide6.QtCore import Qt, QSize, QSettings, QThread, Signal, QRect, QTimer,
 from lib.git_helpers import (
     get_git_history, get_branch_history, get_head_sha, get_full_head_sha, get_current_branch, get_commit_diff,
     get_full_commit_message, get_commit_subject, get_commit_metadata, get_commit_files,
-    has_uncommitted_changes, cherry_pick_in_progress, classify_cherry_pick_failure, branch_exists, get_local_branches_map, get_remote_head_sha,
+    has_uncommitted_changes, cherry_pick_in_progress, classify_cherry_pick_failure, branch_exists, normalize_branch_ref, get_local_branches_map, get_remote_head_sha,
     get_file_diff_only_in_commit, get_revert_commit_message, get_commit_metadata_and_message,
     get_commit_file_stats,     get_unstaged_files, stash_changes, commit_file, bulk_commit_all, amend_with_head, discard_changes, stash_pop, get_stash_subject, stash_pop_can_apply, get_stash_status, STASH_NOTHING_STASHED, merge_into_stash,
     get_unstaged_file_stats, get_unstaged_file_diff,
@@ -2558,9 +2558,13 @@ class GitInteractiveRebaseApp(QMainWindow):
                                  f"The branch '{branch_name}' does not exist.")
             return
 
+        # Normalise so remote-only branches (e.g. 'feature' living only at
+        # 'origin/feature') are loaded explicitly instead of by DWIM guess.
+        browse_ref = normalize_branch_ref(self.repo_path, branch_name)
+
         viewer = GitInteractiveRebaseApp(
             self.repo_path, self.commit_sha, self.app_start_time,
-            viewer_mode=True, browse_branch=branch_name, parent=self,
+            viewer_mode=True, browse_branch=browse_ref, parent=self,
             browse_limit=commit_limit,
         )
         # The browse viewer inherits the main window's current zoom and theme.
@@ -6257,7 +6261,11 @@ for i, filename in enumerate(files):
                 history = get_branch_history(self.repo_path, self.browse_branch)
             else:
                 history = get_git_history(self.repo_path, self.commit_sha, self.get_head_sha())
-            branch_map = get_local_branches_map(self.repo_path, current_branch=current_branch)
+            branch_map = get_local_branches_map(
+                self.repo_path,
+                current_branch=current_branch,
+                extra_remotes=[self.browse_branch] if self.browse_branch else None,
+            )
 
             self._populate_list_widget(history, branch_map, old_row)
         except Exception as e:
@@ -6343,7 +6351,10 @@ for i, filename in enumerate(files):
         def worker():
             try:
                 history = get_branch_history(repo_path, branch, limit=browse_limit)
-                branch_map = get_local_branches_map(repo_path)
+                branch_map = get_local_branches_map(
+                    repo_path,
+                    extra_remotes=[branch] if branch else None,
+                )
                 self._browse_load_result = (True, history, branch_map)
             except Exception as e:
                 self._browse_load_result = (False, [], str(e))
