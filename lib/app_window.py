@@ -1473,7 +1473,6 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.configure_btn.setFixedHeight(22)
         self._set_configure_icon(self.configure_btn)
         self.configure_btn.clicked.connect(self._show_configure_menu)
-        status_layout.addWidget(self.configure_btn)
 
         self.configure_menu = self._build_configure_menu()
         if self.browse_branch:
@@ -1495,6 +1494,12 @@ class GitInteractiveRebaseApp(QMainWindow):
         sep3 = QLabel("|")
         sep3.setStyleSheet("color: gray;")
         status_layout.addWidget(sep3)
+
+        status_layout.addWidget(self.configure_btn)
+
+        sep_configure = QLabel("|")
+        sep_configure.setStyleSheet("color: gray;")
+        status_layout.addWidget(sep_configure)
 
         self.total_commits_label = QLabel("Total: 0")
         self.total_commits_label.setStyleSheet("font-weight: bold;")
