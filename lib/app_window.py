@@ -1229,9 +1229,6 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.toggle_diff_btn = QPushButton("Hide Diffs" if self.show_diffs else "Show Diffs")
         self.toggle_diff_btn.setToolTip("Show or hide the right-side diff panel.")
         self._set_toggle_diff_icon(self.toggle_diff_btn)
-        self.help_btn = QPushButton("Help")
-        self.help_btn.setToolTip("Show usage help.")
-        self._set_help_icon(self.help_btn)
         self.exit_viewer_mode_btn = QPushButton("Exit Viewer Mode")
         self.exit_viewer_mode_btn.setToolTip("Re-enable history-modifying operations.")
         self._set_exit_viewer_mode_icon(self.exit_viewer_mode_btn)
@@ -1251,9 +1248,6 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.undo_btn.setToolTip("Undo the last operation (Ctrl+Z).")
         self._set_undo_icon(self.undo_btn)
         self.undo_btn.setEnabled(False)
-        self.check_update_btn = QPushButton("Check Updates")
-        self.check_update_btn.setToolTip("Check for a newer version online.")
-        self._set_check_update_icon(self.check_update_btn)
         self.refresh_btn = QPushButton("Refresh")
         self.refresh_btn.setToolTip("Reload the commit history from git.")
         self._set_refresh_icon(self.refresh_btn)
@@ -1270,7 +1264,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.custom_reset_btn = QPushButton("Enter commit id to reset hard to")
         self.custom_reset_btn.setToolTip("Reset hard to a commit id you enter.")
 
-        for btn in [self.toggle_diff_btn, self.help_btn, self.exit_viewer_mode_btn, self.rescan_btn, self.repo_btn, self.pop_stash_btn, self.check_update_btn, self.undo_btn, self.refresh_btn, self.exit_btn, self.theme_menu_btn]:
+        for btn in [self.toggle_diff_btn, self.exit_viewer_mode_btn, self.rescan_btn, self.repo_btn, self.pop_stash_btn, self.undo_btn, self.refresh_btn, self.exit_btn, self.theme_menu_btn]:
             btn.setMinimumHeight(40)
             btn.setMinimumWidth(100)
         self.failsafe_btn.setMinimumHeight(40)
@@ -1278,12 +1272,10 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.custom_reset_btn.setMinimumHeight(40)
 
         self.toggle_diff_btn.clicked.connect(self.toggle_side_diff_visibility)
-        self.help_btn.clicked.connect(self._show_help_dialog)
         self.exit_viewer_mode_btn.clicked.connect(self.handle_exit_viewer_mode)
         self.rescan_btn.clicked.connect(self.handle_rescan_repo)
         self.pop_stash_btn.clicked.connect(self.handle_pop_managed_stash)
         self.undo_btn.clicked.connect(self.handle_undo)
-        self.check_update_btn.clicked.connect(self.handle_check_for_updates)
         self.refresh_btn.clicked.connect(self.handle_manual_refresh)
         self.failsafe_btn.clicked.connect(self.handle_failsafe_reset)
         self.best_commit_btn.clicked.connect(self.handle_best_commit_reset)
@@ -1306,8 +1298,6 @@ class GitInteractiveRebaseApp(QMainWindow):
             btn.setVisible(bool(self.browse_branch))
         controls_layout.addWidget(self.browse_select_btn)
         controls_layout.addWidget(self.browse_cancel_select_btn)
-        controls_layout.addWidget(self.help_btn)
-        controls_layout.addWidget(self.check_update_btn)
         controls_layout.addStretch()
         controls_layout.addWidget(self.pop_stash_btn)
         controls_layout.addWidget(self.repo_btn)
@@ -1327,8 +1317,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         controls_layout.addWidget(self.exit_btn)
 
         if self.browse_branch:
-            for btn in [self.theme_menu_btn, self.help_btn, self.check_update_btn,
-                        self.repo_btn, self.rescan_btn, self.undo_btn]:
+            for btn in [self.theme_menu_btn, self.repo_btn, self.rescan_btn, self.undo_btn]:
                 btn.setVisible(False)
 
         layout.addLayout(controls_layout)
@@ -2039,10 +2028,8 @@ class GitInteractiveRebaseApp(QMainWindow):
     def _refresh_toolbar_icons(self):
         self._set_theme_icon(self.theme_menu_btn)
         self._set_toggle_diff_icon(self.toggle_diff_btn)
-        self._set_help_icon(self.help_btn)
         self._set_rescan_icon(self.rescan_btn)
         self._set_undo_icon(self.undo_btn)
-        self._set_check_update_icon(self.check_update_btn)
         self._set_refresh_icon(self.refresh_btn)
         self._set_exit_icon(self.exit_btn)
         self._set_exit_viewer_mode_icon(self.exit_viewer_mode_btn)
@@ -3197,6 +3184,19 @@ class GitInteractiveRebaseApp(QMainWindow):
         show_hide.addSeparator()
         show_hide.addAction(self.show_stats_action)
         show_hide.addAction(self.show_date_action)
+
+        menu.addSeparator()
+
+        self.help_action = QAction("Help", self)
+        self.help_action.setToolTip("Show usage help.")
+        self.help_action.triggered.connect(lambda *_: self._show_help_dialog())
+
+        self.check_updates_action = QAction("Check Updates", self)
+        self.check_updates_action.setToolTip("Check for a newer version online.")
+        self.check_updates_action.triggered.connect(lambda *_: self.handle_check_for_updates())
+
+        menu.addAction(self.help_action)
+        menu.addAction(self.check_updates_action)
 
         return menu
 
