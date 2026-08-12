@@ -4053,6 +4053,10 @@ class GitInteractiveRebaseApp(QMainWindow):
 
     def _open_viewer(self, dialog):
         """Shows a read-only viewer dialog non-modally so the main window stays usable while it is open."""
+        # Turn the Dialog into a normal Window so the window manager doesn't
+        # keep it permanently above the main window (transient-dialog behavior).
+        flags = (dialog.windowFlags() & ~Qt.Dialog) | Qt.Window
+        dialog.setWindowFlags(flags)
         self.viewer_windows.append(dialog)
         dialog.finished.connect(lambda: self._discard_viewer(dialog))
         dialog.show()
