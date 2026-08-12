@@ -60,7 +60,8 @@ from lib.dialogs import (
     RefineFileSelectDialog, RefineChangesDialog, NewCommitMessageDialog,
     DiffView, StatsItemDelegate, DiffSearchBar, UnstagedChangesDialog, BranchDiffDialog, StashNoticeDialog,
     CherryPickDialog, BrowseBranchDialog, BrowseFileLogDialog, SingleCommitViewDialog,
-    CommitSelectivelyDialog, SelectiveHunkDialog, FILE_ENTRY_ROLE
+    CommitSelectivelyDialog, SelectiveHunkDialog, FILE_ENTRY_ROLE,
+    MergeBaseDialog, MergeBaseResultDialog,
 )
 from lib.utils import get_assets_path
 
@@ -2708,6 +2709,39 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.browse_windows.append(viewer)
         viewer.show()
 
+    def handle_find_merge_base(self):
+        """Finds the merge-base of the current branch and a user-chosen branch,
+        then shows the SHA in a dialog with a copy-to-clipboard option."""
+        dialog = MergeBaseDialog(self.repo_path, parent=self)
+        if dialog.exec() != QDialog.Accepted:
+            return
+        other_branch = dialog.branch_name
+        if not other_branch:
+            QMessageBox.warning(self, "No branch selected",
+                                "Please choose a branch to compare against.")
+            return
+        current_branch = get_current_branch(self.repo_path) or "HEAD (detached)"
+        if not branch_exists(self.repo_path, other_branch):
+            QMessageBox.critical(self, "Branch does not exist",
+                                 f"The branch '{other_branch}' does not exist.")
+            return
+
+        ref = normalize_branch_ref(self.repo_path, other_branch)
+        base_sha = get_merge_base(self.repo_path, ref)
+        if not base_sha:
+            QMessageBox.warning(
+                self, "No common ancestor",
+                f"No merge-base found between '{current_branch}' and '{other_branch}'.\n\n"
+                "The two branches may be unrelated histories.")
+            return
+
+        short_sha = base_sha[:8]
+        subject = get_commit_subject(self.repo_path, base_sha) or ""
+        text = (f"Merge-base of <b>{current_branch}</b> and <b>{other_branch}</b>:\n\n"
+                f"{base_sha}\n({short_sha}) {subject}\n\n"
+                "Copy the SHA to the clipboard, or click OK to close.")
+        MergeBaseResultDialog(text, base_sha, parent=self).exec()
+
     def handle_browse_file_log(self):
         """Opens a read-only viewer showing the history of a single file.
         Prompts for a repo-relative file path and the number of commits to load."""
@@ -3402,7 +3436,7 @@ class GitInteractiveRebaseApp(QMainWindow):
 
     def _build_repo_menu(self):
         """Builds the Repo button's menu: View PR Diff / View a Commit /
-        Cherry-pick 1 Commit / Browse Branch / Browse File Log
+        Cherry-pick 1 Commit / Browse Branch / Browse File Log / Find Merge-base
         (previously separate toolbar buttons)."""
         menu = QMenu(self)
 
@@ -3426,11 +3460,16 @@ class GitInteractiveRebaseApp(QMainWindow):
         browse_file_action.setToolTip("Open a read-only viewer of a single file's history.")
         browse_file_action.triggered.connect(lambda *_: self.handle_browse_file_log())
 
+        merge_base_action = QAction("Find Merge-base…", self)
+        merge_base_action.setToolTip("Find the merge-base of the current branch and another branch.")
+        merge_base_action.triggered.connect(lambda *_: self.handle_find_merge_base())
+
         menu.addAction(pr_diff_action)
         menu.addAction(view_commit_action)
         menu.addAction(cherry_pick_action)
         menu.addAction(browse_action)
         menu.addAction(browse_file_action)
+        menu.addAction(merge_base_action)
         return menu
 
     def _on_always_on_top_toggled(self, checked):
