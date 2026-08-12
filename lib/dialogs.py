@@ -28,7 +28,8 @@ from lib.git_helpers import (
     get_commit_file_stats, get_file_diff_between,
     get_unstaged_diff, get_unstaged_file_stats, get_unstaged_file_diff,
     get_current_branch, get_full_head_sha, classify_tracked_changes,
-    get_branch_names, get_rename_diff_in_commit
+    get_branch_names, get_rename_diff_in_commit,
+    get_commit_diff, get_commit_files_with_status,
 )
 from lib.utils import get_theme_colors
 
@@ -1111,6 +1112,192 @@ class BranchDiffDialog(QDialog):
             return
         try:
             diff = get_file_diff_between(self.repo_path, self.start_sha, self.end_sha, filepath)
+            self.filewise_diff_view.setPlainText(diff)
+            self.filewise_diff_view.set_separator_color(self.colors.get("separator", "#444444"))
+            self.filewise_diff_search._perform_search()
+        except Exception as e:
+            self.filewise_diff_view.setPlainText(f"Error loading diff: {e}")
+
+
+class SingleCommitViewDialog(QDialog):
+    """Single-commit viewer replicating the app's right-side pane: commit
+    message on top, with Plain Diff and File-wise Diff tabs below."""
+
+    def __init__(self, repo_path, sha, font_size=10, parent=None, colors=None):
+        super().__init__(parent)
+        self.repo_path = repo_path
+        self.sha = sha
+        self.font_size = font_size
+        self.setWindowTitle(f"View Commit: {sha}")
+        self.setMinimumSize(860, 620)
+
+        # Diff colors: optional pre-resolved colors, else from the parent theme
+        if colors is None:
+            main_win = parent if isinstance(parent, QMainWindow) else None
+            if main_win and hasattr(main_win, 'current_theme_colors'):
+                colors = main_win.current_theme_colors
+            else:
+                colors = {"added": "#a6e22e", "removed": "#f92672", "header": "#66d9ef", "separator": "#444444"}
+        self.colors = colors
+
+        # Commit metadata + message
+        try:
+            commit_meta = get_commit_metadata(repo_path, sha)
+        except Exception:
+            commit_meta = "Unknown"
+        try:
+            commit_msg = get_full_commit_message(repo_path, sha)
+        except Exception:
+            commit_msg = "Could not fetch message"
+
+        layout = QVBoxLayout(self)
+
+        self.main_splitter = QSplitter(Qt.Vertical)
+        self.main_splitter.setChildrenCollapsible(False)
+
+        # Top: commit header + message
+        top_widget = QWidget()
+        top_layout = QVBoxLayout(top_widget)
+        top_layout.setContentsMargins(0, 0, 0, 0)
+        header = QLabel(f"Commit: <b>{sha}</b> <span style='color:gray;'>({commit_meta})</span>")
+        header.setTextFormat(Qt.RichText)
+        top_layout.addWidget(header)
+        self.msg_view = QTextEdit()
+        self.msg_view.setReadOnly(True)
+        self.msg_view.setPlainText(commit_msg)
+        self.msg_view.setFont(QFont("Courier New", font_size))
+        top_layout.addWidget(self.msg_view)
+        self.main_splitter.addWidget(top_widget)
+
+        # Bottom: Plain Diff + File-wise Diff tabs
+        self.tab_widget = QTabWidget()
+
+        plain_widget = QWidget()
+        plain_layout = QVBoxLayout(plain_widget)
+        plain_layout.setContentsMargins(0, 0, 0, 0)
+        plain_layout.setSpacing(0)
+        self.side_diff_view = DiffView()
+        self.side_diff_view.setReadOnly(True)
+        self.side_diff_view.setFont(QFont("Courier New", font_size))
+        try:
+            self.side_diff_view.setPlainText(get_commit_diff(repo_path, sha))
+        except Exception as e:
+            self.side_diff_view.setPlainText(f"Error loading diff: {e}")
+        self.plain_highlighter = DiffHighlighter(
+            self.side_diff_view.document(),
+            added_color=colors["added"],
+            removed_color=colors["removed"],
+            header_color=colors["header"]
+        )
+        self.side_diff_view.set_separator_color(colors.get("separator", "#444444"))
+        self.plain_diff_search = DiffSearchBar(target_view=self.side_diff_view, parent=plain_widget)
+        plain_layout.addWidget(self.plain_diff_search)
+        plain_layout.addWidget(self.side_diff_view)
+        self.tab_widget.addTab(plain_widget, "Plain Diff")
+
+        filewise_widget = QWidget()
+        filewise_layout = QVBoxLayout(filewise_widget)
+        filewise_layout.setContentsMargins(0, 0, 0, 0)
+        filewise_layout.setSpacing(0)
+
+        self.filewise_splitter = QSplitter(Qt.Vertical)
+
+        self.filewise_file_list = QListWidget()
+        self.filewise_file_list.setMinimumHeight(60)
+        self.filewise_file_list.setFont(QFont("Courier New", font_size))
+        stats_delegate = StatsItemDelegate(
+            added_color=colors.get("added", "#22863a"),
+            removed_color=colors.get("removed", "#cb2431"),
+            parent=self.filewise_file_list
+        )
+        self.filewise_file_list.setItemDelegate(stats_delegate)
+        self.filewise_file_list.currentTextChanged.connect(self.on_filewise_file_selected)
+        self.filewise_splitter.addWidget(self.filewise_file_list)
+
+        file_right_widget = QWidget()
+        file_right_layout = QVBoxLayout(file_right_widget)
+        file_right_layout.setContentsMargins(0, 0, 0, 0)
+        file_right_layout.setSpacing(0)
+
+        self.filewise_diff_view = DiffView()
+        self.filewise_diff_view.setReadOnly(True)
+        self.filewise_diff_view.setMinimumHeight(100)
+        self.filewise_diff_view.setFont(QFont("Courier New", font_size))
+        self.filewise_diff_view.setPlaceholderText("Select a file above to view its diff...")
+        self.filewise_highlighter = DiffHighlighter(
+            self.filewise_diff_view.document(),
+            added_color=colors["added"],
+            removed_color=colors["removed"],
+            header_color=colors["header"]
+        )
+        self.filewise_diff_search = DiffSearchBar(target_view=self.filewise_diff_view, parent=file_right_widget)
+        file_right_layout.addWidget(self.filewise_diff_search)
+        file_right_layout.addWidget(self.filewise_diff_view)
+
+        self.filewise_splitter.addWidget(file_right_widget)
+        self.filewise_splitter.setSizes([150, 350])
+        filewise_layout.addWidget(self.filewise_splitter)
+
+        self.tab_widget.addTab(filewise_widget, "Filewise Diff")
+
+        self.main_splitter.addWidget(self.tab_widget)
+        self.main_splitter.setSizes([150, 450])
+        layout.addWidget(self.main_splitter)
+
+        # Populate the file list (block signals to avoid premature load)
+        self._files = []
+        try:
+            self._files = get_commit_files_with_status(repo_path, sha)
+        except Exception:
+            self._files = []
+        self.filewise_file_list.blockSignals(True)
+        for entry in self._files:
+            status, path1, path2 = entry
+            if status == 'R':
+                display = f"{path1} => {path2}"
+            else:
+                display = path1
+            item = QListWidgetItem(display)
+            item.setData(FILE_ENTRY_ROLE, entry)
+            self.filewise_file_list.addItem(item)
+        self.filewise_file_list.blockSignals(False)
+        if self._files:
+            self.filewise_file_list.setCurrentRow(0)
+
+        # Ctrl+F focuses the search bar of the active tab
+        self.ctrl_f_shortcut = QShortcut(QKeySequence("Ctrl+F"), self)
+        self.ctrl_f_shortcut.activated.connect(self._focus_active_search)
+
+        # Buttons
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+        ok_btn = QPushButton("Close")
+        ok_btn.setMinimumWidth(100)
+        ok_btn.setProperty("class", "dialog-btn")
+        ok_btn.clicked.connect(self.accept)
+        btn_layout.addWidget(ok_btn)
+        btn_layout.addStretch()
+        layout.addLayout(btn_layout)
+
+    def _focus_active_search(self):
+        if self.tab_widget.currentIndex() == 0:
+            self.plain_diff_search.show_and_focus()
+        else:
+            self.filewise_diff_search.show_and_focus()
+
+    def on_filewise_file_selected(self, filepath):
+        if not filepath:
+            self.filewise_diff_view.clear()
+            return
+        try:
+            item = self.filewise_file_list.currentItem()
+            entry = item.data(FILE_ENTRY_ROLE) if item else None
+            if entry and entry[0] == 'R':
+                diff = get_rename_diff_in_commit(self.repo_path, self.sha, entry[1], entry[2])
+            elif entry:
+                diff = get_file_diff_only_in_commit(self.repo_path, self.sha, entry[1])
+            else:
+                diff = get_file_diff_only_in_commit(self.repo_path, self.sha, filepath)
             self.filewise_diff_view.setPlainText(diff)
             self.filewise_diff_view.set_separator_color(self.colors.get("separator", "#444444"))
             self.filewise_diff_search._perform_search()
