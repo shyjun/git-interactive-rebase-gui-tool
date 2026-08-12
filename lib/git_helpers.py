@@ -62,7 +62,9 @@ def _parse_log_records(stdout):
 def _attach_full_messages(repo_path, commits, log_cmd):
     """Batch-fetches full commit messages (subject + body) and fills them into commits."""
     try:
-        msg_cmd = list(log_cmd)
+        # --shortstat corrupts the \x1e record boundaries (its lines land on the
+        # next record's SHA key), so drop it before building the message-only command.
+        msg_cmd = [arg for arg in log_cmd if arg != "--shortstat"]
         if "--" in msg_cmd:
             idx = msg_cmd.index("--")
             msg_cmd = msg_cmd[:idx] + ["--format=%h%x1f%B%x1e"] + msg_cmd[idx:]

@@ -1961,13 +1961,12 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.list_widget.viewport().update()
 
     def _run_filter_with_diff(self):
-        """Debounced diff search: hides commits already shown that do NOT match diff text.
-        Only hides when "Display Only Matching" is on; otherwise diff matches have nothing
-        to bold in the row, so nothing is hidden."""
-        if not self.search_display_only:
-            return
+        """Debounced diff search. With "Display Only Matching" on, hides commits
+        that do NOT match the diff text; with it off, all commits stay visible
+        and diff-matching rows are flagged (MATCH_ROLE) so they get bolded."""
         search_term = self.search_edit.text().strip()
         if len(search_term) < 3 or not self.filter_by_diff_cb.isChecked():
+            self._diff_status_label.setVisible(False)
             return
 
         by_msg = True
@@ -2010,11 +2009,15 @@ class GitInteractiveRebaseApp(QMainWindow):
                     self.commit_cache[sha] = cache_entry
 
             diff_text = cache_entry.get('diff', '')
-            if not self._search_matches(diff_text, search_term):
+            if self._search_matches(diff_text, search_term):
+                if not self.search_display_only:
+                    item.setData(MATCH_ROLE, True)
+            elif self.search_display_only:
                 item.setHidden(True)
 
         self._diff_status_label.setVisible(False)
         self._update_commit_counts()
+        self.list_widget.viewport().update()
 
     def _update_commit_counts(self):
         total = self.list_widget.count()
