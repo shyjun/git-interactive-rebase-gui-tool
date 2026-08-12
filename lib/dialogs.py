@@ -3610,3 +3610,99 @@ class BrowseFileLogDialog(QDialog):
     def commit_limit(self):
         return self.limit_spin.value()
 
+
+class MergeBaseDialog(QDialog):
+    """Dialog to pick the branch to compare against the current branch's merge-base.
+    Shows the current branch first, then a "VS" label, then a branch pulldown."""
+
+    def __init__(self, repo_path, parent=None):
+        super().__init__(parent)
+        self.repo_path = repo_path
+        self.setWindowTitle("Find Merge-base")
+        self.setMinimumWidth(380)
+        self.setModal(True)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
+
+        cur_label = QLabel("Current branch:")
+        layout.addWidget(cur_label)
+
+        current = get_current_branch(repo_path) or "HEAD (detached)"
+        self.current_branch_label = QLabel(current)
+        cur_font = self.current_branch_label.font()
+        cur_font.setBold(True)
+        self.current_branch_label.setFont(cur_font)
+        layout.addWidget(self.current_branch_label)
+
+        vs_label = QLabel("VS")
+        vs_label.setStyleSheet("font-size: 13px; color: gray;")
+        layout.addWidget(vs_label)
+
+        other_label = QLabel("Compare with branch:")
+        layout.addWidget(other_label)
+
+        self.branch_combo = QComboBox()
+        self.branch_combo.setEditable(True)
+        self.branch_combo.addItem("")
+        self.branch_combo.addItems(get_branch_names(repo_path))
+        if self.branch_combo.lineEdit():
+            self.branch_combo.lineEdit().setPlaceholderText("e.g. origin/main, master")
+        self.branch_combo.setToolTip("Pick the branch to find the merge-base against.")
+        layout.addWidget(self.branch_combo)
+
+        find_btn = QPushButton("Find")
+        find_btn.setDefault(True)
+        find_btn.setToolTip("Find the merge-base of the current branch and the selected branch.")
+        find_btn.clicked.connect(self.accept)
+
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(self.reject)
+
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+        btn_layout.addWidget(cancel_btn)
+        btn_layout.addWidget(find_btn)
+        layout.addLayout(btn_layout)
+
+        self.branch_combo.setFocus()
+
+    @property
+    def branch_name(self):
+        return self.branch_combo.currentText().strip()
+
+
+class MergeBaseResultDialog(QDialog):
+    """Shows the computed merge-base SHA with a copy-to-clipboard button and an
+    OK button (styled like StashNoticeDialog)."""
+
+    def __init__(self, text, sha, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Merge-base Found")
+        self.setMinimumWidth(480)
+        self.setModal(True)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
+
+        label = QLabel(text)
+        label.setWordWrap(True)
+        label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        layout.addWidget(label)
+
+        copy_btn = QPushButton("Copy SHA to clipboard")
+        copy_btn.setToolTip("Copy the full merge-base SHA to the clipboard.")
+        copy_btn.clicked.connect(lambda: QApplication.clipboard().setText(sha))
+
+        ok_btn = QPushButton("OK")
+        ok_btn.setDefault(True)
+        ok_btn.clicked.connect(self.accept)
+
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+        btn_layout.addWidget(copy_btn)
+        btn_layout.addWidget(ok_btn)
+        layout.addLayout(btn_layout)
+
