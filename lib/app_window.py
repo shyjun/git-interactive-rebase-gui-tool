@@ -3402,13 +3402,18 @@ class GitInteractiveRebaseApp(QMainWindow):
             self.configure_btn.mapToGlobal(QPoint(0, self.configure_btn.height())))
 
     def _build_repo_menu(self):
-        """Builds the Repo button's menu: View PR Diff / Cherry-pick 1 Commit /
-        Browse Branch / Browse File Log (previously separate toolbar buttons)."""
+        """Builds the Repo button's menu: View PR Diff / View a Commit /
+        Cherry-pick 1 Commit / Browse Branch / Browse File Log
+        (previously separate toolbar buttons)."""
         menu = QMenu(self)
 
         pr_diff_action = QAction("View PR Diff", self)
         pr_diff_action.setToolTip("View the branch diff vs its base.")
         pr_diff_action.triggered.connect(lambda *_: self.handle_view_branch_diff())
+
+        view_commit_action = QAction("View a Commit…", self)
+        view_commit_action.setToolTip("View the file-wise diff of any commit by SHA.")
+        view_commit_action.triggered.connect(lambda *_: self.handle_view_commit_by_sha())
 
         cherry_pick_action = QAction("Cherry-pick 1 Commit", self)
         cherry_pick_action.setToolTip("Cherry-pick a single commit by SHA.")
@@ -3423,6 +3428,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         browse_file_action.triggered.connect(lambda *_: self.handle_browse_file_log())
 
         menu.addAction(pr_diff_action)
+        menu.addAction(view_commit_action)
         menu.addAction(cherry_pick_action)
         menu.addAction(browse_action)
         menu.addAction(browse_file_action)
@@ -3986,6 +3992,30 @@ class GitInteractiveRebaseApp(QMainWindow):
             files = get_commit_files_with_status(self.repo_path, sha)
             if not files:
                 QMessageBox.information(self, "No Files", f"Commit {sha} has no file changes to view.")
+                return
+            dialog = FileWiseViewDialog(self.repo_path, sha, files, self.current_font_size, self)
+            dialog.exec()
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Could not open file-wise view: {str(e)}")
+
+    def handle_view_commit_by_sha(self):
+        """Opens the file-wise view of any commit entered by the user.
+        Validates the SHA/ref exists in the repository before opening."""
+        text, ok = QInputDialog.getText(self, "View a Commit", "Enter the commit SHA:")
+        if not ok:
+            return
+        ref = text.strip()
+        if not ref:
+            QMessageBox.warning(self, "No SHA", "Please enter a commit SHA to view.")
+            return
+        sha = resolve_ref(self.repo_path, ref)
+        if not sha:
+            QMessageBox.critical(self, "Commit not found", f"'{ref}' is not a valid SHA or ref in this repository.")
+            return
+        try:
+            files = get_commit_files_with_status(self.repo_path, sha)
+            if not files:
+                QMessageBox.information(self, "No Files", f"Commit {sha[:10]} has no file changes to view.")
                 return
             dialog = FileWiseViewDialog(self.repo_path, sha, files, self.current_font_size, self)
             dialog.exec()
