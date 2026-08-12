@@ -778,6 +778,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.marked_shas = set()
         self.browse_limit = browse_limit
         self.browse_windows = []
+        self.viewer_windows = []
         self.app_managed_stash_sha = None
         self.consolidated_diff_start_sha = None
 
@@ -4050,6 +4051,20 @@ class GitInteractiveRebaseApp(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not fetch message: {str(e)}")
 
+    def _open_viewer(self, dialog):
+        """Shows a read-only viewer dialog non-modally so the main window stays usable while it is open."""
+        self.viewer_windows.append(dialog)
+        dialog.finished.connect(lambda: self._discard_viewer(dialog))
+        dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
+
+    def _discard_viewer(self, dialog):
+        try:
+            self.viewer_windows.remove(dialog)
+        except ValueError:
+            pass
+
     def view_commit(self, item):
         """Helper to open the diff viewer for a commit item."""
         if not item:
@@ -4061,7 +4076,7 @@ class GitInteractiveRebaseApp(QMainWindow):
             commit_msg = get_full_commit_message(self.repo_path, sha)
             commit_meta = get_commit_metadata(self.repo_path, sha)
             dialog = ViewCommitDialog(sha, commit_msg, commit_meta, diff_text, self.current_font_size, self)
-            dialog.exec()
+            self._open_viewer(dialog)
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not fetch commit diff: {str(e)}")
 
@@ -4075,7 +4090,7 @@ class GitInteractiveRebaseApp(QMainWindow):
                 QMessageBox.information(self, "No Files", f"Commit {sha} has no file changes to view.")
                 return
             dialog = FileWiseViewDialog(self.repo_path, sha, files, self.current_font_size, self)
-            dialog.exec()
+            self._open_viewer(dialog)
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not open file-wise view: {str(e)}")
 
@@ -4099,7 +4114,7 @@ class GitInteractiveRebaseApp(QMainWindow):
                 QMessageBox.information(self, "No Files", f"Commit {sha[:10]} has no file changes to view.")
                 return
             dialog = SingleCommitViewDialog(self.repo_path, sha, self.current_font_size, self)
-            dialog.exec()
+            self._open_viewer(dialog)
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not open file-wise view: {str(e)}")
 
@@ -6467,88 +6482,7 @@ for i, filename in enumerate(files):
 
             dialog = BranchDiffDialog(self.repo_path, start_sha, end_sha, num_commits, diff_text, files,
                                       file_stats, self.current_font_size, self, title=title, description=description)
-            dialog.exec()
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Could not fetch consolidated diff: {str(e)}")
-
-    def _set_consolidated_diff_start(self, sha):
-        """Stores the selected commit as the start point for a consolidated diff."""
-        self.consolidated_diff_start_sha = sha
-        # Repaint so the left accent bar moves to the newly selected start commit
-        self.list_widget.viewport().update()
-
-    def handle_view_branch_diff(self):
-        """Opens a PR preview dialog showing the combined branch diff vs its base."""
-        try:
-            # Resolve the base: fresh merge-base with the detected upstream, else ask the user
-            base_sha = None
-            if self.base_branch:
-                base_sha = get_merge_base(self.repo_path, self.base_branch)
-
-            if not base_sha:
-                if self.base_branch is None:
-                    # No parent branch detected (e.g. viewer/gitk mode): ask the user for a base ref
-                    text, ok = QInputDialog.getText(
-                        self, "PR Preview - Base Commit",
-                        "No parent branch was detected.\n\n"
-                        "Enter a base commit/ref to diff against (e.g. a SHA, 'HEAD~5', 'origin/main'):",
-                        text=str(self.commit_sha or ""),
-                    )
-                    if not ok or not text.strip():
-                        return  # user cancelled
-                    base_sha = resolve_ref(self.repo_path, text.strip())
-                    if not base_sha:
-                        QMessageBox.warning(self, "PR Preview", f"Could not resolve base ref: '{text.strip()}'")
-                        return
-                else:
-                    # base_branch set but merge-base failed
-                    base_sha = self.commit_sha
-
-            if not base_sha:
-                QMessageBox.information(self, "PR Preview", "Could not determine the base commit to diff against.")
-                return
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Could not fetch branch diff: {str(e)}")
-            return
-
-        branch = get_current_branch(self.repo_path) or "HEAD"
-        self.show_consolidated_diff(base_sha, self.get_head_sha(), title="PR Preview", description=branch)
-
-    def show_consolidated_diff(self, start_sha, end_sha, title=None, description=None):
-        """Displays the consolidated diff between *start_sha* and *end_sha* using the shared diff dialog."""
-        try:
-            if not start_sha or not end_sha:
-                return
-            if start_sha[:8].lower() == end_sha[:8].lower():
-                QMessageBox.information(
-                    self, "Consolidated Diff",
-                    "The start and end commits are the same, so there is nothing to compare.\n\n"
-                    f"Commit: {start_sha[:8]}"
-                )
-                return
-            progress = ProgressDialog(title or "Consolidated Diff", "Computing diff...", self)
-            progress.show()
-            QApplication.processEvents()
-            try:
-                diff_text = get_diff_between(self.repo_path, start_sha, end_sha)
-                files = get_files_between(self.repo_path, start_sha, end_sha)
-                file_stats = get_file_stats_between(self.repo_path, start_sha, end_sha)
-                num_commits = len(get_git_history(self.repo_path, start_sha, end_sha))
-            finally:
-                progress.close()
-
-            if len(diff_text) > PR_DIFF_SIZE_WARN_THRESHOLD:
-                answer = QMessageBox.warning(
-                    self, "Large Consolidated Diff",
-                    f"This consolidated diff is large (~{len(diff_text)/1024:.0f} KB) and may be slow or hard to digest.\n\n"
-                    "Do you want to open it anyway?",
-                    QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-                if answer != QMessageBox.Yes:
-                    return
-
-            dialog = BranchDiffDialog(self.repo_path, start_sha, end_sha, num_commits, diff_text, files,
-                                      file_stats, self.current_font_size, self, title=title, description=description)
-            dialog.exec()
+            self._open_viewer(dialog)
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not fetch consolidated diff: {str(e)}")
 
