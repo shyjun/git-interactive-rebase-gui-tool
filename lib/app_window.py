@@ -1086,13 +1086,6 @@ class GitInteractiveRebaseApp(QMainWindow):
         filter_label.setStyleSheet("font-size: 11px; color: gray;")
         search_row_layout.addWidget(filter_label)
 
-        self.filter_by_msg_cb = QCheckBox("Message / SHA")
-        self.filter_by_msg_cb.setChecked(True)
-        self.filter_by_msg_cb.setEnabled(False)
-        self.filter_by_msg_cb.setToolTip("Filter commits by commit message text or SHA")
-        self.filter_by_msg_cb.stateChanged.connect(lambda: self.filter_commits(self.search_edit.text()))
-        search_row_layout.addWidget(self.filter_by_msg_cb)
-
         self.filter_by_files_cb = QCheckBox("Filenames")
         self.filter_by_files_cb.setChecked(False)
         self.filter_by_files_cb.setToolTip("Filter commits by modified filenames")
@@ -1905,7 +1898,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         if search_term is None:
             search_term = self.search_edit.text().strip()
 
-        by_msg = self.filter_by_msg_cb.isChecked()
+        by_msg = True
         by_files = self.filter_by_files_cb.isChecked()
         by_diff = self.filter_by_diff_cb.isChecked()
         by_author = self.filter_by_author_cb.isChecked()
@@ -1977,7 +1970,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         if len(search_term) < 3 or not self.filter_by_diff_cb.isChecked():
             return
 
-        by_msg = self.filter_by_msg_cb.isChecked()
+        by_msg = True
         by_files = self.filter_by_files_cb.isChecked()
         by_author = self.filter_by_author_cb.isChecked()
 
