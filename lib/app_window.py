@@ -59,7 +59,7 @@ from lib.dialogs import (
     ConfirmMoveFileDialog, ConfirmRemoveFileOnwardsDialog, AggressiveRemoveConfirmationDialog,
     RefineFileSelectDialog, RefineChangesDialog, NewCommitMessageDialog,
     DiffView, StatsItemDelegate, DiffSearchBar, UnstagedChangesDialog, BranchDiffDialog, StashNoticeDialog,
-    CherryPickDialog, BrowseBranchDialog, BrowseFileLogDialog,
+    CherryPickDialog, BrowseBranchDialog, BrowseFileLogDialog, SingleCommitViewDialog,
     CommitSelectivelyDialog, SelectiveHunkDialog, FILE_ENTRY_ROLE
 )
 from lib.utils import get_assets_path
@@ -4017,7 +4017,7 @@ class GitInteractiveRebaseApp(QMainWindow):
             if not files:
                 QMessageBox.information(self, "No Files", f"Commit {sha[:10]} has no file changes to view.")
                 return
-            dialog = FileWiseViewDialog(self.repo_path, sha, files, self.current_font_size, self)
+            dialog = SingleCommitViewDialog(self.repo_path, sha, self.current_font_size, self)
             dialog.exec()
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not open file-wise view: {str(e)}")
