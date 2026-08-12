@@ -785,6 +785,8 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.search_match_case = False
         self.search_whole_word = False
         self.search_display_only = False
+        # Single-entry memo for _normalize_search_term (raw, normalized)
+        self._search_norm_memo = None
 
         # Global application icon is handled in the main entry point
 
@@ -1860,6 +1862,25 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.settings.setValue(self._sk("search_display_only"), self.search_display_only)
         self.filter_commits(self.search_edit.text())
 
+    def _normalize_search_term(self, term):
+        """Resolve any 4-40 hex SHA prefix (10-char, full 40-char SHA, etc.) to
+        the exact short form git displays in the list rows, so SHA searches of
+        any length match. Falls back to the raw term when it isn't a unique
+        resolvable object (garbage text, ambiguous prefixes, etc.)."""
+        if self._search_norm_memo is not None and self._search_norm_memo[0] == term:
+            return self._search_norm_memo[1]
+        normalized = term
+        if re.fullmatch(r"[0-9a-fA-F]{4,40}", term):
+            try:
+                res = subprocess.run(["git", "rev-parse", "--short", term],
+                                     cwd=self.repo_path, capture_output=True, text=True,
+                                     check=True, encoding='utf-8', errors='replace')
+                normalized = res.stdout.strip() or term
+            except Exception:
+                pass
+        self._search_norm_memo = (term, normalized)
+        return normalized
+
     def _search_matches(self, haystack, term):
         """Returns True if *term* matches *haystack* honoring Match Case and Whole Word.
         Reuses the same word-boundary semantics as the DiffSearchBar."""
@@ -1874,7 +1895,7 @@ class GitInteractiveRebaseApp(QMainWindow):
 
     def filter_commits(self, text):
         """Live-filters commits. Diff search is debounced; msg/filename filtering is instant."""
-        search_term = text.strip()
+        search_term = self._normalize_search_term(text.strip())
         by_diff = self.filter_by_diff_cb.isChecked()
 
         # Always run instant filters (msg + filenames) immediately
@@ -1900,8 +1921,8 @@ class GitInteractiveRebaseApp(QMainWindow):
         When "Display Only Matching" is off, all commits stay visible and matching
         ones are flagged (MATCH_ROLE) for bolding; when on, non-matching commits
         are hidden."""
-        if search_term is None:
-            search_term = self.search_edit.text().strip()
+        search_term = self._normalize_search_term(
+            search_term if search_term is not None else self.search_edit.text().strip())
 
         by_msg = True
         by_files = self.filter_by_files_cb.isChecked()
@@ -1969,7 +1990,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         """Debounced diff search. With "Display Only Matching" on, hides commits
         that do NOT match the diff text; with it off, all commits stay visible
         and diff-matching rows are flagged (MATCH_ROLE) so they get bolded."""
-        search_term = self.search_edit.text().strip()
+        search_term = self._normalize_search_term(self.search_edit.text().strip())
         if len(search_term) < 3 or not self.filter_by_diff_cb.isChecked():
             self._diff_status_label.setVisible(False)
             return
