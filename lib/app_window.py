@@ -1035,9 +1035,10 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.list_widget = CommitListWidget(self)
         self.list_widget.setItemDelegate(CommitItemDelegate(self.list_widget))
         self.update_font()
-        self.list_widget.setContextMenuPolicy(Qt.NoContextMenu)
-        if not self.browse_mode:
-            self.list_widget.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.list_widget.setContextMenuPolicy(Qt.CustomContextMenu)
+        if self.browse_mode:
+            self.list_widget.customContextMenuRequested.connect(self.show_browse_context_menu)
+        else:
             self.list_widget.customContextMenuRequested.connect(self.show_context_menu)
 
         # Search / Filter Bar row
@@ -3527,6 +3528,27 @@ class GitInteractiveRebaseApp(QMainWindow):
             default_size = 10
             pct = int(self.current_font_size / default_size * 100)
             self.zoom_percent_label.setText(f"{pct}%")
+
+    def show_browse_context_menu(self, position):
+        """Read-only context menu for branch/file-log browsers: copy-only actions."""
+        item = self.list_widget.itemAt(position)
+        if not item:
+            return
+
+        menu = QMenu()
+        menu.setFont(QFont("Monospace", max(8, self.current_font_size - 2)))
+
+        copy_sha_action = QAction("Copy SHA to clipboard", self)
+        copy_msg_action = QAction("Copy commit msg to clipboard", self)
+        copy_sha_msg_action = QAction("Copy SHA and commit msg to clipboard", self)
+        copy_sha_action.triggered.connect(lambda: self.handle_copy_sha(item))
+        copy_msg_action.triggered.connect(lambda: self.handle_copy_message(item))
+        copy_sha_msg_action.triggered.connect(lambda: self.handle_copy_sha_and_message(item))
+
+        menu.addAction(copy_sha_action)
+        menu.addAction(copy_msg_action)
+        menu.addAction(copy_sha_msg_action)
+        menu.exec(self.list_widget.mapToGlobal(position))
 
     def show_context_menu(self, position):
         # Allow context menu in multi-select mode, but we will restrict it later
