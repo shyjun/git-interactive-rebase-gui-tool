@@ -869,7 +869,9 @@ class GitInteractiveRebaseApp(QMainWindow):
         # Search options (Match Case / Whole Word / Display Only Matching)
         if hasattr(self, 'search_match_case_action'):
             self.search_match_case = self.settings.value(self._sk("search_match_case"), False, type=bool)
-            self.search_whole_word = self.settings.value(self._sk("search_whole_word"), False, type=bool)
+            # Whole Word is intentionally not persisted: always start the tool with it off.
+            self.search_whole_word = False
+            self.settings.remove(self._sk("search_whole_word"))
             self.search_display_only = self.settings.value(self._sk("search_display_only"), False, type=bool)
             # Apply without firing toggled (avoids re-running the search during startup)
             for action, value in ((self.search_match_case_action, self.search_match_case),
@@ -1855,7 +1857,6 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.search_whole_word = self.search_whole_word_action.isChecked()
         self.search_display_only = self.search_display_only_action.isChecked()
         self.settings.setValue(self._sk("search_match_case"), self.search_match_case)
-        self.settings.setValue(self._sk("search_whole_word"), self.search_whole_word)
         self.settings.setValue(self._sk("search_display_only"), self.search_display_only)
         self.filter_commits(self.search_edit.text())
 
