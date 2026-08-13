@@ -25,7 +25,6 @@ from PySide6.QtWidgets import (
     QRadioButton,
     QLineEdit,
     QSplitter,
-    QInputDialog,
     QProgressBar,
     QScrollArea,
     QFrame,
@@ -58,8 +57,6 @@ from PySide6.QtGui import (
     QShortcut,
     QKeySequence,
     QPainter,
-    QTextFormat,
-    QTextBlockFormat,
     QTextCursor,
     QTextDocument,
 )
@@ -70,7 +67,6 @@ from PySide6.QtWidgets import (
 )
 
 from lib.git_helpers import (
-    get_file_diff_in_commit,
     get_file_diff_only_in_commit,
     get_full_commit_message,
     get_commit_metadata,
@@ -457,13 +453,6 @@ class DiffSearchBar(QWidget):
             cursor.clearSelection()
             self.target_view.setTextCursor(cursor)
 
-    def hide_and_clear(self):
-        self.search_input.clear()
-        self.clear_search()
-        self.hide()
-        # Return focus to target view
-        self.target_view.setFocus()
-        
     def show_and_focus(self):
         self.show()
         self.search_input.setFocus()

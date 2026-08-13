@@ -87,8 +87,6 @@ from PySide6.QtWidgets import (
 # pyrefly: ignore [missing-import]
 from PySide6.QtGui import (
     QFont,
-    QSyntaxHighlighter,
-    QTextCharFormat,
     QColor,
     QAction,
     QShortcut,
@@ -133,7 +131,6 @@ from lib.git_helpers import (
     branch_exists,
     normalize_branch_ref,
     get_local_branches_map,
-    get_remote_head_sha,
     get_file_diff_only_in_commit,
     get_revert_commit_message,
     get_commit_metadata_and_message,
@@ -158,7 +155,6 @@ from lib.git_helpers import (
     apply_patch_to_index,
     get_merge_base,
     get_diff_between,
-    get_diff_stat_between,
     get_files_between,
     get_file_stats_between,
     resolve_ref,
@@ -2241,17 +2237,6 @@ class GitInteractiveRebaseApp(QMainWindow):
         else:
             self.total_commits_label.setText(f"Total commits in repo: {count_str}")
 
-    def _set_icon(self, button, fallback_icon, theme_name=None):
-        if theme_name:
-            icon = QIcon.fromTheme(theme_name)
-            if not icon.isNull():
-                button.setIcon(icon)
-                button.setIconSize(QSize(16, 16))
-                return
-        icon = self.style().standardIcon(fallback_icon)
-        button.setIcon(icon)
-        button.setIconSize(QSize(16, 16))
-
     def _set_theme_icon(self, button):
         import math
         pixmap = QPixmap(16, 16)
@@ -2302,29 +2287,14 @@ class GitInteractiveRebaseApp(QMainWindow):
     def _set_toggle_diff_icon(self, button):
         self._apply_toolbar_icon(button, self._draw_eye_slash)
 
-    def _set_help_icon(self, button):
-        self._apply_toolbar_icon(button, self._draw_help)
-
     def _set_rescan_icon(self, button):
         self._apply_toolbar_icon(button, self._draw_rescan)
-
-    def _set_pr_diff_icon(self, button):
-        self._apply_toolbar_icon(button, self._draw_compare)
-
-    def _set_cherry_pick_icon(self, button):
-        self._apply_toolbar_icon(button, self._draw_cherry_pick)
-
-    def _set_browse_branch_icon(self, button):
-        self._apply_toolbar_icon(button, self._draw_browse_branch)
 
     def _set_pop_stash_icon(self, button):
         self._apply_toolbar_icon(button, self._draw_pop_stash)
 
     def _set_undo_icon(self, button):
         self._apply_toolbar_icon(button, self._draw_undo)
-
-    def _set_check_update_icon(self, button):
-        self._apply_toolbar_icon(button, self._draw_cloud_download)
 
     def _set_refresh_icon(self, button):
         self._apply_toolbar_icon(button, self._draw_refresh)
@@ -2368,46 +2338,6 @@ class GitInteractiveRebaseApp(QMainWindow):
         painter.drawEllipse(6.0, 6.0, 4.0, 4.0)
         painter.drawLine(2.0, 14.0, 14.0, 2.0)
 
-    def _draw_help(self, painter, color):
-        painter.setPen(Qt.NoPen)
-        painter.setBrush(QBrush(color))
-        painter.drawEllipse(2.0, 2.0, 12.0, 12.0)
-
-        painter.setPen(QPen(Qt.white, 1.7, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
-        painter.setBrush(Qt.NoBrush)
-        question = QPainterPath()
-        question.moveTo(5.8, 6.0)
-        question.cubicTo(5.9, 4.6, 7.0, 4.0, 8.1, 4.0)
-        question.cubicTo(9.5, 4.0, 10.3, 4.8, 10.3, 5.9)
-        question.cubicTo(10.3, 7.0, 9.4, 7.5, 8.6, 8.0)
-        question.cubicTo(8.0, 8.4, 7.8, 8.8, 7.8, 9.6)
-        painter.drawPath(question)
-        painter.setPen(Qt.NoPen)
-        painter.setBrush(QBrush(Qt.white))
-        painter.drawEllipse(7.25, 11.1, 1.5, 1.5)
-
-    def _draw_cloud_download(self, painter, color):
-        pen = QPen(color, 1.5)
-        pen.setCapStyle(Qt.RoundCap)
-        pen.setJoinStyle(Qt.RoundJoin)
-        painter.setPen(pen)
-        painter.setBrush(Qt.NoBrush)
-
-        cloud = QPainterPath()
-        cloud.moveTo(5.1, 12.0)
-        cloud.lineTo(4.3, 12.0)
-        cloud.cubicTo(2.4, 12.0, 1.3, 10.8, 1.3, 9.3)
-        cloud.cubicTo(1.3, 7.9, 2.2, 6.9, 3.7, 6.6)
-        cloud.cubicTo(4.0, 4.5, 5.6, 3.2, 7.6, 3.2)
-        cloud.cubicTo(9.4, 3.2, 10.8, 4.2, 11.4, 5.8)
-        cloud.cubicTo(13.3, 5.9, 14.7, 7.3, 14.7, 9.0)
-        cloud.cubicTo(14.7, 10.8, 13.3, 12.0, 11.5, 12.0)
-        cloud.lineTo(10.7, 12.0)
-        painter.drawPath(cloud)
-        painter.drawLine(8.0, 6.6, 8.0, 11.0)
-        painter.drawLine(5.9, 8.9, 8.0, 11.0)
-        painter.drawLine(10.1, 8.9, 8.0, 11.0)
-
     def _draw_rescan(self, painter, color):
         pen = QPen(color, 1.8)
         pen.setCapStyle(Qt.RoundCap)
@@ -2417,52 +2347,6 @@ class GitInteractiveRebaseApp(QMainWindow):
 
         painter.drawEllipse(2.0, 2.0, 8.8, 8.8)
         painter.drawLine(9.4, 9.4, 14.0, 14.0)
-
-    def _draw_compare(self, painter, color):
-        pen = QPen(color, 1.7)
-        pen.setCapStyle(Qt.RoundCap)
-        pen.setJoinStyle(Qt.RoundJoin)
-        painter.setPen(pen)
-        painter.setBrush(Qt.NoBrush)
-
-        painter.drawLine(8, 14, 8, 10)
-        painter.drawLine(8, 10, 4, 5)
-        painter.drawLine(8, 10, 12, 5)
-        painter.drawEllipse(2.8, 2.8, 2.6, 2.6)
-        painter.drawEllipse(10.6, 2.8, 2.6, 2.6)
-
-    def _draw_cherry_pick(self, painter, color):
-        # A "replay" arrow picking a commit node placed onto the current line:
-        # show a commit dot being copied onto a downward arrow into a branch line.
-        pen = QPen(color, 1.7)
-        pen.setCapStyle(Qt.RoundCap)
-        pen.setJoinStyle(Qt.RoundJoin)
-        painter.setPen(pen)
-        painter.setBrush(Qt.NoBrush)
-
-        # destination branch line
-        painter.drawLine(3.0, 12.5, 13.0, 12.5)
-        painter.drawEllipse(3.0, 10.7, 3.6, 3.6)
-        # arrow being dropped onto the line (picking)
-        painter.drawLine(8.0, 3.5, 8.0, 8.5)
-        painter.drawLine(5.5, 7.0, 8.0, 9.5)
-        painter.drawLine(10.5, 7.0, 8.0, 9.5)
-
-    def _draw_browse_branch(self, painter, color):
-        pen = QPen(color, 1.6)
-        pen.setCapStyle(Qt.RoundCap)
-        pen.setJoinStyle(Qt.RoundJoin)
-        painter.setPen(pen)
-        painter.setBrush(QColor(color))
-
-        # commit-graph: a vertical trunk with a branch splitting off and
-        # three commits (filled dots) on it — reads as "browse this branch's history"
-        painter.drawLine(3.0, 14.0, 3.0, 6.5)
-        painter.drawLine(3.0, 8.0, 11.5, 8.0)
-        painter.drawLine(11.5, 8.0, 11.5, 3.0)
-        painter.drawEllipse(1.8, 12.8, 2.4, 2.4)   # trunk commit
-        painter.drawEllipse(1.8, 4.8, 2.4, 2.4)     # trunk commit
-        painter.drawEllipse(10.8, 1.8, 2.4, 2.4)    # branch commit
 
     def _draw_pop_stash(self, painter, color):
         pen = QPen(color, 1.7)

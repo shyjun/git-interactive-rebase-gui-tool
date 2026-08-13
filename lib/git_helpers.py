@@ -484,12 +484,6 @@ def _pad_diff_separators(diff_text):
     return re.sub(r'(\n)(diff --git )', r'\1\n\2', diff_text)
 
 
-def get_file_diff_in_commit(repo_path, commit_sha, filepath):
-    """Returns the diff for a single file within a commit."""
-    return _pad_diff_separators(
-        _git_capture(repo_path, ["git", "show", commit_sha, "--", filepath],
-                     "Failed to get file diff"))
-
 def get_file_diff_only_in_commit(repo_path, commit_sha, filepath):
     """Returns the diff for a single file within a commit, excluding the commit message header."""
     return _pad_diff_separators(
@@ -1013,16 +1007,6 @@ def get_branch_names(repo_path, include_remote=True):
         print(f"[git_helpers] get_branch_names: git for-each-ref failed: {err}")
         return []
 
-def get_remote_head_sha(repo_url):
-    """Fetches the current HEAD SHA from the remote repository without fetching objects."""
-    try:
-        cmd = ["git", "ls-remote", repo_url, "HEAD"]
-        result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace')
-        if result.returncode == 0 and result.stdout.strip():
-            return result.stdout.split()[0]
-        return None
-    except:
-        return None
 def get_unstaged_files(repo_path, ignore_submodules=False):
     """Returns a list of file paths that have unstaged changes."""
     try:
@@ -1212,16 +1196,6 @@ def get_diff_between(repo_path, start_sha, end_sha):
         return result.stdout
     except subprocess.CalledProcessError as e:
         raise Exception(f"Failed to fetch branch diff: {e.stderr}")
-
-
-def get_diff_stat_between(repo_path, start_sha, end_sha):
-    """Fetches the --stat summary of all changes between *start_sha* and *end_sha*."""
-    try:
-        cmd = ["git", "diff", "--stat", start_sha, end_sha]
-        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
-        return result.stdout.strip()
-    except subprocess.CalledProcessError as e:
-        raise Exception(f"Failed to fetch branch diff stats: {e.stderr}")
 
 
 def get_files_between(repo_path, start_sha, end_sha):

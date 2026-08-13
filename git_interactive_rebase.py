@@ -22,15 +22,11 @@ from PySide6.QtCore import (
     QSettings,
     QTimer,
 )
-import tempfile
-import stat
 
 from lib.utils import get_assets_path
 from lib.git_helpers import (
-    get_root_commit,
     get_recent_history_start,
     get_branch_base_info,
-    has_uncommitted_changes,
     stash_changes,
     get_unstaged_files,
     commit_file,
