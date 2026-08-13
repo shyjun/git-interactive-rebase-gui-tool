@@ -2887,7 +2887,11 @@ class GitInteractiveRebaseApp(QMainWindow):
             return
 
         ref = normalize_branch_ref(self.repo_path, other_branch)
-        base_sha = get_merge_base(self.repo_path, ref)
+        try:
+            base_sha = get_merge_base(self.repo_path, ref)
+        except Exception as e:
+            QMessageBox.critical(self, "Merge Base Error", f"Could not find the merge base.\n\nError: {e}")
+            return
         if not base_sha:
             QMessageBox.warning(
                 self, "No common ancestor",
@@ -6530,7 +6534,7 @@ for i, filename in enumerate(files):
             elif result == UnstagedChangesDialog.SelectiveCommitResult:
                 self._commit_selectively_from_dialog()
             elif result == UnstagedChangesDialog.Accepted:
-                created_stash_sha = stash_changes(
+                created_stash_sha, stash_err = stash_changes(
                     self.repo_path,
                     message=f"git-interactive-rebase-gui-tool: Rescan stash ({datetime.now().strftime('%H:%M:%S %Y-%m-%d')})")
                 if created_stash_sha is not None and created_stash_sha is not STASH_NOTHING_STASHED:
@@ -6543,7 +6547,8 @@ for i, filename in enumerate(files):
                                             "There was nothing to stash (e.g. changes are in untracked files). "
                                             "Please handle them manually.")
                 else:
-                    QMessageBox.critical(self, "Error", "Failed to stash changes. Please stash or commit manually.")
+                    detail = f"\n\n{stash_err}" if stash_err else ""
+                    QMessageBox.critical(self, "Error", f"Failed to stash changes. Please stash or commit manually.{detail}")
                     return
             elif result == UnstagedChangesDialog.CommitEachResult:
                 progress = ProgressDialog("Committing Changes", f"Committing {len(unstaged_files)} files individually...", self)
@@ -6552,12 +6557,16 @@ for i, filename in enumerate(files):
 
                 success_count = 0
                 committed_shas = []
+                failed_files = []
                 for i, f in enumerate(unstaged_files):
                     progress.label.setText(f"Committing ({i+1}/{len(unstaged_files)}): {f}")
                     for _ in range(2): QApplication.processEvents()
-                    if commit_file(self.repo_path, f, f"changes in {f}"):
+                    ok, err = commit_file(self.repo_path, f, f"changes in {f}")
+                    if ok:
                         committed_shas.append(self.get_head_sha()[:8])
                         success_count += 1
+                    else:
+                        failed_files.append((f, err))
 
                 progress.close()
                 if committed_shas:
@@ -6567,10 +6576,16 @@ for i, filename in enumerate(files):
                         f"Done. Successfully committed {success_count} file(s) individually.\n\n"
                         f"Commit IDs:\n{ids}"
                     )
+                if failed_files:
+                    fail_lines = "\n".join(f"  {name}: {err}".rstrip() for name, err in failed_files)
+                    QMessageBox.critical(
+                        self, "Some Commits Failed",
+                        f"Failed to commit {len(failed_files)} of {len(unstaged_files)} file(s):\n\n{fail_lines}"
+                    )
             elif result == UnstagedChangesDialog.BulkCommitResult:
                 msg = f"bulk commit (Number of modified files: {len(unstaged_files)})"
 
-                success = bulk_commit_all(self.repo_path, msg)
+                success, detail = bulk_commit_all(self.repo_path, msg)
 
                 if success:
                     QMessageBox.information(
@@ -6578,11 +6593,11 @@ for i, filename in enumerate(files):
                         f"Done. Bulk commit successful.\n\nCommit ID:\n{self.get_head_sha()[:8]}"
                     )
                 else:
-                    QMessageBox.critical(self, "Error", "Bulk commit failed.")
+                    QMessageBox.critical(self, "Error", f"Bulk commit failed.\n\n{detail}")
                     return
             elif result == UnstagedChangesDialog.AmendResult:
                 old_head = self.get_head_sha()
-                success = amend_with_head(self.repo_path)
+                success, detail = amend_with_head(self.repo_path)
 
                 if success:
                     QMessageBox.information(
@@ -6591,15 +6606,15 @@ for i, filename in enumerate(files):
                         f"OLD COMMIT: {old_head[:8]}\nNEW COMMIT: {self.get_head_sha()[:8]}"
                     )
                 else:
-                    QMessageBox.critical(self, "Error", "Amend failed.")
+                    QMessageBox.critical(self, "Error", f"Amend failed.\n\n{detail}")
                     return
             elif result == UnstagedChangesDialog.DiscardResult:
-                success = discard_changes(self.repo_path)
+                success, detail = discard_changes(self.repo_path)
 
                 if success:
                     QMessageBox.information(self, "Discard Successful", "Done. Unstaged changes discarded (git checkout .).")
                 else:
-                    QMessageBox.critical(self, "Error", "Discard failed.")
+                    QMessageBox.critical(self, "Error", f"Discard failed.\n\n{detail}")
                     return
             elif result == UnstagedChangesDialog.ViewerModeResult:
                 self.viewer_mode = True
