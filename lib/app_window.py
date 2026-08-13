@@ -8,7 +8,8 @@ import subprocess
 import os
 import webbrowser
 import tempfile
-import stat
+import shlex
+import sys
 import time
 import pathlib
 import re
@@ -35,6 +36,22 @@ def _safe_unlink(*paths):
                 os.unlink(p)
             except OSError:
                 pass
+
+
+def _script_command(script_path: str) -> str:
+    """Shell-safe command that runs a temp Python script with the currently
+    running interpreter, so Git's ``sh -c`` dispatch works on Linux/macOS/
+    Windows without relying on execute permissions.
+
+    ``GIT_SEQUENCE_EDITOR`` and rebase ``exec`` todo lines are run by Git
+    through the shell; both words are shell-quoted so paths that contain
+    spaces or non-ASCII characters survive.  ``_posix_path`` keeps Windows
+    drive paths free of backslashes, which the shell would otherwise
+    interpret as escapes.
+    """
+    interp = shlex.quote(_posix_path(sys.executable))
+    script = shlex.quote(_posix_path(script_path))
+    return f"{interp} {script}"
 
 # pyrefly: ignore [missing-import]
 from PySide6.QtWidgets import (
@@ -4984,9 +5001,8 @@ if result_action == "move" and move_patch.strip():
                 action_fd, action_path = tempfile.mkstemp(prefix='git_refine_exec_', suffix='.py', text=True)
                 with os.fdopen(action_fd, 'w', encoding='utf-8') as f:
                     f.write(action_script_content)
-                os.chmod(action_path, os.stat(action_path).st_mode | stat.S_IEXEC)
 
-                single_exec = f"exec python3 {_posix_path(action_path)}"
+                single_exec = f"exec {_script_command(action_path)}"
 
                 current_shas = [self.list_widget.item(i).text().split()[0]
                                 for i in range(self.list_widget.count())]
@@ -5015,7 +5031,6 @@ if result_action == "move" and move_patch.strip():
                     f.write("    tf.writelines(output)\n")
                     editor_script = f.name
 
-                os.chmod(editor_script, os.stat(editor_script).st_mode | stat.S_IEXEC)
 
                 sha_idx = current_shas.index(sha) if sha in current_shas else -1
                 if sha_idx == len(current_shas) - 1:
@@ -5036,7 +5051,7 @@ if result_action == "move" and move_patch.strip():
                     upstream = current_shas[sha_idx + 1]
 
                 env = os.environ.copy()
-                env["GIT_SEQUENCE_EDITOR"] = editor_script
+                env["GIT_SEQUENCE_EDITOR"] = _script_command(editor_script)
                 env["GIT_EDITOR"] = "true"
 
                 progress = ProgressDialog(
@@ -5161,9 +5176,8 @@ finally:
             action_fd, action_path = tempfile.mkstemp(prefix='git_split_action_', suffix='.py', text=True)
             with os.fdopen(action_fd, 'w', encoding='utf-8') as f:
                 f.write(action_script_content)
-            os.chmod(action_path, os.stat(action_path).st_mode | stat.S_IEXEC)
 
-            single_exec = f"exec python3 {_posix_path(action_path)}"
+            single_exec = f"exec {_script_command(action_path)}"
 
             current_shas = [self.list_widget.item(i).text().split()[0]
                             for i in range(self.list_widget.count())]
@@ -5186,7 +5200,6 @@ finally:
                 f.write("    tf.writelines(output)\n")
                 editor_script = f.name
 
-            os.chmod(editor_script, os.stat(editor_script).st_mode | stat.S_IEXEC)
 
             sha_idx = current_shas.index(sha) if sha in current_shas else -1
             if sha_idx == len(current_shas) - 1:
@@ -5202,7 +5215,7 @@ finally:
                 upstream = current_shas[sha_idx + 1]
 
             env = os.environ.copy()
-            env["GIT_SEQUENCE_EDITOR"] = editor_script
+            env["GIT_SEQUENCE_EDITOR"] = _script_command(editor_script)
             env["GIT_EDITOR"] = "true"
 
             if upstream == "--root":
@@ -5327,9 +5340,8 @@ subprocess.check_call(['git', 'clean', '-fd', '--', filepath])
             action_fd, action_path = tempfile.mkstemp(prefix='git_drop_action_', suffix='.py', text=True)
             with os.fdopen(action_fd, 'w', encoding='utf-8') as f:
                 f.write(action_script_content)
-            os.chmod(action_path, os.stat(action_path).st_mode | stat.S_IEXEC)
 
-            single_exec = f"exec python3 {_posix_path(action_path)}"
+            single_exec = f"exec {_script_command(action_path)}"
 
             current_shas = [self.list_widget.item(i).text().split()[0]
                             for i in range(self.list_widget.count())]
@@ -5352,7 +5364,6 @@ subprocess.check_call(['git', 'clean', '-fd', '--', filepath])
                 f.write("    tf.writelines(output)\n")
                 editor_script = f.name
 
-            os.chmod(editor_script, os.stat(editor_script).st_mode | stat.S_IEXEC)
 
             sha_idx = current_shas.index(sha) if sha in current_shas else -1
             if sha_idx == len(current_shas) - 1:
@@ -5368,7 +5379,7 @@ subprocess.check_call(['git', 'clean', '-fd', '--', filepath])
                 upstream = current_shas[sha_idx + 1]
 
             env = os.environ.copy()
-            env["GIT_SEQUENCE_EDITOR"] = editor_script
+            env["GIT_SEQUENCE_EDITOR"] = _script_command(editor_script)
             env["GIT_EDITOR"] = "true"
 
             if upstream == "--root":
@@ -5529,9 +5540,8 @@ except Exception as e:
                 action_fd, action_path = tempfile.mkstemp(prefix='git_remove_action_', suffix='.py', text=True)
                 with os.fdopen(action_fd, 'w', encoding='utf-8') as f:
                     f.write(action_script_content)
-                os.chmod(action_path, os.stat(action_path).st_mode | stat.S_IEXEC)
 
-                single_exec = f"exec python3 {_posix_path(action_path)}"
+                single_exec = f"exec {_script_command(action_path)}"
 
                 with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.py') as f:
                     f.write("#!/usr/bin/env python3\n")
@@ -5554,10 +5564,9 @@ except Exception as e:
                     f.write("with open(todo_path, 'w') as tf:\n")
                     f.write("    tf.writelines(output)\n")
                     editor_script = f.name
-                os.chmod(editor_script, os.stat(editor_script).st_mode | stat.S_IEXEC)
 
                 env = os.environ.copy()
-                env["GIT_SEQUENCE_EDITOR"] = editor_script
+                env["GIT_SEQUENCE_EDITOR"] = _script_command(editor_script)
                 env["GIT_EDITOR"] = "true"
 
                 cmd = ["git", "rebase", "-i", upstream] if upstream != "--root" else ["git", "rebase", "-i", "--root"]
@@ -5644,7 +5653,8 @@ except Exception as e:
             short_sha = sha[:8]
             original_msg = get_full_commit_message(self.repo_path, sha)
 
-            # The script will be executed when the sequence editor sees 'exec python3 <script>'
+            # The script will be executed when the sequence editor inserts an
+            # 'exec <interpreter> <script>' todo line
             split_script_content = f"""#!/usr/bin/env python3
 import sys
 import subprocess
@@ -5721,9 +5731,8 @@ for i, hunk in enumerate(hunks):
             with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.py', encoding='utf-8') as sf:
                 sf.write(split_script_content)
                 split_action_script = sf.name
-            os.chmod(split_action_script, os.stat(split_action_script).st_mode | stat.S_IEXEC)
 
-            single_exec = f"exec python3 {_posix_path(split_action_script)}"
+            single_exec = f"exec {_script_command(split_action_script)}"
 
             current_shas = [self.list_widget.item(i).text().split()[0] for i in range(self.list_widget.count())]
 
@@ -5746,7 +5755,6 @@ for i, hunk in enumerate(hunks):
                 f.write("with open(todo_path, 'w') as tf:\n")
                 f.write("    tf.writelines(output)\n")
                 editor_script = f.name
-            os.chmod(editor_script, os.stat(editor_script).st_mode | stat.S_IEXEC)
 
             # Upstream logic
             sha_idx = current_shas.index(sha) if sha in current_shas else -1
@@ -5762,7 +5770,7 @@ for i, hunk in enumerate(hunks):
                 upstream = current_shas[sha_idx + 1]
 
             env = os.environ.copy()
-            env["GIT_SEQUENCE_EDITOR"] = editor_script
+            env["GIT_SEQUENCE_EDITOR"] = _script_command(editor_script)
             env["GIT_EDITOR"] = "true"
 
             cmd = ["git", "rebase", "-i", upstream] if upstream != "--root" else ["git", "rebase", "-i", "--root"]
@@ -5894,9 +5902,8 @@ for i, filename in enumerate(files):
             action_fd, action_path = tempfile.mkstemp(prefix='git_split_perfile_', suffix='.py', text=True)
             with os.fdopen(action_fd, 'w', encoding='utf-8') as f:
                 f.write(action_script_content)
-            os.chmod(action_path, os.stat(action_path).st_mode | stat.S_IEXEC)
 
-            single_exec = f"exec python3 {_posix_path(action_path)}"
+            single_exec = f"exec {_script_command(action_path)}"
 
             current_shas = [self.list_widget.item(i).text().split()[0]
                             for i in range(self.list_widget.count())]
@@ -5920,7 +5927,6 @@ for i, filename in enumerate(files):
                 f.write("with open(todo_path, 'w') as tf:\n")
                 f.write("    tf.writelines(output)\n")
                 editor_script = f.name
-            os.chmod(editor_script, os.stat(editor_script).st_mode | stat.S_IEXEC)
 
             # Upstream logic
             sha_idx = current_shas.index(sha) if sha in current_shas else -1
@@ -5936,7 +5942,7 @@ for i, filename in enumerate(files):
                 upstream = current_shas[sha_idx + 1]
 
             env = os.environ.copy()
-            env["GIT_SEQUENCE_EDITOR"] = editor_script
+            env["GIT_SEQUENCE_EDITOR"] = _script_command(editor_script)
             env["GIT_EDITOR"] = "true"
 
             cmd = ["git", "rebase", "-i", upstream] if upstream != "--root" else ["git", "rebase", "-i", "--root"]
@@ -6094,12 +6100,17 @@ for i, filename in enumerate(files):
                                 mf.close()
                                 msg_files[sha] = mf.name
 
+                    # Shell-quote each message path up front so the editor script
+                    # (which only imports sys) can embed them in exec todo lines.
+                    msg_f_args = {sha: shlex.quote(_posix_path(p)) for sha, p in msg_files.items()}
+
                     # Build a sequence editor script that writes the rebase todo
                     with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.py') as f:
                         f.write("#!/usr/bin/env python3\n")
                         f.write("import sys\n")
                         f.write(f"new_order = {todo_shas}\n")
                         f.write(f"msg_files = {repr(msg_files)}\n")
+                        f.write(f"msg_f_args = {repr(msg_f_args)}\n")
                         f.write(f"squash_shas = {squash_shas or []}\n")
                         f.write("todo_path = sys.argv[1]\n")
                         f.write("with open(todo_path, 'w') as f:\n")
@@ -6107,14 +6118,12 @@ for i, filename in enumerate(files):
                         f.write("        op = 'squash' if sha in squash_shas else 'pick'\n")
                         f.write("        f.write(f'{op} {sha}\\n')\n")
                         f.write("        if sha in msg_files:\n")
-                        f.write("            mf = msg_files[sha]\n")
-                        f.write("            f.write(f'exec git commit --amend -F {mf}\\n')\n")
+                        f.write("            f.write(f'exec git commit --amend -F {msg_f_args[sha]}\\n')\n")
                         editor_script = f.name
 
-                    os.chmod(editor_script, os.stat(editor_script).st_mode | stat.S_IEXEC)
 
                     env = os.environ.copy()
-                    env["GIT_SEQUENCE_EDITOR"] = editor_script
+                    env["GIT_SEQUENCE_EDITOR"] = _script_command(editor_script)
                     env["GIT_EDITOR"] = "true"
 
                     if upstream == "--root":
