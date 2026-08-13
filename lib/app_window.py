@@ -128,6 +128,7 @@ from lib.git_helpers import (
     get_commit_files,
     has_uncommitted_changes,
     cherry_pick_in_progress,
+    rebase_in_progress,
     classify_cherry_pick_failure,
     branch_exists,
     normalize_branch_ref,
@@ -3037,6 +3038,32 @@ class GitInteractiveRebaseApp(QMainWindow):
             f"The repository may still be in a cherry-pick state:\n\n{detail}"
         )
 
+    def _abort_rebase_safely(self):
+        """Runs 'git rebase --abort' and verifies no rebase state remains.
+
+        Returns (ok, detail). ok is True only if no pending rebase state
+        remains afterwards. '--abort' failing because nothing was in progress
+        counts as clean, so ok is based on rebase_in_progress() being False,
+        not the command's exit code."""
+        try:
+            subprocess.run(
+                ["git", "rebase", "--abort"], cwd=self.repo_path,
+                capture_output=True, text=True, encoding='utf-8', errors='replace'
+            )
+        except Exception as e:
+            return False, f"{e}"
+        if rebase_in_progress(self.repo_path):
+            return False, "the repo is still in a rebase state"
+        return True, ""
+
+    def _warn_rebase_abort_failure(self, detail):
+        """Shows a warning when cleanup after a failed rebase did not fully
+        succeed, so the user is never left mid-rebase without knowing it."""
+        QMessageBox.warning(
+            self, "Rebase Cleanup Failed",
+            f"The repository may still be in a rebase state:\n\n{detail}"
+        )
+
     def _show_cherry_pick_result(self, headline, cherry_picked_shas, skipped_shas):
         """Shows a summary of a cherry-pick operation (single or batch).
 
@@ -3456,6 +3483,8 @@ class GitInteractiveRebaseApp(QMainWindow):
         if reply == QMessageBox.Yes:
             if not self._check_head_unchanged():
                 return
+            if not self._check_no_unstaged_changes():
+                return
             self.save_undo_state()
             old_head = self.get_head_sha()
             print(f"Rebasing onto {target}...")
@@ -3466,7 +3495,20 @@ class GitInteractiveRebaseApp(QMainWindow):
                 self.log_action(target, f"rebased onto {target}", old_head, new_head)
                 QMessageBox.information(self, "Success", f"Successfully rebased onto {target}.")
             except subprocess.CalledProcessError as e:
-                QMessageBox.critical(self, "Rebase Failed", f"Could not perform rebase onto {target}.\n\nError: {e.stderr}")
+                # A failed rebase may have stopped mid-way (e.g. conflicts).
+                # Abort it and verify the repository is clean again, mirroring
+                # the recovery behavior of the interactive-rebase operations.
+                ok, detail = self._abort_rebase_safely()
+                if not ok:
+                    self._warn_rebase_abort_failure(detail)
+                self._sync_cached_head()
+                self.load_history()
+                QMessageBox.critical(
+                    self, "Rebase Failed",
+                    f"Could not perform rebase onto {target}.\n\n"
+                    f"Error: {e.stderr}\n\n"
+                    f"The rebase was aborted and the repository restored."
+                )
 
     def handle_zoom_in(self):
         self.current_font_size += 1
@@ -5096,8 +5138,9 @@ if result_action == "move" and move_patch.strip():
                                         "The Refine/Edit window will now refresh.")
             else:
                 print(f"Refine Changes: FAILED. {result.stderr}")
-                subprocess.run(["git", "rebase", "--abort"],
-                               cwd=self.repo_path, capture_output=True)
+                ok, detail = self._abort_rebase_safely()
+                if not ok:
+                    self._warn_rebase_abort_failure(detail)
                 QMessageBox.critical(
                     self,
                     "Refine Failed",
@@ -5248,8 +5291,9 @@ finally:
                             f"File '{filepath}' has been moved out of commit {short_sha}.\n\n"
                             f"A new commit was created with message: \"{filepath} changes separated out from {short_sha}\"")
                     else:
-                        subprocess.run(["git", "rebase", "--abort"],
-                                       cwd=self.repo_path, capture_output=True)
+                        ok, detail = self._abort_rebase_safely()
+                        if not ok:
+                            self._warn_rebase_abort_failure(detail)
                         QMessageBox.critical(self, "Split Failed",
                             f"The split operation failed and has been aborted.\n\n"
                             f"Error: {stderr}")
@@ -5407,8 +5451,9 @@ subprocess.check_call(['git', 'clean', '-fd', '--', filepath])
                 QMessageBox.information(self, "Success",
                     f"File '{filepath}' changes have been dropped from commit {short_sha}.")
             else:
-                subprocess.run(["git", "rebase", "--abort"],
-                               cwd=self.repo_path, capture_output=True)
+                ok, detail = self._abort_rebase_safely()
+                if not ok:
+                    self._warn_rebase_abort_failure(detail)
                 QMessageBox.critical(self, "Drop Failed",
                     f"The drop operation failed and has been aborted.\n\n"
                     f"Error: {result.stderr}")
@@ -5583,7 +5628,9 @@ except Exception as e:
                     pass
 
                 if result.returncode != 0:
-                    subprocess.run(["git", "rebase", "--abort"], cwd=self.repo_path, capture_output=True)
+                    ok, detail = self._abort_rebase_safely()
+                    if not ok:
+                        self._warn_rebase_abort_failure(detail)
                     progress.close()
                     QMessageBox.critical(self, "Failed", f"Failed while processing {drop_sha[:8]}. Aborted.\\n\\n{result.stderr}")
                     self.load_history()
@@ -5799,7 +5846,9 @@ for i, hunk in enumerate(hunks):
                         QMessageBox.information(self, "Success",
                             f"Commit {short_sha} has been split into multiple commits for file '{filepath}'.")
                     else:
-                        subprocess.run(["git", "rebase", "--abort"], cwd=self.repo_path, capture_output=True)
+                        ok, detail = self._abort_rebase_safely()
+                        if not ok:
+                            self._warn_rebase_abort_failure(detail)
                         QMessageBox.critical(self, "Split Failed",
                             f"The split operation failed and has been aborted.\n\nError: {stderr}\nOutput: {stdout}")
                 except Exception as e:
@@ -5971,7 +6020,9 @@ for i, filename in enumerate(files):
                         QMessageBox.information(self, "Success",
                             f"Commit {short_sha} has been split into {len(files)} commits.")
                     else:
-                        subprocess.run(["git", "rebase", "--abort"], cwd=self.repo_path, capture_output=True)
+                        ok, detail = self._abort_rebase_safely()
+                        if not ok:
+                            self._warn_rebase_abort_failure(detail)
                         QMessageBox.critical(self, "Split Failed",
                             f"The split operation failed and has been aborted.\n\nError: {stderr}")
                 except Exception as e:
@@ -6149,7 +6200,9 @@ for i, filename in enumerate(files):
                 if result.returncode == 0:
                     return True
                 else:
-                    subprocess.run(["git", "rebase", "--abort"], cwd=self.repo_path, capture_output=True)
+                    ok, detail = self._abort_rebase_safely()
+                    if not ok:
+                        self._warn_rebase_abort_failure(detail)
                     QMessageBox.critical(self, "Rebase Failed",
                         f"Action failed (likely due to merge conflicts).\n"
                         f"The rebase has been aborted.\n\nError: {result.stderr}")

@@ -519,6 +519,29 @@ def cherry_pick_in_progress(repo_path):
     except Exception:
         return False
 
+def rebase_in_progress(repo_path):
+    """Returns True if a rebase is pending (rebase-merge or rebase-apply state exists).
+
+    Uses ``git rev-parse --git-path`` so it works in linked worktrees too. The
+    returned path may be repo-relative, so it is resolved against *repo_path*
+    before checking."""
+    try:
+        for state in ("rebase-merge", "rebase-apply"):
+            result = subprocess.run(
+                ["git", "rev-parse", "--git-path", state],
+                cwd=repo_path, capture_output=True, text=True, encoding='utf-8', errors='replace'
+            )
+            if result.returncode != 0 or not result.stdout.strip():
+                continue
+            state_dir = result.stdout.strip()
+            if not os.path.isabs(state_dir):
+                state_dir = os.path.join(repo_path, state_dir)
+            if os.path.isdir(state_dir):
+                return True
+    except Exception:
+        return False
+    return False
+
 def classify_cherry_pick_failure(repo_path, stderr):
     """Classifies why a cherry-pick failed, before it is aborted.
 
@@ -623,14 +646,16 @@ def stash_changes(repo_path, message=None):
         cmd = ["git", "stash", "push", "-m", message]
         subprocess.run(cmd, cwd=repo_path, check=True, capture_output=True, text=True, encoding='utf-8', errors='replace')
         
-        # After stashing, check if refs/stash has changed or been created
+        # After stashing, check if refs/stash has changed or been created.
+        # A successful push (rc 0) with no resulting refs/stash means there was
+        # nothing to stash and no pre-existing stash list, i.e. a no-op, not a
+        # failure (STASH_NOTHING_STASHED).
         result = subprocess.run(["git", "rev-parse", "refs/stash"], cwd=repo_path, capture_output=True, text=True, encoding='utf-8', errors='replace')
         if result.returncode == 0:
             new_stash_sha = result.stdout.strip()
             if new_stash_sha != old_stash_sha:
                 return new_stash_sha, ""
-            return STASH_NOTHING_STASHED, ""
-        return None, ""
+        return STASH_NOTHING_STASHED, ""
     except subprocess.CalledProcessError as exc:
         err = exc.stderr.strip() if exc.stderr else str(exc)
         print(f"[git_helpers] git stash push failed: {err}")
@@ -841,9 +866,10 @@ def _rollback_merge(repo_path, temp_stash_sha):
 def merge_into_stash(repo_path, existing_stash_sha):
     """Merges the current unstaged changes into the existing app-created stash.
 
-    Uses only 'git stash apply' (never 'pop') so no stash is removed until the merge
-    has completed successfully. On failure the repository is restored to its original
-    state and the original app-created stash is left untouched.
+    Uses only 'git stash apply' (never 'pop') and creates the merged stash
+    BEFORE dropping either source stash, so no stash is removed until the merge
+    has completed successfully. On failure the repository is restored to its
+    original state and the original app-created stash is left untouched.
 
     Returns the new app-created stash SHA on success, or None on failure."""
     def log(msg):
@@ -881,13 +907,10 @@ def merge_into_stash(repo_path, existing_stash_sha):
             _rollback_merge(repo_path, temp_stash_sha)
             return None
 
-        # Step 4: drop the original app-created stash and the temporary stash
-        log("Dropping app-created stash...")
-        stash_drop(repo_path, existing_stash_sha)
-        log("Dropping temporary stash...")
-        stash_drop(repo_path, temp_stash_sha)
-
-        # Step 5: create a new stash from the combined working tree changes
+        # Step 4: create a new stash from the combined working tree changes,
+        # BEFORE dropping either source stash. If this step fails, both source
+        # stashes are still intact and the working tree changes are restored
+        # by _rollback_merge, so the app-managed stash can never be lost.
         log("Creating merged app-created stash...")
         now = datetime.now()
         new_stash_sha, new_stash_err = stash_changes(
@@ -895,7 +918,19 @@ def merge_into_stash(repo_path, existing_stash_sha):
             message=f"git-interactive-rebase-gui-tool: merged app stash ({now.strftime('%H:%M:%S %Y-%m-%d')})")
         if new_stash_sha is None or new_stash_sha is STASH_NOTHING_STASHED:
             log(f"Failed to create merged app-created stash: {new_stash_err}")
+            _rollback_merge(repo_path, temp_stash_sha)
             return None
+
+        # Step 5: the merged stash now exists, so the sources can be replaced
+        # (best-effort - a leftover entry is logged, never treated as failure).
+        log("Dropping app-created stash...")
+        if not stash_drop(repo_path, existing_stash_sha):
+            log(f"WARNING: failed to drop original app-created stash {existing_stash_sha[:8]}; "
+                "it may still be in the stash list.")
+        log("Dropping temporary stash...")
+        if not stash_drop(repo_path, temp_stash_sha):
+            log(f"WARNING: failed to drop temporary stash {temp_stash_sha[:8]}; "
+                "it may still be in the stash list.")
 
         log("Merge completed successfully.")
         return new_stash_sha
