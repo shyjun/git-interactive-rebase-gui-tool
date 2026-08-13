@@ -216,7 +216,9 @@ def get_local_branches_map(repo_path, current_branch=None, extra_remotes=None):
                         continue
                 branch_map.setdefault(sha, []).append(branch)
         return branch_map
-    except subprocess.CalledProcessError:
+    except subprocess.CalledProcessError as exc:
+        err = exc.stderr.strip() if exc.stderr else str(exc)
+        print(f"[git_helpers] get_local_branches_map: git for-each-ref failed: {err}")
         return {}
 
 def get_head_sha(repo_path):
@@ -321,7 +323,8 @@ def get_branch_base_info(repo_path):
         print("[get_branch_base_info] No diverging base found against any candidate upstream")
         return None, None
 
-    except Exception:
+    except Exception as exc:
+        print(f"[git_helpers] get_branch_base_info raised: {exc}")
         return None, None
 
 def get_commit_diff(repo_path, commit_sha):
@@ -368,7 +371,8 @@ def get_commit_metadata_and_message(repo_path, commit_sha):
         meta = parts[0]
         msg = parts[1] if len(parts) > 1 else ""
         return meta, msg.strip()
-    except Exception:
+    except Exception as exc:
+        print(f"[git_helpers] get_commit_metadata_and_message: git log failed for {commit_sha}: {exc}")
         return "Unknown author", ""
 
 def get_commit_metadata(repo_path, commit_sha):
@@ -410,7 +414,9 @@ def get_commit_file_stats(repo_path, commit_sha):
                     added, deleted = 0, 0  # binary file
                 stats[filepath.strip()] = (added, deleted)
         return stats
-    except subprocess.CalledProcessError:
+    except subprocess.CalledProcessError as exc:
+        err = exc.stderr.strip() if exc.stderr else str(exc)
+        print(f"[git_helpers] get_commit_file_stats: git show --numstat failed for {commit_sha}: {err}")
         return {}
 
 
@@ -492,8 +498,10 @@ def has_uncommitted_changes(repo_path):
         cmd_ignored = ["git", "status", "--porcelain", "--untracked-files=no", "--ignore-submodules=all"]
         result = subprocess.run(cmd_ignored, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
         return bool(result.stdout.strip())
-    except subprocess.CalledProcessError:
-        return False
+    except subprocess.CalledProcessError as exc:
+        err = exc.stderr.strip() if exc.stderr else str(exc)
+        print(f"[git_helpers] has_uncommitted_changes: git status failed: {err}")
+        return True
 
 def cherry_pick_in_progress(repo_path):
     """Returns True if a cherry-pick is pending (CHERRY_PICK_HEAD exists)."""
@@ -560,8 +568,10 @@ def classify_tracked_changes(repo_path):
             ["git", "status", "--porcelain", "--untracked-files=no", "--ignore-submodules=all"],
             cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace'
         )
-    except subprocess.CalledProcessError:
-        return False, False
+    except subprocess.CalledProcessError as exc:
+        err = exc.stderr.strip() if exc.stderr else str(exc)
+        print(f"[git_helpers] classify_tracked_changes: git status failed: {err}")
+        return True, True
 
     has_staged = False
     has_unstaged = False
@@ -683,8 +693,9 @@ def stash_pop(repo_path, stash_sha=None):
         cmd = ["git", "stash", "pop", target]
         subprocess.run(cmd, cwd=repo_path, check=True, capture_output=True, text=True, encoding='utf-8', errors='replace')
         return True, message
-    except subprocess.CalledProcessError:
-        return False, ""
+    except subprocess.CalledProcessError as exc:
+        err = exc.stderr.strip() if exc.stderr else ""
+        return False, err or "git stash pop failed"
 
 def stash_pop_can_apply(repo_path, stash_sha):
     """Performs a non-mutating dry-run of 'git stash pop' using git merge-tree
@@ -728,7 +739,8 @@ def get_stash_status(repo_path, stash_sha):
         result = subprocess.run(["git", "log", "--format=%H", "-g", "refs/stash"],
                                 cwd=repo_path, capture_output=True, text=True, encoding='utf-8', errors='replace')
         if result.returncode != 0:
-            return ("NOT_FOUND", None)
+            print(f"[git_helpers] get_stash_status: 'git log refs/stash' failed (rc={result.returncode}): {result.stderr.strip()}")
+            return ("ERROR", None)
         shas = result.stdout.strip().split('\n') if result.stdout.strip() else []
         if not shas:
             return ("NOT_FOUND", None)
@@ -739,8 +751,9 @@ def get_stash_status(repo_path, stash_sha):
         if idx == 0:
             return ("AT_HEAD", 0)
         return ("NOT_HEAD", idx)
-    except Exception:
-        return ("NOT_FOUND", None)
+    except Exception as exc:
+        print(f"[git_helpers] get_stash_status raised: {exc}")
+        return ("ERROR", None)
 
 def _stash_index(repo_path, stash_sha):
     """Resolves a stash SHA to its stash@{idx} target. Returns None if not found."""
@@ -943,7 +956,9 @@ def get_branch_names(repo_path, include_remote=True):
                 continue
             names.append(name)
         return names
-    except subprocess.CalledProcessError:
+    except subprocess.CalledProcessError as exc:
+        err = exc.stderr.strip() if exc.stderr else str(exc)
+        print(f"[git_helpers] get_branch_names: git for-each-ref failed: {err}")
         return []
 
 def get_remote_head_sha(repo_url):
@@ -974,7 +989,8 @@ def get_unstaged_files(repo_path, ignore_submodules=False):
             if len(parts) == 2:
                 files.append(parts[1])
         return files
-    except:
+    except Exception as exc:
+        print(f"[git_helpers] get_unstaged_files: git status failed: {exc}")
         return []
 
 def commit_file(repo_path, filepath, message):
@@ -1183,7 +1199,9 @@ def get_file_stats_between(repo_path, start_sha, end_sha):
                     added, deleted = 0, 0  # binary file
                 stats[filepath.strip()] = (added, deleted)
         return stats
-    except subprocess.CalledProcessError:
+    except subprocess.CalledProcessError as exc:
+        err = exc.stderr.strip() if exc.stderr else str(exc)
+        print(f"[git_helpers] get_file_stats_between: git diff --numstat failed between {start_sha} and {end_sha}: {err}")
         return {}
 
 
@@ -1224,7 +1242,9 @@ def get_unstaged_file_stats(repo_path, ignore_submodules=False):
                     added, deleted = 0, 0  # binary file
                 stats[filepath.strip()] = (added, deleted)
         return stats
-    except subprocess.CalledProcessError:
+    except subprocess.CalledProcessError as exc:
+        err = exc.stderr.strip() if exc.stderr else str(exc)
+        print(f"[git_helpers] get_unstaged_file_stats: git diff --numstat failed: {err}")
         return {}
 
 

@@ -6157,6 +6157,13 @@ for i, filename in enumerate(files):
         if not self.app_managed_stash_sha:
             return
         status, _ = get_stash_status(self.repo_path, self.app_managed_stash_sha)
+        if status == "ERROR":
+            QMessageBox.critical(
+                self, "Error",
+                f"Could not verify the status of the app-created stash ({self.app_managed_stash_sha[:8]}). "
+                f"Please investigate and stash pop manually."
+            )
+            return
         if status == "NOT_FOUND":
             self._show_managed_stash_missing_box(self.app_managed_stash_sha, not_at_head=False)
             return
@@ -6192,7 +6199,8 @@ for i, filename in enumerate(files):
             self._update_stash_btn_visibility()
             QMessageBox.information(self, "Pop Successful", f"Stash popped successfully.{(' (' + msg + ')') if msg else ''}")
         else:
-            QMessageBox.critical(self, "Error", "Failed to pop the managed stash. Please resolve any conflict markers manually or try again.")
+            detail = f"\n\n{msg}" if msg else ""
+            QMessageBox.critical(self, "Error", "Failed to pop the managed stash. Please resolve any conflict markers manually or try again." + detail)
             self._update_stash_btn_visibility()
 
     def _merge_into_managed_stash(self):

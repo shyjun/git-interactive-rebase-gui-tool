@@ -255,7 +255,14 @@ def main():
                         f"Please note down the sha: {short_sha}")
             StashNoticeDialog(text, stash_sha).exec()
 
-        if status == "NOT_FOUND":
+        if status == "ERROR":
+            QMessageBox.critical(
+                None, "Error",
+                f"Could not verify the status of the app-created stash ({short_sha}). "
+                f"Please investigate and stash pop manually.\n\n"
+                f"Please note down the sha: {short_sha}"
+            )
+        elif status == "NOT_FOUND":
             show_missing_box(not_at_head=False)
         elif status == "NOT_HEAD":
             show_missing_box(not_at_head=True)
@@ -284,7 +291,8 @@ def main():
                         print(f"Stash {stash_sha[:8]}({msg}) popped successfully.")
                         QMessageBox.information(None, "Success", f"Stash {stash_sha[:8]}({msg}) popped successfully.")
                     else:
-                        QMessageBox.critical(None, "Error", "Failed to pop stash. You may need to do it manually.")
+                        detail = f"\n\n{msg}" if msg else ""
+                        QMessageBox.critical(None, "Error", "Failed to pop stash. You may need to do it manually." + detail)
 
     sys.exit(exit_code)
 
