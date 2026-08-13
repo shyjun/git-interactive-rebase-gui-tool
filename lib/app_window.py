@@ -122,7 +122,6 @@ from lib.git_helpers import (
     get_commit_diff,
     get_full_commit_message,
     get_commit_subject,
-    get_commit_metadata,
     get_commit_files,
     has_uncommitted_changes,
     cherry_pick_in_progress,
@@ -4157,8 +4156,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         print(f"Viewing {sha}...")
         try:
             diff_text = get_commit_diff(self.repo_path, sha)
-            commit_msg = get_full_commit_message(self.repo_path, sha)
-            commit_meta = get_commit_metadata(self.repo_path, sha)
+            commit_meta, commit_msg = get_commit_metadata_and_message(self.repo_path, sha)
             dialog = ViewCommitDialog(sha, commit_msg, commit_meta, diff_text, self.current_font_size, self)
             self._open_viewer(dialog)
         except Exception as e:

@@ -68,8 +68,7 @@ from PySide6.QtWidgets import (
 
 from lib.git_helpers import (
     get_file_diff_only_in_commit,
-    get_full_commit_message,
-    get_commit_metadata,
+    get_commit_metadata_and_message,
     get_revert_commit_message,
     get_commit_file_stats,
     get_file_diff_between,
@@ -629,8 +628,7 @@ class SplitCommitDialog(QDialog):
 
         # Fetch commit details
         try:
-            meta = get_commit_metadata(repo_path, sha)
-            msg = get_full_commit_message(repo_path, sha)
+            meta, msg = get_commit_metadata_and_message(repo_path, sha)
         except:
             meta = "Unknown"
             msg = "Could not fetch message"
@@ -801,8 +799,7 @@ class DropFileFromCommitDialog(QDialog):
 
         # Fetch commit details
         try:
-            meta = get_commit_metadata(repo_path, sha)
-            msg = get_full_commit_message(repo_path, sha)
+            meta, msg = get_commit_metadata_and_message(repo_path, sha)
         except:
             meta = "Unknown"
             msg = "Could not fetch message"
@@ -1188,12 +1185,9 @@ class SingleCommitViewDialog(QDialog):
 
         # Commit metadata + message
         try:
-            commit_meta = get_commit_metadata(repo_path, sha)
+            commit_meta, commit_msg = get_commit_metadata_and_message(repo_path, sha)
         except Exception:
             commit_meta = "Unknown"
-        try:
-            commit_msg = get_full_commit_message(repo_path, sha)
-        except Exception:
             commit_msg = "Could not fetch message"
 
         layout = QVBoxLayout(self)
@@ -1410,8 +1404,7 @@ class FileWiseViewDialog(QDialog):
 
         # Fetch commit details
         try:
-            meta = get_commit_metadata(repo_path, sha)
-            msg = get_full_commit_message(repo_path, sha)
+            meta, msg = get_commit_metadata_and_message(repo_path, sha)
         except:
             meta = "Unknown"
             msg = "Could not fetch message"
