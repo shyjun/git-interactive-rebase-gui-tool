@@ -8,28 +8,85 @@ import os
 
 # pyrefly: ignore [missing-import]
 from PySide6.QtWidgets import (
-    QApplication, QMainWindow, QListWidget, QVBoxLayout,
-    QWidget, QMessageBox, QListWidgetItem, QMenu, QDialog,
-    QTextEdit, QPlainTextEdit, QPushButton, QHBoxLayout, QLabel, QRadioButton,
-    QLineEdit, QSplitter, QInputDialog, QProgressBar, QScrollArea,
-    QFrame, QCheckBox, QSizePolicy, QToolButton, QTabWidget, QSpinBox,
-    QComboBox, QFileDialog
+    QApplication,
+    QMainWindow,
+    QListWidget,
+    QVBoxLayout,
+    QWidget,
+    QMessageBox,
+    QListWidgetItem,
+    QMenu,
+    QDialog,
+    QTextEdit,
+    QPlainTextEdit,
+    QPushButton,
+    QHBoxLayout,
+    QLabel,
+    QRadioButton,
+    QLineEdit,
+    QSplitter,
+    QInputDialog,
+    QProgressBar,
+    QScrollArea,
+    QFrame,
+    QCheckBox,
+    QSizePolicy,
+    QToolButton,
+    QTabWidget,
+    QSpinBox,
+    QComboBox,
+    QFileDialog,
 )
 # pyrefly: ignore [missing-import]
-from PySide6.QtCore import Qt, QSize, QSettings, QTimer, Signal, QRect, QEvent
+from PySide6.QtCore import (
+    Qt,
+    QSize,
+    QSettings,
+    QTimer,
+    Signal,
+    QRect,
+    QEvent,
+)
 # pyrefly: ignore [missing-import]
-from PySide6.QtGui import QFont, QFontMetrics, QSyntaxHighlighter, QTextCharFormat, QColor, QAction, QShortcut, QKeySequence, QPainter, QTextFormat, QTextBlockFormat, QTextCursor, QTextDocument
+from PySide6.QtGui import (
+    QFont,
+    QFontMetrics,
+    QSyntaxHighlighter,
+    QTextCharFormat,
+    QColor,
+    QAction,
+    QShortcut,
+    QKeySequence,
+    QPainter,
+    QTextFormat,
+    QTextBlockFormat,
+    QTextCursor,
+    QTextDocument,
+)
 # pyrefly: ignore [missing-import]
-from PySide6.QtWidgets import QStyledItemDelegate, QStyle
+from PySide6.QtWidgets import (
+    QStyledItemDelegate,
+    QStyle,
+)
 
 from lib.git_helpers import (
-    get_file_diff_in_commit, get_file_diff_only_in_commit,
-    get_full_commit_message, get_commit_metadata, get_revert_commit_message,
-    get_commit_file_stats, get_file_diff_between,
-    get_unstaged_diff, get_unstaged_file_stats, get_unstaged_file_diff,
-    get_current_branch, get_full_head_sha, classify_tracked_changes,
-    get_branch_names, get_rename_diff_in_commit,
-    get_commit_diff, get_commit_files_with_status,
+    get_file_diff_in_commit,
+    get_file_diff_only_in_commit,
+    get_full_commit_message,
+    get_commit_metadata,
+    get_revert_commit_message,
+    get_commit_file_stats,
+    get_file_diff_between,
+    get_unstaged_diff,
+    get_unstaged_file_stats,
+    get_unstaged_file_diff,
+    get_current_branch,
+    get_full_head_sha,
+    classify_tracked_changes,
+    get_branch_names,
+    get_rename_diff_in_commit,
+    get_commit_diff,
+    get_commit_files_with_status,
 )
 from lib.utils import get_theme_colors
 

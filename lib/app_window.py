@@ -28,40 +28,150 @@ def _posix_path(p: str) -> str:
 
 # pyrefly: ignore [missing-import]
 from PySide6.QtWidgets import (
-    QApplication, QMainWindow, QListWidget, QVBoxLayout,
-    QWidget, QMessageBox, QListWidgetItem, QMenu, QDialog,
-    QTextEdit, QPlainTextEdit, QPushButton, QHBoxLayout, QLabel, QRadioButton,
-    QLineEdit, QSplitter, QInputDialog, QGroupBox, QSizePolicy, QCheckBox,
-    QStyledItemDelegate, QStyle, QStyleOptionViewItem, QTabWidget, QWidgetAction,
-    QStatusBar, QToolButton
+    QApplication,
+    QMainWindow,
+    QListWidget,
+    QVBoxLayout,
+    QWidget,
+    QMessageBox,
+    QListWidgetItem,
+    QMenu,
+    QDialog,
+    QTextEdit,
+    QPlainTextEdit,
+    QPushButton,
+    QHBoxLayout,
+    QLabel,
+    QRadioButton,
+    QLineEdit,
+    QSplitter,
+    QInputDialog,
+    QGroupBox,
+    QSizePolicy,
+    QCheckBox,
+    QStyledItemDelegate,
+    QStyle,
+    QStyleOptionViewItem,
+    QTabWidget,
+    QWidgetAction,
+    QStatusBar,
+    QToolButton,
 )
 # pyrefly: ignore [missing-import]
-from PySide6.QtGui import QFont, QSyntaxHighlighter, QTextCharFormat, QColor, QAction, QShortcut, QKeySequence, QIcon, QBrush, QPainter, QPainterPath, QPen, QPixmap, QPalette
+from PySide6.QtGui import (
+    QFont,
+    QSyntaxHighlighter,
+    QTextCharFormat,
+    QColor,
+    QAction,
+    QShortcut,
+    QKeySequence,
+    QIcon,
+    QBrush,
+    QPainter,
+    QPainterPath,
+    QPen,
+    QPixmap,
+    QPalette,
+)
 # pyrefly: ignore [missing-import]
-from PySide6.QtCore import Qt, QSize, QSettings, QThread, Signal, QRect, QTimer, Slot, QPoint
+from PySide6.QtCore import (
+    Qt,
+    QSize,
+    QSettings,
+    QThread,
+    Signal,
+    QRect,
+    QTimer,
+    Slot,
+    QPoint,
+)
 
 from lib.git_helpers import (
-    get_git_history, get_branch_history, get_file_history, get_head_sha, get_full_head_sha, get_current_branch, get_commit_diff,
-    get_full_commit_message, get_commit_subject, get_commit_metadata, get_commit_files,
-    has_uncommitted_changes, cherry_pick_in_progress, classify_cherry_pick_failure, branch_exists, normalize_branch_ref, get_local_branches_map, get_remote_head_sha,
-    get_file_diff_only_in_commit, get_revert_commit_message, get_commit_metadata_and_message,
-    get_commit_file_stats,     get_unstaged_files, stash_changes, commit_file, bulk_commit_all, amend_with_head, discard_changes, stash_pop, get_stash_subject, stash_pop_can_apply, get_stash_status, STASH_NOTHING_STASHED, merge_into_stash,
-    get_unstaged_file_stats, get_unstaged_file_diff,
-    stage_files, commit_staged, amend_staged, apply_patch_to_index,
-    get_merge_base, get_diff_between, get_diff_stat_between,
-    get_files_between, get_file_stats_between, resolve_ref,
-    get_commit_files_with_status, get_rename_diff_in_commit
+    get_git_history,
+    get_branch_history,
+    get_file_history,
+    get_head_sha,
+    get_full_head_sha,
+    get_current_branch,
+    get_commit_diff,
+    get_full_commit_message,
+    get_commit_subject,
+    get_commit_metadata,
+    get_commit_files,
+    has_uncommitted_changes,
+    cherry_pick_in_progress,
+    classify_cherry_pick_failure,
+    branch_exists,
+    normalize_branch_ref,
+    get_local_branches_map,
+    get_remote_head_sha,
+    get_file_diff_only_in_commit,
+    get_revert_commit_message,
+    get_commit_metadata_and_message,
+    get_commit_file_stats,
+    get_unstaged_files,
+    stash_changes,
+    commit_file,
+    bulk_commit_all,
+    amend_with_head,
+    discard_changes,
+    stash_pop,
+    get_stash_subject,
+    stash_pop_can_apply,
+    get_stash_status,
+    STASH_NOTHING_STASHED,
+    merge_into_stash,
+    get_unstaged_file_stats,
+    get_unstaged_file_diff,
+    stage_files,
+    commit_staged,
+    amend_staged,
+    apply_patch_to_index,
+    get_merge_base,
+    get_diff_between,
+    get_diff_stat_between,
+    get_files_between,
+    get_file_stats_between,
+    resolve_ref,
+    get_commit_files_with_status,
+    get_rename_diff_in_commit,
 )
 from lib.dialogs import (
-    DiffHighlighter, DiffViewerDialog, SplitCommitDialog, ViewCommitDialog,
-    DropDialog, RephraseDialog, RevertCommitDialog, SquashDialog, FileWiseViewDialog,
-    MultiSquashDialog, ProgressDialog, DropFileFromCommitDialog, ConfirmDropFileDialog,
-    ConfirmMoveFileDialog, ConfirmRemoveFileOnwardsDialog, AggressiveRemoveConfirmationDialog,
-    RefineFileSelectDialog, RefineChangesDialog, NewCommitMessageDialog,
-    DiffView, StatsItemDelegate, DiffSearchBar, UnstagedChangesDialog, BranchDiffDialog, StashNoticeDialog,
-    CherryPickDialog, BrowseBranchDialog, BrowseFileLogDialog, SingleCommitViewDialog,
-    CommitSelectivelyDialog, SelectiveHunkDialog, FILE_ENTRY_ROLE,
-    MergeBaseDialog, MergeBaseResultDialog,
+    DiffHighlighter,
+    DiffViewerDialog,
+    SplitCommitDialog,
+    ViewCommitDialog,
+    DropDialog,
+    RephraseDialog,
+    RevertCommitDialog,
+    SquashDialog,
+    FileWiseViewDialog,
+    MultiSquashDialog,
+    ProgressDialog,
+    DropFileFromCommitDialog,
+    ConfirmDropFileDialog,
+    ConfirmMoveFileDialog,
+    ConfirmRemoveFileOnwardsDialog,
+    AggressiveRemoveConfirmationDialog,
+    RefineFileSelectDialog,
+    RefineChangesDialog,
+    NewCommitMessageDialog,
+    DiffView,
+    StatsItemDelegate,
+    DiffSearchBar,
+    UnstagedChangesDialog,
+    BranchDiffDialog,
+    StashNoticeDialog,
+    CherryPickDialog,
+    BrowseBranchDialog,
+    BrowseFileLogDialog,
+    SingleCommitViewDialog,
+    CommitSelectivelyDialog,
+    SelectiveHunkDialog,
+    FILE_ENTRY_ROLE,
+    MergeBaseDialog,
+    MergeBaseResultDialog,
 )
 from lib.utils import get_assets_path
 
@@ -4779,7 +4889,10 @@ class GitInteractiveRebaseApp(QMainWindow):
                 break
 
             action_script_content = f"""#!/usr/bin/env python3
-import subprocess, os, tempfile, sys
+import subprocess
+import os
+import tempfile
+import sys
 
 sha = {repr(sha)}
 filepath = {repr(filepath)}
@@ -5005,7 +5118,10 @@ if result_action == "move" and move_patch.strip():
 
             # Action script content
             action_script_content = f"""#!/usr/bin/env python3
-import subprocess, os, tempfile, sys
+import subprocess
+import os
+import tempfile
+import sys
 
 sha = {repr(sha)}
 filepath = {repr(filepath)}
@@ -5176,7 +5292,8 @@ finally:
 
             # Action script content for dropping
             action_script_content = f"""#!/usr/bin/env python3
-import subprocess, sys
+import subprocess
+import sys
 
 sha = {repr(sha)}
 filepath = {repr(filepath)}
@@ -5371,7 +5488,8 @@ subprocess.check_call(['git', 'clean', '-fd', '--', filepath])
                     empty_commits_dropped_count += 1
 
                 action_script_content = f"""#!/usr/bin/env python3
-import subprocess, sys
+import subprocess
+import sys
 
 filepath = {repr(filepath)}
 drop_sha = {repr(drop_sha)}
@@ -5507,7 +5625,10 @@ except Exception as e:
 
             # The script will be executed when the sequence editor sees 'exec python3 <script>'
             split_script_content = f"""#!/usr/bin/env python3
-import sys, subprocess, os, tempfile
+import sys
+import subprocess
+import os
+import tempfile
 
 target_sha = {repr(sha)}
 filepath = {repr(filepath)}
@@ -5707,7 +5828,10 @@ if os.path.exists('temp.patch'):
 
             # Action script content for splitting each file
             action_script_content = f"""#!/usr/bin/env python3
-import subprocess, os, tempfile, sys
+import subprocess
+import os
+import tempfile
+import sys
 
 sha = {repr(sha)}
 files = {repr(files)}
