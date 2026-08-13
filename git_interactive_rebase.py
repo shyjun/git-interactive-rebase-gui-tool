@@ -13,21 +13,46 @@ import sys
 import os
 from datetime import datetime
 
-from PySide6.QtWidgets import QApplication, QMessageBox
+from PySide6.QtWidgets import (
+    QApplication,
+    QMessageBox,
+)
 from PySide6.QtGui import QIcon
-from PySide6.QtCore import QSettings, QTimer
+from PySide6.QtCore import (
+    QSettings,
+    QTimer,
+)
 import tempfile
 import stat
 
 from lib.utils import get_assets_path
 from lib.git_helpers import (
-    get_root_commit, get_recent_history_start, get_branch_base_info,
-    has_uncommitted_changes, stash_changes, get_unstaged_files, commit_file,
-    bulk_commit_all, amend_with_head, stash_pop, stash_pop_can_apply, get_full_head_sha, get_head_sha,
-    discard_changes, get_stash_status, STASH_NOTHING_STASHED
+    get_root_commit,
+    get_recent_history_start,
+    get_branch_base_info,
+    has_uncommitted_changes,
+    stash_changes,
+    get_unstaged_files,
+    commit_file,
+    bulk_commit_all,
+    amend_with_head,
+    stash_pop,
+    stash_pop_can_apply,
+    get_full_head_sha,
+    get_head_sha,
+    discard_changes,
+    get_stash_status,
+    STASH_NOTHING_STASHED,
 )
-from lib.app_window import GitInteractiveRebaseApp, get_theme_stylesheet
-from lib.dialogs import UnstagedChangesDialog, ProgressDialog, StashNoticeDialog
+from lib.app_window import (
+    GitInteractiveRebaseApp,
+    get_theme_stylesheet,
+)
+from lib.dialogs import (
+    UnstagedChangesDialog,
+    ProgressDialog,
+    StashNoticeDialog,
+)
 
 import shutil
 
