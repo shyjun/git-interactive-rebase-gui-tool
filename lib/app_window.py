@@ -3039,22 +3039,35 @@ class GitInteractiveRebaseApp(QMainWindow):
         )
 
     def _abort_rebase_safely(self):
-        """Runs 'git rebase --abort' and verifies no rebase state remains.
+        """Runs 'git rebase --abort' and verifies the repository is out of a rebase state.
 
-        Returns (ok, detail). ok is True only if no pending rebase state
-        remains afterwards. '--abort' failing because nothing was in progress
-        counts as clean, so ok is based on rebase_in_progress() being False,
-        not the command's exit code."""
+        Returns (ok, detail). ok is True only when the repository is definitively
+        known to be out of a rebase state afterwards, and the abort actually ran
+        cleanly when a rebase was in progress. If no rebase was in progress
+        beforehand, it is trivially clean. A rebase state whose presence could not
+        be determined (None) is never treated as clean."""
         try:
-            subprocess.run(
+            before = rebase_in_progress(self.repo_path)
+            if before is False:
+                return True, ""
+            result = subprocess.run(
                 ["git", "rebase", "--abort"], cwd=self.repo_path,
                 capture_output=True, text=True, encoding='utf-8', errors='replace'
             )
+            if before is True and result.returncode != 0:
+                stderr = result.stderr.strip() if result.stderr else ""
+                return False, (
+                    f"'git rebase --abort' exited with code {result.returncode}"
+                    + (f": {stderr}" if stderr else "")
+                )
+            after = rebase_in_progress(self.repo_path)
+            if after is not False:
+                if after is None:
+                    return False, "could not determine whether the repository is still in a rebase state"
+                return False, "the repo is still in a rebase state"
+            return True, ""
         except Exception as e:
             return False, f"{e}"
-        if rebase_in_progress(self.repo_path):
-            return False, "the repo is still in a rebase state"
-        return True, ""
 
     def _warn_rebase_abort_failure(self, detail):
         """Shows a warning when cleanup after a failed rebase did not fully
