@@ -145,7 +145,7 @@ def main():
             # font/theme; runs through the shared handler.
             deferred_selective_commit = True
         elif result == UnstagedChangesDialog.Accepted:
-            created_stash_sha = stash_changes(repo_path)
+            created_stash_sha, stash_err = stash_changes(repo_path)
             if created_stash_sha is not None and created_stash_sha is not STASH_NOTHING_STASHED:
                 print(f"Changes stashed successfully (SHA: {created_stash_sha}).")
                 ack_messages.append(("info", "Stash Successful", f"Changes stashed successfully (SHA: {created_stash_sha[:8]})."))
@@ -154,7 +154,8 @@ def main():
                                      "There was nothing to stash (e.g. changes are in untracked files). "
                                      "Please handle them manually."))
             else:
-                QMessageBox.critical(None, "Error", "Failed to stash changes. Please stash or commit manually.")
+                detail = f"\n\n{stash_err}" if stash_err else ""
+                QMessageBox.critical(None, "Error", f"Failed to stash changes. Please stash or commit manually.{detail}")
                 sys.exit(1)
         elif result == UnstagedChangesDialog.CommitEachResult:
             # We already have the files list
@@ -164,50 +165,60 @@ def main():
 
             success_count = 0
             committed_shas = []
+            failed_files = []
             for i, f in enumerate(unstaged_files):
                 progress.label.setText(f"Committing ({i+1}/{len(unstaged_files)}): {f}")
                 QApplication.processEvents()
-                if commit_file(repo_path, f, f"changes in {f}"):
+                ok, err = commit_file(repo_path, f, f"changes in {f}")
+                if ok:
                     committed_shas.append(get_head_sha(repo_path)[:8])
                     success_count += 1
                 else:
                     print(f"Failed to commit {f}")
+                    failed_files.append((f, err))
 
             progress.close()
             if committed_shas:
                 ids = "\n".join(committed_shas)
                 ack_messages.append(("info", "Commit Successful",
                                      f"Done. Successfully committed {success_count} file(s) individually.\n\nCommit IDs:\n{ids}"))
+            if failed_files:
+                fail_lines = "\n".join(f"  {name}: {err}".rstrip() for name, err in failed_files)
+                ack_messages.append(("critical", "Some Commits Failed",
+                                     f"Failed to commit {len(failed_files)} of {len(unstaged_files)} file(s):\n\n{fail_lines}"))
             print(f"Successfully committed {success_count} files.")
         elif result == UnstagedChangesDialog.BulkCommitResult:
             msg = f"bulk commit (Number of modified files: {len(unstaged_files)})"
 
-            if bulk_commit_all(repo_path, msg):
+            ok, detail = bulk_commit_all(repo_path, msg)
+            if ok:
                 print("Bulk commit successful.")
                 ack_messages.append(("info", "Bulk Commit Successful",
                                      f"Done. Bulk commit successful.\n\nCommit ID:\n{get_head_sha(repo_path)[:8]}"))
             else:
                 print("Bulk commit failed.")
-                ack_messages.append(("critical", "Error", "Bulk commit failed."))
+                ack_messages.append(("critical", "Error", f"Bulk commit failed.\n\n{detail}"))
 
         elif result == UnstagedChangesDialog.AmendResult:
             old_head = get_head_sha(repo_path)
-            if amend_with_head(repo_path):
+            ok, detail = amend_with_head(repo_path)
+            if ok:
                 new_head = get_head_sha(repo_path)
                 print("Amend successful.")
                 ack_messages.append(("info", "Amend Successful",
                                      f"Done. Changes amended into HEAD commit.\n\nOLD COMMIT: {old_head[:8]}\nNEW COMMIT: {new_head[:8]}"))
             else:
                 print("Amend failed.")
-                ack_messages.append(("critical", "Error", "Amend failed."))
+                ack_messages.append(("critical", "Error", f"Amend failed.\n\n{detail}"))
 
         elif result == UnstagedChangesDialog.DiscardResult:
-            if discard_changes(repo_path):
+            ok, detail = discard_changes(repo_path)
+            if ok:
                 print("Unstaged changes discarded.")
                 ack_messages.append(("info", "Discard Successful", "Done. Unstaged changes discarded (git checkout .)."))
             else:
                 print("Discard failed.")
-                ack_messages.append(("critical", "Error", "Discard failed."))
+                ack_messages.append(("critical", "Error", f"Discard failed.\n\n{detail}"))
 
         elif result == UnstagedChangesDialog.ViewerModeResult:
             args.viewer_mode = True

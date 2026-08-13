@@ -602,8 +602,11 @@ STASH_NOTHING_STASHED = object()
 
 def stash_changes(repo_path, message=None):
     """Stashes unstaged changes in the repository.
-    Returns the new stash SHA if a stash was created, STASH_NOTHING_STASHED if there was
-    nothing to stash, or None if the operation failed."""
+
+    Returns a (result, detail) tuple where result is:
+      - the new stash SHA if a stash was created,
+      - STASH_NOTHING_STASHED if there was nothing to stash (a no-op),
+      - None if the operation failed (detail then carries the git error text)."""
     if message is None:
         now = datetime.now()
         message = f"git-interactive-rebase-gui-tool: Pre-start stash ({now.strftime('%H:%M:%S %Y-%m-%d')})"
@@ -625,20 +628,25 @@ def stash_changes(repo_path, message=None):
         if result.returncode == 0:
             new_stash_sha = result.stdout.strip()
             if new_stash_sha != old_stash_sha:
-                return new_stash_sha
-            return STASH_NOTHING_STASHED
-        return None
-    except subprocess.CalledProcessError:
-        return None
+                return new_stash_sha, ""
+            return STASH_NOTHING_STASHED, ""
+        return None, ""
+    except subprocess.CalledProcessError as exc:
+        err = exc.stderr.strip() if exc.stderr else str(exc)
+        print(f"[git_helpers] git stash push failed: {err}")
+        return None, err
 
 def discard_changes(repo_path):
     """Discards all unstaged changes in tracked files (git checkout .).
-    Returns True if successful, otherwise False."""
+
+    Returns (True, "") on success, or (False, detail) where detail carries the
+    git error text."""
     try:
         subprocess.run(["git", "checkout", "."], cwd=repo_path, check=True, capture_output=True, text=True)
-        return True
-    except subprocess.CalledProcessError:
-        return False
+        return True, ""
+    except subprocess.CalledProcessError as e:
+        err = e.stderr if isinstance(e.stderr, str) else e.stderr.decode('utf-8')
+        return False, err
 
 def get_stash_subject(repo_path, stash_sha=None):
     """Returns the subject (message) of a stash. If stash_sha is provided, resolves that
@@ -846,11 +854,11 @@ def merge_into_stash(repo_path, existing_stash_sha):
         # Step 1: temporary stash of the current unstaged changes
         log("Creating temporary stash...")
         now = datetime.now()
-        temp_stash_sha = stash_changes(
+        temp_stash_sha, temp_stash_err = stash_changes(
             repo_path,
             message=f"git-interactive-rebase-gui-tool: temp merge stash ({now.strftime('%H:%M:%S %Y-%m-%d')})")
         if temp_stash_sha is None:
-            log("Failed to create temporary stash.")
+            log(f"Failed to create temporary stash: {temp_stash_err}")
             return None
         if temp_stash_sha is STASH_NOTHING_STASHED:
             # Nothing to merge (no tracked changes); the existing stash stays as managed
@@ -882,11 +890,11 @@ def merge_into_stash(repo_path, existing_stash_sha):
         # Step 5: create a new stash from the combined working tree changes
         log("Creating merged app-created stash...")
         now = datetime.now()
-        new_stash_sha = stash_changes(
+        new_stash_sha, new_stash_err = stash_changes(
             repo_path,
             message=f"git-interactive-rebase-gui-tool: merged app stash ({now.strftime('%H:%M:%S %Y-%m-%d')})")
         if new_stash_sha is None or new_stash_sha is STASH_NOTHING_STASHED:
-            log("Failed to create merged app-created stash.")
+            log(f"Failed to create merged app-created stash: {new_stash_err}")
             return None
 
         log("Merge completed successfully.")
@@ -999,17 +1007,20 @@ def get_unstaged_files(repo_path, ignore_submodules=False):
         return []
 
 def commit_file(repo_path, filepath, message):
-    """Stages and commits a single file."""
+    """Stages and commits a single file.
+
+    Returns (True, "") on success, or (False, detail) where detail carries the
+    git error text."""
     try:
         # Stage the file
         subprocess.run(["git", "add", filepath], cwd=repo_path, check=True, capture_output=True)
         # Commit the file
         subprocess.run(["git", "commit", "-m", message], cwd=repo_path, check=True, capture_output=True)
-        return True
+        return True, ""
     except subprocess.CalledProcessError as e:
         err = e.stderr.decode('utf-8') if e.stderr else str(e)
         print(f"Git commit failed for {filepath}: {err}")
-        return False
+        return False, err
 
 def get_revert_commit_message(repo_path, commit_sha):
     """Generates the default git revert commit message for a given SHA."""
@@ -1031,28 +1042,36 @@ def get_revert_commit_message(repo_path, commit_sha):
         raise Exception(f"Failed to generate revert message: {e.stderr}")
 
 def bulk_commit_all(repo_path, message):
-    """Stages all modified files and commits them as a single bulk commit."""
+    """Stages all modified files and commits them as a single bulk commit.
+
+    Returns (True, "") on success, or (False, detail) where detail carries the
+    git error text."""
     try:
         # Stage all changes (excluding untracked files as per --untracked-files=no in checks)
         subprocess.run(["git", "add", "-u"], cwd=repo_path, check=True, capture_output=True)
         # Commit
         subprocess.run(["git", "commit", "-m", message], cwd=repo_path, check=True, capture_output=True)
-        return True
-    except subprocess.CalledProcessError:
-        return False
+        return True, ""
+    except subprocess.CalledProcessError as e:
+        err = e.stderr.decode('utf-8', errors='replace') if e.stderr else str(e)
+        return False, err
 
 
 def amend_with_head(repo_path):
-    """Stages all modified files and amends them into the current HEAD commit."""
+    """Stages all modified files and amends them into the current HEAD commit.
+
+    Returns (True, "") on success, or (False, detail) where detail carries the
+    git error text."""
     try:
         before = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo_path, capture_output=True, text=True, check=True).stdout.strip()
         subprocess.run(["git", "add", "-u"], cwd=repo_path, check=True, capture_output=True)
         subprocess.run(["git", "commit", "--amend", "--no-edit"], cwd=repo_path, check=True, capture_output=True)
         after = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo_path, capture_output=True, text=True, check=True).stdout.strip()
         print(f"Amended HEAD: {before[:8]} -> {after[:8]}")
-        return True
-    except subprocess.CalledProcessError:
-        return False
+        return True, ""
+    except subprocess.CalledProcessError as e:
+        err = e.stderr.decode('utf-8', errors='replace') if e.stderr else str(e)
+        return False, err
 
 
 def stage_files(repo_path, files):
@@ -1130,14 +1149,20 @@ def apply_patch_to_index(repo_path, patch_text):
 
 
 def get_merge_base(repo_path, ref):
-    """Returns the merge-base of HEAD with *ref* (e.g. 'origin/main')."""
+    """Returns the merge-base of HEAD with *ref* (e.g. 'origin/main').
+
+    Returns None when the branches share no common ancestor. A genuine git
+    failure (anything but the 'no common ancestor' exit code 1) raises an
+    Exception carrying git's stderr."""
     try:
         cmd = ["git", "merge-base", "HEAD", ref]
         result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
         sha = result.stdout.strip()
         return sha if sha else None
-    except subprocess.CalledProcessError:
-        return None
+    except subprocess.CalledProcessError as e:
+        if e.returncode == 1:
+            return None
+        raise Exception(f"Failed to find merge-base: {e.stderr}")
 
 
 def get_diff_between(repo_path, start_sha, end_sha):
