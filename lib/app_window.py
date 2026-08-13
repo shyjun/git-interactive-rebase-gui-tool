@@ -26,6 +26,16 @@ def _posix_path(p: str) -> str:
     """
     return pathlib.Path(p).as_posix()
 
+
+def _safe_unlink(*paths):
+    """Best-effort removal of temp file paths, tolerating None/missing files."""
+    for p in paths:
+        if p:
+            try:
+                os.unlink(p)
+            except OSError:
+                pass
+
 # pyrefly: ignore [missing-import]
 from PySide6.QtWidgets import (
     QApplication,
@@ -4968,90 +4978,89 @@ if result_action == "move" and move_patch.strip():
         except:
             pass
 """
-            action_fd, action_path = tempfile.mkstemp(prefix='git_refine_exec_', suffix='.py', text=True)
-            with os.fdopen(action_fd, 'w', encoding='utf-8') as f:
-                f.write(action_script_content)
-            os.chmod(action_path, os.stat(action_path).st_mode | stat.S_IEXEC)
+            action_path = None
+            editor_script = None
+            try:
+                action_fd, action_path = tempfile.mkstemp(prefix='git_refine_exec_', suffix='.py', text=True)
+                with os.fdopen(action_fd, 'w', encoding='utf-8') as f:
+                    f.write(action_script_content)
+                os.chmod(action_path, os.stat(action_path).st_mode | stat.S_IEXEC)
 
-            single_exec = f"exec python3 {_posix_path(action_path)}"
+                single_exec = f"exec python3 {_posix_path(action_path)}"
 
-            current_shas = [self.list_widget.item(i).text().split()[0]
-                            for i in range(self.list_widget.count())]
+                current_shas = [self.list_widget.item(i).text().split()[0]
+                                for i in range(self.list_widget.count())]
 
-            with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.py') as f:
-                f.write("#!/usr/bin/env python3\n")
-                f.write("import sys\n")
-                f.write(f"target_sha = {repr(sha)}\n")
-                f.write(f"single_exec = {repr(single_exec)}\n")
-                f.write("todo_path = sys.argv[1]\n")
-                f.write("with open(todo_path, 'r') as tf:\n")
-                f.write("    lines = tf.readlines()\n")
-                f.write("output = []\n")
-                f.write("for line in lines:\n")
-                f.write("    stripped = line.strip()\n")
-                f.write("    parts = stripped.split()\n")
-                f.write("    # Match pick/reword/edit etc. followed by SHA\n")
-                f.write("    if not stripped.startswith('#') and len(parts) >= 2 and len(parts[1]) >= 4:\n")
-                f.write("        todo_sha = parts[1]\n")
-                f.write(f"        if {repr(sha)}.startswith(todo_sha) or todo_sha.startswith({repr(sha[:4])}):\n")
-                f.write("             output.append('pick ' + stripped.split(None, 1)[1] + '\\n')\n")
-                f.write("             output.append(single_exec + '\\n')\n")
-                f.write("             continue\n")
-                f.write("    output.append(line)\n")
-                f.write("with open(todo_path, 'w') as tf:\n")
-                f.write("    tf.writelines(output)\n")
-                editor_script = f.name
+                with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.py') as f:
+                    f.write("#!/usr/bin/env python3\n")
+                    f.write("import sys\n")
+                    f.write(f"target_sha = {repr(sha)}\n")
+                    f.write(f"single_exec = {repr(single_exec)}\n")
+                    f.write("todo_path = sys.argv[1]\n")
+                    f.write("with open(todo_path, 'r') as tf:\n")
+                    f.write("    lines = tf.readlines()\n")
+                    f.write("output = []\n")
+                    f.write("for line in lines:\n")
+                    f.write("    stripped = line.strip()\n")
+                    f.write("    parts = stripped.split()\n")
+                    f.write("    # Match pick/reword/edit etc. followed by SHA\n")
+                    f.write("    if not stripped.startswith('#') and len(parts) >= 2 and len(parts[1]) >= 4:\n")
+                    f.write("        todo_sha = parts[1]\n")
+                    f.write(f"        if {repr(sha)}.startswith(todo_sha) or todo_sha.startswith({repr(sha[:4])}):\n")
+                    f.write("             output.append('pick ' + stripped.split(None, 1)[1] + '\\n')\n")
+                    f.write("             output.append(single_exec + '\\n')\n")
+                    f.write("             continue\n")
+                    f.write("    output.append(line)\n")
+                    f.write("with open(todo_path, 'w') as tf:\n")
+                    f.write("    tf.writelines(output)\n")
+                    editor_script = f.name
 
-            os.chmod(editor_script, os.stat(editor_script).st_mode | stat.S_IEXEC)
+                os.chmod(editor_script, os.stat(editor_script).st_mode | stat.S_IEXEC)
 
-            sha_idx = current_shas.index(sha) if sha in current_shas else -1
-            if sha_idx == len(current_shas) - 1:
-                has_parent = False
-                try:
-                    subprocess.run(["git", "rev-parse", f"{sha}^"],
-                                   cwd=self.repo_path, check=True, capture_output=True)
-                    has_parent = True
-                except Exception:
-                    pass
-                if not has_parent:
-                    QMessageBox.critical(self, "Cannot Refine",
-                                         "Cannot refine the oldest commit (no parent).\n"
-                                         "This operation only works when the commit has a parent.")
-                    break
-                upstream = f"{sha}^"
-            else:
-                upstream = current_shas[sha_idx + 1]
+                sha_idx = current_shas.index(sha) if sha in current_shas else -1
+                if sha_idx == len(current_shas) - 1:
+                    has_parent = False
+                    try:
+                        subprocess.run(["git", "rev-parse", f"{sha}^"],
+                                       cwd=self.repo_path, check=True, capture_output=True)
+                        has_parent = True
+                    except Exception:
+                        pass
+                    if not has_parent:
+                        QMessageBox.critical(self, "Cannot Refine",
+                                             "Cannot refine the oldest commit (no parent).\n"
+                                             "This operation only works when the commit has a parent.")
+                        break
+                    upstream = f"{sha}^"
+                else:
+                    upstream = current_shas[sha_idx + 1]
 
-            env = os.environ.copy()
-            env["GIT_SEQUENCE_EDITOR"] = editor_script
-            env["GIT_EDITOR"] = "true"
+                env = os.environ.copy()
+                env["GIT_SEQUENCE_EDITOR"] = editor_script
+                env["GIT_EDITOR"] = "true"
 
-            progress = ProgressDialog(
-                f"Applying refinement to {sha[:8]}...",
-                f"Processing changes in {filepath}. Please wait...",
-                self
-            )
-            progress.show()
-            # Force visibility and add a small delay for human perception
-            for _ in range(5):
-                QApplication.processEvents()
-                time.sleep(0.02)
+                progress = ProgressDialog(
+                    f"Applying refinement to {sha[:8]}...",
+                    f"Processing changes in {filepath}. Please wait...",
+                    self
+                )
+                progress.show()
+                # Force visibility and add a small delay for human perception
+                for _ in range(5):
+                    QApplication.processEvents()
+                    time.sleep(0.02)
 
-            cmd = ["git", "rebase", "-i", upstream]
-            result = subprocess.run(cmd, cwd=self.repo_path, env=env,
-                                    capture_output=True, text=True)
+                cmd = ["git", "rebase", "-i", upstream]
+                result = subprocess.run(cmd, cwd=self.repo_path, env=env,
+                                        capture_output=True, text=True)
+            finally:
+                _safe_unlink(editor_script, action_path)
 
             # Ensure the user sees the progress before it closes
             for _ in range(5):
                 QApplication.processEvents()
                 time.sleep(0.02)
             progress.close()
-
-            try:
-                os.unlink(editor_script)
-                os.unlink(action_path)
-            except Exception:
-                pass
 
             if result.returncode == 0:
                 self.load_history()
@@ -5094,6 +5103,8 @@ if result_action == "move" and move_patch.strip():
             return
         old_head = self.get_head_sha()
         self.save_undo_state()
+        action_path = None
+        editor_script = None
         try:
             all_files = get_commit_files(self.repo_path, sha)
             other_files = [f for f in all_files if f != filepath]
@@ -5234,6 +5245,7 @@ finally:
             self.split_worker.start()
             progress.exec()
         except Exception as e:
+            _safe_unlink(editor_script, action_path)
             QMessageBox.critical(self, "Error", f"An error occurred during split: {str(e)}")
             self.load_history()
 
@@ -5271,6 +5283,8 @@ finally:
             return
         old_head = self.get_head_sha()
         self.save_undo_state()
+        action_path = None
+        editor_script = None
         try:
             all_files = get_commit_files(self.repo_path, sha)
             other_files = [f for f in all_files if f != filepath]
@@ -5384,6 +5398,7 @@ subprocess.check_call(['git', 'clean', '-fd', '--', filepath])
                     f"The drop operation failed and has been aborted.\n\n"
                     f"Error: {result.stderr}")
         except Exception as e:
+            _safe_unlink(editor_script, action_path)
             QMessageBox.critical(self, "Error", f"An error occurred during drop: {str(e)}")
         finally:
             self.load_history()
@@ -5403,6 +5418,8 @@ subprocess.check_call(['git', 'clean', '-fd', '--', filepath])
         old_head = self.get_head_sha()
         print(f"[{time.strftime('%H:%M:%S')}] Remove file onwards: starting SHA={self.commit_sha}, selected commit={sha}, HEAD before={old_head}")
         self.save_undo_state()
+        action_path = None
+        editor_script = None
         try:
             short_sha = sha[:8]
 
@@ -5570,6 +5587,7 @@ except Exception as e:
 
             QMessageBox.information(self, "Success", success_msg)
         except Exception as e:
+            _safe_unlink(editor_script, action_path)
             QMessageBox.critical(self, "Error", f"An error occurred: {str(e)}")
         finally:
             self.load_history()
@@ -5619,6 +5637,9 @@ except Exception as e:
             return
         old_head = self.get_head_sha()
         self.save_undo_state()
+        action_path = None
+        editor_script = None
+        split_action_script = None
         try:
             short_sha = sha[:8]
             original_msg = get_full_commit_message(self.repo_path, sha)
@@ -5671,27 +5692,29 @@ subprocess.check_call(['git', 'reset', '--hard', 'HEAD~1'])
 # 4. Apply each hunk as a separate patch and commit
 for i, hunk in enumerate(hunks):
     patch_content = '\\n'.join(header) + '\\n' + '\\n'.join(hunk) + '\\n'
-    with open('temp.patch', 'w', encoding='utf-8') as f:
-        f.write(patch_content)
 
-    # Apply patch. --no-backup-if-mismatch ignores minor offset issues.
-    subprocess.check_call(['patch', '-p1', '-i', 'temp.patch', '--no-backup-if-mismatch'])
-    subprocess.check_call(['git', 'add', filepath])
-
-    new_msg = f"change-{{i+1}} of {{target_sha[:8]}}\\n\\n{{original_msg}}"
-
-    # Use temp file for multiline message
-    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt', encoding='utf-8') as mf:
-        mf.write(new_msg)
-        mf_path = mf.name
+    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.patch', encoding='utf-8') as pf:
+        pf.write(patch_content)
+        patch_path = pf.name
     try:
-        subprocess.check_call(['git', 'commit', '-F', mf_path])
-    finally:
-        if os.path.exists(mf_path):
-            os.unlink(mf_path)
+        # Apply patch. --no-backup-if-mismatch ignores minor offset issues.
+        subprocess.check_call(['patch', '-p1', '-i', patch_path, '--no-backup-if-mismatch'])
+        subprocess.check_call(['git', 'add', filepath])
 
-if os.path.exists('temp.patch'):
-    os.unlink('temp.patch')
+        new_msg = f"change-{{i+1}} of {{target_sha[:8]}}\\n\\n{{original_msg}}"
+
+        # Use temp file for multiline message
+        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt', encoding='utf-8') as mf:
+            mf.write(new_msg)
+            mf_path = mf.name
+        try:
+            subprocess.check_call(['git', 'commit', '-F', mf_path])
+        finally:
+            if os.path.exists(mf_path):
+                os.unlink(mf_path)
+    finally:
+        if os.path.exists(patch_path):
+            os.unlink(patch_path)
 """
 
             # Write the action script
@@ -5776,6 +5799,7 @@ if os.path.exists('temp.patch'):
             self.split_worker.start()
             progress.exec()
         except Exception as e:
+            _safe_unlink(editor_script, split_action_script)
             QMessageBox.critical(self, "Error", f"An error occurred during split: {str(e)}")
             self.load_history()
 
@@ -5822,6 +5846,8 @@ if os.path.exists('temp.patch'):
         self.save_undo_state()
         """Executes splitting each file into its own commit using rebase exec."""
         self.save_undo_state()
+        action_path = None
+        editor_script = None
         try:
             short_sha = sha[:8]
             original_msg = get_full_commit_message(self.repo_path, sha)
@@ -5947,6 +5973,7 @@ for i, filename in enumerate(files):
             self.split_worker.start()
             progress.exec()
         except Exception as e:
+            _safe_unlink(editor_script, action_path)
             QMessageBox.critical(self, "Error", f"An error occurred during split: {str(e)}")
             self.load_history()
 
@@ -6055,60 +6082,56 @@ for i, filename in enumerate(files):
                     return True
 
                 # 2. Proceed with rebase for non-trivial changes
-                # Write each rephrase message to a temp file to handle multi-line messages safely
                 msg_files = {}  # sha -> temp file path
-                if rephrase_map:
-                    for sha, msg in rephrase_map.items():
-                        if sha in todo_shas:
-                            mf = tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt', encoding='utf-8')
-                            mf.write(msg)
-                            mf.close()
-                            msg_files[sha] = mf.name
+                editor_script = None
+                try:
+                    # Write each rephrase message to a temp file to handle multi-line messages safely
+                    if rephrase_map:
+                        for sha, msg in rephrase_map.items():
+                            if sha in todo_shas:
+                                mf = tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt', encoding='utf-8')
+                                mf.write(msg)
+                                mf.close()
+                                msg_files[sha] = mf.name
 
-                # Build a sequence editor script that writes the rebase todo
-                with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.py') as f:
-                    f.write("#!/usr/bin/env python3\n")
-                    f.write("import sys\n")
-                    f.write(f"new_order = {todo_shas}\n")
-                    f.write(f"msg_files = {repr(msg_files)}\n")
-                    f.write(f"squash_shas = {squash_shas or []}\n")
-                    f.write("todo_path = sys.argv[1]\n")
-                    f.write("with open(todo_path, 'w') as f:\n")
-                    f.write("    for sha in new_order:\n")
-                    f.write("        op = 'squash' if sha in squash_shas else 'pick'\n")
-                    f.write("        f.write(f'{op} {sha}\\n')\n")
-                    f.write("        if sha in msg_files:\n")
-                    f.write("            mf = msg_files[sha]\n")
-                    f.write("            f.write(f'exec git commit --amend -F {mf}\\n')\n")
-                    editor_script = f.name
+                    # Build a sequence editor script that writes the rebase todo
+                    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.py') as f:
+                        f.write("#!/usr/bin/env python3\n")
+                        f.write("import sys\n")
+                        f.write(f"new_order = {todo_shas}\n")
+                        f.write(f"msg_files = {repr(msg_files)}\n")
+                        f.write(f"squash_shas = {squash_shas or []}\n")
+                        f.write("todo_path = sys.argv[1]\n")
+                        f.write("with open(todo_path, 'w') as f:\n")
+                        f.write("    for sha in new_order:\n")
+                        f.write("        op = 'squash' if sha in squash_shas else 'pick'\n")
+                        f.write("        f.write(f'{op} {sha}\\n')\n")
+                        f.write("        if sha in msg_files:\n")
+                        f.write("            mf = msg_files[sha]\n")
+                        f.write("            f.write(f'exec git commit --amend -F {mf}\\n')\n")
+                        editor_script = f.name
 
-                os.chmod(editor_script, os.stat(editor_script).st_mode | stat.S_IEXEC)
+                    os.chmod(editor_script, os.stat(editor_script).st_mode | stat.S_IEXEC)
 
-                env = os.environ.copy()
-                env["GIT_SEQUENCE_EDITOR"] = editor_script
-                env["GIT_EDITOR"] = "true"
+                    env = os.environ.copy()
+                    env["GIT_SEQUENCE_EDITOR"] = editor_script
+                    env["GIT_EDITOR"] = "true"
 
-                if upstream == "--root":
-                    cmd = ["git", "rebase", "-i", "--autosquash", "--root"]
-                else:
-                    cmd = ["git", "rebase", "-i", "--autosquash", upstream]
+                    if upstream == "--root":
+                        cmd = ["git", "rebase", "-i", "--autosquash", "--root"]
+                    else:
+                        cmd = ["git", "rebase", "-i", "--autosquash", upstream]
 
+                    process = subprocess.Popen(cmd, cwd=self.repo_path, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                    while process.poll() is None:
+                        QApplication.processEvents()
+                        time.sleep(0.05)
 
-                process = subprocess.Popen(cmd, cwd=self.repo_path, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-                while process.poll() is None:
-                    QApplication.processEvents()
-                    time.sleep(0.05)
+                    stdout, stderr = process.communicate()
 
-                stdout, stderr = process.communicate()
-
-                result = subprocess.CompletedProcess(process.args, process.returncode, stdout, stderr)
-                os.unlink(editor_script)
-                # Clean up message temp files
-                for mf_path in msg_files.values():
-                    try:
-                        os.unlink(mf_path)
-                    except Exception:
-                        pass
+                    result = subprocess.CompletedProcess(process.args, process.returncode, stdout, stderr)
+                finally:
+                    _safe_unlink(editor_script, *msg_files.values())
 
                 if result.returncode == 0:
                     return True
