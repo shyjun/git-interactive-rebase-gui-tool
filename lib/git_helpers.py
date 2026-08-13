@@ -520,11 +520,15 @@ def cherry_pick_in_progress(repo_path):
         return False
 
 def rebase_in_progress(repo_path):
-    """Returns True if a rebase is pending (rebase-merge or rebase-apply state exists).
+    """Returns True if a rebase is pending, False if it is definitively not
+    pending, or None if the repository's rebase state could not be determined.
 
     Uses ``git rev-parse --git-path`` so it works in linked worktrees too. The
     returned path may be repo-relative, so it is resolved against *repo_path*
-    before checking."""
+    before checking. A failed git query (nonzero exit or empty path - including
+    a non-repository or invalid path) and an exception are indeterminate (None).
+    None must never be treated as 'no rebase exists', since that would mask a
+    failure to detect a pending rebase."""
     try:
         for state in ("rebase-merge", "rebase-apply"):
             result = subprocess.run(
@@ -532,14 +536,14 @@ def rebase_in_progress(repo_path):
                 cwd=repo_path, capture_output=True, text=True, encoding='utf-8', errors='replace'
             )
             if result.returncode != 0 or not result.stdout.strip():
-                continue
+                return None
             state_dir = result.stdout.strip()
             if not os.path.isabs(state_dir):
                 state_dir = os.path.join(repo_path, state_dir)
             if os.path.isdir(state_dir):
                 return True
     except Exception:
-        return False
+        return None
     return False
 
 def classify_cherry_pick_failure(repo_path, stderr):
