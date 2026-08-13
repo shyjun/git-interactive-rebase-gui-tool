@@ -465,31 +465,36 @@ def get_rename_diff_in_commit(repo_path, commit_sha, old_path, new_path):
     except subprocess.CalledProcessError as e:
         raise Exception(f"Failed to get rename diff: {e.stderr}")
 
+def _git_capture(repo_path, cmd, error_msg):
+    """Run git *cmd* in *repo_path*, returning stdout decoded as UTF-8 text.
+
+    On a non-zero exit, raises an Exception carrying git's stderr, mirroring
+    the historical behavior of the diff helpers."""
+    try:
+        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True,
+                                check=True, encoding='utf-8', errors='replace')
+        return result.stdout
+    except subprocess.CalledProcessError as e:
+        raise Exception(f"{error_msg}: {e.stderr}")
+
+
+def _pad_diff_separators(diff_text):
+    """Insert a blank line before each 'diff --git' block (except at the start)."""
+    import re
+    return re.sub(r'(\n)(diff --git )', r'\1\n\2', diff_text)
+
+
 def get_file_diff_in_commit(repo_path, commit_sha, filepath):
     """Returns the diff for a single file within a commit."""
-    try:
-        cmd = ["git", "show", commit_sha, "--", filepath]
-        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
-        diff_text = result.stdout
-        # Inject separator padding
-        import re
-        diff_text = re.sub(r'(\n)(diff --git )', r'\1\n\2', diff_text)
-        return diff_text
-    except subprocess.CalledProcessError as e:
-        raise Exception(f"Failed to get file diff: {e.stderr}")
+    return _pad_diff_separators(
+        _git_capture(repo_path, ["git", "show", commit_sha, "--", filepath],
+                     "Failed to get file diff"))
 
 def get_file_diff_only_in_commit(repo_path, commit_sha, filepath):
     """Returns the diff for a single file within a commit, excluding the commit message header."""
-    try:
-        cmd = ["git", "show", "--format=", commit_sha, "--", filepath]
-        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
-        diff_text = result.stdout
-        # Inject separator padding
-        import re
-        diff_text = re.sub(r'(\n)(diff --git )', r'\1\n\2', diff_text)
-        return diff_text
-    except subprocess.CalledProcessError as e:
-        raise Exception(f"Failed to get file diff: {e.stderr}")
+    return _pad_diff_separators(
+        _git_capture(repo_path, ["git", "show", "--format=", commit_sha, "--", filepath],
+                     "Failed to get file diff"))
 
 def has_uncommitted_changes(repo_path):
     """Returns True if there are uncommitted changes in the repository."""
@@ -1167,16 +1172,9 @@ def get_files_between(repo_path, start_sha, end_sha):
 
 def get_file_diff_between(repo_path, start_sha, end_sha, filepath):
     """Returns the diff for a single file between *start_sha* and *end_sha*."""
-    try:
-        cmd = ["git", "diff", start_sha, end_sha, "--", filepath]
-        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
-        diff_text = result.stdout
-        # Inject separator padding
-        import re
-        diff_text = re.sub(r'(\n)(diff --git )', r'\1\n\2', diff_text)
-        return diff_text
-    except subprocess.CalledProcessError as e:
-        raise Exception(f"Failed to get file diff: {e.stderr}")
+    return _pad_diff_separators(
+        _git_capture(repo_path, ["git", "diff", start_sha, end_sha, "--", filepath],
+                     "Failed to get file diff"))
 
 
 def get_file_stats_between(repo_path, start_sha, end_sha):
@@ -1249,16 +1247,9 @@ def get_unstaged_file_stats(repo_path, ignore_submodules=False):
 
 def get_unstaged_file_diff(repo_path, filepath):
     """Returns the diff for a single file's unstaged changes."""
-    try:
-        cmd = ["git", "diff", "--", filepath]
-        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
-        diff_text = result.stdout
-        # Inject separator padding
-        import re
-        diff_text = re.sub(r'(\n)(diff --git )', r'\1\n\2', diff_text)
-        return diff_text
-    except subprocess.CalledProcessError as e:
-        raise Exception(f"Failed to get unstaged file diff: {e.stderr}")
+    return _pad_diff_separators(
+        _git_capture(repo_path, ["git", "diff", "--", filepath],
+                     "Failed to get unstaged file diff"))
 
 
 def resolve_ref(repo_path, ref):
