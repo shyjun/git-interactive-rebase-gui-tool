@@ -1082,22 +1082,21 @@ def amend_staged(repo_path, message):
     Unlike amend_with_head(), this does NOT run 'git add -u' - the caller is
     responsible for staging exactly the changes that should be amended."""
     msg_fd, msg_path = tempfile.mkstemp(prefix='git_amend_msg_', text=True)
-    with os.fdopen(msg_fd, 'w', encoding='utf-8') as f:
-        f.write(message)
     try:
-        try:
-            subprocess.run(["git", "commit", "--amend", "-F", msg_path],
-                           cwd=repo_path, check=True, capture_output=True)
-        finally:
-            try:
-                os.unlink(msg_path)
-            except OSError:
-                pass
+        with os.fdopen(msg_fd, 'w', encoding='utf-8') as f:
+            f.write(message)
+        subprocess.run(["git", "commit", "--amend", "-F", msg_path],
+                       cwd=repo_path, check=True, capture_output=True)
         return True
     except subprocess.CalledProcessError as e:
         err = e.stderr.decode('utf-8') if e.stderr else str(e)
         print(f"git commit --amend failed: {err}")
         return False
+    finally:
+        try:
+            os.unlink(msg_path)
+        except OSError:
+            pass
 
 
 def apply_patch_to_index(repo_path, patch_text):
@@ -1109,9 +1108,9 @@ def apply_patch_to_index(repo_path, patch_text):
     if not patch_text.strip():
         return
     patch_fd, patch_path = tempfile.mkstemp(prefix='git_selective_', suffix='.patch', text=True)
-    with os.fdopen(patch_fd, 'w', encoding='utf-8') as pf:
-        pf.write(patch_text)
     try:
+        with os.fdopen(patch_fd, 'w', encoding='utf-8') as pf:
+            pf.write(patch_text)
         subprocess.run(["git", "apply", "--cached", "--ignore-whitespace", patch_path],
                        cwd=repo_path, check=True, capture_output=True)
     except subprocess.CalledProcessError as e:
