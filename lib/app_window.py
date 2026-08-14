@@ -4390,7 +4390,8 @@ class GitInteractiveRebaseApp(QMainWindow):
                     f"<span style='font-family:monospace'>{fmt(remaining)}</span></p>"
                 )
                 copy_btn = box.addButton("Copy current commit id to clipboard", QMessageBox.ActionRole)
-                skip_btn = box.addButton("Skip this, and continue with next", QMessageBox.AcceptRole)
+                if index < len(selected_shas) - 1:
+                    skip_btn = box.addButton("Skip this, and continue with next", QMessageBox.AcceptRole)
                 stop_btn = box.addButton("Stop here", QMessageBox.RejectRole)
                 box.exec()
                 clicked = box.clickedButton()
