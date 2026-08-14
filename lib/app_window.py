@@ -2783,6 +2783,20 @@ class GitInteractiveRebaseApp(QMainWindow):
         Multi selection: confirm the apply order, then apply one by one,
         handling each failure, and report a summary at the end.
         """
+        # If the browsed branch is the same as the current branch, there is
+        # nothing meaningful to cherry-pick.
+        if self.browse_branch:
+            current_branch = get_current_branch(self.repo_path)
+            if current_branch:
+                current_ref = normalize_branch_ref(self.repo_path, current_branch)
+                if current_ref == self.browse_branch:
+                    QMessageBox.information(
+                        self, "Same Branch",
+                        "The branch you are browsing is the same as your current "
+                        "branch, so cherry-picking is not applicable."
+                    )
+                    return
+
         if not self._check_head_unchanged():
             return
         if not self._check_no_unstaged_changes():
