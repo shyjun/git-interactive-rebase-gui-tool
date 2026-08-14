@@ -161,7 +161,6 @@ from lib.git_helpers import (
     get_rename_diff_in_commit,
 )
 from lib.dialogs import (
-    DiffHighlighter,
     DiffViewerDialog,
     SplitCommitDialog,
     ViewCommitDialog,
@@ -180,9 +179,6 @@ from lib.dialogs import (
     RefineFileSelectDialog,
     RefineChangesDialog,
     NewCommitMessageDialog,
-    DiffView,
-    StatsItemDelegate,
-    DiffSearchBar,
     UnstagedChangesDialog,
     BranchDiffDialog,
     StashNoticeDialog,
@@ -192,12 +188,18 @@ from lib.dialogs import (
     SingleCommitViewDialog,
     CommitSelectivelyDialog,
     SelectiveHunkDialog,
-    FILE_ENTRY_ROLE,
     MergeBaseDialog,
     MergeBaseResultDialog,
 )
 from lib.utils import get_assets_path
-from lib.widgets import BrowseDimOverlay
+from lib.widgets import (
+    BrowseDimOverlay,
+    DiffHighlighter,
+    DiffSearchBar,
+    DiffView,
+    FILE_ENTRY_ROLE,
+    StatsItemDelegate,
+)
 
 # If the combined branch diff exceeds this many chars (~200 KB), confirm before opening the PR preview.
 PR_DIFF_SIZE_WARN_THRESHOLD = 200_000
