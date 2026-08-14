@@ -684,6 +684,10 @@ class BranchDiffDialog(QDialog):
         if files:
             self.filewise_file_list.setCurrentRow(0)
 
+        # Context menu for the file list
+        self.filewise_file_list.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.filewise_file_list.customContextMenuRequested.connect(self.show_filewise_context_menu)
+
         # Ctrl+F focuses the search bar of the active tab
         self.ctrl_f_shortcut = QShortcut(QKeySequence("Ctrl+F"), self)
         self.ctrl_f_shortcut.activated.connect(self._focus_active_search)
@@ -716,6 +720,32 @@ class BranchDiffDialog(QDialog):
             self.filewise_diff_search._perform_search()
         except Exception as e:
             self.filewise_diff_view.setPlainText(f"Error loading diff: {e}")
+
+    def show_filewise_context_menu(self, pos):
+        """Context menu for the file list: copy filename or browse the file log."""
+        item = self.filewise_file_list.itemAt(pos)
+        if not item:
+            return
+        target_path = item.text()
+        menu = QMenu(self)
+        copy_action = QAction("Copy filename to clipboard", self)
+        copy_action.triggered.connect(lambda checked=False, text=target_path: self.copy_filename_to_clipboard(text))
+        menu.addAction(copy_action)
+        menu.addSeparator()
+        browse_action = QAction("Browse file log", self)
+        browse_action.setToolTip("Open a read-only viewer of this file's history.")
+        browse_action.triggered.connect(lambda checked=False, text=target_path: self.browse_file_log(text))
+        menu.addAction(browse_action)
+        menu.exec(self.filewise_file_list.mapToGlobal(pos))
+
+    def browse_file_log(self, filepath):
+        main_win = self.parent() if isinstance(self.parent(), QMainWindow) else None
+        if main_win and hasattr(main_win, 'open_file_log_for'):
+            main_win.open_file_log_for(filepath)
+
+    def copy_filename_to_clipboard(self, filename):
+        QApplication.clipboard().setText(filename)
+        QMessageBox.information(self, "Copied", f"Copied '{filename}' to clipboard.")
 
 
 class SingleCommitViewDialog(QDialog):
