@@ -908,19 +908,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.consolidated_diff_start_sha = None
 
         # Search options (synced from the Search Options dropdown in setup_ui)
-        self.search_match_case = False
-        self.search_whole_word = False
-        self.search_display_only = False
-        # Generation counter invalidating stale async diff searches. Bumped on
-        # every filter_commits() call so an in-flight worker's result is discarded
-        # if the search changed while it was running.
-        self._diff_search_gen = 0
-        # Queue of completed diff-search results delivered to the GUI thread by
-        # _diff_search_finished. Each entry carries its own generation and sha
-        # mapping so concurrent workers cannot clobber each other's results.
-        self._diff_search_queue = []
-        # Single-entry memo for _normalize_search_term (raw, normalized)
-        self._search_norm_memo = None
+        # (state lives in CommitFilterController)
 
         # Global application icon is handled in the main entry point
 
@@ -949,12 +937,13 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.resize(1100, 800)
         self.setMinimumWidth(1100)
 
+        # Performance Cache — created before setup_ui so CommitFilterController
+        # can be wired with a reference to it.
+        self.commit_cache = {} # sha -> {'meta': str, 'msg': str, 'diff': str, 'files': list}
+
         self.setup_ui()
         self.restore_visibility_settings()
         self.load_settings()
-
-        # Performance Cache
-        self.commit_cache = {} # sha -> {'meta': str, 'msg': str, 'diff': str, 'files': list}
 
         # Debounce timer for side diff updates
         self.update_diff_timer = QTimer(self)
@@ -1004,15 +993,16 @@ class GitInteractiveRebaseApp(QMainWindow):
 
         # Search options (Match Case / Whole Word / Display Only Matching)
         if hasattr(self, 'search_match_case_action'):
-            self.search_match_case = self.settings.value(self._sk("search_match_case"), False, type=bool)
+            mc = self.settings.value(self._sk("search_match_case"), False, type=bool)
             # Whole Word is intentionally not persisted: always start the tool with it off.
-            self.search_whole_word = False
+            ww = False
             self.settings.remove(self._sk("search_whole_word"))
-            self.search_display_only = self.settings.value(self._sk("search_display_only"), False, type=bool)
+            do = self.settings.value(self._sk("search_display_only"), False, type=bool)
+            self._filter_controller.set_search_options(mc, ww, do)
             # Apply without firing toggled (avoids re-running the search during startup)
-            for action, value in ((self.search_match_case_action, self.search_match_case),
-                                  (self.search_whole_word_action, self.search_whole_word),
-                                  (self.search_display_only_action, self.search_display_only)):
+            for action, value in ((self.search_match_case_action, mc),
+                                  (self.search_whole_word_action, ww),
+                                  (self.search_display_only_action, do)):
                 action.blockSignals(True)
                 action.setChecked(value)
                 action.blockSignals(False)
@@ -1244,17 +1234,9 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.filter_by_author_cb.stateChanged.connect(lambda: self.filter_commits(self.search_edit.text()))
         search_row_layout.addWidget(self.filter_by_author_cb)
 
-        # Debounce timer for diff search (expensive)
-        self._diff_search_timer = QTimer(self)
-        self._diff_search_timer.setSingleShot(True)
-        self._diff_search_timer.setInterval(300)
-        self._diff_search_timer.timeout.connect(self._run_filter_with_diff)
-
-        # Inline status label shown during diff search
-        self._DIFF_NEUTRAL_STYLE = "color: gray; font-style: italic; font-size: 10pt;"
-        self._DIFF_HINT_STYLE = "color: #d73a49; font-weight: bold; font-size: 10pt;"
+        # Inline status label shown during diff search (timer and style constants
+        # live in CommitFilterController).
         self._diff_status_label = QLabel("Searching diffs...")
-        self._diff_status_label.setStyleSheet(self._DIFF_NEUTRAL_STYLE)
         self._diff_status_label.setVisible(False)
         search_row_layout.addWidget(self._diff_status_label)
 
@@ -1731,6 +1713,16 @@ class GitInteractiveRebaseApp(QMainWindow):
             self._browse_overlay = BrowseDimOverlay(self, self.is_dark_theme)
             self._browse_overlay.raise_()
 
+        # Create the commit-list filter controller.
+        from lib.commit_filter_controller import CommitFilterController
+        self._filter_controller = CommitFilterController(
+            self, self.list_widget, self.commit_cache, self.repo_path,
+            self.search_edit, self.filter_by_files_cb, self.filter_by_diff_cb,
+            self.filter_by_author_cb, self._diff_status_label,
+            self.showing_commits_label, self.sep_merge, self.merge_commits_label,
+            MATCH_ROLE, _diff_search_matches, get_commit_files_with_status,
+            get_commit_diff, self.settings, self._sk)
+
     def resizeEvent(self, event):
         super().resizeEvent(event)
         if getattr(self, '_browse_overlay', None) is not None:
@@ -1989,277 +1981,17 @@ class GitInteractiveRebaseApp(QMainWindow):
 
     def _on_search_option_changed(self):
         """Persist the three search options and immediately re-run the active search."""
-        self.search_match_case = self.search_match_case_action.isChecked()
-        self.search_whole_word = self.search_whole_word_action.isChecked()
-        self.search_display_only = self.search_display_only_action.isChecked()
-        self.settings.setValue(self._sk("search_match_case"), self.search_match_case)
-        self.settings.setValue(self._sk("search_display_only"), self.search_display_only)
-        self.filter_commits(self.search_edit.text())
-
-    def _normalize_search_term(self, term):
-        """Resolve any 4-40 hex SHA prefix (10-char, full 40-char SHA, etc.) to
-        the exact short form git displays in the list rows, so SHA searches of
-        any length match. Falls back to the raw term when it isn't a unique
-        resolvable object (garbage text, ambiguous prefixes, etc.)."""
-        if self._search_norm_memo is not None and self._search_norm_memo[0] == term:
-            return self._search_norm_memo[1]
-        normalized = term
-        if re.fullmatch(r"[0-9a-fA-F]{4,40}", term):
-            try:
-                res = subprocess.run(["git", "rev-parse", "--short", term],
-                                     cwd=self.repo_path, capture_output=True, text=True,
-                                     check=True, encoding='utf-8', errors='replace')
-                normalized = res.stdout.strip() or term
-            except Exception:
-                pass
-        self._search_norm_memo = (term, normalized)
-        return normalized
-
-    def _search_matches(self, haystack, term):
-        """Returns True if *term* matches *haystack* honoring Match Case and Whole Word.
-        Reuses the same word-boundary semantics as the DiffSearchBar."""
-        return _diff_search_matches(
-            haystack, term, self.search_match_case, self.search_whole_word)
+        mc = self.search_match_case_action.isChecked()
+        ww = self.search_whole_word_action.isChecked()
+        do = self.search_display_only_action.isChecked()
+        self._filter_controller.set_search_options(mc, ww, do)
+        self.settings.setValue(self._sk("search_match_case"), mc)
+        self.settings.setValue(self._sk("search_display_only"), do)
+        self._filter_controller.filter_commits(self.search_edit.text())
 
     def filter_commits(self, text):
-        """Live-filters commits. Diff search is debounced; msg/filename filtering is instant."""
-        # Bump the generation so any in-flight async diff search becomes stale.
-        self._diff_search_gen += 1
-        search_term = self._normalize_search_term(text.strip())
-        by_diff = self.filter_by_diff_cb.isChecked()
-
-        # Always run instant filters (msg + filenames) immediately
-        self._run_filter_no_diff(search_term)
-
-        # Trigger debounced diff search only when needed
-        if by_diff and len(search_term) >= 3:
-            self._diff_status_label.setStyleSheet(self._DIFF_NEUTRAL_STYLE)
-            self._diff_status_label.setText("Searching diffs...")
-            self._diff_status_label.setVisible(True)
-            self._diff_search_timer.start()  # restarts 300ms window each keystroke
-        elif by_diff and search_term:
-            self._diff_search_timer.stop()
-            self._diff_status_label.setStyleSheet(self._DIFF_HINT_STYLE)
-            self._diff_status_label.setText("Diff search needs ≥ 3 characters")
-            self._diff_status_label.setVisible(True)
-        else:
-            self._diff_search_timer.stop()
-            self._diff_status_label.setVisible(False)
-
-    def _run_filter_no_diff(self, search_term=None):
-        """Instant filtering by commit message, filenames, and author.
-        When "Display Only Matching" is off, all commits stay visible and matching
-        ones are flagged (MATCH_ROLE) for bolding; when on, non-matching commits
-        are hidden."""
-        search_term = self._normalize_search_term(
-            search_term if search_term is not None else self.search_edit.text().strip())
-
-        by_msg = True
-        by_files = self.filter_by_files_cb.isChecked()
-        by_diff = self.filter_by_diff_cb.isChecked()
-        by_author = self.filter_by_author_cb.isChecked()
-
-        # If no text or all disabled → show all and clear any diff-pending markers
-        if not search_term or (not by_msg and not by_files and not by_diff and not by_author):
-            for i in range(self.list_widget.count()):
-                item = self.list_widget.item(i)
-                item.setHidden(False)
-                item.setData(MATCH_ROLE, False)
-            self._update_commit_counts()
-            self.list_widget.viewport().update()
-            return
-
-        for i in range(self.list_widget.count()):
-            item = self.list_widget.item(i)
-            item_text = item.text()
-            sha = item.text().split()[0]
-
-            matched = False
-
-            # Commit message / SHA match (subject line or full message body)
-            if by_msg and (self._search_matches(item_text, search_term) or self._search_matches(item.data(Qt.UserRole + 6) or "", search_term)):
-                matched = True
-
-            # Filename match — lazy-load via existing commit_cache
-            if not matched and by_files:
-                cache_entry = self.commit_cache.get(sha, {})
-                if 'files' not in cache_entry:
-                    try:
-                        cache_entry['files'] = get_commit_files_with_status(self.repo_path, sha)
-                        self.commit_cache[sha] = cache_entry
-                    except Exception:
-                        cache_entry['files'] = []
-                        self.commit_cache[sha] = cache_entry
-                file_entries = cache_entry.get('files', [])
-                for _status, path1, path2 in file_entries:
-                    display = f"{path1} => {path2}" if _status == 'R' else path1
-                    if self._search_matches(display, search_term):
-                        matched = True
-                        break
-
-            # Author match (name or email) — stored at init, instant
-            if not matched and by_author:
-                author = item.data(Qt.UserRole + 4) or ""
-                if self._search_matches(author, search_term):
-                    matched = True
-
-            # When diff search is enabled keep items visible for now (diff pass will correct)
-            if not matched and by_diff and self.search_display_only:
-                matched = True  # tentatively show — diff pass will hide non-matching ones
-
-            item.setData(MATCH_ROLE, matched)
-            if self.search_display_only:
-                item.setHidden(not matched)
-            else:
-                item.setHidden(False)
-
-        self._update_commit_counts()
-        self.list_widget.viewport().update()
-
-    def _run_filter_with_diff(self):
-        """Debounced diff search. With "Display Only Matching" on, hides commits
-        that do NOT match the diff text; with it off, all commits stay visible
-        and diff-matching rows are flagged (MATCH_ROLE) so they get bolded.
-
-        The expensive per-commit diff scan runs in a background thread; only
-        plain Python data crosses the thread boundary. Qt widgets are touched
-        exclusively on the GUI thread in _diff_search_finished."""
-        search_term = self._normalize_search_term(self.search_edit.text().strip())
-        if len(search_term) < 3 or not self.filter_by_diff_cb.isChecked():
-            self._diff_status_label.setVisible(False)
-            return
-
-        gen = self._diff_search_gen
-        by_msg = True
-        by_files = self.filter_by_files_cb.isChecked()
-        by_author = self.filter_by_author_cb.isChecked()
-        display_only = self.search_display_only
-        match_case = self.search_match_case
-        whole_word = self.search_whole_word
-
-        # Snapshot plain Python data for the worker. Qt widgets are only read
-        # here (GUI thread); the worker never touches them.
-        snapshot = []
-        sha_to_item = {}
-        for i in range(self.list_widget.count()):
-            item = self.list_widget.item(i)
-            if item.isHidden():
-                continue  # already filtered out by faster passes
-            sha = item.text().split()[0]
-            cache_entry = self.commit_cache.get(sha, {})
-            snapshot.append({
-                "sha": sha,
-                "text": item.text(),
-                "msg": item.data(Qt.UserRole + 6) or "",
-                "author": item.data(Qt.UserRole + 4) or "",
-                "files": cache_entry.get('files', []),
-                "diff": cache_entry.get('diff'),
-            })
-            sha_to_item[sha] = i
-
-        import threading
-        from PySide6.QtCore import QMetaObject
-        repo_path = self.repo_path
-
-        def worker():
-            results = []
-            new_diffs = {}
-            error = None
-            try:
-                for entry in snapshot:
-                    sha = entry["sha"]
-                    already_matched = (by_msg and (
-                        _diff_search_matches(entry["text"], search_term, match_case, whole_word)
-                        or _diff_search_matches(entry["msg"], search_term, match_case, whole_word)))
-                    if not already_matched and by_files:
-                        for _status, path1, path2 in entry["files"]:
-                            display = f"{path1} => {path2}" if _status == 'R' else path1
-                            if _diff_search_matches(display, search_term, match_case, whole_word):
-                                already_matched = True
-                                break
-                    if not already_matched and by_author:
-                        already_matched = _diff_search_matches(entry["author"], search_term, match_case, whole_word)
-
-                    if already_matched:
-                        results.append({"sha": sha, "match_role": False, "hide": False})
-                        continue
-
-                    diff_text = entry["diff"]
-                    if diff_text is None:
-                        try:
-                            diff_text = get_commit_diff(repo_path, sha)
-                        except Exception:
-                            diff_text = ''
-                        new_diffs[sha] = diff_text
-
-                    diff_matched = _diff_search_matches(diff_text, search_term, match_case, whole_word)
-                    results.append({
-                        "sha": sha,
-                        "match_role": diff_matched and not display_only,
-                        "hide": (not diff_matched) and display_only,
-                    })
-            except Exception as exc:
-                error = exc
-            self._diff_search_queue.append((gen, results, new_diffs, error, sha_to_item))
-            QMetaObject.invokeMethod(self, "_diff_search_finished", Qt.QueuedConnection)
-
-        thread = threading.Thread(target=worker, daemon=True)
-        thread.start()
-
-    @Slot()
-    def _diff_search_finished(self):
-        """Applies an async diff-search result on the GUI thread. Discards results
-        from stale generations so an older search can never overwrite a newer one."""
-        while self._diff_search_queue:
-            gen, results, new_diffs, error, sha_to_item = self._diff_search_queue.pop(0)
-
-            # Cache the diffs fetched by the worker regardless of staleness — they are
-            # deterministic and benefit any future search or diff view.
-            if new_diffs:
-                for sha, diff_text in new_diffs.items():
-                    entry = self.commit_cache.setdefault(sha, {})
-                    if 'diff' not in entry:
-                        entry['diff'] = diff_text
-
-            if gen != self._diff_search_gen:
-                continue  # stale: a newer search started while this one was running
-
-            if error is not None:
-                print(f"[app_window] diff search failed: {error}")
-                self._diff_status_label.setVisible(False)
-                return
-
-            display_only = self.search_display_only
-            for entry in results:
-                idx = sha_to_item.get(entry["sha"])
-                if idx is None:
-                    continue
-                item = self.list_widget.item(idx)
-                if entry["hide"]:
-                    item.setHidden(True)
-                elif entry["match_role"] and not display_only:
-                    item.setData(MATCH_ROLE, True)
-
-            self._diff_status_label.setVisible(False)
-            self._update_commit_counts()
-            self.list_widget.viewport().update()
-
-    def _update_commit_counts(self):
-        total = self.list_widget.count()
-        showing = 0
-        merge_showing = 0
-        for i in range(total):
-            item = self.list_widget.item(i)
-            if not item.isHidden():
-                showing += 1
-                if item.data(Qt.UserRole + 5):
-                    merge_showing += 1
-        self.showing_commits_label.setText(f"Showing: {showing}")
-        has_merges = merge_showing > 0
-        self.sep_merge.setVisible(has_merges)
-        self.merge_commits_label.setVisible(has_merges)
-        if has_merges:
-            self.merge_commits_label.setText(f"Merge: {merge_showing}")
+        """Live-filters commits.  Delegates to CommitFilterController."""
+        self._filter_controller.filter_commits(text)
 
     def _count_total_commits_async(self):
         """Count total commits in repo in background thread to avoid blocking startup."""
@@ -6747,7 +6479,7 @@ for i, filename in enumerate(files):
             return
 
         # Invalidate cache as history might have changed
-        self.commit_cache = {}
+        self.commit_cache.clear()
 
         # Clear search when reloading history
         self.update_window_title()
@@ -6827,7 +6559,7 @@ for i, filename in enumerate(files):
 
         self.total_commits_label.setText("Total: counting...")
         self._count_total_commits_async()
-        self._update_commit_counts()
+        self._filter_controller._update_commit_counts()
 
         # Re-apply the active search/filter so it isn't silently dropped after a reload
         if hasattr(self, 'search_edit'):
