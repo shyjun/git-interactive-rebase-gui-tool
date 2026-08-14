@@ -4376,8 +4376,10 @@ class GitInteractiveRebaseApp(QMainWindow):
                 box.setTextFormat(Qt.RichText)
                 box.setText(
                     f"<p>Dropping of <b>{sha[:10]}</b> failed. What to do?</p>"
-                    f"<p>List of commits dropped:<br/>{fmt(dropped_shas)}</p>"
-                    f"<p>List of commits to be dropped:<br/>{fmt(remaining)}</p>"
+                    f"<p>List of commits dropped:<br/>"
+                    f"<span style='font-family:monospace'>{fmt(dropped_shas)}</span></p>"
+                    f"<p>List of commits to be dropped:<br/>"
+                    f"<span style='font-family:monospace'>{fmt(remaining)}</span></p>"
                 )
                 copy_btn = box.addButton("Copy current commit id to clipboard", QMessageBox.ActionRole)
                 skip_btn = box.addButton("Skip this, and continue with next", QMessageBox.AcceptRole)
@@ -4405,8 +4407,10 @@ class GitInteractiveRebaseApp(QMainWindow):
             box.setTextFormat(Qt.RichText)
             box.setText(
                 f"<p>Drop partially succeeded.</p>"
-                f"<p>Dropped:<br/>{fmt(dropped_shas)}</p>"
-                f"<p>Not dropped:<br/>{fmt(not_dropped)}</p>"
+                f"<p>Dropped:<br/>"
+                f"<span style='font-family:monospace'>{fmt(dropped_shas)}</span></p>"
+                f"<p>Not dropped:<br/>"
+                f"<span style='font-family:monospace'>{fmt(not_dropped)}</span></p>"
             )
             box.addButton("OK", QMessageBox.AcceptRole)
             box.exec()
