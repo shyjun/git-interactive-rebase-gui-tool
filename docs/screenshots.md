@@ -11,38 +11,66 @@ Visual documentation for the Git Interactive Rebase GUI Tool. Each section showc
 1. [Launch](#1-launch)
 2. [Main Interface](#2-main-interface)
 3. [Context Menu](#3-context-menu)
-4. [Search & Filter](#4-search--filter)
-5. [Diff Viewer](#5-diff-viewer)
-    - [5.1 Diff Search](#51-diff-search)
-6. [File-wise Diff Viewer](#6-file-wise-diff-viewer)
-7. [Rephrase Commit](#7-rephrase-commit)
-8. [Drop Commit](#8-drop-commit)
-9. [Reorder Commits](#9-reorder-commits)
-10. [Squash Commits](#10-squash-commits)
-11. [Split Dialog](#11-split-dialog)
-12. [Refine Changes in File](#12-refine-changes-in-file)
-    - [12.1 Selectively Drop Changes / Hunks](#121-selectively-drop-changes--hunks)
-    - [12.2 Keep Only Selected Changes / Hunks](#122-keep-only-selected-changes--hunks)
-    - [12.3 Move Selected Changes to a Separate Commit](#123-move-selected-changes-to-a-separate-commit)
-    - [12.4 Edit Hunk](#124-edit-hunk)
-13. [Rescan Repository for Changes](#13-rescan-repository-for-changes)
-14. [Reset Options](#14-reset-options)
-15. [Rebase Options](#15-rebase-options)
-16. [Themes (Light / Dark)](#16-themes-light--dark)
-17. [Zoom Controls](#17-zoom-controls)
-18. [Mark / Unmark Commit](#18-mark--unmark-commit)
-19. [Show Local Branches](#19-show-local-branches)
-20. [Copy to Clipboard](#20-copy-to-clipboard)
-21. [Unstaged Changes Handling](#21-unstaged-changes-handling)
-22. [Keyboard Shortcuts](#22-keyboard-shortcuts)
+4. [Repo Menu](#4-repo-menu)
+5. [Configure Menu](#5-configure-menu)
+6. [Multi-Select Menu](#6-multi-select-menu)
+7. [Search & Filter](#7-search--filter)
+8. [Diff Search Bar](#8-diff-search-bar)
+9. [Diff Viewer](#9-diff-viewer)
+10. [Diff Pane](#10-diff-pane)
+11. [Rephrase Commit](#11-rephrase-commit)
+12. [Drop Commit](#12-drop-commit)
+13. [Reorder Commits](#13-reorder-commits)
+14. [Multi-Select Actions](#14-multi-select-actions)
+15. [Squash Commits](#15-squash-commits)
+16. [Split Dialog](#16-split-dialog)
+17. [Refine Changes in File](#17-refine-changes-in-file)
+    - [17.1 Selectively Drop Changes / Hunks](#171-selectively-drop-changes--hunks)
+    - [17.2 Keep Only Selected Changes / Hunks](#172-keep-only-selected-changes--hunks)
+    - [17.3 Move Selected Changes to a Separate Commit](#173-move-selected-changes-to-a-separate-commit)
+    - [17.4 Edit Hunk](#174-edit-hunk)
+18. [Unstaged / Uncommitted Changes Handling](#18-unstaged--uncommitted-changes-handling)
+    - [18.1 At Startup](#at-startup)
+    - [18.2 During a Session: Rescan Repository](#during-a-session-rescan-repository)
+    - [18.3 Commit Selectively](#commit-selectively)
+        - [18.3.1 Hunk-level commit with git add -p](#hunk-level-commit-with-git-add--p)
+19. [Reset Options](#19-reset-options)
+20. [Rebase Options](#20-rebase-options)
+21. [Browse Branch](#21-browse-branch)
+22. [Browse File Log](#22-browse-file-log)
+23. [PR Diff / PR Preview](#23-pr-diff--pr-preview)
+24. [Consolidated Diff](#24-consolidated-diff)
+25. [Find Merge-base](#25-find-merge-base)
+26. [Cherry-pick](#26-cherry-pick)
+27. [Viewer Mode](#27-viewer-mode)
+28. [Themes (Light / Dark)](#28-themes-light--dark)
+29. [Zoom Controls](#29-zoom-controls)
+30. [Mark / Unmark Commit](#30-mark--unmark-commit)
+31. [Show Local Branches](#31-show-local-branches)
+32. [Copy to Clipboard](#32-copy-to-clipboard)
+33. [Keyboard Shortcuts](#33-keyboard-shortcuts)
 
 ---
 
 ## 1. Launch
 
-Launch the application by specifying a commit range or let the tool automatically detect the branch base.
+Launch the application by specifying a commit range, using the auto-detected branch base, or starting in read-only Viewer Mode.
 
-### Option 1: Show commits since a specific commit (provide SHA as argument)
+### Option 1: Auto-detect branch base (default, recommended)
+
+Just run the tool with **no commit argument** — it automatically detects the base branch (for example, `main` or `master`) and shows the commits since the branch divergence point.
+
+This is the most useful way to launch: it shows **only your branch's changes**, i.e. everything you've done since the branch split from the base — ideal for reviewing and cleaning up your feature branch before raising a PR.
+
+If detection fails, it falls back to displaying the **200 most recent commits from HEAD**.
+
+**Screenshot:** `screenshots/head-commits.webp`
+
+![Launch Options](screenshots/head-commits.webp)
+
+**Description:** The screenshot above shows the application launched using `python3 git_interactive_rebase.py HEAD~N` (where `N` is the number of commits to show).
+
+### Option 2: Show commits since a specific commit (provide SHA as argument)
 
 View commits starting from a specific commit SHA or relative HEAD reference.
 
@@ -56,19 +84,15 @@ You can specify commits using:
 python3 git_interactive_rebase.py <commit-sha>
 python3 git_interactive_rebase.py HEAD~N
 python3 git_interactive_rebase.py HEAD^^^
-````
+```
 
-### Option 2: Auto-detect branch base
+### Option 3: Start in Viewer Mode (read-only)
 
-When no commit SHA is provided, the tool automatically detects the base branch (for example, `main` or `master`) and shows commits from the branch divergence point.
+Launch the tool with all history-modifying operations disabled. Useful for safely browsing a repository (see [Viewer Mode](#27-viewer-mode)).
 
-If detection fails, it falls back to displaying the **200 most recent commits from HEAD**.
-
-**Screenshot:** `screenshots/head-commits.webp`
-
-![Launch Options](screenshots/head-commits.webp)
-
-**Description:** The screenshot above shows the application launched using `python3 git_interactive_rebase.py HEAD~6`.
+```bash
+python3 git_interactive_rebase.py --viewer-mode
+```
 
 ---
 
@@ -80,7 +104,19 @@ The main window displays your commit history in an interactive list with action 
 
 ![Main Interface](screenshots/main-interface.webp)
 
-**Description:** The main window shows the commit list with SHA, message, and branch indicators. The details panel displays commit metadata (SHA, author, date, changed files). The right side pane shows diffs in plain view or file-wise view. The top toolbar includes search, theme toggle, zoom controls, and reset options. Right-click any commit to access the context menu with all rebase actions.
+**Description:** The main window shows the commit list with SHA, message, and branch indicators. The details panel displays commit metadata (SHA, author, date, changed files). A **diff pane** is docked on the right side (marked in the screenshot above) — click any commit to view its diff there (added lines in green, removed lines in red, with line numbers), in either **Plain Diff** or **File-wise Diff** mode (see [9](#9-diff-viewer) and [10](#10-diff-pane)). The top toolbar includes search, the **Search Options** dropdown (Match Case / Whole Word / Display Only Matching), theme toggle, zoom controls, a **Repo** menu (View PR Diff, View a Commit, Cherry-pick 1 Commit, Browse Branch, Browse File Log, Find Merge-base), and reset options.
+
+The status bar holds a **Configure** button whose **Show/Hide** menu lets you toggle which markers/columns and controls are visible — each choice is remembered across sessions:
+
+- **Show Origin** → origin markers
+- **Show Rebase** → rebase markers
+- **Show Squash** → squash markers
+- **Show Local Branches** → local/remote branch names next to commits
+- **Show Stats** → per-commit line stats
+- **Show Date** → commit dates
+- **Show Diffs** → the right-side diff pane
+
+The status bar also shows the commit count. Right-click any commit to access the context menu with all rebase actions.
 
 ---
 
@@ -94,18 +130,85 @@ Access all commit actions via right-click menu.
 
 **Description:** Right-click any commit to see the context menu with all available actions:
 
-- View full commit
+- Show / View commit {sha} (opens the tabbed Plain + File-wise viewer)
+- Mark / Unmark commit
 - Copy SHA / Copy Message / Copy Both
-- Squash with above
+- Reset hard to this commit
+- Reset HEAD to here (keep changes unstaged)
+- Set Best Commit ID
 - Rephrase
 - Drop
-- Split
-- Mark / Unmark commit
-- Reset hard to this commit
+- Revert
+- Squash commits (with above / below, or select multiple)
+- Move Commit (up / down, or drag to reorder)
+- Split Commit (drop file change, move file out, split to separate commits)
+- Refine changes (hunk-level)
+- Consolidated Diff (set start, diff to here, diff HEAD to here)
+- Browse file log
 
 ---
 
-## 4. Search & Filter
+## 4. Repo Menu
+
+The **Repo** button in the main window's toolbar groups the repository-wide tools in one menu.
+
+**Screenshot:** `screenshots/repo-menu.webp`
+
+![Repo Menu](screenshots/repo-menu.webp)
+
+**Description:** Click **Repo** in the toolbar to open the menu. It offers:
+
+- **View PR Diff** → Open a read-only **PR Preview** showing the combined branch diff versus its merge-base (see [PR Diff / PR Preview](#23-pr-diff--pr-preview))
+- **View a Commit…** → Open any commit by SHA in a read-only tabbed viewer (Plain / File-wise diff)
+- **Cherry-pick 1 Commit** → Cherry-pick a single commit by SHA (see [Cherry-pick](#26-cherry-pick))
+- **Browse Branch** → Open a read-only window of another branch's history (see [Browse Branch](#21-browse-branch))
+- **Browse File Log** → Open a read-only window of a single file's history (see [Browse File Log](#22-browse-file-log))
+- **Find Merge-base…** → Compute the merge-base between the current branch and another branch (see [Find Merge-base](#25-find-merge-base))
+
+---
+
+## 5. Configure Menu
+
+The **Configure** button in the status bar controls which markers, columns, and panels are visible.
+
+**Screenshot:** `screenshots/configure-menu.webp`
+
+![Configure Menu](screenshots/configure-menu.webp)
+
+**Description:** Click **Configure** in the status bar to open the menu. The **Show/Hide** submenu lets you toggle each item; the choices are remembered across sessions:
+
+- **Show Origin** → origin markers
+- **Show Rebase** → rebase markers (see [Rebase Options](#20-rebase-options))
+- **Show Squash** → squash markers
+- **Show Local Branches** → local/remote branch names next to commits (see [Show Local Branches](#31-show-local-branches))
+- **Show Stats** → per-commit line stats
+- **Show Date** → commit dates
+- **Show Diffs** → the right-side diff pane (see [Diff Pane](#10-diff-pane))
+
+The menu also includes **Help** (links to the demo video, README, and contact) and **Check Updates** (compares the running version against the remote).
+
+---
+
+## 6. Multi-Select Menu
+
+The **Perform action on selected commits** menu lists the actions that can be applied to the commits checked in multi-select mode.
+
+**Screenshot:** `screenshots/multi-select-menu.webp` *(placeholder — the menu screenshot will be captured and added here)*
+
+![Multi-Select Menu](screenshots/multi-select-menu.webp)
+
+**Description:** Enter multi-select mode with **Select multiple commits**, then open the **Perform action on selected commits** menu (next to the selection button). Each commit gets a tick box, and the menu offers the following actions based on how many commits are checked:
+
+- **Squash selected commits** → Available when **2 or more** adjacent commits are checked (see [Squash Commits](#15-squash-commits))
+- **Mark selected commits** → Available when **1 or more** commits are checked (see [Mark / Unmark Commit](#30-mark--unmark-commit))
+- **Drop selected commits** → Available when **1 or more** commits are checked (see [Drop Commit](#12-drop-commit))
+- **Move selected commits** → Shows a hint explaining that a contiguous (adjacent) block of checked commits can be dragged to a new position (see [Reorder Commits](#13-reorder-commits))
+
+The actions are described in detail in [Multi-Select Actions](#14-multi-select-actions).
+
+---
+
+## 7. Search & Filter
 
 Quickly locate commits using live search and advanced filtering options.
 
@@ -115,13 +218,18 @@ Quickly locate commits using live search and advanced filtering options.
 
 **Description:** Click the search bar or press `/` to focus it. Type to filter commits live. Matching commits are shown instantly as you type.
 
-Filtering supports the following modes:
+Filtering supports the following modes (enable one or multiple at the same time for more precise searching):
 
-- **Message / SHA** → Search by commit message text or SHA
+- **Message / SHA** → Search by commit message text or SHA (short, partial, or full 40-character SHA-prefix)
 - **Filenames** → Search commits that modified a specific file
-- **Diff** → Search inside commit diff/content
+- **Diff** → Search inside commit diff/content (runs in the background; requires at least **3 characters**)
+- **Author** → Search by author name or email
 
-You can enable one or multiple filter modes at the same time for more precise searching.
+**Search Options** (dropdown next to the search bar):
+
+- **Match Case** → Match exact letter case
+- **Whole Word** → Match complete words only (always starts **off** on each launch)
+- **Display Only Matching** → Hide non-matching commits; matching commits are bolded when this is off
 
 This is especially useful when trying to locate where a change was introduced and you only remember a filename, symbol, function name, commit message, or code snippet.
 
@@ -129,27 +237,15 @@ Press `Esc` to clear the search and return to the full commit history.
 
 ---
 
-## 5. Diff Viewer
+## 8. Diff Search Bar
 
-View code changes with syntax highlighting for added and removed lines.
-
-**Screenshot:** `screenshots/diff-viewer.webp`
-
-![Diff Viewer](screenshots/diff-viewer.webp)
-
-**Description:** Click any commit to view its diff in the right panel. Added lines are highlighted in green, removed lines in red. The diff is displayed in a scrollable view with line numbers.
-
----
-
-### 5.1 Search in Diff
-
-Quickly search for text inside the displayed diff.
+Quickly search for text inside any displayed diff.
 
 **Screenshot:** `screenshots/diff-search.webp`
 
-![Search in Diff](screenshots/diff-search.webp)
+![Diff Search Bar](screenshots/diff-search.webp)
 
-**Description:** Press `Ctrl+F` while viewing a diff to open the diff search bar.
+**Description:** The diff search bar is a shared toolbar available in **every** diff view — the main window's **Plain Diff** / **File-wise Diff** tabs, the **View a Commit** viewer, **PR Diff / Unstaged Diff**, the **Split / Drop / Confirm** dialogs, and the **Commit Selectively** preview. It is visible by default; press `Ctrl+F` to focus it.
 
 Search supports:
 
@@ -157,25 +253,70 @@ Search supports:
 - **Whole Word** → Match complete words only
 - **Previous / Next navigation (`<` / `>`)** → Jump between matches
 - **Match counter** → Shows current match position (e.g., `2/10`)
+- **Line-Num** → Highlight matching line numbers
 
-Press `Esc` to close the search bar.
+Press `Esc` to clear the search.
 
 ---
 
-## 6. File-wise Diff Viewer
+## 9. Diff Viewer
 
-Browse commit changes file by file.
+The commit diff can be viewed in two modes (tabs):
+
+- **Plain Diff** → the full commit diff in one scrollable view (see [9.1](#91-plain-diff))
+- **File-wise Diff** → the commit's changes listed file by file (see [9.2](#92-file-wise-diff))
+
+---
+
+### 9.1 Plain Diff
+
+Browse a commit's diff as a single combined view.
+
+**Screenshot:** `screenshots/plain-diff.webp`
+
+![Plain Diff](screenshots/plain-diff.webp)
+
+**Description:** The **Plain Diff** tab shows the full commit diff in one scrollable, syntax-highlighted view with line numbers — useful for reviewing the complete change set at a glance.
+
+---
+
+### 9.2 File-wise Diff
+
+Browse a commit's changes file by file.
 
 **Screenshot:** `screenshots/file-wise-diff-viewer.webp`
 
 ![File-wise Diff Viewer](screenshots/file-wise-diff-viewer.webp)
 
-**Description:** Click the "File-wise View" button to open a dialog listing all changed files. Select any file to view its specific diff. This makes it easy to understand what each file contributed to the commit.
+**Description:** Switch to the **File-wise Diff** tab (in the right panel, or in the commit viewer) to list all changed files for the selected commit. Select any file to view its specific diff. This makes it easy to understand what each file contributed to the commit. Renames are shown as one `old => new` row.
+
+Right-click a file in the file-wise file list for per-file actions:
+
+- **Copy filename to clipboard**
+- **Browse file log** → opens a read-only viewer of that file's history
+
+When the viewer was opened from a commit in the current list (right-click **Show / View commit {sha}**, or double-click), the commit is known to be in the current branch, so history-modifying actions are also available:
+
+- **Move file changes out of this commit** (disabled when the commit has only one file)
+- **Drop file changes from this commit** (disabled when the commit has only one file)
+- **Remove file from this commit onwards**
+- **Refine/Edit changes in selected file**
+
+When the viewer was opened by SHA via **Repo → View a Commit…**, the commit may be arbitrary (even outside the current branch), so only the safe actions (**Copy filename**, **Browse file log**) are shown.
 
 ---
 
-## 7. Rephrase Commit
+## 10. Diff Pane
 
+A diff viewer is docked at the right side of the main window.
+
+**Description:** A diff viewer is docked towards the main window's right-side pane. Click any commit to view its diff there — added lines in green, removed lines in red, with line numbers. The pane offers two modes, **Plain Diff** and **File-wise Diff** (see [9](#9-diff-viewer)).
+
+- **Configure → Show/Hide → Show Diffs** toggles the right-side diff pane; the choice is remembered across sessions.
+
+---
+
+## 11. Rephrase Commit
 Update the commit message without changing the commit contents.
 
 **Screenshot:** `screenshots/rephrase-commit.webp`
@@ -186,8 +327,7 @@ Update the commit message without changing the commit contents.
 
 ---
 
-## 8. Drop Commit
-
+## 12. Drop Commit
 Remove a commit entirely from the history.
 
 **Screenshot:** `screenshots/drop-commit.webp`
@@ -198,8 +338,7 @@ Remove a commit entirely from the history.
 
 ---
 
-## 9. Reorder Commits
-
+## 13. Reorder Commits
 Change commit order to organize history before rebasing.
 
 **Screenshot:** `screenshots/drag-reorder.webp`
@@ -216,10 +355,27 @@ Available options include:
 
 A visual indicator shows where the commit will be placed before confirming the reorder.
 
+In multi-select mode you can also drag a whole block of adjacent (contiguous) checked commits to a new position together (see [Multi-Select Actions](#14-multi-select-actions)).
+
 ---
 
-## 10. Squash Commits
+## 14. Multi-Select Actions
 
+Perform an action on multiple commits at once — squash an adjacent range, mark many commits, drop several in one go, or reorder a contiguous block. The **Perform action on selected commits** menu is shown in the [Multi-Select Menu](#6-multi-select-menu) screenshot.
+
+Enter multi-selection mode with the **Select multiple commits** button in the toolbar (or via the context menu), then check the commits you want to act on. Each commit gets a tick box; the **Perform action on selected commits** menu (next to the selection button) offers the available actions based on how many commits are checked:
+
+- **Squash selected commits** → Available when **2 or more** adjacent commits are checked. Opens the squash dialog to combine them into one (see [Squash Commits](#15-squash-commits))
+- **Mark selected commits** → Available when **1 or more** commits are checked. Marks all checked commits at once (see [Mark / Unmark Commit](#30-mark--unmark-commit))
+- **Drop selected commits** → Available when **1 or more** commits are checked. Drops the checked commits one by one, **newest first**. If a drop fails part-way through, you can **skip that commit and continue** with the remaining pending ones, or **stop** and handle it manually (see [Drop Commit](#12-drop-commit))
+- **Move selected commits** → Available when **1 or more** commits are checked. Shows a hint explaining that a contiguous (adjacent) block of checked commits can be dragged to a new position to reorder them together (see [Reorder Commits](#13-reorder-commits)).
+- **Drag to reorder** → In multi-select mode you can also click and drag the checked commits as a group to a new position. The checked commits must form one **adjacent (contiguous) block**; dragging works like the normal reorder drag (see [Reorder Commits](#13-reorder-commits)). A confirmation dialog shows the range being moved before it is applied.
+
+To leave selection mode without acting, click **Cancel multiple selection** (or use the context menu) to deselect everything and return to normal mode.
+
+---
+
+## 15. Squash Commits
 Combine multiple commits into one.
 
 ### Option 1: Squash Commit with above / below commit
@@ -244,14 +400,11 @@ Squash multiple adjacent commits at once.
 
 ![Multi Squash](screenshots/multi-squash.webp)
 
-**Description:** Switch to multiple commit selection mode using the highlighted button in the toolbar (or via the context menu), then select multiple adjacent commits by clicking on them. Once selected, click the "Squash selected commits" button (or use the context menu) to open the squash dialog. Edit the combined commit message in the dialog and click "Confirm" to apply.
-
-To exit multi-selection mode without squashing, click the cancel multi-selection button (or use the context menu) to deselect and return to normal mode.
+**Description:** In multi-select mode (see [Multi-Select Actions](#14-multi-select-actions)), select multiple adjacent commits by clicking on them, then choose **Squash selected commits** from the **Perform action on selected commits** menu (or use the context menu) to open the squash dialog. Edit the combined commit message in the dialog and click "Confirm" to apply.
 
 ---
 
-## 11. Split Dialog
-
+## 16. Split Dialog
 Break a commit into multiple smaller commits by file or change.
 
 **Screenshot:** `screenshots/split-context-menu.webp`
@@ -288,8 +441,7 @@ Breaks all changes in a single file into individual commits per file change. Ava
 
 ---
 
-## 12. Refine Changes in File
-
+## 17. Refine Changes in File
 Selectively refine changes/hunks inside a file within a commit.
 
 This is useful when a file accidentally contains mixed changes such as feature work, debug code, documentation updates, or unrelated edits.
@@ -302,7 +454,7 @@ This is useful when a file accidentally contains mixed changes such as feature w
 
 ---
 
-### 12.1 Selectively Drop Changes / Hunks
+### 17.1 Selectively Drop Changes / Hunks
 
 Drop only selected changes/hunks from a file while keeping the remaining changes in the commit intact.
 
@@ -315,7 +467,7 @@ Useful for removing accidental debug code, temporary changes, or unrelated edits
 
 ---
 
-### 12.2 Keep Only Selected Changes / Hunks
+### 17.2 Keep Only Selected Changes / Hunks
 
 Keep only selected changes/hunks and drop everything else from the file within the commit.
 
@@ -328,7 +480,7 @@ Useful when a commit contains mixed or unrelated changes and only part of it sho
 
 ---
 
-### 12.3 Move Selected Changes to a Separate Commit
+### 17.3 Move Selected Changes to a Separate Commit
 
 Move selected changes/hunks into a new separate commit.
 
@@ -341,7 +493,7 @@ Useful when a change accidentally landed in the wrong commit. Move it out, reord
 
 ---
 
-### 12.4 Edit Hunk
+### 17.4 Edit Hunk
 
 Edit a selected hunk using a lightweight patch editor.
 
@@ -366,9 +518,34 @@ Useful for quickly cleaning up accidental changes, temporary code, debug prints,
 
 ---
 
-## 13. Rescan Repository for Changes
+## 18. Unstaged / Uncommitted Changes Handling
 
-Detect newly introduced unstaged or uncommitted changes while the application is already running.
+Safely handle unstaged or uncommitted changes — both when launching the app and while it is already running.
+
+When unstaged changes are detected, the tool pauses and provides multiple safe options before continuing.
+
+### At Startup
+
+**Screenshot:** `screenshots/unstaged-changes-warning.webp`
+
+![Unstaged Changes Handling](screenshots/unstaged-changes-warning.webp)
+
+**Description:** If unstaged or uncommitted changes are detected during launch, the tool shows a warning dialog and provides multiple ways to safely proceed.
+
+Available options include:
+
+- **Stash and proceed to app** → Temporarily stash current changes and launch the application. When exiting the app, if it was launched this way, you are prompted to directly **stash pop** and restore the changes. A **Pop Managed Stash** button appears in the toolbar while a stash exists.
+- **Commit Selectively** → Choose which files (or diff hunks) to commit before starting the app (see [Commit Selectively](#commit-selectively))
+- **Commit each file changes separately and start app** → Automatically create one commit per modified file before launch
+- **Commit all unsaved changes to a single "bulk" commit** → Save all current changes into one temporary commit and continue
+- **Amend all changes to the current `HEAD` commit** → Amend HEAD commit with the unstaged changes
+- **Discard changes** → Discard the unstaged changes
+- **Start in Viewer Mode** → Start the app in viewer mode. No history modifying operations will be allowed (see [Viewer Mode](#27-viewer-mode))
+- **Exit** → Cancel launch and resolve changes manually
+
+> **Note:** Untracked files are **not considered** during this process and are left untouched (not stashed or modified).
+
+### During a Session: Rescan Repository
 
 **Screenshot:** `screenshots/rescan-repository.webp`
 
@@ -379,17 +556,58 @@ Detect newly introduced unstaged or uncommitted changes while the application is
 When changes are detected, the tool provides the same safe handling options available during startup, allowing you to:
 
 - Stash changes and continue
+- Commit Selectively (choose which files / hunks to commit)
 - Commit each file separately
 - Commit all changes into a single bulk commit
 - Amend all changes to the current `HEAD` commit
+- Discard the changes
+- Switch to Viewer Mode
 - Cancel and resolve changes manually
+
+If an app-created stash already exists, new changes are **merged into the existing stash** rather than creating a second one. In **Viewer Mode**, history-modifying rescan options are disabled (see [Viewer Mode](#27-viewer-mode)).
 
 This makes it easy to keep the application open throughout a development session while safely incorporating newly created changes into your interactive rebase workflow.
 
+### Commit Selectively
+
+Pick exactly which **files** — or even individual **hunks** — to commit, leaving the rest untouched for later. Ideal when your working tree holds a *mix* of unrelated changes.
+
+**Screenshot:** `screenshots/commit-selectively.webp`
+
+![Commit Selectively](screenshots/commit-selectively.webp)
+
+**Description:** Open **Commit Selectively** from the unstaged-changes dialog (at startup or via **Rescan Repository**). A dialog lists every modified file with a checkbox and its `+N -M` stats; the bottom pane shows the **combined diff** of the checked files (with a separator before each file). Use **Select All / Deselect All** and the live counter to adjust quickly. Then choose:
+
+- **Commit Selected Files** → Stage the checked files and commit them (a message dialog opens)
+- **commit --amend selected files** → Stage the checked files and amend into HEAD (message pre-filled from HEAD, editable)
+- **git add -p** → Drill into individual **hunks** of the checked files (see below)
+
+Unchecked files stay completely untouched, and cancelling at any point leaves the repository unchanged.
+
+#### Hunk-level commit with `git add -p`
+
+Stage *parts* of a file — perfect when one file contains mixed edits (feature code + debug prints, real change + formatting churn).
+
+**Screenshot:** `screenshots/git-add-p-hunks.webp`
+
+![Git Add -p Hunk Selection](screenshots/git-add-p-hunks.webp)
+
+**Description:** Click the orange **git add -p** button. Every hunk of the checked files is listed, **grouped under a per-file header**, each with its own checkbox showing the `Change N` label, diff header, line count, and syntax-coloured body. Then finish with:
+
+- **git commit** → Stage only the *checked* hunks and commit with a new message
+- **git commit --amend** → Stage only the checked hunks and amend into HEAD (message pre-filled, editable)
+
+**What happens to the rest:**
+
+- **Checked hunks** → staged and committed
+- **Unchecked hunks** → stay untouched in the working tree, available for a later commit
+- **Binary / no-hunk files** → a checked file with no parseable hunks is staged whole, so it is not silently lost
+
+Cancelling at any point stages nothing, and a failed staging/commit resets the index so nothing is half-committed. Complements [Refine Changes in File](#17-refine-changes-in-file): refine mixed changes out of past commits, and use `git add -p` to keep future commits clean from the start.
+
 ---
 
-## 14. Reset Options
-
+## 19. Reset Options
 Fail-safe options to reset your branch to a safe state.
 
 **Screenshot:** `screenshots/reset-options.webp`
@@ -402,10 +620,11 @@ Fail-safe options to reset your branch to a safe state.
 - **Reset to Start Time Head**: Reset to the commit state when the app launched
 - **Reset to Custom Commit**: Choose any commit to reset to
 
+Right-click a commit and select **"Reset HEAD to here (keep changes unstaged)"** to run `git reset --mixed` and reset HEAD to a commit while keeping all changes in your working directory as unstaged changes.
+
 ---
 
-## 15. Rebase Options
-
+## 20. Rebase Options
 Rebase your commits onto a different branch.
 
 **Screenshot:** `screenshots/rebase-options.webp`
@@ -420,10 +639,112 @@ Rebase your commits onto a different branch.
 
 The rebase runs in the background without blocking the UI.
 
+The Rebase button can be hidden or shown via **Configure → Show/Hide → Show Rebase** in the status bar (see [2. Main Interface](#2-main-interface)); the choice is remembered across sessions.
+
 ---
 
-## 16. Themes (Light / Dark)
+## 21. Browse Branch
+Open any other branch's history in a separate read-only window.
 
+**Screenshot:** `screenshots/browse-branch.webp`
+
+![Browse Branch](screenshots/browse-branch.webp)
+
+**Description:** Use **Repo → Browse Branch** and choose a branch (and how many commits to show). The branch history opens in a non-modal, read-only window — styled with a dimmed grey "viewer" overlay so you always know it is read-only and distinct from the main window. You can:
+
+- Select a single commit, or check multiple commits in multi-select mode
+- **Cherry-pick selected commit(s)** into your current branch (oldest-first order)
+- Copy SHA / message to the clipboard
+- Refresh the branch history
+
+### Selecting Multiple Commits & Cherry-picking
+
+Click **Select commits** to enter checkbox selection mode, then tick the commits you want to bring over. Click **Cherry-pick selected commit(s)** to apply them to your current branch:
+
+- A confirmation dialog shows the exact apply order (oldest-first, matching the branch chronology) before anything is done.
+- Commits are then cherry-picked one by one. If a pick fails, you choose how to proceed: **Undo entire cherry-pick** (reset back to the starting point), **Skip this and continue with the next**, or **Stop cherry-pick here** to finish manually.
+- A final summary reports which commits were cherry-picked, skipped, or left unapplied.
+- The main window's commit list refreshes automatically after the picks finish.
+- **Cancel selection** exits selection mode without making any changes.
+
+---
+
+## 22. Browse File Log
+View the complete history of a single file.
+
+**Screenshot:** `screenshots/browse-file-log.webp`
+
+![Browse File Log](screenshots/browse-file-log.webp)
+
+**Description:** Use **Repo → Browse File Log**, or right-click a file in the file-wise diff viewer and choose **Browse file log**. A read-only window opens showing the history of that file (following renames via `git log --follow`), with the diff pane scoped to that file. Like Browse Branch, it uses a dimmed grey "viewer" overlay to distinguish it from the main window. Copy SHA / message to the clipboard directly from this window.
+
+---
+
+## 23. PR Diff / PR Preview
+Preview the combined diff of your current branch against its merge-base.
+
+**Screenshot:** `screenshots/pr-diff.webp`
+
+![PR Diff / PR Preview](screenshots/pr-diff.webp)
+
+**Description:** Use **Repo → View PR Diff** to open a read-only **PR Preview** showing the combined branch diff versus its merge-base — the same view a reviewer would see in a pull request.
+
+When the tool is launched **without** a commit argument, it auto-detects your branch base (see [1. Launch](#1-launch)) and shows commits up to that point. This view is the same idea applied to the whole branch: it diffs your branch against its merge-base, so you can review everything you've changed relative to `main`/`master` in one place. Non-modal, so it stays open while you keep working.
+
+---
+
+## 24. Consolidated Diff
+Diff any range of history in one combined view.
+
+**Screenshot:** `screenshots/consolidated-diff.webp`
+
+![Consolidated Diff](screenshots/consolidated-diff.webp)
+
+**Description:** Use the **Consolidated Diff** context submenu on any commit:
+
+- **Set start commit** → Mark the selected commit as the range start
+- **Diff to here** → Show the combined diff from the start commit to the selected commit
+- **Diff HEAD to here** → Show the combined diff from HEAD down to the selected commit
+
+The result opens in a read-only combined view. You can also set the start commit by right-clicking **"Mark the selected from commit for consolidated diff"**.
+
+---
+
+## 25. Find Merge-base
+Compute the merge-base between your current branch and any other branch.
+
+**Screenshot:** `screenshots/find-merge-base.webp`
+
+![Find Merge-base](screenshots/find-merge-base.webp)
+
+**Description:** Use **Repo → Find Merge-base…**, pick another branch, and the tool shows the merge-base commit. Copy the SHA to the clipboard with one click.
+
+---
+
+## 26. Cherry-pick
+Apply commits from another branch (or by SHA) onto your current branch.
+
+**Description:** Cherry-pick in two ways:
+
+- **Repo → Cherry-pick 1 Commit** → You will be asked to enter a commit SHA to apply
+- **Browse Branch → Cherry-pick selected commit(s)** → Select one or more commits in a browse window and inject them (multi-commit picks apply **oldest-first** so history stays linear)
+
+Before applying, a **pre-flight confirmation** shows the exact order the selected commits will be applied in (numbered, with subjects and target branch). If a commit fails, you are told why (conflict, already applied/no change, or other) with the conflicting files listed, and you can choose to **Undo the entire cherry-pick**, **Skip and continue**, or **Stop and handle manually**. A final summary shows how many commits were cherry-picked / skipped / not applied, with every SHA listed.
+
+---
+
+## 27. Viewer Mode
+Run the tool as a read-only browser.
+
+**Screenshot:** `screenshots/viewer-mode.webp`
+
+![Viewer Mode](screenshots/viewer-mode.webp)
+
+**Description:** Launch with `--viewer-mode` to disable all history-modifying operations (rebase, squash, rephrase, split, cherry-pick, reset, etc.). The tool highlights the **Exit Viewer Mode** button and shows a notice when entering Viewer Mode; press it to re-enable editing operations without restarting. Viewer windows (Browse Branch, Browse File Log, PR Preview) open in Viewer Mode automatically.
+
+---
+
+## 28. Themes (Light / Dark)
 Toggle between light and dark themes for comfortable viewing.
 
 > **Note:** Most screenshots in this documentation use the **light theme (default)**.
@@ -436,20 +757,14 @@ Toggle between light and dark themes for comfortable viewing.
 
 ---
 
-## 17. Zoom Controls
-
+## 29. Zoom Controls
 Adjust the font size for better readability.
-
-**Screenshot:** `screenshots/zoom-controls.webp`
-
-![Zoom Controls](screenshots/zoom-controls.webp)
 
 **Description:** Use the zoom controls (+/- buttons) in the toolbar to increase or decrease the font size. Font size preference is automatically saved across sessions.
 
 ---
 
-## 18. Mark / Unmark Commit
-
+## 30. Mark / Unmark Commit
 Mark commits for easy identification.
 
 **Screenshot:** `screenshots/mark-commits.webp`
@@ -462,22 +777,16 @@ Mark commits for easy identification.
 
 ---
 
-## 19. Show Local Branches
-
+## 31. Show Local Branches
 Display local and remote branch names alongside commits.
 
-**Screenshot:** `screenshots/show-local-branches.webp`
-
-![Show Local Branches](screenshots/show-local-branches.webp)
-
-**Description:** Toggle the "show local branches" checkbox to display branch names next to commits. Local branches are shown in green, and remote branches (e.g., origin/main, origin/master) are shown in orange. This helps you identify which branch a commit belongs to or originated from, making it easier to understand the commit's context and lineage.
+**Description:** Toggle the "show local branches" option (via **Configure → Show/Hide → Show Local Branches** in the main window, see [2. Main Interface](#2-main-interface)) to display branch names next to commits. Local branches are shown in green, and remote branches (e.g., origin/main, origin/master) are shown in orange. This helps you identify which branch a commit belongs to or originated from, making it easier to understand the commit's context and lineage.
 
 **Note:** In the screenshot, local branches feat1, master, and memleak_fix are visible.
 
 ---
 
-## 20. Copy to Clipboard
-
+## 32. Copy to Clipboard
 Quickly copy commit details for sharing, debugging, or reference.
 
 **Screenshot:** `screenshots/copy-commit-details.webp`
@@ -494,41 +803,14 @@ A brief **"Copied!"** notification appears to confirm the action.
 
 ---
 
-## 21. Unstaged Changes Handling
-
-Safely launch the application even when the repository contains unstaged or uncommitted changes.
-
-When unstaged changes are detected, the tool pauses startup and provides multiple safe options before continuing.
-
-**Screenshot:** `screenshots/unstaged-changes-warning.webp`
-
-![Unstaged Changes Handling](screenshots/unstaged-changes-warning.webp)
-
-**Description:** If unstaged or uncommitted changes are detected during launch, the tool shows a warning dialog and provides multiple ways to safely proceed.
-
-Available options include:
-
-- **Stash and proceed to app** → Temporarily stash current changes and launch the application. When exiting the app, if it was launched this way, you are prompted to directly **stash pop** and restore the changes.
-- **Commit each file changes separately and start app** → Automatically create one commit per modified file before launch
-- **Commit all unsaved changes to a single "bulk" commit** → Save all current changes into one temporary commit and continue
-- **Amend all changes to the current `HEAD` commit** → Ament HEAD commit with the unstaged changes
-- **Exit** → Cancel launch and resolve changes manually
-
-> **Note:** Untracked files are **not considered** during this process and are left untouched (not stashed or modified).
-
-This helps prevent accidental data loss or conflicts while rewriting commit history using interactive rebase operations.
-
----
-
-## 22. Keyboard Shortcuts
-
+## 33. Keyboard Shortcuts
 Keyboard shortcuts for faster navigation and workflow.
 
 | Shortcut | Action |
 |----------|--------|
 | `/` | Focus the commit search bar |
 | `Esc` | Clear search, close dialogs, or exit search mode |
-| `Ctrl+F` | Open search in diff viewer |
+| `Ctrl+F` | Focus the diff search bar (available in every diff view) |
 | `Ctrl+Q` | Exit the application |
 | `Ctrl+Z` | Undo the last operation (disabled while editing text) |
 | `F5` | Refresh commit list |
@@ -536,4 +818,4 @@ Keyboard shortcuts for faster navigation and workflow.
 **Notes:**
 
 - `Esc` behaves contextually and may close dialogs, clear filters, or exit search depending on the active view.
-- `Ctrl+F` works inside the diff viewer and opens the inline diff search bar.
+- `Ctrl+F` focuses the diff search bar, which is available in every diff view (see [Diff Search Bar](#8-diff-search-bar)).
