@@ -4361,10 +4361,18 @@ class GitInteractiveRebaseApp(QMainWindow):
 
         dropped_shas = []
         stop = False
+
+        progress = ProgressDialog("Dropping Commits", "", self)
+        progress.show()
+        QApplication.processEvents()
+
         for index, sha in enumerate(selected_shas):
             if stop:
                 break
-            if self._drop_single_commit(sha):
+            progress.label.setText(f"Dropping commit {sha[:8]}... ({index + 1}/{len(selected_shas)})")
+            for _ in range(3):
+                QApplication.processEvents()
+            if self._drop_single_commit(sha, progress_dialog=progress):
                 dropped_shas.append(sha)
                 continue
 
@@ -4395,6 +4403,8 @@ class GitInteractiveRebaseApp(QMainWindow):
                     stop = True
                     break
 
+        progress.close()
+
         self.exit_multi_select_mode()
 
         if len(dropped_shas) == len(selected_shas):
@@ -4418,7 +4428,7 @@ class GitInteractiveRebaseApp(QMainWindow):
             QMessageBox.information(self, "Drop Result",
                                     "No commits were dropped.")
 
-    def _drop_single_commit(self, sha):
+    def _drop_single_commit(self, sha, progress_dialog=None):
         """Drops a single commit using the unified rebase logic.
         Returns True on success, False on failure. Suppresses the default
         failure box so the caller can present recovery choices."""
@@ -4436,7 +4446,8 @@ class GitInteractiveRebaseApp(QMainWindow):
                     new_shas,
                     progress_title="Dropping Commit",
                     progress_text=f"Dropping commit {sha}. Please wait...",
-                    suppress_failure_box=True):
+                    suppress_failure_box=True,
+                    progress_dialog=progress_dialog):
                 self.load_history()
                 self._sync_cached_head()
                 return True
@@ -5884,7 +5895,7 @@ for i, filename in enumerate(files):
             return
         self.load_history()
 
-    def run_interactive_rebase(self, new_shas, rephrase_map=None, squash_shas=None, original_shas=None, progress_title="Rebasing", progress_text="Executing interactive rebase. Please wait...\nThis might take a few moments.", suppress_failure_box=False):
+    def run_interactive_rebase(self, new_shas, rephrase_map=None, squash_shas=None, original_shas=None, progress_title="Rebasing", progress_text="Executing interactive rebase. Please wait...\nThis might take a few moments.", suppress_failure_box=False, progress_dialog=None):
         """
         Unified handler for history rewriting using git rebase -i.
         original_shas: The pre-change SHA order (latest-first). If provided, used
@@ -5945,9 +5956,13 @@ for i, filename in enumerate(files):
                 todo_shas = proposed_order
 
             # Show progress dialog
-            progress = ProgressDialog(progress_title, progress_text, self)
-            progress.show()
-            QApplication.processEvents()
+            own_progress = progress_dialog is None
+            if own_progress:
+                progress = ProgressDialog(progress_title, progress_text, self)
+                progress.show()
+                QApplication.processEvents()
+            else:
+                progress = progress_dialog
 
             try:
                 # Feature: Fast-track top-drops (reset --hard)
@@ -6038,7 +6053,8 @@ for i, filename in enumerate(files):
                     return False
 
             finally:
-                progress.close()
+                if own_progress:
+                    progress.close()
 
         except Exception as e:
             if not suppress_failure_box:
