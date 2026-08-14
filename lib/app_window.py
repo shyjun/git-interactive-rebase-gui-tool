@@ -163,12 +163,10 @@ from lib.git_helpers import (
 from lib.dialogs import (
     DiffViewerDialog,
     SplitCommitDialog,
-    ViewCommitDialog,
     DropDialog,
     RephraseDialog,
     RevertCommitDialog,
     SquashDialog,
-    FileWiseViewDialog,
     MultiSquashDialog,
     ProgressDialog,
     DropFileFromCommitDialog,
@@ -3343,7 +3341,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         pr_diff_action.triggered.connect(lambda *_: self.handle_view_branch_diff())
 
         view_commit_action = QAction("View a Commit…", self)
-        view_commit_action.setToolTip("View the file-wise diff of any commit by SHA.")
+        view_commit_action.setToolTip("Open any commit by SHA in a read-only tabbed viewer (Plain / File-wise diff).")
         view_commit_action.triggered.connect(lambda *_: self.handle_view_commit_by_sha())
 
         cherry_pick_action = QAction("Cherry-pick 1 Commit", self)
@@ -3547,8 +3545,6 @@ class GitInteractiveRebaseApp(QMainWindow):
 
         mark_action.triggered.connect(lambda: self.toggle_mark_commit(item))
         view_action.triggered.connect(lambda: self.view_commit(item))
-        view_filewise_action = QAction(f"Show / View commit {sha} -- file-wise", self)
-        view_filewise_action.triggered.connect(lambda: self.handle_view_commit_file_wise(item))
         reset_action.triggered.connect(lambda: self.handle_reset(item))
         reset_here_action.triggered.connect(lambda: self.handle_reset_to_here(item))
         set_best_action.triggered.connect(lambda: self.handle_set_best_commit(item))
@@ -3563,7 +3559,6 @@ class GitInteractiveRebaseApp(QMainWindow):
         if self.multi_select_mode:
             mark_action.setEnabled(False)
             view_action.setEnabled(False)
-            view_filewise_action.setEnabled(False)
             reset_action.setEnabled(False)
             reset_here_action.setEnabled(False)
             set_best_action.setEnabled(False)
@@ -3580,7 +3575,6 @@ class GitInteractiveRebaseApp(QMainWindow):
         menu.addAction(mark_action)
         menu.addSeparator()
         menu.addAction(view_action)
-        menu.addAction(view_filewise_action)
         menu.addSeparator()
         menu.addAction(reset_action)
         menu.addAction(reset_here_action)
@@ -3945,32 +3939,15 @@ class GitInteractiveRebaseApp(QMainWindow):
             pass
 
     def view_commit(self, item):
-        """Helper to open the diff viewer for a commit item."""
+        """Helper to open the tabbed diff viewer for a commit item."""
         if not item:
             return
         sha = item.text().split()[0]
-        print(f"Viewing {sha}...")
         try:
-            diff_text = get_commit_diff(self.repo_path, sha)
-            commit_meta, commit_msg = get_commit_metadata_and_message(self.repo_path, sha)
-            dialog = ViewCommitDialog(sha, commit_msg, commit_meta, diff_text, self.current_font_size, self)
+            dialog = SingleCommitViewDialog(self.repo_path, sha, self.current_font_size, self)
             self._open_viewer(dialog)
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not fetch commit diff: {str(e)}")
-
-    def handle_view_commit_file_wise(self, item):
-        if not item:
-            return
-        sha = item.text().split()[0]
-        try:
-            files = get_commit_files_with_status(self.repo_path, sha)
-            if not files:
-                QMessageBox.information(self, "No Files", f"Commit {sha} has no file changes to view.")
-                return
-            dialog = FileWiseViewDialog(self.repo_path, sha, files, self.current_font_size, self)
-            self._open_viewer(dialog)
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Could not open file-wise view: {str(e)}")
 
     def handle_view_commit_by_sha(self):
         """Opens the file-wise view of any commit entered by the user.
