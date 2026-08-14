@@ -808,6 +808,8 @@ class SingleCommitViewDialog(QDialog):
         )
         self.filewise_file_list.setItemDelegate(stats_delegate)
         self.filewise_file_list.currentTextChanged.connect(self.on_filewise_file_selected)
+        self.filewise_file_list.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.filewise_file_list.customContextMenuRequested.connect(self.show_filewise_context_menu)
         self.filewise_splitter.addWidget(self.filewise_file_list)
 
         file_right_widget = QWidget()
@@ -899,6 +901,35 @@ class SingleCommitViewDialog(QDialog):
             self.filewise_diff_search._perform_search()
         except Exception as e:
             self.filewise_diff_view.setPlainText(f"Error loading diff: {e}")
+
+    def show_filewise_context_menu(self, pos):
+        """Read-only context menu for the file list. The viewed commit may be an
+        arbitrary SHA (even outside the current branch), so only safe actions
+        (copy filename, browse file log) are offered - no history edits."""
+        item = self.filewise_file_list.itemAt(pos)
+        if not item:
+            return
+        entry = item.data(FILE_ENTRY_ROLE)
+        target_path = entry[2] if entry and entry[0] == 'R' else item.text()
+        menu = QMenu(self)
+        copy_action = QAction("Copy filename to clipboard", self)
+        copy_action.triggered.connect(lambda checked=False, text=target_path: self.copy_filename_to_clipboard(text))
+        menu.addAction(copy_action)
+        menu.addSeparator()
+        browse_log_action = QAction("Browse file log", self)
+        browse_log_action.setToolTip("Open a read-only viewer of this file's history.")
+        browse_log_action.triggered.connect(lambda checked=False, text=target_path: self.browse_file_log(text))
+        menu.addAction(browse_log_action)
+        menu.exec(self.filewise_file_list.mapToGlobal(pos))
+
+    def browse_file_log(self, filepath):
+        main_win = self.parent() if isinstance(self.parent(), QMainWindow) else None
+        if main_win and hasattr(main_win, 'open_file_log_for'):
+            main_win.open_file_log_for(filepath)
+
+    def copy_filename_to_clipboard(self, filename):
+        QApplication.clipboard().setText(filename)
+        QMessageBox.information(self, "Copied", f"Copied '{filename}' to clipboard.")
 
 
 class UnstagedDiffDialog(BranchDiffDialog):
