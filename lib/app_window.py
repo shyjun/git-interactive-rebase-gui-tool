@@ -1520,24 +1520,37 @@ class GitInteractiveRebaseApp(QMainWindow):
 
         # Squash multiple commits group
         self.multi_select_mode = False
-        self.squash_group = QGroupBox("Squash multiple commits")
+        self.squash_group = QGroupBox("Select multiple commits")
         self.squash_group.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
         squash_layout = QHBoxLayout()
-        self.multi_select_btn = QPushButton("Select multiple commits to squash")
-        self.multi_select_btn.setToolTip("Select multiple commits to squash.")
-        self.squash_selected_btn = QPushButton("Squash selected commits")
-        self.squash_selected_btn.setToolTip("Squash the selected commits into one.")
-        self.cancel_multi_btn = QPushButton("Cancel multi selection")
+        self.multi_select_btn = QPushButton("Select multiple commits")
+        self.multi_select_btn.setToolTip("Select multiple commits.")
+        self.perform_action_btn = QPushButton("Perform action of selected commits")
+        self.perform_action_btn.setToolTip("Choose an action to apply to the selected commits.")
+        self.perform_action_menu = QMenu(self)
+        self.squash_selected_action = QAction("Squash selected commits", self)
+        self.squash_selected_action.setToolTip("Squash the selected commits into one.")
+        self.squash_selected_action.triggered.connect(self.handle_squash_selected)
+        self.mark_selected_action = QAction("Mark selected commits", self)
+        self.mark_selected_action.setToolTip("Mark all the selected commits.")
+        self.mark_selected_action.triggered.connect(self.handle_mark_selected)
+        self.drop_selected_action = QAction("Drop selected commits", self)
+        self.drop_selected_action.setToolTip("Drop the selected commits.")
+        self.drop_selected_action.triggered.connect(self.handle_drop_selected)
+        self.perform_action_menu.addAction(self.squash_selected_action)
+        self.perform_action_menu.addAction(self.mark_selected_action)
+        self.perform_action_menu.addAction(self.drop_selected_action)
+        self.perform_action_btn.setMenu(self.perform_action_menu)
+        self.cancel_multi_btn = QPushButton("Cancel multiple selection")
         self.cancel_multi_btn.setToolTip("Cancel multi-select mode.")
-        self.squash_selected_btn.setEnabled(False)
+        self.perform_action_btn.setEnabled(False)
         self.cancel_multi_btn.setEnabled(False)
-        for btn in [self.multi_select_btn, self.squash_selected_btn, self.cancel_multi_btn]:
+        for btn in [self.multi_select_btn, self.perform_action_btn, self.cancel_multi_btn]:
             btn.setMinimumHeight(40)
         self.multi_select_btn.clicked.connect(self.enter_multi_select_mode)
-        self.squash_selected_btn.clicked.connect(self.handle_squash_selected)
         self.cancel_multi_btn.clicked.connect(self.handle_cancel_multi_select)
         squash_layout.addWidget(self.multi_select_btn)
-        squash_layout.addWidget(self.squash_selected_btn)
+        squash_layout.addWidget(self.perform_action_btn)
         squash_layout.addWidget(self.cancel_multi_btn)
         self.squash_group.setLayout(squash_layout)
         layout.addWidget(self.squash_group)
@@ -4220,7 +4233,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.list_widget.blockSignals(False)
         self.list_widget.itemChanged.connect(self.on_multi_select_changed)
         self.multi_select_btn.setEnabled(False)
-        self.squash_selected_btn.setEnabled(False)
+        self.perform_action_btn.setEnabled(False)
         self.cancel_multi_btn.setEnabled(True)
 
     def exit_multi_select_mode(self):
@@ -4238,18 +4251,21 @@ class GitInteractiveRebaseApp(QMainWindow):
             item.setData(Qt.CheckStateRole, None)
         self.list_widget.blockSignals(False)
         self.multi_select_btn.setEnabled(True)
-        self.squash_selected_btn.setEnabled(False)
+        self.perform_action_btn.setEnabled(False)
         self.cancel_multi_btn.setEnabled(False)
 
     def on_multi_select_changed(self, changed_item):
-        """Enables 'Squash selected commits' only when ≥ 2 commits are checked."""
+        """Enables the 'Perform action' menu only when commits are checked."""
         if not self.multi_select_mode:
             return
         checked_count = sum(
             1 for i in range(self.list_widget.count())
             if self.list_widget.item(i).checkState() == Qt.Checked
         )
-        self.squash_selected_btn.setEnabled(checked_count >= 2)
+        self.perform_action_btn.setEnabled(checked_count >= 1)
+        self.squash_selected_action.setEnabled(checked_count >= 2)
+        self.mark_selected_action.setEnabled(checked_count >= 1)
+        self.drop_selected_action.setEnabled(checked_count >= 1)
 
     def handle_cancel_multi_select(self):
         """Cancels multi-select mode without merging."""
@@ -4300,6 +4316,21 @@ class GitInteractiveRebaseApp(QMainWindow):
         selected_shas = [self.list_widget.item(i).text().split()[0] for i in selected_indices]
 
         self.perform_multi_squash(selected_shas)
+
+    def handle_mark_selected(self):
+        """Marks each checked commit, then exits multi-select mode."""
+        for i in range(self.list_widget.count()):
+            item = self.list_widget.item(i)
+            if item.checkState() == Qt.Checked:
+                sha = item.text().split()[0]
+                self.marked_shas.add(sha)
+        self.exit_multi_select_mode()
+        self.list_widget.viewport().update()
+
+    def handle_drop_selected(self):
+        """Drops the selected commits (not implemented yet)."""
+        QMessageBox.information(self, "Drop Selected Commits",
+                                "Not implemented as of now.")
 
     def perform_multi_squash(self, selected_shas):
         """Squashes multiple adjacent commits into the topmost selected commit."""
