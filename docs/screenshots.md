@@ -64,9 +64,9 @@ When no commit SHA is provided, the tool automatically detects the base branch (
 
 If detection fails, it falls back to displaying the **200 most recent commits from HEAD**.
 
-**Screenshot:** `screenshots/head-commits.png`
+**Screenshot:** `screenshots/head-commits.webp`
 
-![Launch Options](screenshots/head-commits.png)
+![Launch Options](screenshots/head-commits.webp)
 
 **Description:** The screenshot above shows the application launched using `python3 git_interactive_rebase.py HEAD~6`.
 
@@ -76,9 +76,9 @@ If detection fails, it falls back to displaying the **200 most recent commits fr
 
 The main window displays your commit history in an interactive list with action controls.
 
-**Screenshot:** `screenshots/main-interface.png`
+**Screenshot:** `screenshots/main-interface.webp`
 
-![Main Interface](screenshots/main-interface.png)
+![Main Interface](screenshots/main-interface.webp)
 
 **Description:** The main window shows the commit list with SHA, message, and branch indicators. The details panel displays commit metadata (SHA, author, date, changed files). The right side pane shows diffs in plain view or file-wise view. The top toolbar includes search, theme toggle, zoom controls, and reset options. Right-click any commit to access the context menu with all rebase actions.
 
@@ -88,9 +88,9 @@ The main window displays your commit history in an interactive list with action 
 
 Access all commit actions via right-click menu.
 
-**Screenshot:** `screenshots/context-menu.png`
+**Screenshot:** `screenshots/context-menu.webp`
 
-![Context Menu](screenshots/context-menu.png)
+![Context Menu](screenshots/context-menu.webp)
 
 **Description:** Right-click any commit to see the context menu with all available actions:
 
@@ -109,9 +109,9 @@ Access all commit actions via right-click menu.
 
 Quickly locate commits using live search and advanced filtering options.
 
-**Screenshot:** `screenshots/search-filter.png`
+**Screenshot:** `screenshots/search-filter.webp`
 
-![Search & Filter](screenshots/search-filter.png)
+![Search & Filter](screenshots/search-filter.webp)
 
 **Description:** Click the search bar or press `/` to focus it. Type to filter commits live. Matching commits are shown instantly as you type.
 
@@ -133,9 +133,9 @@ Press `Esc` to clear the search and return to the full commit history.
 
 View code changes with syntax highlighting for added and removed lines.
 
-**Screenshot:** `screenshots/diff-viewer.png`
+**Screenshot:** `screenshots/diff-viewer.webp`
 
-![Diff Viewer](screenshots/diff-viewer.png)
+![Diff Viewer](screenshots/diff-viewer.webp)
 
 **Description:** Click any commit to view its diff in the right panel. Added lines are highlighted in green, removed lines in red. The diff is displayed in a scrollable view with line numbers.
 
@@ -145,9 +145,9 @@ View code changes with syntax highlighting for added and removed lines.
 
 Quickly search for text inside the displayed diff.
 
-**Screenshot:** `screenshots/diff-search.png`
+**Screenshot:** `screenshots/diff-search.webp`
 
-![Search in Diff](screenshots/diff-search.png)
+![Search in Diff](screenshots/diff-search.webp)
 
 **Description:** Press `Ctrl+F` while viewing a diff to open the diff search bar.
 
@@ -166,9 +166,9 @@ Press `Esc` to close the search bar.
 
 Browse commit changes file by file.
 
-**Screenshot:** `screenshots/file-wise-diff-viewer.png`
+**Screenshot:** `screenshots/file-wise-diff-viewer.webp`
 
-![File-wise Diff Viewer](screenshots/file-wise-diff-viewer.png)
+![File-wise Diff Viewer](screenshots/file-wise-diff-viewer.webp)
 
 **Description:** Click the "File-wise View" button to open a dialog listing all changed files. Select any file to view its specific diff. This makes it easy to understand what each file contributed to the commit.
 
@@ -178,9 +178,9 @@ Browse commit changes file by file.
 
 Update the commit message without changing the commit contents.
 
-**Screenshot:** `screenshots/rephrase-commit.png`
+**Screenshot:** `screenshots/rephrase-commit.webp`
 
-![Rephrase Commit](screenshots/rephrase-commit.png)
+![Rephrase Commit](screenshots/rephrase-commit.webp)
 
 **Description:** Right-click a commit and select "Rephrase" to open the rephrase dialog. Edit the commit message and click "Confirm" to apply the new message.
 
@@ -190,9 +190,9 @@ Update the commit message without changing the commit contents.
 
 Remove a commit entirely from the history.
 
-**Screenshot:** `screenshots/drop-commit.png`
+**Screenshot:** `screenshots/drop-commit.webp`
 
-![Drop Commit](screenshots/drop-commit.png)
+![Drop Commit](screenshots/drop-commit.webp)
 
 **Description:** Right-click a commit and select "Drop" to see a confirmation dialog. Confirm to remove the commit from the history. This action is irreversible without resetting.
 
@@ -202,9 +202,9 @@ Remove a commit entirely from the history.
 
 Change commit order to organize history before rebasing.
 
-**Screenshot:** `screenshots/drag-reorder.png`
+**Screenshot:** `screenshots/drag-reorder.webp`
 
-![Reorder Commits](screenshots/drag-reorder.png)
+![Reorder Commits](screenshots/drag-reorder.webp)
 
 **Description:** Reorder commits using either drag-and-drop or quick move actions from the context menu.
 
@@ -226,13 +226,13 @@ Combine multiple commits into one.
 
 Squash a commit with its immediate neighbor (above or below).
 
-**Screenshot:** `screenshots/squash-context-menu.png` (context menu)
+**Screenshot:** `screenshots/squash-context-menu.webp` (context menu)
 
-![Squash Context Menu](screenshots/squash-context-menu.png)
+![Squash Context Menu](screenshots/squash-context-menu.webp)
 
-**Screenshot:** `screenshots/squash-dialogue.png` (dialog)
+**Screenshot:** `screenshots/squash-dialogue.webp` (dialog)
 
-![Squash Dialog](screenshots/squash-dialogue.png)
+![Squash Dialog](screenshots/squash-dialogue.webp)
 
 **Description:** Right-click a commit and select "Squash with above" or "Squash with below" to open the squash dialog. You can either select a commit message from one of the commits being squashed, or enter your own custom commit message. Click "Confirm" to apply.
 
@@ -240,9 +240,9 @@ Squash a commit with its immediate neighbor (above or below).
 
 Squash multiple adjacent commits at once.
 
-**Screenshot:** `screenshots/multi-squash.png`
+**Screenshot:** `screenshots/multi-squash.webp`
 
-![Multi Squash](screenshots/multi-squash.png)
+![Multi Squash](screenshots/multi-squash.webp)
 
 **Description:** Switch to multiple commit selection mode using the highlighted button in the toolbar (or via the context menu), then select multiple adjacent commits by clicking on them. Once selected, click the "Squash selected commits" button (or use the context menu) to open the squash dialog. Edit the combined commit message in the dialog and click "Confirm" to apply.
 
@@ -254,37 +254,37 @@ To exit multi-selection mode without squashing, click the cancel multi-selection
 
 Break a commit into multiple smaller commits by file or change.
 
-**Screenshot:** `screenshots/split-context-menu.png`
+**Screenshot:** `screenshots/split-context-menu.webp`
 
-![Split Context Menu](screenshots/split-context-menu.png)
+![Split Context Menu](screenshots/split-context-menu.webp)
 
 ### Option 1: Move single file changes out of a commit
 
 Move changes of a specific file to a separate commit (only for commits with multiple file changes).
 
-**Screenshot:** `screenshots/split-move-single-file-1.png`
+**Screenshot:** `screenshots/split-move-single-file-1.webp`
 
-![Split Move Single File 1](screenshots/split-move-single-file-1.png)
+![Split Move Single File 1](screenshots/split-move-single-file-1.webp)
 
-**Screenshot:** `screenshots/split-move-single-file-2.png`
+**Screenshot:** `screenshots/split-move-single-file-2.webp`
 
-![Split Move Single File 2](screenshots/split-move-single-file-2.png)
+![Split Move Single File 2](screenshots/split-move-single-file-2.webp)
 
 ### Option 2: Split each file changes to separate commits
 
 Available only in commits with multiple file changes. Creates one commit per changed file.
 
-**Screenshot:** `screenshots/split-each-to-separate.png`
+**Screenshot:** `screenshots/split-each-to-separate.webp`
 
-![Split Each to Separate](screenshots/split-each-to-separate.png)
+![Split Each to Separate](screenshots/split-each-to-separate.webp)
 
 ### Option 3: Split all changes in one file to separate commits
 
 Breaks all changes in a single file into individual commits per file change. Available only in commits with single file changes.
 
-**Screenshot:** `screenshots/split-all-to-separate.png`
+**Screenshot:** `screenshots/split-all-to-separate.webp`
 
-![Split All to Separate](screenshots/split-all-to-separate.png)
+![Split All to Separate](screenshots/split-all-to-separate.webp)
 
 ---
 
@@ -294,9 +294,9 @@ Selectively refine changes/hunks inside a file within a commit.
 
 This is useful when a file accidentally contains mixed changes such as feature work, debug code, documentation updates, or unrelated edits.
 
-**Screenshot:** `screenshots/refine-changes-in-file.png`
+**Screenshot:** `screenshots/refine-changes-in-file.webp`
 
-![Refine Changes in File](screenshots/refine-changes-in-file.png)
+![Refine Changes in File](screenshots/refine-changes-in-file.webp)
 
 **Description:** Select one or more hunks using the checkboxes. Use **Select All / Deselect All** to quickly adjust selection. Depending on the action chosen, selected or unselected hunks are retained, removed, or moved.
 
@@ -345,9 +345,9 @@ Useful when a change accidentally landed in the wrong commit. Move it out, reord
 
 Edit a selected hunk using a lightweight patch editor.
 
-**Screenshot:** `screenshots/edit-hunk.png`
+**Screenshot:** `screenshots/edit-hunk.webp`
 
-![Edit Hunk](screenshots/edit-hunk.png)
+![Edit Hunk](screenshots/edit-hunk.webp)
 
 **Description:** Right-click a hunk and choose **"Edit Hunk"** to manually modify the patch content before applying changes.
 
@@ -370,9 +370,9 @@ Useful for quickly cleaning up accidental changes, temporary code, debug prints,
 
 Detect newly introduced unstaged or uncommitted changes while the application is already running.
 
-**Screenshot:** `screenshots/rescan-repository.png`
+**Screenshot:** `screenshots/rescan-repository.webp`
 
-![Rescan Repository for Changes](screenshots/rescan-repository.png)
+![Rescan Repository for Changes](screenshots/rescan-repository.webp)
 
 **Description:** The application can remain open while you continue working in your editor or terminal. If new unstaged or uncommitted changes are introduced outside the tool, use **Rescan Repository** to re-evaluate the repository state.
 
@@ -392,9 +392,9 @@ This makes it easy to keep the application open throughout a development session
 
 Fail-safe options to reset your branch to a safe state.
 
-**Screenshot:** `screenshots/reset-options.png`
+**Screenshot:** `screenshots/reset-options.webp`
 
-![Reset Options](screenshots/reset-options.png)
+![Reset Options](screenshots/reset-options.webp)
 
 **Description:** Use the "Reset" menu to access fail-safe options:
 
@@ -408,9 +408,9 @@ Fail-safe options to reset your branch to a safe state.
 
 Rebase your commits onto a different branch.
 
-**Screenshot:** `screenshots/rebase-options.png`
+**Screenshot:** `screenshots/rebase-options.webp`
 
-![Rebase Options](screenshots/rebase-options.png)
+![Rebase Options](screenshots/rebase-options.webp)
 
 **Description:** Click "Rebase" to open the rebase dialog. Choose to rebase onto:
 
@@ -428,9 +428,9 @@ Toggle between light and dark themes for comfortable viewing.
 
 > **Note:** Most screenshots in this documentation use the **light theme (default)**.
 
-**Screenshot:** `screenshots/dark-theme.png`
+**Screenshot:** `screenshots/dark-theme.webp`
 
-![Dark Theme](screenshots/dark-theme.png)
+![Dark Theme](screenshots/dark-theme.webp)
 
 **Description:** Switch between light and dark themes to suit your preference. The light theme (default) provides a clean, high-contrast interface for daytime use, while the dark theme features a VS Code-inspired charcoal palette that is easy on the eyes during extended sessions. Click the theme toggle (sun/moon icon) to switch. Theme preference is automatically saved across sessions.
 
@@ -440,9 +440,9 @@ Toggle between light and dark themes for comfortable viewing.
 
 Adjust the font size for better readability.
 
-**Screenshot:** `screenshots/zoom-controls.png`
+**Screenshot:** `screenshots/zoom-controls.webp`
 
-![Zoom Controls](screenshots/zoom-controls.png)
+![Zoom Controls](screenshots/zoom-controls.webp)
 
 **Description:** Use the zoom controls (+/- buttons) in the toolbar to increase or decrease the font size. Font size preference is automatically saved across sessions.
 
@@ -452,9 +452,9 @@ Adjust the font size for better readability.
 
 Mark commits for easy identification.
 
-**Screenshot:** `screenshots/mark-commits.png`
+**Screenshot:** `screenshots/mark-commits.webp`
 
-![Mark / Unmark Commit](screenshots/mark-commits.png)
+![Mark / Unmark Commit](screenshots/mark-commits.webp)
 
 **Description:** Right-click any commit and select "Mark / Unmark commit" to toggle a mark. Marked commits display with a distinct background color for easy identification. This helps you keep track of important commits like releases, milestones, or commits that need further attention. Right-click again to unmark.
 
@@ -466,9 +466,9 @@ Mark commits for easy identification.
 
 Display local and remote branch names alongside commits.
 
-**Screenshot:** `screenshots/show-local-branches.png`
+**Screenshot:** `screenshots/show-local-branches.webp`
 
-![Show Local Branches](screenshots/show-local-branches.png)
+![Show Local Branches](screenshots/show-local-branches.webp)
 
 **Description:** Toggle the "show local branches" checkbox to display branch names next to commits. Local branches are shown in green, and remote branches (e.g., origin/main, origin/master) are shown in orange. This helps you identify which branch a commit belongs to or originated from, making it easier to understand the commit's context and lineage.
 
@@ -480,9 +480,9 @@ Display local and remote branch names alongside commits.
 
 Quickly copy commit details for sharing, debugging, or reference.
 
-**Screenshot:** `screenshots/copy-commit-details.png`
+**Screenshot:** `screenshots/copy-commit-details.webp`
 
-![Copy to Clipboard](screenshots/copy-commit-details.png)
+![Copy to Clipboard](screenshots/copy-commit-details.webp)
 
 **Description:** Right-click any commit and select one of the following options:
 
@@ -500,9 +500,9 @@ Safely launch the application even when the repository contains unstaged or unco
 
 When unstaged changes are detected, the tool pauses startup and provides multiple safe options before continuing.
 
-**Screenshot:** `screenshots/unstaged-changes-warning.png`
+**Screenshot:** `screenshots/unstaged-changes-warning.webp`
 
-![Unstaged Changes Handling](screenshots/unstaged-changes-warning.png)
+![Unstaged Changes Handling](screenshots/unstaged-changes-warning.webp)
 
 **Description:** If unstaged or uncommitted changes are detected during launch, the tool shows a warning dialog and provides multiple ways to safely proceed.
 
