@@ -3939,12 +3939,13 @@ class GitInteractiveRebaseApp(QMainWindow):
             pass
 
     def view_commit(self, item):
-        """Helper to open the tabbed diff viewer for a commit item."""
+        """Helper to open the tabbed diff viewer for a commit item.
+        The commit is from the current list/branch, so edit operations are allowed."""
         if not item:
             return
         sha = item.text().split()[0]
         try:
-            dialog = SingleCommitViewDialog(self.repo_path, sha, self.current_font_size, self)
+            dialog = SingleCommitViewDialog(self.repo_path, sha, self.current_font_size, self, editable=True)
             self._open_viewer(dialog)
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not fetch commit diff: {str(e)}")

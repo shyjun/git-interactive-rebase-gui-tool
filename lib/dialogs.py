@@ -722,11 +722,12 @@ class SingleCommitViewDialog(QDialog):
     """Single-commit viewer replicating the app's right-side pane: commit
     message on top, with Plain Diff and File-wise Diff tabs below."""
 
-    def __init__(self, repo_path, sha, font_size=10, parent=None, colors=None):
+    def __init__(self, repo_path, sha, font_size=10, parent=None, colors=None, editable=False):
         super().__init__(parent)
         self.repo_path = repo_path
         self.sha = sha
         self.font_size = font_size
+        self.editable = editable
         self.setWindowTitle(f"View Commit: {sha}")
         self.setMinimumSize(860, 620)
 
@@ -903,9 +904,10 @@ class SingleCommitViewDialog(QDialog):
             self.filewise_diff_view.setPlainText(f"Error loading diff: {e}")
 
     def show_filewise_context_menu(self, pos):
-        """Read-only context menu for the file list. The viewed commit may be an
-        arbitrary SHA (even outside the current branch), so only safe actions
-        (copy filename, browse file log) are offered - no history edits."""
+        """Context menu for the file list. If the viewed commit is known to be in
+        the current branch's list (editable=True, opened from a list item), the
+        full edit options are offered. Otherwise the commit may be an arbitrary
+        SHA outside the branch, so only safe actions (copy, browse log) appear."""
         item = self.filewise_file_list.itemAt(pos)
         if not item:
             return
@@ -915,12 +917,59 @@ class SingleCommitViewDialog(QDialog):
         copy_action = QAction("Copy filename to clipboard", self)
         copy_action.triggered.connect(lambda checked=False, text=target_path: self.copy_filename_to_clipboard(text))
         menu.addAction(copy_action)
+
+        if self.editable:
+            is_only_file = self.filewise_file_list.count() <= 1
+
+            move_action = QAction("Move file changes out of this commit", self)
+            move_action.triggered.connect(lambda checked=False, text=target_path: self.move_file_out(text))
+            move_action.setEnabled(not is_only_file)
+            menu.addAction(move_action)
+
+            drop_action = QAction("Drop file changes from this commit", self)
+            drop_action.triggered.connect(lambda checked=False, text=target_path: self.drop_file(text))
+            drop_action.setEnabled(not is_only_file)
+            menu.addAction(drop_action)
+
+            remove_onwards_action = QAction("Remove file from this commit onwards", self)
+            remove_onwards_action.triggered.connect(lambda checked=False, text=target_path: self.remove_file_onwards(text))
+            menu.addAction(remove_onwards_action)
+
+            menu.addSeparator()
+            refine_action = QAction("Refine/Edit changes in selected file", self)
+            refine_action.triggered.connect(lambda checked=False, text=target_path: self.refine_file(text))
+            menu.addAction(refine_action)
+
         menu.addSeparator()
         browse_log_action = QAction("Browse file log", self)
         browse_log_action.setToolTip("Open a read-only viewer of this file's history.")
         browse_log_action.triggered.connect(lambda checked=False, text=target_path: self.browse_file_log(text))
         menu.addAction(browse_log_action)
         menu.exec(self.filewise_file_list.mapToGlobal(pos))
+
+    def move_file_out(self, filepath):
+        main_win = self.parent() if isinstance(self.parent(), QMainWindow) else None
+        if main_win and hasattr(main_win, 'perform_move_file_out'):
+            self.accept()
+            QTimer.singleShot(0, lambda: main_win.perform_move_file_out(self.sha, filepath))
+
+    def drop_file(self, filepath):
+        main_win = self.parent() if isinstance(self.parent(), QMainWindow) else None
+        if main_win and hasattr(main_win, 'perform_drop_file_from_commit'):
+            self.accept()
+            QTimer.singleShot(0, lambda: main_win.perform_drop_file_from_commit(self.sha, filepath))
+
+    def remove_file_onwards(self, filepath):
+        main_win = self.parent() if isinstance(self.parent(), QMainWindow) else None
+        if main_win and hasattr(main_win, 'perform_remove_file_from_commit_onwards'):
+            self.accept()
+            QTimer.singleShot(0, lambda: main_win.perform_remove_file_from_commit_onwards(self.sha, filepath))
+
+    def refine_file(self, filepath):
+        main_win = self.parent() if isinstance(self.parent(), QMainWindow) else None
+        if main_win and hasattr(main_win, 'perform_refine_changes'):
+            self.accept()
+            QTimer.singleShot(0, lambda: main_win.perform_refine_changes(self.sha, filepath))
 
     def browse_file_log(self, filepath):
         main_win = self.parent() if isinstance(self.parent(), QMainWindow) else None
