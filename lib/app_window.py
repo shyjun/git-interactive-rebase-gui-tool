@@ -4328,9 +4328,119 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.list_widget.viewport().update()
 
     def handle_drop_selected(self):
-        """Drops the selected commits (not implemented yet)."""
-        QMessageBox.information(self, "Drop Selected Commits",
-                                "Not implemented as of now.")
+        """Drops the selected commits one by one, newest first.
+
+        If a drop fails, a dialog offers recovery choices (copy the failed
+        commit's id, skip it and continue, or stop)."""
+        if not self._check_not_viewer_mode():
+            return
+        if not self._check_head_unchanged():
+            return
+        if not self._check_no_unstaged_changes():
+            return
+
+        selected_shas = [self.list_widget.item(i).text().split()[0]
+                         for i in range(self.list_widget.count())
+                         if self.list_widget.item(i).checkState() == Qt.Checked]
+        if not selected_shas:
+            QMessageBox.warning(self, "No Selection",
+                                "Please select at least one commit to drop.")
+            return
+
+        def fmt(shas_list):
+            lines = []
+            for s in shas_list:
+                try:
+                    subject = get_commit_subject(self.repo_path, s)
+                except Exception:
+                    subject = ""
+                if len(subject) > 80:
+                    subject = subject[:80] + "..."
+                lines.append(f"{s[:7]}: {subject}".rstrip())
+            return "<br/>".join(lines) if lines else "<i>none</i>"
+
+        dropped_shas = []
+        stop = False
+        for index, sha in enumerate(selected_shas):
+            if stop:
+                break
+            if self._drop_single_commit(sha):
+                dropped_shas.append(sha)
+                continue
+
+            # This drop failed. Offer recovery choices.
+            remaining = selected_shas[index:]
+            while True:
+                box = self._make_resizable_message_box(self)
+                box.setWindowTitle("Drop Failed")
+                box.setTextFormat(Qt.RichText)
+                box.setText(
+                    f"<p>Dropping of <b>{sha[:10]}</b> failed. What to do?</p>"
+                    f"<p>List of commits dropped:<br/>{fmt(dropped_shas)}</p>"
+                    f"<p>List of commits to be dropped:<br/>{fmt(remaining)}</p>"
+                )
+                copy_btn = box.addButton("Copy current commit id to clipboard", QMessageBox.ActionRole)
+                skip_btn = box.addButton("Skip this, and continue with next", QMessageBox.AcceptRole)
+                stop_btn = box.addButton("Stop here", QMessageBox.RejectRole)
+                box.exec()
+                clicked = box.clickedButton()
+                if clicked is copy_btn:
+                    QApplication.clipboard().setText(sha)
+                    continue  # re-show the dialog so the user can then skip/stop
+                elif clicked is skip_btn:
+                    break
+                else:
+                    stop = True
+                    break
+
+        self.exit_multi_select_mode()
+
+        if len(dropped_shas) == len(selected_shas):
+            QMessageBox.information(self, "Success",
+                                    f"Successfully dropped {len(dropped_shas)} commit(s).")
+        elif dropped_shas:
+            not_dropped = [s for s in selected_shas if s not in dropped_shas]
+            box = self._make_resizable_message_box(self)
+            box.setWindowTitle("Drop Result")
+            box.setTextFormat(Qt.RichText)
+            box.setText(
+                f"<p>Drop partially succeeded.</p>"
+                f"<p>Dropped:<br/>{fmt(dropped_shas)}</p>"
+                f"<p>Not dropped:<br/>{fmt(not_dropped)}</p>"
+            )
+            box.addButton("OK", QMessageBox.AcceptRole)
+            box.exec()
+        else:
+            QMessageBox.information(self, "Drop Result",
+                                    "No commits were dropped.")
+
+    def _drop_single_commit(self, sha):
+        """Drops a single commit using the unified rebase logic.
+        Returns True on success, False on failure. Suppresses the default
+        failure box so the caller can present recovery choices."""
+        if not self._check_not_viewer_mode():
+            return False
+        if not self._check_head_unchanged():
+            return False
+        if not self._check_no_unstaged_changes():
+            return False
+        try:
+            current_shas = [self.list_widget.item(i).text().split()[0]
+                            for i in range(self.list_widget.count())]
+            new_shas = [s for s in current_shas if s != sha]
+            if self.run_interactive_rebase(
+                    new_shas,
+                    progress_title="Dropping Commit",
+                    progress_text=f"Dropping commit {sha}. Please wait...",
+                    suppress_failure_box=True):
+                self.load_history()
+                self._sync_cached_head()
+                return True
+            self.load_history()
+            return False
+        except Exception as e:
+            self.load_history()
+            return False
 
     def perform_multi_squash(self, selected_shas):
         """Squashes multiple adjacent commits into the topmost selected commit."""
@@ -5770,7 +5880,7 @@ for i, filename in enumerate(files):
             return
         self.load_history()
 
-    def run_interactive_rebase(self, new_shas, rephrase_map=None, squash_shas=None, original_shas=None, progress_title="Rebasing", progress_text="Executing interactive rebase. Please wait...\nThis might take a few moments."):
+    def run_interactive_rebase(self, new_shas, rephrase_map=None, squash_shas=None, original_shas=None, progress_title="Rebasing", progress_text="Executing interactive rebase. Please wait...\nThis might take a few moments.", suppress_failure_box=False):
         """
         Unified handler for history rewriting using git rebase -i.
         original_shas: The pre-change SHA order (latest-first). If provided, used
@@ -5917,16 +6027,18 @@ for i, filename in enumerate(files):
                     ok, detail = self._abort_rebase_safely()
                     if not ok:
                         self._warn_rebase_abort_failure(detail)
-                    QMessageBox.critical(self, "Rebase Failed",
-                        f"Action failed (likely due to merge conflicts).\n"
-                        f"The rebase has been aborted.\n\nError: {result.stderr}")
+                    if not suppress_failure_box:
+                        QMessageBox.critical(self, "Rebase Failed",
+                            f"Action failed (likely due to merge conflicts).\n"
+                            f"The rebase has been aborted.\n\nError: {result.stderr}")
                     return False
 
             finally:
                 progress.close()
 
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"An error occurred during rebase: {str(e)}")
+            if not suppress_failure_box:
+                QMessageBox.critical(self, "Error", f"An error occurred during rebase: {str(e)}")
             return False
 
 
