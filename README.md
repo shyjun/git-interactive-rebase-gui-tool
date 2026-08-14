@@ -12,8 +12,9 @@ A Python-based Git Interactive Rebase GUI tool to visually manage commit history
 
 ### 🪺 History Rewriting
 
-* **Visual Reordering**: Drag and drop commits to reorder your history, or use the **Move Commit** context-menu actions.
+* **Visual Reordering**: Drag and drop commits to reorder your history, or use the **Move Commit** context-menu actions. In multi-select mode, drag a block of adjacent checked commits to a new position together.
 * **Interactive Squash**: Squash a commit with its neighbor, or multi-select any range of commits to squash into one — with a dedicated dialog and real-time feedback.
+* **Multi-select Actions**: **Select multiple commits**, then apply an action to all of them — **Squash selected commits** (any adjacent range), **Mark selected commits**, **Drop selected commits** (dropped one by one, newest first, with per-commit failure recovery), or **drag a contiguous checked block** to reorder it in one go.
 * **Smart Rephrase**: Effortlessly update commit messages without leaving the app.
 * **Instant Drop**: Remove unwanted commits with a single click (with preview).
 * **Split Commits**: Split a commit's changes into multiple commits.
@@ -54,7 +55,7 @@ A Python-based Git Interactive Rebase GUI tool to visually manage commit history
 * **Browse Branch**: Open a separate read-only window for *any* other branch's history (with dimmed "viewer" styling so you always know it is read-only), then cherry-pick from it.
 * **Browse File Log**: Open a separate read-only window showing the history of a single file, via **Browse File Log…** in the Repo menu or **Browse file log** in the file-wise view's right-click menu. History follows renames (`git log --follow`), and the diff pane is scoped to that file.
 * **Find Merge-base**: Compute the merge-base between the current branch and any other branch, with one-click **Copy SHA to clipboard** (Repo menu → **Find Merge-base…**).
-* **Non-modal viewer windows**: View Commit, file-wise view, PR Diff, and consolidated-diff windows stay open while you keep using the main window — switch freely between them without closing the viewer.
+* **Non-modal viewer windows**: The tabbed View Commit window, PR Diff, and consolidated-diff windows stay open while you keep using the main window — switch freely between them without closing the viewer.
 
 ### ⚡ Git Integration
 
@@ -65,7 +66,7 @@ A Python-based Git Interactive Rebase GUI tool to visually manage commit history
   * Per-file **checkboxes** with `+N -M` stats; the bottom pane previews the **combined diff** of the checked files, with separator lines between files (like the main diff pane)
   * **Commit Selected Files** — a single commit containing only the checked files
   * **commit --amend selected files** — amend only the checked files into the HEAD commit, with the message pre-filled from HEAD (editable)
-  * **git add -p** — interactive hunk-by-hunk selection (all checked files in one view) followed by `git commit` or `git commit --amend`
+  * **git add -p** — interactive **hunk-by-hunk** selection: pick individual hunks of the checked files, grouped per file with `Select All / Deselect All` and a live counter, then finish with `git commit` or `git commit --amend`. Unchecked hunks stay untouched in the working tree (see the full walkthrough in [docs/screenshots.md](docs/screenshots.md#18-unstaged--uncommitted-changes-handling))
   * Unchecked files stay completely untouched, and cancelling at any point leaves the repository unchanged
 
 ### 🎨 Premium User Experience
@@ -83,7 +84,7 @@ A Python-based Git Interactive Rebase GUI tool to visually manage commit history
 |-----------|----------|
 | `/` | Focus the search bar |
 | `Esc` | Clear search / close dialog |
-| `Ctrl+F` | Search inside the diff viewer |
+| `Ctrl+F` | Focus the diff search bar (available in every diff view) |
 | `Ctrl+Q` | Exit application |
 | `Ctrl+Z` | Undo last operation (disabled while editing text) |
 | `F5` | Refresh / rescan commit history |
@@ -92,11 +93,11 @@ A Python-based Git Interactive Rebase GUI tool to visually manage commit history
 
 Right-clicking any commit gives you quick access to:
 
-* Mark / unmark a commit, view the commit (full or file-wise)
+* Mark / unmark a commit, view the commit (opens the tabbed Plain / File-wise viewer)
 * Reset hard to a commit, reset HEAD to here (keep changes), set the BEST commit, revert
 * Rephrase, drop
-* **Squash commits** submenu — squash with above/below, or multi-select any range to squash
-* **Move Commit** submenu — move up/down or drag to reorder
+* **Squash commits** submenu — squash with above/below, or multi-select any range to squash (also via the **Perform action on selected commits** menu)
+* **Move Commit** submenu — move up/down or drag to reorder (drag also works on a contiguous block of checked commits in multi-select mode)
 * **Split Commit** submenu — split, per-file split, move file out, drop file, refine hunks
 * **Consolidated Diff** submenu — set start commit, diff to here, or diff HEAD to here
 * Copy SHA / message / both to clipboard
