@@ -2196,7 +2196,6 @@ class CommitSelectivelyDialog(QDialog):
         self.file_list.setItemDelegate(self.stats_delegate)
         self.file_list.itemChanged.connect(self._update_counter)
         self.file_list.itemChanged.connect(self._refresh_diff)
-        layout.addWidget(self.file_list, stretch=1)
 
         # Diff preview with the shared search bar
         self.diff_view = DiffView()
@@ -2212,8 +2211,22 @@ class CommitSelectivelyDialog(QDialog):
         self.search_bar = DiffSearchBar(target_view=self.diff_view, parent=self)
         self.ctrl_f_shortcut = QShortcut(QKeySequence("Ctrl+F"), self)
         self.ctrl_f_shortcut.activated.connect(self.search_bar.show_and_focus)
-        layout.addWidget(self.search_bar)
-        layout.addWidget(self.diff_view, stretch=2)
+
+        # Splitter so the file list pane and the diff preview pane are resizable
+        self.main_splitter = QSplitter(Qt.Vertical)
+        self.main_splitter.setChildrenCollapsible(False)
+        self.main_splitter.addWidget(self.file_list)
+        diff_pane = QWidget()
+        diff_pane_layout = QVBoxLayout(diff_pane)
+        diff_pane_layout.setContentsMargins(0, 0, 0, 0)
+        diff_pane_layout.setSpacing(4)
+        diff_pane_layout.addWidget(self.search_bar)
+        diff_pane_layout.addWidget(self.diff_view)
+        self.main_splitter.addWidget(diff_pane)
+        self.main_splitter.setStretchFactor(0, 1)
+        self.main_splitter.setStretchFactor(1, 2)
+        self.main_splitter.setSizes([260, 400])
+        layout.addWidget(self.main_splitter)
 
         # Bottom actions
         bot_row = QHBoxLayout()
