@@ -1411,9 +1411,6 @@ class GitInteractiveRebaseApp(QMainWindow):
         theme_menu.addAction(light_action)
         self.theme_menu_btn.setMenu(theme_menu)
 
-        self.toggle_diff_btn = QPushButton("Hide Diffs" if self.show_diffs else "Show Diffs")
-        self.toggle_diff_btn.setToolTip("Show or hide the right-side diff panel.")
-        self._set_toggle_diff_icon(self.toggle_diff_btn)
         self.exit_viewer_mode_btn = QPushButton("Exit Viewer Mode")
         self.exit_viewer_mode_btn.setToolTip("Re-enable history-modifying operations.")
         self._set_exit_viewer_mode_icon(self.exit_viewer_mode_btn)
@@ -1449,14 +1446,13 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.custom_reset_btn = QPushButton("Enter commit id to reset hard to")
         self.custom_reset_btn.setToolTip("Reset hard to a commit id you enter.")
 
-        for btn in [self.toggle_diff_btn, self.exit_viewer_mode_btn, self.rescan_btn, self.repo_btn, self.pop_stash_btn, self.undo_btn, self.refresh_btn, self.exit_btn, self.theme_menu_btn]:
+        for btn in [self.exit_viewer_mode_btn, self.rescan_btn, self.repo_btn, self.pop_stash_btn, self.undo_btn, self.refresh_btn, self.exit_btn, self.theme_menu_btn]:
             btn.setMinimumHeight(40)
             btn.setMinimumWidth(100)
         self.failsafe_btn.setMinimumHeight(40)
         self.best_commit_btn.setMinimumHeight(40)
         self.custom_reset_btn.setMinimumHeight(40)
 
-        self.toggle_diff_btn.clicked.connect(self.toggle_side_diff_visibility)
         self.exit_viewer_mode_btn.clicked.connect(self.handle_exit_viewer_mode)
         self.rescan_btn.clicked.connect(self.handle_rescan_repo)
         self.pop_stash_btn.clicked.connect(self.handle_pop_managed_stash)
@@ -1469,7 +1465,6 @@ class GitInteractiveRebaseApp(QMainWindow):
 
         # Single row of main buttons
         controls_layout.addWidget(self.theme_menu_btn)
-        controls_layout.addWidget(self.toggle_diff_btn)
         self.browse_select_btn = QPushButton("Select commits")
         self.browse_select_btn.setToolTip("Enter checkbox selection mode on the commit list.")
         self.browse_select_btn.clicked.connect(self.enter_browse_multi_select)
@@ -1953,13 +1948,6 @@ class GitInteractiveRebaseApp(QMainWindow):
         except Exception as e:
             self.filewise_diff_view.setPlainText(f"Error loading diff: {e}")
 
-    def toggle_side_diff_visibility(self):
-        new_visibility = not self.right_panel.isVisible()
-        self.right_panel.setVisible(new_visibility)
-        self.show_diffs = new_visibility
-        self.settings.setValue(self._sk("show_diffs"), self.show_diffs)
-        self.toggle_diff_btn.setText("Hide Diffs" if new_visibility else "Show Diffs")
-
     def _show_help_dialog(self):
         """Opens the Help dialog."""
         dialog = HelpDialog(self)
@@ -2091,9 +2079,6 @@ class GitInteractiveRebaseApp(QMainWindow):
         button.setIcon(self._make_icon_pixmap(lambda painter: draw_func(painter, icon_color)))
         button.setIconSize(QSize(16, 16))
 
-    def _set_toggle_diff_icon(self, button):
-        self._apply_toolbar_icon(button, self._draw_eye_slash)
-
     def _set_rescan_icon(self, button):
         self._apply_toolbar_icon(button, self._draw_rescan)
 
@@ -2120,7 +2105,6 @@ class GitInteractiveRebaseApp(QMainWindow):
 
     def _refresh_toolbar_icons(self):
         self._set_theme_icon(self.theme_menu_btn)
-        self._set_toggle_diff_icon(self.toggle_diff_btn)
         self._set_rescan_icon(self.rescan_btn)
         self._set_undo_icon(self.undo_btn)
         self._set_refresh_icon(self.refresh_btn)
@@ -2129,21 +2113,6 @@ class GitInteractiveRebaseApp(QMainWindow):
         self._set_pop_stash_icon(self.pop_stash_btn)
         self._set_repo_icon(self.repo_btn)
         self._set_configure_icon(self.configure_btn)
-
-    def _draw_eye_slash(self, painter, color):
-        pen = QPen(color, 1.7)
-        pen.setCapStyle(Qt.RoundCap)
-        pen.setJoinStyle(Qt.RoundJoin)
-        painter.setPen(pen)
-        painter.setBrush(Qt.NoBrush)
-
-        eye = QPainterPath()
-        eye.moveTo(1.5, 8)
-        eye.cubicTo(4.0, 3.8, 12.0, 3.8, 14.5, 8)
-        eye.cubicTo(12.0, 12.2, 4.0, 12.2, 1.5, 8)
-        painter.drawPath(eye)
-        painter.drawEllipse(6.0, 6.0, 4.0, 4.0)
-        painter.drawLine(2.0, 14.0, 14.0, 2.0)
 
     def _draw_rescan(self, painter, color):
         pen = QPen(color, 1.8)
@@ -3287,6 +3256,11 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.settings.setValue(self._sk("show_date"), self.show_date)
         self.list_widget.viewport().update()
 
+    def on_diffs_visibility_toggled(self, visible):
+        self.show_diffs = visible
+        self.right_panel.setVisible(visible)
+        self.settings.setValue(self._sk("show_diffs"), self.show_diffs)
+
     def _build_configure_menu(self):
         """Builds the status-bar configure menu: a 'Show/Hide' submenu with
         checkable actions controlling which markers/columns are visible."""
@@ -3328,6 +3302,12 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.show_date_action.setToolTip("Show commit dates.")
         self.show_date_action.toggled.connect(self._on_date_toggled)
 
+        self.show_diffs_action = QAction("Show Diffs", self)
+        self.show_diffs_action.setCheckable(True)
+        self.show_diffs_action.setChecked(self.show_diffs)
+        self.show_diffs_action.setToolTip("Show or hide the right-side diff panel.")
+        self.show_diffs_action.toggled.connect(self.on_diffs_visibility_toggled)
+
         show_hide = menu.addMenu("Show/Hide")
         show_hide.addAction(self.show_origin_action)
         show_hide.addAction(self.show_rebase_action)
@@ -3336,6 +3316,8 @@ class GitInteractiveRebaseApp(QMainWindow):
         show_hide.addSeparator()
         show_hide.addAction(self.show_stats_action)
         show_hide.addAction(self.show_date_action)
+        show_hide.addSeparator()
+        show_hide.addAction(self.show_diffs_action)
 
         menu.addSeparator()
 
