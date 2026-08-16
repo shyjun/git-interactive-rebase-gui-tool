@@ -4310,7 +4310,17 @@ class GitInteractiveRebaseApp(QMainWindow):
     def enter_multi_select_mode(self):
         """Enters checkbox multi-select mode on the commit list."""
         self.multi_select_mode = True
-        # Block signals to prevent spurious itemChanged during setup
+        self._apply_multi_select_flags()
+        self.list_widget.itemChanged.connect(self.on_multi_select_changed)
+        self.multi_select_btn.setEnabled(False)
+        self.perform_action_btn.setEnabled(False)
+        self.cancel_multi_btn.setEnabled(True)
+
+    def _apply_multi_select_flags(self):
+        """Adds checkable flags to the current list items and clears their checks.
+
+        Used when entering multi-select mode and whenever the list is repopulated
+        while multi-select mode is still active."""
         self.list_widget.blockSignals(True)
         saved_flags = {}
         for i in range(self.list_widget.count()):
@@ -4320,10 +4330,6 @@ class GitInteractiveRebaseApp(QMainWindow):
             item.setCheckState(Qt.Unchecked)
         self._saved_item_flags = saved_flags
         self.list_widget.blockSignals(False)
-        self.list_widget.itemChanged.connect(self.on_multi_select_changed)
-        self.multi_select_btn.setEnabled(False)
-        self.perform_action_btn.setEnabled(False)
-        self.cancel_multi_btn.setEnabled(True)
 
     def exit_multi_select_mode(self):
         """Exits checkbox multi-select mode and restores normal list behaviour."""
@@ -6791,6 +6797,11 @@ for i, filename in enumerate(files):
             # Otherwise, bound it to the new list size
             new_row = max(0, min(old_row if old_row >= 0 else 0, self.list_widget.count() - 1))
             self.list_widget.setCurrentRow(new_row)
+
+        # If the list was rebuilt while multi-select mode is active, re-apply the
+        # checkable flags so the UI stays consistent (tick boxes visible, etc.).
+        if self.multi_select_mode:
+            self._apply_multi_select_flags()
 
     def _refresh_history_load(self):
         """Post-load updates shared by sync and async history loading."""
