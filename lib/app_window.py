@@ -1639,9 +1639,13 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.drop_selected_action = QAction("Drop selected commits", self)
         self.drop_selected_action.setToolTip("Drop the selected commits.")
         self.drop_selected_action.triggered.connect(self.handle_drop_selected)
+        self.move_selected_action = QAction("Move selected commits", self)
+        self.move_selected_action.setToolTip("Drag the selected commits to a new position to reorder them.")
+        self.move_selected_action.triggered.connect(self.handle_move_selected_info)
         self.perform_action_menu.addAction(self.squash_selected_action)
         self.perform_action_menu.addAction(self.mark_selected_action)
         self.perform_action_menu.addAction(self.drop_selected_action)
+        self.perform_action_menu.addAction(self.move_selected_action)
         self.perform_action_btn.setMenu(self.perform_action_menu)
         self.cancel_multi_btn = QPushButton("Cancel multiple selection")
         self.cancel_multi_btn.setToolTip("Cancel multi-select mode.")
@@ -3830,6 +3834,16 @@ class GitInteractiveRebaseApp(QMainWindow):
             "Simply click and hold a commit, then drag it to where you want it."
         )
 
+    def handle_move_selected_info(self):
+        QMessageBox.information(
+            self,
+            "Move Selected Commits",
+            "Checked commits that are adjacent (contiguous) can be dragged and dropped "
+            "to a new position to reorder them together.\n\n"
+            "Click and hold any one of the checked commits, then drag the whole block "
+            "to where you want it. A confirmation dialog shows the range being moved."
+        )
+
     def handle_move_up(self, item):
         """Swaps the selected commit with the one above it (Towards HEAD)."""
         idx = self.list_widget.row(item)
@@ -4364,6 +4378,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.squash_selected_action.setEnabled(checked_count >= 2)
         self.mark_selected_action.setEnabled(checked_count >= 1)
         self.drop_selected_action.setEnabled(checked_count >= 1)
+        self.move_selected_action.setEnabled(checked_count >= 1)
 
     def handle_cancel_multi_select(self):
         """Cancels multi-select mode without merging."""
