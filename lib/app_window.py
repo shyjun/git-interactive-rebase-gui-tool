@@ -1627,7 +1627,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         squash_layout = QHBoxLayout()
         self.multi_select_btn = QPushButton("Select multiple commits")
         self.multi_select_btn.setToolTip("Select multiple commits.")
-        self.perform_action_btn = QPushButton("Perform action of selected commits")
+        self.perform_action_btn = QPushButton("Perform action on selected commits")
         self.perform_action_btn.setToolTip("Choose an action to apply to the selected commits.")
         self.perform_action_menu = QMenu(self)
         self.squash_selected_action = QAction("Squash selected commits", self)
