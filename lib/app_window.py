@@ -4315,6 +4315,9 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.multi_select_btn.setEnabled(False)
         self.perform_action_btn.setEnabled(False)
         self.cancel_multi_btn.setEnabled(True)
+        # Give the commit list keyboard focus so Space toggles the current
+        # item's checkbox instead of falling onto a toolbar button (e.g. zoom).
+        self.list_widget.setFocus()
 
     def _apply_multi_select_flags(self):
         """Adds checkable flags to the current list items and clears their checks.
