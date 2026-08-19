@@ -233,11 +233,11 @@ This project is actively under development, with new features and improvements a
 
 ### Update from inside the app
 
-1. Click **Repo → Check Updates**.
-2. If a newer version is available, the app shows the command to run and a **Copy to clipboard** button.
-3. Exit the app, run the copied command, then relaunch the app.
+1. Click **Configure → Check Updates**.
+2. If a newer version is available, click **Update Now** — a progress bar runs while the tool updates itself, then reports success or failure.
+3. Restart the tool to apply the update.
 
-The app figures out how to update itself depending on how it was installed:
+If you'd rather update later, the same dialog offers **Copy to clipboard** with the command to run manually. The app figures out how to update itself depending on how it was installed:
 
 - **pip install** → `git_interactive_rebase --update`
 - **cloned repository** → `python3 <tool-folder>/git_interactive_rebase.py --update`
