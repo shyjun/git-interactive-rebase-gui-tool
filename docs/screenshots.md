@@ -52,7 +52,7 @@ Visual documentation for the Git Interactive Rebase GUI Tool. Each section showc
 34. [Show Local Branches](#34-show-local-branches)
 35. [Copy to Clipboard](#35-copy-to-clipboard)
 36. [Keyboard Shortcuts](#36-keyboard-shortcuts)
-37. [Update Available Dialog](#37-update-available-dialog)
+37. [Update the Tool](#37-update-the-tool)
 
 ---
 
@@ -877,11 +877,11 @@ Keyboard shortcuts for faster navigation and workflow.
 
 ---
 
-## 37. Update Available Dialog
+## 37. Update the Tool
 
 **Screenshot:** `screenshots/update-available-dialog.webp` *(placeholder — the screenshot will be captured and added here)*
 
-![Update Available Dialog](screenshots/update-available-dialog.webp)
+![Update the Tool](screenshots/update-available-dialog.webp)
 
 **Description:** When a newer version is available on GitHub, the app tells you about it (via **Configure → Check Updates**). The dialog offers:
 
