@@ -1288,6 +1288,8 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.list_widget.setContextMenuPolicy(Qt.CustomContextMenu)
         if self.browse_reflog:
             self.list_widget.customContextMenuRequested.connect(self.show_reflog_context_menu)
+        elif self.browse_stash:
+            self.list_widget.customContextMenuRequested.connect(self.show_stash_context_menu)
         elif self.browse_mode:
             self.list_widget.customContextMenuRequested.connect(self.show_browse_context_menu)
         else:
@@ -3789,6 +3791,23 @@ class GitInteractiveRebaseApp(QMainWindow):
         show_log_action.triggered.connect(lambda: self.handle_reflog_show_log_item(item))
 
         menu.addAction(show_log_action)
+        menu.addAction(copy_sha_action)
+        menu.exec(self.list_widget.mapToGlobal(position))
+
+    def show_stash_context_menu(self, position):
+        """Read-only context menu for the stash browser: copy SHA only.
+        Stash subjects (e.g. 'WIP on master') are not commit messages, so the
+        message-copy actions are intentionally omitted."""
+        item = self.list_widget.itemAt(position)
+        if not item:
+            return
+
+        menu = QMenu()
+        menu.setFont(QFont("Monospace", max(8, self.current_font_size - 2)))
+
+        copy_sha_action = QAction("Copy SHA to clipboard", self)
+        copy_sha_action.triggered.connect(lambda: self.handle_copy_sha(item))
+
         menu.addAction(copy_sha_action)
         menu.exec(self.list_widget.mapToGlobal(position))
 
