@@ -146,6 +146,8 @@ from lib.git_helpers import (
     stash_pop,
     get_stash_subject,
     stash_pop_can_apply,
+    stash_apply,
+    stash_drop,
     get_stash_status,
     STASH_NOTHING_STASHED,
     merge_into_stash,
@@ -2794,6 +2796,51 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.browse_windows.append(viewer)
         viewer.show()
 
+    def handle_stash_apply(self, item, drop_after=False):
+        """Applies the selected stash. If drop_after is True and the apply
+        succeeds, the stash is then dropped. On apply failure the stash is
+        never dropped, and the user is told so explicitly."""
+        if not item:
+            return
+        sha = item.text().split()[0]
+        success, err = stash_apply(self.repo_path, sha)
+        if not success:
+            QMessageBox.critical(
+                self, "Apply Failed",
+                f"Failed to apply stash {sha[:8]}.\n\n"
+                f"Details: {err}\n\n"
+                "The stash has NOT been dropped.")
+            return
+
+        dropped = False
+        if drop_after:
+            dropped = stash_drop(self.repo_path, sha)
+
+        msg = ("Apply success. Use 'Rescan Repo' to handle the unstaged changes.")
+        if drop_after:
+            msg += "\n\n" + ("The stash was dropped." if dropped
+                             else "The stash could NOT be dropped.")
+        QMessageBox.information(self, "Stash Applied", msg)
+
+    def handle_stash_drop(self, item):
+        """Drops the selected stash after user confirmation."""
+        if not item:
+            return
+        sha = item.text().split()[0]
+        confirm = QMessageBox.question(
+            self, "Drop Stash",
+            f"Drop stash {sha[:8]}? This cannot be undone.",
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if confirm != QMessageBox.Yes:
+            return
+        dropped = stash_drop(self.repo_path, sha)
+        if dropped:
+            QMessageBox.information(self, "Stash Dropped",
+                                    f"Stash {sha[:8]} was dropped.")
+        else:
+            QMessageBox.critical(self, "Drop Failed",
+                                 f"Failed to drop stash {sha[:8]}.")
+
     def handle_find_merge_base(self):
         """Finds the merge-base of the current branch and a user-chosen branch,
         then shows the SHA in a dialog with a copy-to-clipboard option."""
@@ -3795,9 +3842,9 @@ class GitInteractiveRebaseApp(QMainWindow):
         menu.exec(self.list_widget.mapToGlobal(position))
 
     def show_stash_context_menu(self, position):
-        """Read-only context menu for the stash browser: copy SHA only.
-        Stash subjects (e.g. 'WIP on master') are not commit messages, so the
-        message-copy actions are intentionally omitted."""
+        """Read-only context menu for the stash browser: copy SHA plus
+        apply / drop operations. Stash subjects (e.g. 'WIP on master') are not
+        commit messages, so the message-copy actions are intentionally omitted."""
         item = self.list_widget.itemAt(position)
         if not item:
             return
@@ -3807,8 +3854,18 @@ class GitInteractiveRebaseApp(QMainWindow):
 
         copy_sha_action = QAction("Copy SHA to clipboard", self)
         copy_sha_action.triggered.connect(lambda: self.handle_copy_sha(item))
+        apply_keep_action = QAction("Apply + keep stash", self)
+        apply_keep_action.triggered.connect(lambda: self.handle_stash_apply(item, drop_after=False))
+        apply_drop_action = QAction("Apply + drop stash", self)
+        apply_drop_action.triggered.connect(lambda: self.handle_stash_apply(item, drop_after=True))
+        drop_action = QAction("Drop stash", self)
+        drop_action.triggered.connect(lambda: self.handle_stash_drop(item))
 
         menu.addAction(copy_sha_action)
+        menu.addSeparator()
+        menu.addAction(apply_keep_action)
+        menu.addAction(apply_drop_action)
+        menu.addAction(drop_action)
         menu.exec(self.list_widget.mapToGlobal(position))
 
     def show_context_menu(self, position):
