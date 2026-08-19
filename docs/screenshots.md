@@ -879,7 +879,7 @@ Keyboard shortcuts for faster navigation and workflow.
 
 ## 37. Update the Tool
 
-**Screenshot:** `screenshots/update-available-dialog.webp` *(placeholder — the screenshot will be captured and added here)*
+**Screenshot:** `screenshots/update-available-dialog.webp`
 
 ![Update the Tool](screenshots/update-available-dialog.webp)
 
