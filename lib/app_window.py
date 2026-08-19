@@ -2809,6 +2809,15 @@ class GitInteractiveRebaseApp(QMainWindow):
         if not item:
             return
         sha = item.text().split()[0]
+        confirm = QMessageBox.question(
+            self, "Apply Stash",
+            f"Apply stash {sha[:8]}?\n\n"
+            + ("The stash WILL be dropped after a successful apply."
+               if drop_after
+               else "The stash will be KEPT after the apply."),
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if confirm != QMessageBox.Yes:
+            return
         success, err = stash_apply(self.repo_path, sha)
         if not success:
             QMessageBox.critical(
