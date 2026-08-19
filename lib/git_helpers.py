@@ -199,6 +199,38 @@ def _parse_reflog_records(stdout):
         })
     return commits
 
+def _parse_stash_records(stdout):
+    """Parses ``git stash list --format="%H|%gd|%gs"`` output into commit-like
+    dicts.
+
+    Each output line has the shape ``sha|selector|subject`` (e.g.
+    ``9705acdffbaa2148e4a2462140c7380d474b3b33|stash@{0}|On master: wip feature``).
+    Returns a list of dicts matching the shape used by the commit list widget,
+    with the stash SHA as the first token of ``raw_text`` so existing SHA-
+    extraction logic keeps working.
+    """
+    commits = []
+    for line in stdout.split('\n'):
+        line = line.strip()
+        if not line:
+            continue
+        parts = line.split('|', 2)
+        if len(parts) < 3:
+            continue
+        sha, selector, subject = parts
+        commits.append({
+            "sha": sha,
+            "selector": selector,
+            "message": subject,
+            "date": "",
+            "author": "",
+            "parents": "",
+            "added": 0,
+            "deleted": 0,
+            "raw_text": f"{sha} {selector}: {subject}",
+        })
+    return commits
+
 def get_reflog_history(repo_path, limit=None):
     """Fetches the repository's HEAD reflog (most recent first).
 
@@ -218,6 +250,26 @@ def get_reflog_history(repo_path, limit=None):
         return _parse_reflog_records(result.stdout)
     except subprocess.CalledProcessError as e:
         raise Exception(f"Failed to fetch reflog history: {e.stderr}")
+
+def get_stash_history(repo_path, limit=None):
+    """Fetches the repository's stash list (most recent first).
+
+    Args:
+        repo_path: repository path.
+        limit: max number of stash entries to return (None = unlimited).
+
+    Returns parsed stash dicts in the same shape as get_git_history, with the
+    stash selector (e.g. ``stash@{0}``) stored in ``selector`` and the stash
+    subject stored in ``message``.
+    """
+    try:
+        log_cmd = ["git", "stash", "list", "--format=%H|%gd|%gs"]
+        if limit is not None:
+            log_cmd.append(f"-n{limit}")
+        result = subprocess.run(log_cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
+        return _parse_stash_records(result.stdout)
+    except subprocess.CalledProcessError as e:
+        raise Exception(f"Failed to fetch stash history: {e.stderr}")
 
 def get_current_branch(repo_path):
     """Fetches current branch name."""

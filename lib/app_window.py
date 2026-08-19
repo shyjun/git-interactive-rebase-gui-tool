@@ -117,6 +117,7 @@ from lib.git_helpers import (
     get_branch_history,
     get_file_history,
     get_reflog_history,
+    get_stash_history,
     get_head_sha,
     get_full_head_sha,
     get_current_branch,
@@ -989,7 +990,7 @@ def highlight_button_temporarily(button, duration_ms=3000, blinks=0, color=None)
 
 
 class GitInteractiveRebaseApp(QMainWindow):
-    def __init__(self, repo_path, commit_sha, app_start_time, base_branch=None, viewer_mode=False, browse_branch=None, parent=None, browse_limit=50, browse_file=None, browse_reflog=False):
+    def __init__(self, repo_path, commit_sha, app_start_time, base_branch=None, viewer_mode=False, browse_branch=None, parent=None, browse_limit=50, browse_file=None, browse_reflog=False, browse_stash=False):
         super().__init__(parent)
         self.repo_path = repo_path
         self.commit_sha = commit_sha
@@ -999,8 +1000,9 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.browse_branch = browse_branch
         self.browse_file = browse_file
         self.browse_reflog = browse_reflog
-        self.browse_mode = bool(browse_branch or browse_file or browse_reflog)
-        if browse_branch or browse_file or browse_reflog:
+        self.browse_stash = browse_stash
+        self.browse_mode = bool(browse_branch or browse_file or browse_reflog or browse_stash)
+        if browse_branch or browse_file or browse_reflog or browse_stash:
             self.viewer_mode = True
         self.is_dark_theme = False  # refined in load_settings/apply_theme
         self.start_time_full_head = get_full_head_sha(self.repo_path)
@@ -1144,6 +1146,11 @@ class GitInteractiveRebaseApp(QMainWindow):
     def update_window_title(self):
         """Updates window title with branch, HEAD, and path."""
         app_time = self.app_start_time if self.app_start_time else "N/A"
+        if self.browse_stash:
+            title = (f"Browse Stashes (read-only, latest "
+                     f"{self.browse_limit}), path={self.repo_path}")
+            self.setWindowTitle(title)
+            return
         if self.browse_reflog:
             title = (f"Browse Reflog (read-only, latest "
                      f"{self.browse_limit}), path={self.repo_path}")
@@ -1467,7 +1474,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         # Keep a strong reference: in file-log mode the tab page is not added to
         # the tab widget, so it would otherwise be garbage-collected.
         self.filewise_widget = filewise_widget
-        if not self.browse_file:
+        if not self.browse_file and not self.browse_stash:
             self.diff_tab_widget.addTab(filewise_widget, "File-wise Diff")
 
         self.right_splitter.addWidget(self.diff_tab_widget)
@@ -1490,7 +1497,7 @@ class GitInteractiveRebaseApp(QMainWindow):
 
         self.right_panel.setMinimumWidth(150)
 
-        self.right_panel.setVisible(self.show_diffs and not self.browse_reflog)
+        self.right_panel.setVisible(not self.browse_reflog)
 
         self.main_splitter.addWidget(self.right_panel)
         # default split ratio: history 60%, diff 40%
@@ -2136,16 +2143,22 @@ class GitInteractiveRebaseApp(QMainWindow):
         import threading
         repo_path = self.repo_path
         filepath = self.browse_file
+        stash = self.browse_stash
 
         def worker():
             try:
-                cmd = ["git", "rev-list", "--count", "HEAD"]
-                if filepath:
-                    cmd += ["--", filepath]
+                if stash:
+                    cmd = ["git", "stash", "list"]
+                else:
+                    cmd = ["git", "rev-list", "--count", "HEAD"]
+                    if filepath:
+                        cmd += ["--", filepath]
                 total = subprocess.check_output(
                     cmd,
                     cwd=repo_path, encoding='utf-8', errors='replace'
                 ).strip()
+                if stash:
+                    total = str(len([l for l in total.split('\n') if l.strip()]))
                 from PySide6.QtCore import QMetaObject, Qt, Q_ARG
                 print(f"Total commits in repo: {total}")
                 QMetaObject.invokeMethod(
@@ -2166,7 +2179,9 @@ class GitInteractiveRebaseApp(QMainWindow):
 
     @Slot(str)
     def _set_total_commit_count(self, count_str):
-        if self.browse_file:
+        if self.browse_stash:
+            self.total_commits_label.setText(f"Total stashes: {count_str}")
+        elif self.browse_file:
             self.total_commits_label.setText(f"Total commits touching file: {count_str}")
         else:
             self.total_commits_label.setText(f"Total commits in repo: {count_str}")
@@ -2707,6 +2722,23 @@ class GitInteractiveRebaseApp(QMainWindow):
         viewer = GitInteractiveRebaseApp(
             self.repo_path, self.commit_sha, self.app_start_time,
             viewer_mode=True, browse_reflog=True, parent=self,
+            browse_limit=50,
+        )
+        # The browse viewer inherits the main window's current zoom and theme.
+        viewer.current_font_size = self.current_font_size
+        viewer.update_font()
+        if viewer.is_dark_theme != self.is_dark_theme:
+            viewer.is_dark_theme = self.is_dark_theme
+            viewer.apply_theme("dark" if self.is_dark_theme else "light")
+        self.browse_windows.append(viewer)
+        viewer.show()
+
+    def handle_browse_stash(self):
+        """Opens a read-only viewer window showing the repository's stash list
+        (most recent first), with the diff pane always visible."""
+        viewer = GitInteractiveRebaseApp(
+            self.repo_path, self.commit_sha, self.app_start_time,
+            viewer_mode=True, browse_stash=True, parent=self,
             browse_limit=50,
         )
         # The browse viewer inherits the main window's current zoom and theme.
@@ -3604,6 +3636,10 @@ class GitInteractiveRebaseApp(QMainWindow):
         browse_reflog_action.setToolTip("Open a read-only viewer of the repository's HEAD reflog.")
         browse_reflog_action.triggered.connect(lambda *_: self.handle_browse_reflog())
 
+        browse_stash_action = QAction("Browse Stashes", self)
+        browse_stash_action.setToolTip("Open a read-only viewer of the repository's stash list.")
+        browse_stash_action.triggered.connect(lambda *_: self.handle_browse_stash())
+
         merge_base_action = QAction("Find Merge-base…", self)
         merge_base_action.setToolTip("Find the merge-base of the current branch and another branch.")
         merge_base_action.triggered.connect(lambda *_: self.handle_find_merge_base())
@@ -3615,6 +3651,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         menu.addAction(browse_file_action)
         menu.addAction(browse_commit_log_action)
         menu.addAction(browse_reflog_action)
+        menu.addAction(browse_stash_action)
         menu.addAction(merge_base_action)
         return menu
 
@@ -7010,12 +7047,17 @@ for i, filename in enumerate(files):
         branch = self.browse_branch
         filepath = self.browse_file
         reflog = self.browse_reflog
+        stash = self.browse_stash
         browse_limit = self.browse_limit
 
         def worker():
             try:
                 if filepath:
                     history = get_file_history(repo_path, filepath, limit=browse_limit)
+                elif stash:
+                    history = get_stash_history(repo_path, limit=browse_limit)
+                    self._browse_load_result = (True, history, {})
+                    return
                 elif reflog:
                     history = get_reflog_history(repo_path, limit=browse_limit)
                     self._browse_load_result = (True, history, {})
