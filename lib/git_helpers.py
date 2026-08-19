@@ -169,6 +169,56 @@ def get_file_history(repo_path, filepath, limit=None):
     except subprocess.CalledProcessError as e:
         raise Exception(f"Failed to fetch file history: {e.stderr}")
 
+def _parse_reflog_records(stdout):
+    """Parses ``git reflog --format="%h|%gd|%gs"`` output into commit-like dicts.
+
+    Each output line has the shape ``sha|selector|subject`` (e.g.
+    ``c9bbbc4|HEAD@{0}|commit: Fix bug``). Returns a list of dicts matching the
+    shape used by the commit list widget, with the SHA as the first token of
+    ``raw_text`` so existing SHA-extraction logic keeps working.
+    """
+    commits = []
+    for line in stdout.split('\n'):
+        line = line.strip()
+        if not line:
+            continue
+        parts = line.split('|', 2)
+        if len(parts) < 3:
+            continue
+        sha, selector, subject = parts
+        commits.append({
+            "sha": sha,
+            "selector": selector,
+            "message": subject,
+            "date": "",
+            "author": "",
+            "parents": "",
+            "added": 0,
+            "deleted": 0,
+            "raw_text": f"{sha} {selector}: {subject}",
+        })
+    return commits
+
+def get_reflog_history(repo_path, limit=None):
+    """Fetches the repository's HEAD reflog (most recent first).
+
+    Args:
+        repo_path: repository path.
+        limit: max number of reflog entries to return (None = unlimited).
+
+    Returns parsed reflog dicts in the same shape as get_git_history, with the
+    reflog selector (e.g. ``HEAD@{0}``) stored in ``selector`` and the reflog
+    subject stored in ``message``.
+    """
+    try:
+        log_cmd = ["git", "reflog", "--format=%h|%gd|%gs"]
+        if limit is not None:
+            log_cmd.append(f"-n{limit}")
+        result = subprocess.run(log_cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
+        return _parse_reflog_records(result.stdout)
+    except subprocess.CalledProcessError as e:
+        raise Exception(f"Failed to fetch reflog history: {e.stderr}")
+
 def get_current_branch(repo_path):
     """Fetches current branch name."""
     try:
