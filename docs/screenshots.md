@@ -52,6 +52,7 @@ Visual documentation for the Git Interactive Rebase GUI Tool. Each section showc
 34. [Show Local Branches](#34-show-local-branches)
 35. [Copy to Clipboard](#35-copy-to-clipboard)
 36. [Keyboard Shortcuts](#36-keyboard-shortcuts)
+37. [Update Available Dialog](#37-update-available-dialog)
 
 ---
 
@@ -873,3 +874,19 @@ Keyboard shortcuts for faster navigation and workflow.
 
 - `Esc` behaves contextually and may close dialogs, clear filters, or exit search depending on the active view.
 - `Ctrl+F` focuses the diff search bar, which is available in every diff view (see [Diff Search Bar](#8-diff-search-bar)).
+
+---
+
+## 37. Update Available Dialog
+
+**Screenshot:** `screenshots/update-available-dialog.webp` *(placeholder — the screenshot will be captured and added here)*
+
+![Update Available Dialog](screenshots/update-available-dialog.webp)
+
+**Description:** When a newer version is available on GitHub, the app tells you about it (via **Configure → Check Updates**). The dialog offers:
+
+- **Update Now** → Update the tool right away. A progress bar runs while the tool updates itself (via `git pull` for a cloned installation, or `pip` upgrade for a pip installation), then reports success or failure and asks you to restart the tool.
+- **Copy to clipboard** → Copy the manual update command to run later.
+- **Cancel** → Dismiss the dialog.
+
+For a cloned installation, the update refuses to run if the local clone has uncommitted changes — commit or stash them and try again.
