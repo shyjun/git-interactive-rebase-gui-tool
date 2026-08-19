@@ -1622,6 +1622,27 @@ class GitInteractiveRebaseApp(QMainWindow):
             btn.setVisible(bool(self.browse_reflog))
         controls_layout.addWidget(self.reflog_copy_sha_btn)
         controls_layout.addWidget(self.reflog_show_log_btn)
+        self.stash_copy_sha_btn = QPushButton("Copy")
+        self.stash_copy_sha_btn.setToolTip("Copy the selected stash's SHA to the clipboard.")
+        self.stash_copy_sha_btn.clicked.connect(self.handle_stash_copy_sha)
+        self.stash_apply_keep_btn = QPushButton("Apply + Keep")
+        self.stash_apply_keep_btn.setToolTip("Apply the selected stash and keep it in the list.")
+        self.stash_apply_keep_btn.clicked.connect(self.handle_stash_apply_keep_btn)
+        self.stash_apply_drop_btn = QPushButton("Apply + Drop")
+        self.stash_apply_drop_btn.setToolTip("Apply the selected stash and drop it after a successful apply.")
+        self.stash_apply_drop_btn.clicked.connect(self.handle_stash_apply_drop_btn)
+        self.stash_drop_btn = QPushButton("Drop")
+        self.stash_drop_btn.setToolTip("Drop the selected stash (asks for confirmation).")
+        self.stash_drop_btn.clicked.connect(self.handle_stash_drop_btn)
+        for btn in [self.stash_copy_sha_btn, self.stash_apply_keep_btn,
+                    self.stash_apply_drop_btn, self.stash_drop_btn]:
+            btn.setMinimumHeight(40)
+            btn.setMinimumWidth(100)
+            btn.setVisible(bool(self.browse_stash))
+        controls_layout.addWidget(self.stash_copy_sha_btn)
+        controls_layout.addWidget(self.stash_apply_keep_btn)
+        controls_layout.addWidget(self.stash_apply_drop_btn)
+        controls_layout.addWidget(self.stash_drop_btn)
         controls_layout.addStretch()
         controls_layout.addWidget(self.pop_stash_btn)
         controls_layout.addWidget(self.repo_btn)
@@ -2801,6 +2822,34 @@ class GitInteractiveRebaseApp(QMainWindow):
         shown entries match the actual stash list."""
         if self.browse_stash:
             self.load_browse_history_async()
+
+    def _current_stash_item(self):
+        """Returns the currently selected list item, or None."""
+        return self.list_widget.currentItem()
+
+    def handle_stash_copy_sha(self):
+        """Copies the selected stash's SHA to the clipboard."""
+        item = self._current_stash_item()
+        if item:
+            self.handle_copy_sha(item)
+
+    def handle_stash_apply_keep_btn(self):
+        """Applies the selected stash (keeping it), via the context-menu handler."""
+        item = self._current_stash_item()
+        if item:
+            self.handle_stash_apply(item, drop_after=False)
+
+    def handle_stash_apply_drop_btn(self):
+        """Applies the selected stash and drops it after success."""
+        item = self._current_stash_item()
+        if item:
+            self.handle_stash_apply(item, drop_after=True)
+
+    def handle_stash_drop_btn(self):
+        """Drops the selected stash after confirmation."""
+        item = self._current_stash_item()
+        if item:
+            self.handle_stash_drop(item)
 
     def handle_stash_apply(self, item, drop_after=False):
         """Applies the selected stash. If drop_after is True and the apply
