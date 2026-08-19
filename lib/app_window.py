@@ -1474,7 +1474,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         # Keep a strong reference: in file-log mode the tab page is not added to
         # the tab widget, so it would otherwise be garbage-collected.
         self.filewise_widget = filewise_widget
-        if not self.browse_file and not self.browse_stash:
+        if not self.browse_file:
             self.diff_tab_widget.addTab(filewise_widget, "File-wise Diff")
 
         self.right_splitter.addWidget(self.diff_tab_widget)
@@ -1953,7 +1953,7 @@ class GitInteractiveRebaseApp(QMainWindow):
             else:
                 self.side_diff_view.clear()
                 if 'files' not in cache_entry:
-                    cache_entry['files'] = get_commit_files_with_status(self.repo_path, sha)
+                    cache_entry['files'] = get_commit_files_with_status(self.repo_path, sha, stash=self.browse_stash)
                     self.commit_cache[sha] = cache_entry
 
                 file_entries = cache_entry['files']

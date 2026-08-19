@@ -522,13 +522,20 @@ def get_commit_file_stats(repo_path, commit_sha):
         return {}
 
 
-def get_commit_files_with_status(repo_path, commit_sha):
+def get_commit_files_with_status(repo_path, commit_sha, stash=False):
     """Returns a list of (status, path1, path2) tuples for files changed by a commit.
     status is a single letter: A (added), D (deleted), M (modified), R (renamed),
     T (type changed), C (copied), etc. For renames path1 = old path, path2 = new path;
-    otherwise path2 is empty. Uses -M so renames are detected and combined into one entry."""
+    otherwise path2 is empty. Uses -M so renames are detected and combined into one entry.
+
+    When stash=True the commit is treated as a stash: it is diffed against its
+    first parent (``<sha>^1``) instead of root, since a stash is a merge commit
+    and a plain ``diff-tree`` would return nothing."""
     try:
-        cmd = ["git", "diff-tree", "--no-commit-id", "--root", "-r", "-M", "--name-status", commit_sha]
+        if stash:
+            cmd = ["git", "diff-tree", "--no-commit-id", "-r", "-M", "--name-status", f"{commit_sha}^1", commit_sha]
+        else:
+            cmd = ["git", "diff-tree", "--no-commit-id", "--root", "-r", "-M", "--name-status", commit_sha]
         result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
         entries = []
         for line in result.stdout.strip().split('\n'):
