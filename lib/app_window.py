@@ -1497,8 +1497,11 @@ class GitInteractiveRebaseApp(QMainWindow):
         layout.addWidget(self.main_splitter, 1)
 
         # In browse (read-only) mode use only the right-side pane for details;
-        # no commit-viewer dialog on double-click.
-        if not self.browse_mode:
+        # no commit-viewer dialog on double-click. In reflog mode, double-click
+        # opens the selected entry's commit history viewer.
+        if self.browse_reflog:
+            self.list_widget.itemDoubleClicked.connect(self.handle_reflog_show_log)
+        elif not self.browse_mode:
             self.list_widget.itemDoubleClicked.connect(self.view_commit)
         self.list_widget.itemSelectionChanged.connect(self.on_selection_changed)
 
