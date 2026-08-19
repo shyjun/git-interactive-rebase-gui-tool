@@ -231,16 +231,29 @@ history window.
 
 This project is actively under development, with new features and improvements added regularly.
 
-To get the latest enhancements and fixes, update your installation from time to time using the steps below.
+### Update from inside the app
 
-### If installed via pip
+1. Click **Repo → Check Updates**.
+2. If a newer version is available, the app shows the command to run and a **Copy to clipboard** button.
+3. Exit the app, run the copied command, then relaunch the app.
+
+The app figures out how to update itself depending on how it was installed:
+
+- **pip install** → `git_interactive_rebase --update`
+- **cloned repository** → `python3 <tool-folder>/git_interactive_rebase.py --update`
+
+For a cloned repository, the update refuses to run if your local clone has uncommitted changes — commit or stash them and try again.
+
+### Update manually
+
+#### If installed via pip
 
 ```bash
 pip uninstall git-interactive-rebase-gui-tool
 pip install git+https://github.com/shyjun/git-interactive-rebase-gui-tool.git
 ```
 
-### If installed by cloning repository
+#### If installed by cloning repository
 
 ```bash
 git pull

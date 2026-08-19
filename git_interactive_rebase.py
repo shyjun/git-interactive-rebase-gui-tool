@@ -39,6 +39,7 @@ from lib.git_helpers import (
     discard_changes,
     get_stash_status,
     STASH_NOTHING_STASHED,
+    perform_self_update,
 )
 from lib.app_window import (
     GitInteractiveRebaseApp,
@@ -60,8 +61,15 @@ def main():
     parser = argparse.ArgumentParser(description="git-interactive-rebase-gui-tool: A premium PySide6 GUI for interactive git rebasing.")
     parser.add_argument("-C", "--location", type=str, default=os.getcwd())
     parser.add_argument("--viewer-mode", action="store_true", help="Run in read-only viewer mode.")
+    parser.add_argument("--update", action="store_true", help="Update the tool to the latest version and exit.")
     parser.add_argument("commit_sha", type=str, nargs="?", help="Starting commit SHA (optional, defaults to root)")
     args = parser.parse_args()
+
+    if args.update:
+        tool_dir = os.path.dirname(os.path.abspath(__file__))
+        ok, message = perform_self_update(tool_dir)
+        print(message)
+        sys.exit(0 if ok else 1)
 
     repo_path = os.path.abspath(os.path.expanduser(args.location))
 
