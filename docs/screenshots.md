@@ -689,7 +689,7 @@ View the complete history of a single file.
 ## 23. Browse Log of a Commit
 Open a read-only history window for any commit.
 
-**Screenshot:** `screenshots/browse-commit-log.webp` *(placeholder — the screenshot will be captured and added here)*
+**Screenshot:** `screenshots/browse-commit-log.webp`
 
 ![Browse Log of a Commit](screenshots/browse-commit-log.webp)
 
@@ -700,7 +700,7 @@ Open a read-only history window for any commit.
 ## 24. Browse Reflog
 Open a read-only window of the repository's HEAD reflog.
 
-**Screenshot:** `screenshots/browse-reflog.webp` *(placeholder — the screenshot will be captured and added here)*
+**Screenshot:** `screenshots/browse-reflog.webp`
 
 ![Browse Reflog](screenshots/browse-reflog.webp)
 
@@ -717,7 +717,7 @@ Right-click an entry for **Show log** / **Copy SHA to clipboard**.
 ## 25. Browse Stashes
 Open a read-only window of the repository's stash list.
 
-**Screenshot:** `screenshots/browse-stash.webp` *(placeholder — the screenshot will be captured and added here)*
+**Screenshot:** `screenshots/browse-stash.webp`
 
 ![Browse Stashes](screenshots/browse-stash.webp)
 
