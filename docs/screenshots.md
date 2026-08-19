@@ -199,7 +199,7 @@ The menu also includes **Help** (links to the demo video, README, and contact) a
 
 The **Perform action on selected commits** menu lists the actions that can be applied to the commits checked in multi-select mode.
 
-**Screenshot:** `screenshots/multi-select-menu.webp` *(placeholder — the menu screenshot will be captured and added here)*
+**Screenshot:** `screenshots/multi-select-menu.webp`
 
 ![Multi-Select Menu](screenshots/multi-select-menu.webp)
 
