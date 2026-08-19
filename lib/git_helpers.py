@@ -1417,3 +1417,69 @@ def resolve_ref(repo_path, ref):
         return result.stdout.strip()
     except subprocess.CalledProcessError:
         return None
+
+
+GIT_REPO_URL = "https://github.com/shyjun/git-interactive-rebase-gui-tool.git"
+
+
+def _run_capture(cwd, args):
+    """Run a command, returning (ok, stdout, stderr)."""
+    try:
+        result = subprocess.run(args, cwd=cwd, capture_output=True, text=True, encoding='utf-8', errors='replace')
+        return result.returncode == 0, result.stdout, result.stderr
+    except Exception as exc:
+        return False, "", str(exc)
+
+
+def _is_git_install(tool_dir):
+    """True if the tool lives in a git clone (has a .git dir/folder)."""
+    return os.path.isdir(os.path.join(tool_dir, ".git"))
+
+
+def build_update_command(tool_dir, is_pip=False):
+    """Returns the command line to run for the tool's self-update."""
+    if is_pip:
+        return "git_interactive_rebase --update"
+    script = os.path.join(tool_dir, "git_interactive_rebase.py")
+    return f"python3 {script} --update"
+
+
+def perform_self_update(tool_dir):
+    """Updates the tool's own installation in place.
+
+    Returns (ok, message). For git-clone installs the working tree must be
+    clean, otherwise the update is aborted without making any changes.
+    """
+    if not _is_git_install(tool_dir):
+        ok, stdout, stderr = _run_capture(tool_dir, ["pip", "install", "--upgrade", GIT_REPO_URL])
+        if ok:
+            return True, "Update complete. The tool has been upgraded via pip."
+        return False, f"pip install failed:\n{stderr.strip() or stdout.strip() or 'unknown error'}"
+
+    # git-clone install
+    ok, stdout, stderr = _run_capture(tool_dir, ["git", "status", "--porcelain"])
+    if not ok:
+        return False, f"Could not check working tree status:\n{stderr.strip()}"
+    if stdout.strip():
+        return False, ("The tool's local clone has uncommitted changes, so it was not updated.\n\n"
+                       "Please commit or stash them and try again.")
+
+    ok, _, stderr = _run_capture(tool_dir, ["git", "fetch", "origin"])
+    if not ok:
+        return False, f"git fetch failed:\n{stderr.strip()}"
+
+    ok, stdout, stderr = _run_capture(tool_dir, ["git", "rev-parse", "HEAD"])
+    local_sha = stdout.strip() if ok else ""
+    ok, stdout, stderr = _run_capture(tool_dir, ["git", "rev-parse", "origin/master"])
+    remote_sha = stdout.strip() if ok else ""
+
+    if local_sha and local_sha == remote_sha:
+        return True, "You are already using the latest version."
+
+    ok, _, stderr = _run_capture(tool_dir, ["git", "reset", "--hard", "origin/master"])
+    if not ok:
+        return False, f"git reset --hard failed:\n{stderr.strip()}"
+
+    ok, stdout, _ = _run_capture(tool_dir, ["git", "rev-parse", "HEAD"])
+    new_sha = stdout.strip() if ok else "?"
+    return True, f"Update complete.\n\nOld: {local_sha[:8] if local_sha else '?'}\nNew: {new_sha[:8]}"

@@ -164,6 +164,7 @@ from lib.git_helpers import (
     resolve_ref,
     get_commit_files_with_status,
     get_rename_diff_in_commit,
+    build_update_command,
 )
 from lib.dialogs import (
     DiffViewerDialog,
@@ -2583,18 +2584,27 @@ class GitInteractiveRebaseApp(QMainWindow):
             if remote_sha == local_sha:
                 QMessageBox.information(self, "No Updates", "You are already using the latest version.")
             else:
+                cmd = build_update_command(tool_dir, is_pip=not is_git_install)
                 msg = (
                     "<b>Update Available!</b><br><br>"
                     "A newer version of the tool is available on GitHub.<br><br>"
-                    f"Check out the <a href='{UPDATE_URL}'>Staying Updated</a> section in README for instructions."
+                    "Please exit the tool and run the following command to update:<br><br>"
+                    f"<code>{cmd}</code><br><br>"
+                    "After it finishes, relaunch the tool."
                 )
                 box = QMessageBox(self)
                 box.setWindowTitle("Update Available")
                 box.setText(msg)
                 box.setTextFormat(Qt.RichText)
                 box.setIcon(QMessageBox.Information)
-                box.setStandardButtons(QMessageBox.Ok)
+                copy_button = box.addButton("Copy to clipboard", QMessageBox.AcceptRole)
+                cancel_button = box.addButton("Cancel", QMessageBox.RejectRole)
+                box.setDefaultButton(cancel_button)
                 box.exec()
+
+                if box.clickedButton() == copy_button:
+                    QApplication.clipboard().setText(cmd)
+                    QMessageBox.information(self, "Copied", f"Command copied to clipboard:\n\n{cmd}")
 
         self.worker.finished.connect(on_check_finished)
         self.worker.start()
