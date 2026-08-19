@@ -988,6 +988,16 @@ def merge_into_stash(repo_path, existing_stash_sha):
             _rollback_merge(repo_path, temp_stash_sha)
         return None
 
+def commit_exists(repo_path, commit_id):
+    """Checks whether a commit-like revision (SHA, short SHA, or ref) resolves
+    to an existing commit in the repository."""
+    try:
+        cmd = ["git", "rev-parse", "--verify", "--quiet", f"{commit_id}^{{commit}}"]
+        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, encoding='utf-8', errors='replace')
+        return result.returncode == 0
+    except Exception:
+        return False
+
 def branch_exists(repo_path, branch_name):
     """Checks if a local or remote branch exists.
 
