@@ -54,6 +54,9 @@ A Python-based Git Interactive Rebase GUI tool to visually manage commit history
 * **View PR Diff**: Open a read-only **PR Preview** showing the combined branch diff vs its merge-base.
 * **Browse Branch**: Open a separate read-only window for *any* other branch's history (with dimmed "viewer" styling so you always know it is read-only), then cherry-pick from it.
 * **Browse File Log**: Open a separate read-only window showing the history of a single file, via **Browse File Log…** in the Repo menu or **Browse file log** in the file-wise view's right-click menu. History follows renames (`git log --follow`), and the diff pane is scoped to that file.
+* **Browse Log of a Commit**: Open a read-only history window for any commit (SHA or ref), prompted via **Browse Log of a Commit…** in the Repo menu with the number of commits to show.
+* **Browse Reflog**: Open a read-only window of the repository's HEAD reflog, with **Copy SHA** and **Show log** actions and double-click to open a commit's history.
+* **Browse Stashes**: Open a read-only window of the repository's stash list with an always-visible diff pane, plus **Apply + Keep**, **Apply + Drop**, and **Drop** actions (toolbar buttons and right-click menu) with confirmations and auto-refresh.
 * **Find Merge-base**: Compute the merge-base between the current branch and any other branch, with one-click **Copy SHA to clipboard** (Repo menu → **Find Merge-base…**).
 * **Non-modal viewer windows**: The tabbed View Commit window, PR Diff, and consolidated-diff windows stay open while you keep using the main window — switch freely between them without closing the viewer.
 
