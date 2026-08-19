@@ -165,6 +165,7 @@ from lib.git_helpers import (
     get_commit_files_with_status,
     get_rename_diff_in_commit,
     build_update_command,
+    perform_self_update,
 )
 from lib.dialogs import (
     DiffViewerDialog,
@@ -242,6 +243,22 @@ class GitWorker(QThread):
             self.finished.emit(False, "", e.stderr)
         except Exception as e:
             self.finished.emit(False, "", str(e))
+
+
+class SelfUpdateWorker(QThread):
+    """Runs the tool's self-update in the background. Emits (ok, message)."""
+    finished = Signal(bool, str)
+
+    def __init__(self, tool_dir):
+        super().__init__()
+        self.tool_dir = tool_dir
+
+    def run(self):
+        try:
+            ok, message = perform_self_update(self.tool_dir)
+            self.finished.emit(ok, message)
+        except Exception as e:
+            self.finished.emit(False, str(e))
 
 
 class SplitWorker(QThread):
@@ -2588,27 +2605,52 @@ class GitInteractiveRebaseApp(QMainWindow):
                 msg = (
                     "<b>Update Available!</b><br><br>"
                     "A newer version of the tool is available on GitHub.<br><br>"
-                    "Please exit the tool and run the following command to update:<br><br>"
+                    "You can update now, or copy the command below to update later:<br><br>"
                     f"<code>{cmd}</code><br><br>"
-                    "After it finishes, relaunch the tool."
+                    "After updating, the tool must be restarted for changes to take effect."
                 )
                 box = QMessageBox(self)
                 box.setWindowTitle("Update Available")
                 box.setText(msg)
                 box.setTextFormat(Qt.RichText)
                 box.setIcon(QMessageBox.Information)
-                copy_button = box.addButton("Copy to clipboard", QMessageBox.AcceptRole)
+                update_button = box.addButton("Update Now", QMessageBox.AcceptRole)
+                copy_button = box.addButton("Copy to clipboard", QMessageBox.ActionRole)
                 cancel_button = box.addButton("Cancel", QMessageBox.RejectRole)
-                box.setDefaultButton(cancel_button)
+                box.setDefaultButton(update_button)
                 box.exec()
 
-                if box.clickedButton() == copy_button:
+                clicked = box.clickedButton()
+                if clicked == copy_button:
                     QApplication.clipboard().setText(cmd)
                     QMessageBox.information(self, "Copied", f"Command copied to clipboard:\n\n{cmd}")
+                elif clicked == update_button:
+                    self._run_self_update(tool_dir)
 
         self.worker.finished.connect(on_check_finished)
         self.worker.start()
         self.progress_dialog.exec()
+
+    def _run_self_update(self, tool_dir):
+        """Performs the in-app self-update with a progress dialog."""
+        self.update_progress_dialog = ProgressDialog("Updating Tool", "Updating to the latest version...", self)
+        self.update_worker = SelfUpdateWorker(tool_dir)
+
+        def on_update_finished(ok, message):
+            if hasattr(self, 'update_progress_dialog'):
+                self.update_progress_dialog.close()
+
+            if ok:
+                QMessageBox.information(
+                    self, "Update Successful",
+                    f"{message}\n\nPlease restart the tool to apply the update."
+                )
+            else:
+                QMessageBox.critical(self, "Update Failed", message)
+
+        self.update_worker.finished.connect(on_update_finished)
+        self.update_worker.start()
+        self.update_progress_dialog.exec()
 
     def handle_custom_reset(self):
         commit_id, ok = QInputDialog.getText(self, 'Input Dialog', 'Enter commit ID to reset hard to:')
