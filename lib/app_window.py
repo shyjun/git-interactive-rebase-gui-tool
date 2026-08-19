@@ -116,6 +116,7 @@ from lib.git_helpers import (
     get_git_history,
     get_branch_history,
     get_file_history,
+    get_reflog_history,
     get_head_sha,
     get_full_head_sha,
     get_current_branch,
@@ -986,7 +987,7 @@ def highlight_button_temporarily(button, duration_ms=3000, blinks=0, color=None)
 
 
 class GitInteractiveRebaseApp(QMainWindow):
-    def __init__(self, repo_path, commit_sha, app_start_time, base_branch=None, viewer_mode=False, browse_branch=None, parent=None, browse_limit=50, browse_file=None):
+    def __init__(self, repo_path, commit_sha, app_start_time, base_branch=None, viewer_mode=False, browse_branch=None, parent=None, browse_limit=50, browse_file=None, browse_reflog=False):
         super().__init__(parent)
         self.repo_path = repo_path
         self.commit_sha = commit_sha
@@ -995,8 +996,9 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.viewer_mode = viewer_mode
         self.browse_branch = browse_branch
         self.browse_file = browse_file
-        self.browse_mode = bool(browse_branch or browse_file)
-        if browse_branch or browse_file:
+        self.browse_reflog = browse_reflog
+        self.browse_mode = bool(browse_branch or browse_file or browse_reflog)
+        if browse_branch or browse_file or browse_reflog:
             self.viewer_mode = True
         self.is_dark_theme = False  # refined in load_settings/apply_theme
         self.start_time_full_head = get_full_head_sha(self.repo_path)
@@ -1140,6 +1142,11 @@ class GitInteractiveRebaseApp(QMainWindow):
     def update_window_title(self):
         """Updates window title with branch, HEAD, and path."""
         app_time = self.app_start_time if self.app_start_time else "N/A"
+        if self.browse_reflog:
+            title = (f"Browse Reflog (read-only, latest "
+                     f"{self.browse_limit}), path={self.repo_path}")
+            self.setWindowTitle(title)
+            return
         if self.browse_file:
             title = (f"Browse File: {self.browse_file} (read-only, latest "
                      f"{self.browse_limit}), path={self.repo_path}")
@@ -1270,7 +1277,9 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.list_widget.setItemDelegate(CommitItemDelegate(self.list_widget))
         self.update_font()
         self.list_widget.setContextMenuPolicy(Qt.CustomContextMenu)
-        if self.browse_mode:
+        if self.browse_reflog:
+            self.list_widget.customContextMenuRequested.connect(self.show_reflog_context_menu)
+        elif self.browse_mode:
             self.list_widget.customContextMenuRequested.connect(self.show_browse_context_menu)
         else:
             self.list_widget.customContextMenuRequested.connect(self.show_context_menu)
@@ -1479,7 +1488,7 @@ class GitInteractiveRebaseApp(QMainWindow):
 
         self.right_panel.setMinimumWidth(150)
 
-        self.right_panel.setVisible(self.show_diffs)
+        self.right_panel.setVisible(self.show_diffs and not self.browse_reflog)
 
         self.main_splitter.addWidget(self.right_panel)
         # default split ratio: history 60%, diff 40%
@@ -1585,6 +1594,18 @@ class GitInteractiveRebaseApp(QMainWindow):
             btn.setVisible(bool(self.browse_branch))
         controls_layout.addWidget(self.browse_select_btn)
         controls_layout.addWidget(self.browse_cancel_select_btn)
+        self.reflog_copy_sha_btn = QPushButton("Copy SHA to clipboard")
+        self.reflog_copy_sha_btn.setToolTip("Copy the selected reflog entry's SHA to the clipboard.")
+        self.reflog_copy_sha_btn.clicked.connect(self.handle_reflog_copy_sha)
+        self.reflog_show_log_btn = QPushButton("Show log")
+        self.reflog_show_log_btn.setToolTip("Open a read-only history viewer for the selected reflog entry's commit.")
+        self.reflog_show_log_btn.clicked.connect(self.handle_reflog_show_log)
+        for btn in [self.reflog_copy_sha_btn, self.reflog_show_log_btn]:
+            btn.setMinimumHeight(40)
+            btn.setMinimumWidth(100)
+            btn.setVisible(bool(self.browse_reflog))
+        controls_layout.addWidget(self.reflog_copy_sha_btn)
+        controls_layout.addWidget(self.reflog_show_log_btn)
         controls_layout.addStretch()
         controls_layout.addWidget(self.pop_stash_btn)
         controls_layout.addWidget(self.repo_btn)
@@ -1868,6 +1889,8 @@ class GitInteractiveRebaseApp(QMainWindow):
         self._do_update_side_diff()
 
     def _do_update_side_diff(self):
+        if self.browse_reflog:
+            return
         item = self.list_widget.currentItem()
         if not item:
             if hasattr(self, 'side_commit_label'):
@@ -2630,6 +2653,56 @@ class GitInteractiveRebaseApp(QMainWindow):
             self.repo_path, self.commit_sha, self.app_start_time,
             viewer_mode=True, browse_branch=browse_ref, parent=self,
             browse_limit=commit_limit,
+        )
+        # The browse viewer inherits the main window's current zoom and theme.
+        viewer.current_font_size = self.current_font_size
+        viewer.update_font()
+        if viewer.is_dark_theme != self.is_dark_theme:
+            viewer.is_dark_theme = self.is_dark_theme
+            viewer.apply_theme("dark" if self.is_dark_theme else "light")
+        self.browse_windows.append(viewer)
+        viewer.show()
+
+    def handle_browse_reflog(self):
+        """Opens a read-only viewer window showing the repository's HEAD reflog
+        (most recent entries first), with the diff pane hidden and a minimal
+        copy-SHA / show-log toolbar."""
+        viewer = GitInteractiveRebaseApp(
+            self.repo_path, self.commit_sha, self.app_start_time,
+            viewer_mode=True, browse_reflog=True, parent=self,
+            browse_limit=50,
+        )
+        # The browse viewer inherits the main window's current zoom and theme.
+        viewer.current_font_size = self.current_font_size
+        viewer.update_font()
+        if viewer.is_dark_theme != self.is_dark_theme:
+            viewer.is_dark_theme = self.is_dark_theme
+            viewer.apply_theme("dark" if self.is_dark_theme else "light")
+        self.browse_windows.append(viewer)
+        viewer.show()
+
+    def handle_reflog_copy_sha(self):
+        """Copies the selected reflog entry's SHA to the clipboard."""
+        item = self.list_widget.currentItem()
+        if item:
+            self.handle_copy_sha(item)
+
+    def handle_reflog_show_log(self):
+        """Opens a read-only history viewer for the selected reflog entry's commit."""
+        item = self.list_widget.currentItem()
+        if item:
+            self.handle_reflog_show_log_item(item)
+
+    def handle_reflog_show_log_item(self, item):
+        """Opens a read-only history viewer for a given reflog entry's commit SHA,
+        reusing the browse-branch viewer (git log accepts a commit SHA directly)."""
+        if not item:
+            return
+        sha = item.text().split()[0]
+        viewer = GitInteractiveRebaseApp(
+            self.repo_path, self.commit_sha, self.app_start_time,
+            viewer_mode=True, browse_branch=sha, parent=self,
+            browse_limit=50,
         )
         # The browse viewer inherits the main window's current zoom and theme.
         viewer.current_font_size = self.current_font_size
@@ -3476,6 +3549,10 @@ class GitInteractiveRebaseApp(QMainWindow):
         browse_file_action.setToolTip("Open a read-only viewer of a single file's history.")
         browse_file_action.triggered.connect(lambda *_: self.handle_browse_file_log())
 
+        browse_reflog_action = QAction("Browse Reflog", self)
+        browse_reflog_action.setToolTip("Open a read-only viewer of the repository's HEAD reflog.")
+        browse_reflog_action.triggered.connect(lambda *_: self.handle_browse_reflog())
+
         merge_base_action = QAction("Find Merge-base…", self)
         merge_base_action.setToolTip("Find the merge-base of the current branch and another branch.")
         merge_base_action.triggered.connect(lambda *_: self.handle_find_merge_base())
@@ -3485,6 +3562,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         menu.addAction(cherry_pick_action)
         menu.addAction(browse_action)
         menu.addAction(browse_file_action)
+        menu.addAction(browse_reflog_action)
         menu.addAction(merge_base_action)
         return menu
 
@@ -3605,6 +3683,24 @@ class GitInteractiveRebaseApp(QMainWindow):
         menu.addAction(copy_sha_action)
         menu.addAction(copy_msg_action)
         menu.addAction(copy_sha_msg_action)
+        menu.exec(self.list_widget.mapToGlobal(position))
+
+    def show_reflog_context_menu(self, position):
+        """Read-only context menu for the reflog browser: copy SHA / show log."""
+        item = self.list_widget.itemAt(position)
+        if not item:
+            return
+
+        menu = QMenu()
+        menu.setFont(QFont("Monospace", max(8, self.current_font_size - 2)))
+
+        copy_sha_action = QAction("Copy SHA to clipboard", self)
+        show_log_action = QAction("Show log", self)
+        copy_sha_action.triggered.connect(lambda: self.handle_copy_sha(item))
+        show_log_action.triggered.connect(lambda: self.handle_reflog_show_log_item(item))
+
+        menu.addAction(copy_sha_action)
+        menu.addAction(show_log_action)
         menu.exec(self.list_widget.mapToGlobal(position))
 
     def show_context_menu(self, position):
@@ -6861,12 +6957,17 @@ for i, filename in enumerate(files):
         repo_path = self.repo_path
         branch = self.browse_branch
         filepath = self.browse_file
+        reflog = self.browse_reflog
         browse_limit = self.browse_limit
 
         def worker():
             try:
                 if filepath:
                     history = get_file_history(repo_path, filepath, limit=browse_limit)
+                elif reflog:
+                    history = get_reflog_history(repo_path, limit=browse_limit)
+                    self._browse_load_result = (True, history, {})
+                    return
                 else:
                     history = get_branch_history(repo_path, branch, limit=browse_limit)
                 branch_map = get_local_branches_map(
