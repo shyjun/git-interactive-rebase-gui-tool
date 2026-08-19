@@ -129,6 +129,7 @@ from lib.git_helpers import (
     rebase_in_progress,
     classify_cherry_pick_failure,
     branch_exists,
+    commit_exists,
     normalize_branch_ref,
     get_local_branches_map,
     get_file_diff_only_in_commit,
@@ -184,6 +185,7 @@ from lib.dialogs import (
     CherryPickDialog,
     BrowseBranchDialog,
     BrowseFileLogDialog,
+    BrowseCommitLogDialog,
     SingleCommitViewDialog,
     CommitSelectivelyDialog,
     SelectiveHunkDialog,
@@ -2666,6 +2668,38 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.browse_windows.append(viewer)
         viewer.show()
 
+    def handle_browse_commit_log(self):
+        """Opens a read-only viewer window showing a commit's recent history.
+        Prompts for a commit SHA (or ref) and the number of commits to load,
+        validating that the commit exists."""
+        dialog = BrowseCommitLogDialog(self.repo_path, parent=self)
+        if dialog.exec() != QDialog.Accepted:
+            return
+        commit_id = dialog.commit_id
+        commit_limit = dialog.commit_limit
+        if not commit_id:
+            QMessageBox.warning(self, "No commit",
+                                "Please enter a commit SHA or ref to browse.")
+            return
+        if not commit_exists(self.repo_path, commit_id):
+            QMessageBox.critical(self, "Commit does not exist",
+                                 f"'{commit_id}' does not resolve to a commit.")
+            return
+
+        viewer = GitInteractiveRebaseApp(
+            self.repo_path, self.commit_sha, self.app_start_time,
+            viewer_mode=True, browse_branch=commit_id, parent=self,
+            browse_limit=commit_limit,
+        )
+        # The browse viewer inherits the main window's current zoom and theme.
+        viewer.current_font_size = self.current_font_size
+        viewer.update_font()
+        if viewer.is_dark_theme != self.is_dark_theme:
+            viewer.is_dark_theme = self.is_dark_theme
+            viewer.apply_theme("dark" if self.is_dark_theme else "light")
+        self.browse_windows.append(viewer)
+        viewer.show()
+
     def handle_browse_reflog(self):
         """Opens a read-only viewer window showing the repository's HEAD reflog
         (most recent entries first), with the diff pane hidden and a minimal
@@ -3562,6 +3596,10 @@ class GitInteractiveRebaseApp(QMainWindow):
         browse_file_action.setToolTip("Open a read-only viewer of a single file's history.")
         browse_file_action.triggered.connect(lambda *_: self.handle_browse_file_log())
 
+        browse_commit_log_action = QAction("Browse Log of a Commit", self)
+        browse_commit_log_action.setToolTip("Open a read-only viewer of a commit's history.")
+        browse_commit_log_action.triggered.connect(lambda *_: self.handle_browse_commit_log())
+
         browse_reflog_action = QAction("Browse Reflog", self)
         browse_reflog_action.setToolTip("Open a read-only viewer of the repository's HEAD reflog.")
         browse_reflog_action.triggered.connect(lambda *_: self.handle_browse_reflog())
@@ -3575,6 +3613,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         menu.addAction(cherry_pick_action)
         menu.addAction(browse_action)
         menu.addAction(browse_file_action)
+        menu.addAction(browse_commit_log_action)
         menu.addAction(browse_reflog_action)
         menu.addAction(merge_base_action)
         return menu

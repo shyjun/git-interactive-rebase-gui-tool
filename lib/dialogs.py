@@ -3253,6 +3253,63 @@ class BrowseBranchDialog(QDialog):
         return self.limit_spin.value()
 
 
+class BrowseCommitLogDialog(QDialog):
+    """Dialog to pick a commit and how many recent commits to show in the
+    read-only commit-log browser. Returns a commit SHA and an integer commit count."""
+
+    def __init__(self, repo_path, parent=None, default_limit=50):
+        super().__init__(parent)
+        self.repo_path = repo_path
+        self.setWindowTitle("Browse Log of a Commit")
+        self.setMinimumWidth(420)
+        self.setModal(True)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
+
+        commit_label = QLabel("Commit SHA or ref:")
+        layout.addWidget(commit_label)
+
+        self.commit_edit = QLineEdit()
+        self.commit_edit.setPlaceholderText("e.g. c9bbbc4, HEAD, master")
+        self.commit_edit.setToolTip("A commit SHA, short SHA, or a ref that resolves to a commit.")
+        layout.addWidget(self.commit_edit)
+
+        limit_label = QLabel("Number of commits to show:")
+        layout.addWidget(limit_label)
+
+        self.limit_spin = QSpinBox()
+        self.limit_spin.setRange(1, 1000000)
+        self.limit_spin.setValue(default_limit)
+        self.limit_spin.setToolTip("How many most-recent commits to load into the browse window.")
+        layout.addWidget(self.limit_spin)
+
+        open_btn = QPushButton("Open Browser")
+        open_btn.setDefault(True)
+        open_btn.setToolTip("Open a read-only viewer of this commit's history.")
+        open_btn.clicked.connect(self.accept)
+
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(self.reject)
+
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+        btn_layout.addWidget(cancel_btn)
+        btn_layout.addWidget(open_btn)
+        layout.addLayout(btn_layout)
+
+        self.commit_edit.setFocus()
+
+    @property
+    def commit_id(self):
+        return self.commit_edit.text().strip()
+
+    @property
+    def commit_limit(self):
+        return self.limit_spin.value()
+
+
 class BrowseFileLogDialog(QDialog):
     """Dialog to pick a file and how many recent commits to show in the
     read-only file-log browser. Returns a repo-relative file path and an
