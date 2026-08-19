@@ -3712,8 +3712,8 @@ class GitInteractiveRebaseApp(QMainWindow):
         copy_sha_action.triggered.connect(lambda: self.handle_copy_sha(item))
         show_log_action.triggered.connect(lambda: self.handle_reflog_show_log_item(item))
 
-        menu.addAction(copy_sha_action)
         menu.addAction(show_log_action)
+        menu.addAction(copy_sha_action)
         menu.exec(self.list_widget.mapToGlobal(position))
 
     def show_context_menu(self, position):
