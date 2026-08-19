@@ -2796,6 +2796,12 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.browse_windows.append(viewer)
         viewer.show()
 
+    def _reload_stash_list(self):
+        """Refreshes the stash browser's list after a stash operation so the
+        shown entries match the actual stash list."""
+        if self.browse_stash:
+            self.load_browse_history_async()
+
     def handle_stash_apply(self, item, drop_after=False):
         """Applies the selected stash. If drop_after is True and the apply
         succeeds, the stash is then dropped. On apply failure the stash is
@@ -2810,6 +2816,7 @@ class GitInteractiveRebaseApp(QMainWindow):
                 f"Failed to apply stash {sha[:8]}.\n\n"
                 f"Details: {err}\n\n"
                 "The stash has NOT been dropped.")
+            self._reload_stash_list()
             return
 
         dropped = False
@@ -2821,6 +2828,7 @@ class GitInteractiveRebaseApp(QMainWindow):
             msg += "\n\n" + ("The stash was dropped." if dropped
                              else "The stash could NOT be dropped.")
         QMessageBox.information(self, "Stash Applied", msg)
+        self._reload_stash_list()
 
     def handle_stash_drop(self, item):
         """Drops the selected stash after user confirmation."""
@@ -2840,6 +2848,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         else:
             QMessageBox.critical(self, "Drop Failed",
                                  f"Failed to drop stash {sha[:8]}.")
+        self._reload_stash_list()
 
     def handle_find_merge_base(self):
         """Finds the merge-base of the current branch and a user-chosen branch,
