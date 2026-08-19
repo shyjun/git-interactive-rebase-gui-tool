@@ -2698,14 +2698,24 @@ class GitInteractiveRebaseApp(QMainWindow):
 
     def handle_reflog_show_log_item(self, item):
         """Opens a read-only history viewer for a given reflog entry's commit SHA,
-        reusing the browse-branch viewer (git log accepts a commit SHA directly)."""
+        reusing the browse-branch viewer (git log accepts a commit SHA directly).
+
+        Prompts for how many commits to load (default 50); cancelling the prompt
+        aborts the viewer."""
         if not item:
+            return
+        commit_limit, ok = QInputDialog.getInt(
+            self, "Show log",
+            "Number of commits to show:",
+            value=50, minValue=1, maxValue=1000000, step=1
+        )
+        if not ok:
             return
         sha = item.text().split()[0]
         viewer = GitInteractiveRebaseApp(
             self.repo_path, self.commit_sha, self.app_start_time,
             viewer_mode=True, browse_branch=sha, parent=self,
-            browse_limit=50,
+            browse_limit=commit_limit,
         )
         # The browse viewer inherits the main window's current zoom and theme.
         viewer.current_font_size = self.current_font_size
