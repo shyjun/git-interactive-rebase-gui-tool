@@ -141,7 +141,7 @@ def get_branch_history(repo_path, branch, limit=None):
     except subprocess.CalledProcessError as e:
         raise Exception(f"Failed to fetch branch history: {e.stderr}")
 
-def get_file_history(repo_path, filepath, limit=None):
+def get_file_history(repo_path, filepath, limit=None, ref=None):
     """Fetches the history of a single file (commits that touched it).
 
     Uses ``git log --follow`` so the history persists across renames, and the
@@ -151,6 +151,7 @@ def get_file_history(repo_path, filepath, limit=None):
         repo_path: repository path.
         filepath: repo-relative path of the file to browse.
         limit: max number of commits to return (None = unlimited).
+        ref: ref/branch/SHA to scope the history to (None = HEAD).
 
     Returns parsed commit dicts in the same shape as get_git_history."""
     try:
@@ -160,6 +161,8 @@ def get_file_history(repo_path, filepath, limit=None):
             "--date=format:%d %b %Y",
             "--shortstat"
         ]
+        if ref:
+            log_cmd.append(ref)
         if limit is not None:
             log_cmd.append(f"-n{limit}")
         log_cmd += ["--", filepath]
