@@ -166,6 +166,7 @@ from lib.git_helpers import (
     get_rename_diff_in_commit,
     build_update_command,
     perform_self_update,
+    apply_patch_file,
 )
 from lib.dialogs import (
     DiffViewerDialog,
@@ -196,6 +197,7 @@ from lib.dialogs import (
     SelectiveHunkDialog,
     MergeBaseDialog,
     MergeBaseResultDialog,
+    ApplyPatchDialog,
 )
 from lib.utils import get_assets_path
 from lib.widgets import (
@@ -2730,6 +2732,53 @@ class GitInteractiveRebaseApp(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "Error", f"An error occurred while cherry-picking: {str(e)}")
 
+    def handle_apply_patch(self):
+        """Applies a patch file to the repository, optionally committing the
+        changes using the patch's own commit message."""
+        if not self._check_not_viewer_mode():
+            return
+        if not self._check_head_unchanged():
+            return
+
+        dialog = ApplyPatchDialog(parent=self)
+        if dialog.exec() != QDialog.Accepted:
+            return
+
+        patch_path = dialog.patch_path
+        commit_wanted = dialog.commit_wanted
+        if not patch_path:
+            QMessageBox.warning(self, "No patch file",
+                                "Please select a patch file to apply.")
+            return
+        if not os.path.isfile(patch_path):
+            QMessageBox.critical(self, "Patch file does not exist",
+                                 f"The file '{patch_path}' does not exist.")
+            return
+
+        progress = ProgressDialog("Apply Patch", "Applying patch...", self)
+        progress.show()
+        QApplication.processEvents()
+        try:
+            ok, detail = apply_patch_file(self.repo_path, patch_path, commit_wanted)
+        finally:
+            progress.close()
+
+        if not ok:
+            QMessageBox.critical(
+                self, "Apply Patch Failed",
+                f"Patch could not be applied.\n\n{detail}\n\n"
+                f"The repository was left unchanged."
+            )
+            return
+
+        self.load_history()
+        QMessageBox.information(
+            self, "Patch Applied",
+            f"Patch applied successfully.\n\n{detail}\n\n"
+            f"Click 'Rescan Repo' to handle the new changes."
+        )
+        self.handle_rescan_repo()
+
     def handle_browse_branch(self):
         """Opens a read-only viewer window showing another branch's recent history.
         Prompts for the branch name and the number of commits to load."""
@@ -3794,6 +3843,10 @@ class GitInteractiveRebaseApp(QMainWindow):
         cherry_pick_action.setToolTip("Cherry-pick a single commit by SHA.")
         cherry_pick_action.triggered.connect(lambda *_: self.handle_cherry_pick())
 
+        apply_patch_action = QAction("Apply Patch…", self)
+        apply_patch_action.setToolTip("Apply a patch file to the repository, committing the changes or leaving them unstaged.")
+        apply_patch_action.triggered.connect(lambda *_: self.handle_apply_patch())
+
         browse_action = QAction("Browse Branch", self)
         browse_action.setToolTip("Open a read-only viewer of another branch's full history.")
         browse_action.triggered.connect(lambda *_: self.handle_browse_branch())
@@ -3821,6 +3874,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         menu.addAction(pr_diff_action)
         menu.addAction(view_commit_action)
         menu.addAction(cherry_pick_action)
+        menu.addAction(apply_patch_action)
         menu.addAction(browse_action)
         menu.addAction(browse_file_action)
         menu.addAction(browse_commit_log_action)

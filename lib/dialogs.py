@@ -3390,6 +3390,73 @@ class BrowseFileLogDialog(QDialog):
         return self.limit_spin.value()
 
 
+class ApplyPatchDialog(QDialog):
+    """Dialog to pick a patch file and choose whether to commit the changes or
+    leave them unstaged in the working tree."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Apply Patch")
+        self.setMinimumWidth(440)
+        self.setModal(True)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
+
+        patch_label = QLabel("Patch file:")
+        layout.addWidget(patch_label)
+
+        patch_row = QHBoxLayout()
+        patch_row.setSpacing(6)
+        self.patch_edit = QLineEdit()
+        self.patch_edit.setPlaceholderText("e.g. /path/to/change.patch")
+        self.patch_edit.setToolTip("A unified-diff or format-patch file to apply.")
+        patch_row.addWidget(self.patch_edit, 1)
+
+        browse_btn = QPushButton("Browse...")
+        browse_btn.setToolTip("Pick a patch file.")
+        browse_btn.clicked.connect(self._pick_patch_file)
+        patch_row.addWidget(browse_btn)
+        layout.addLayout(patch_row)
+
+        self.commit_cb = QCheckBox("Create a commit from the patch")
+        self.commit_cb.setChecked(False)
+        self.commit_cb.setToolTip("If checked, the changes are staged and committed using the patch's own message. "
+                                  "If unchecked, the changes are left unstaged in the working tree.")
+        layout.addWidget(self.commit_cb)
+
+        apply_btn = QPushButton("Apply Patch")
+        apply_btn.setDefault(True)
+        apply_btn.setToolTip("Apply the selected patch to the repository.")
+        apply_btn.clicked.connect(self.accept)
+
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(self.reject)
+
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+        btn_layout.addWidget(cancel_btn)
+        btn_layout.addWidget(apply_btn)
+        layout.addLayout(btn_layout)
+
+        self.patch_edit.setFocus()
+
+    def _pick_patch_file(self):
+        file_path, _ = QFileDialog.getOpenFileName(self, "Select patch file",
+                                                   filter="Patch files (*.patch *.diff);;All files (*)")
+        if file_path:
+            self.patch_edit.setText(file_path)
+
+    @property
+    def patch_path(self):
+        return self.patch_edit.text().strip()
+
+    @property
+    def commit_wanted(self):
+        return self.commit_cb.isChecked()
+
+
 class MergeBaseDialog(QDialog):
     """Dialog to pick the branch to compare against the current branch's merge-base.
     Shows the current branch first, then a "VS" label, then a branch pulldown."""

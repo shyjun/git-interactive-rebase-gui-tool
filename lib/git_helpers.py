@@ -1293,6 +1293,100 @@ def apply_patch_to_index(repo_path, patch_text):
             pass
 
 
+def _parse_patch_commit_message(patch_path):
+    """Extracts the commit subject (and optional body) from a unified-diff /
+    format-patch file. Returns (subject, body) where body may be empty.
+
+    The subject comes from the 'Subject:' header (with a leading '[PATCH]'
+    prefix stripped). If the patch has no Subject header, the first non-empty
+    line of the message body before the '---' separator is used. Falls back to
+    a generic default message."""
+    import re
+    default_subject = "Apply patch"
+    try:
+        with open(patch_path, 'r', encoding='utf-8', errors='replace') as f:
+            content = f.read()
+    except OSError:
+        return default_subject, ""
+
+    lines = content.splitlines()
+    subject = None
+    body_lines = []
+    in_body = False
+    for line in lines:
+        if line.lower().startswith("subject:"):
+            subject = line.split(":", 1)[1].strip()
+            subject = re.sub(r'^\[PATCH[^\]]*\]\s*', '', subject).strip()
+            in_body = True
+            continue
+        if in_body and line == "---":
+            break
+        if in_body:
+            body_lines.append(line)
+
+    if subject:
+        body = "\n".join(body_lines).strip()
+        return subject, body
+
+    body = "\n".join(body_lines).strip()
+    if body:
+        first = body.splitlines()[0].strip()
+        if not first.startswith("diff "):
+            return first, "\n".join(body.splitlines()[1:]).strip()
+    return default_subject, ""
+
+
+def apply_patch_file(repo_path, patch_path, commit_wanted):
+    """Applies a unified-diff patch file to the repository.
+
+    If *commit_wanted* is True, the changes are staged and committed using the
+    patch's own commit message (parsed from its headers). Otherwise the changes
+    are applied to the working tree only (left unstaged).
+
+    Uses 'git apply --check' first as a dry run so a failing patch never leaves
+    the repository in a partially-applied state. Returns a (ok, detail) tuple;
+    on failure *detail* holds the git error text."""
+    if not patch_path or not os.path.isfile(patch_path):
+        return False, "Patch file does not exist."
+    try:
+        check = subprocess.run(["git", "apply", "--check", "--ignore-whitespace", patch_path],
+                               cwd=repo_path, capture_output=True, text=True, encoding='utf-8', errors='replace')
+        if check.returncode != 0:
+            return False, (check.stderr or "Patch does not apply cleanly.").strip()
+        apply = subprocess.run(["git", "apply", "--ignore-whitespace", patch_path],
+                               cwd=repo_path, capture_output=True, text=True, encoding='utf-8', errors='replace')
+        if apply.returncode != 0:
+            return False, (apply.stderr or "Patch could not be applied.").strip()
+    except subprocess.SubprocessError as e:
+        return False, str(e)
+
+    if not commit_wanted:
+        return True, "Changes left unstaged in the working tree."
+
+    try:
+        subprocess.run(["git", "add", "-A"], cwd=repo_path, check=True,
+                       capture_output=True, text=True, encoding='utf-8', errors='replace')
+    except subprocess.CalledProcessError as e:
+        return False, f"Patch applied but could not stage changes: {e.stderr}"
+
+    subject, body = _parse_patch_commit_message(patch_path)
+    msg_fd, msg_path = tempfile.mkstemp(prefix='git_apply_patch_', text=True)
+    try:
+        with os.fdopen(msg_fd, 'w', encoding='utf-8') as f:
+            f.write(subject + ("\n\n" + body if body else ""))
+        try:
+            subprocess.run(["git", "commit", "-F", msg_path], cwd=repo_path, check=True,
+                           capture_output=True, text=True, encoding='utf-8', errors='replace')
+        except subprocess.CalledProcessError as e:
+            return False, f"Patch applied but could not commit: {e.stderr}"
+    finally:
+        try:
+            os.unlink(msg_path)
+        except OSError:
+            pass
+    return True, f"Changes committed with message: {subject}"
+
+
 def get_merge_base(repo_path, ref):
     """Returns the merge-base of HEAD with *ref* (e.g. 'origin/main').
 
