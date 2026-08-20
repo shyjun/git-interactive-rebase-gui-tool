@@ -9,6 +9,7 @@ Date: Feb 2026
 import argparse
 # Copyright (c) 2026 shyjun
 # This project is licensed under the MIT License - see the LICENSE file for details.
+import json
 import sys
 import os
 from datetime import datetime
@@ -69,6 +70,14 @@ def main():
     if args.version:
         tool_dir = os.path.dirname(os.path.abspath(__file__))
         short_sha = get_head_sha(tool_dir)
+        if short_sha == "Unknown":
+            try:
+                assets_dir = get_assets_path()
+                with open(os.path.join(assets_dir, "app_version.json")) as f:
+                    data = json.load(f)
+                    short_sha = data.get("sha", "Unknown")
+            except Exception:
+                pass
         print(f"git-interactive-rebase-gui-tool {short_sha}")
         sys.exit(0)
 
