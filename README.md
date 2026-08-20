@@ -58,6 +58,7 @@ A Python-based Git Interactive Rebase GUI tool to visually manage commit history
 * **Browse Reflog**: Open a read-only window of the repository's HEAD reflog, with **Copy SHA** and **Show log** actions and double-click to open a commit's history.
 * **Browse Stashes**: Open a read-only window of the repository's stash list with an always-visible diff pane, plus **Apply + Keep**, **Apply + Drop**, and **Drop** actions (toolbar buttons and right-click menu) with confirmations and auto-refresh.
 * **Find Merge-base**: Compute the merge-base between the current branch and any other branch, with one-click **Copy SHA to clipboard** (Repo menu → **Find Merge-base…**).
+* **Apply Patch**: Apply a unified-diff/format-patch file via **Apply Patch…** in the Repo menu. Choose whether the changes are committed (using the patch's own commit message) or left unstaged in the working tree; failures are detected with a dry-run check so the repository is never left partially applied.
 * **Non-modal viewer windows**: The tabbed View Commit window, PR Diff, and consolidated-diff windows stay open while you keep using the main window — switch freely between them without closing the viewer.
 
 ### ⚡ Git Integration
