@@ -221,6 +221,18 @@ Specify a different repository location:
 python3 git_interactive_rebase.py -C /path/to/repo
 ```
 
+Update the tool to the latest version and exit:
+
+```bash
+python3 git_interactive_rebase.py --update
+```
+
+Print the tool's version (short git id) and exit:
+
+```bash
+python3 git_interactive_rebase.py --version
+```
+
 If no start commit is given, the tool automatically detects your branch base
 and shows the commits since that point; otherwise it falls back to a recent
 history window.
@@ -236,6 +248,8 @@ This project is actively under development, with new features and improvements a
 1. Click **Configure → Check Updates**.
 2. If a newer version is available, click **Update Now** — a progress bar runs while the tool updates itself, then reports success or failure.
 3. Restart the tool to apply the update.
+
+The update can run while the app is open; only the files on disk are changed, and the running session keeps working on the old version until you restart.
 
 If you'd rather update later, the same dialog offers **Copy to clipboard** with the command to run manually. The app figures out how to update itself depending on how it was installed:
 

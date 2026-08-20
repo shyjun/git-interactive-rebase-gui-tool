@@ -98,6 +98,20 @@ Launch the tool with all history-modifying operations disabled. Useful for safel
 python3 git_interactive_rebase.py --viewer-mode
 ```
 
+### Option 4: Update the tool
+
+Update to the latest version (git-clone installs refuse if the local clone has uncommitted changes) and exit:
+
+```bash
+python3 git_interactive_rebase.py --update
+```
+
+Print the tool's version (short git id) and exit:
+
+```bash
+python3 git_interactive_rebase.py --version
+```
+
 ---
 
 ## 2. Main Interface
