@@ -62,8 +62,15 @@ def main():
     parser.add_argument("-C", "--location", type=str, default=os.getcwd())
     parser.add_argument("--viewer-mode", action="store_true", help="Run in read-only viewer mode.")
     parser.add_argument("--update", action="store_true", help="Update the tool to the latest version and exit.")
+    parser.add_argument("--version", action="store_true", help="Print the tool's version (short git id) and exit.")
     parser.add_argument("commit_sha", type=str, nargs="?", help="Starting commit SHA (optional, defaults to root)")
     args = parser.parse_args()
+
+    if args.version:
+        tool_dir = os.path.dirname(os.path.abspath(__file__))
+        short_sha = get_head_sha(tool_dir)
+        print(f"git-interactive-rebase-gui-tool {short_sha}")
+        sys.exit(0)
 
     if args.update:
         tool_dir = os.path.dirname(os.path.abspath(__file__))
