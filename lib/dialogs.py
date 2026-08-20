@@ -1732,7 +1732,7 @@ class RevertCommitDialog(QDialog):
 
 class SquashDialog(QDialog):
     """Dialog for choosing and editing commit message during squash."""
-    def __init__(self, sha1, msg1, sha2, msg2, font_size=10, parent=None):
+    def __init__(self, sha1, msg1, sha2, msg2, font_size=10, parent=None, default_radio=1):
         super().__init__(parent)
         self.setWindowTitle("Interactive Squash")
         self.setMinimumSize(600, 400)
@@ -1763,8 +1763,12 @@ class SquashDialog(QDialog):
         self.radio2.toggled.connect(self.on_radio_toggled)
         
         # Default selection
-        self.radio1.setChecked(True)
-        self.editor.setPlainText(self.msg1)
+        if default_radio == 2:
+            self.radio2.setChecked(True)
+            self.editor.setPlainText(self.msg2)
+        else:
+            self.radio1.setChecked(True)
+            self.editor.setPlainText(self.msg1)
         
         # Buttons
         btn_layout = QHBoxLayout()

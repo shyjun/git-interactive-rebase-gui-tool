@@ -4659,7 +4659,7 @@ class GitInteractiveRebaseApp(QMainWindow):
             msg_current = get_full_commit_message(self.repo_path, sha_current)
             msg_below = get_full_commit_message(self.repo_path, sha_below)
 
-            dialog = SquashDialog(sha_current, msg_current, sha_below, msg_below, self.current_font_size, self)
+            dialog = SquashDialog(sha_current, msg_current, sha_below, msg_below, self.current_font_size, self, default_radio=2)
             if dialog.exec() == QDialog.Accepted:
                 final_msg = dialog.get_message()
                 print(f"Preparing to squash {sha_current} into {sha_below}...")
