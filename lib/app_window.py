@@ -4230,6 +4230,9 @@ class GitInteractiveRebaseApp(QMainWindow):
         split_refine_action.triggered.connect(lambda: self.handle_refine_changes(item))
         split_menu.addAction(split_refine_action)
 
+        if self.multi_select_mode:
+            split_menu.setEnabled(False)
+
         # Consolidated Diff submenu
         consolidated_menu = menu.addMenu("Consolidated Diff")
         consolidated_menu.setFont(menu_font)
