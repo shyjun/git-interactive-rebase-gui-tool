@@ -45,14 +45,15 @@ Visual documentation for the Git Interactive Rebase GUI Tool. Each section showc
 27. [Consolidated Diff](#27-consolidated-diff)
 28. [Find Merge-base](#28-find-merge-base)
 29. [Cherry-pick](#29-cherry-pick)
-30. [Viewer Mode](#30-viewer-mode)
-31. [Themes (Light / Dark)](#31-themes-light--dark)
-32. [Zoom Controls](#32-zoom-controls)
-33. [Mark / Unmark Commit](#33-mark--unmark-commit)
-34. [Show Local Branches](#34-show-local-branches)
-35. [Copy to Clipboard](#35-copy-to-clipboard)
-36. [Keyboard Shortcuts](#36-keyboard-shortcuts)
-37. [Update the Tool](#37-update-the-tool)
+30. [Apply Patch](#30-apply-patch)
+31. [Viewer Mode](#31-viewer-mode)
+32. [Themes (Light / Dark)](#32-themes-light--dark)
+33. [Zoom Controls](#33-zoom-controls)
+34. [Mark / Unmark Commit](#34-mark--unmark-commit)
+35. [Show Local Branches](#35-show-local-branches)
+36. [Copy to Clipboard](#36-copy-to-clipboard)
+37. [Keyboard Shortcuts](#37-keyboard-shortcuts)
+38. [Update the Tool](#38-update-the-tool)
 
 ---
 
@@ -92,7 +93,7 @@ python3 git_interactive_rebase.py HEAD^^^
 
 ### Option 3: Start in Viewer Mode (read-only)
 
-Launch the tool with all history-modifying operations disabled. Useful for safely browsing a repository (see [Viewer Mode](#30-viewer-mode)).
+Launch the tool with all history-modifying operations disabled. Useful for safely browsing a repository (see [Viewer Mode](#31-viewer-mode)).
 
 ```bash
 python3 git_interactive_rebase.py --viewer-mode
@@ -561,7 +562,7 @@ Available options include:
 - **Commit all unsaved changes to a single "bulk" commit** → Save all current changes into one temporary commit and continue
 - **Amend all changes to the current `HEAD` commit** → Amend HEAD commit with the unstaged changes
 - **Discard changes** → Discard the unstaged changes
-- **Start in Viewer Mode** → Start the app in viewer mode. No history modifying operations will be allowed (see [Viewer Mode](#30-viewer-mode))
+- **Start in Viewer Mode** → Start the app in viewer mode. No history modifying operations will be allowed (see [Viewer Mode](#31-viewer-mode))
 - **Exit** → Cancel launch and resolve changes manually
 
 > **Note:** Untracked files are **not considered** during this process and are left untouched (not stashed or modified).
@@ -585,7 +586,7 @@ When changes are detected, the tool provides the same safe handling options avai
 - Switch to Viewer Mode
 - Cancel and resolve changes manually
 
-If an app-created stash already exists, new changes are **merged into the existing stash** rather than creating a second one. In **Viewer Mode**, history-modifying rescan options are disabled (see [Viewer Mode](#30-viewer-mode)).
+If an app-created stash already exists, new changes are **merged into the existing stash** rather than creating a second one. In **Viewer Mode**, history-modifying rescan options are disabled (see [Viewer Mode](#31-viewer-mode)).
 
 This makes it easy to keep the application open throughout a development session while safely incorporating newly created changes into your interactive rebase workflow.
 
@@ -802,7 +803,20 @@ Before applying, a **pre-flight confirmation** shows the exact order the selecte
 
 ---
 
-## 30. Viewer Mode
+## 30. Apply Patch
+Apply a unified-diff or format-patch file to your repository.
+
+**Description:** Use **Repo → Apply Patch…** to apply a patch file, mirroring the browse-file-log workflow:
+
+- **Browse** for a `.patch`/`.diff` file (or type its path)
+- Toggle **Create a commit from the patch** to commit the changes using the patch's own commit message, or leave it unchecked to apply the changes **unstaged** in the working tree
+- The patch is dry-run checked (`git apply --check`) before applying, so a failing patch never leaves the repository partially modified — you are shown the git error instead
+- On success you are prompted to **Rescan Repo** to pick up the new changes
+- The original patch file is **not modified or deleted**
+
+---
+
+## 31. Viewer Mode
 Run the tool as a read-only browser.
 
 **Screenshot:** `screenshots/viewer-mode.webp`
@@ -813,7 +827,7 @@ Run the tool as a read-only browser.
 
 ---
 
-## 31. Themes (Light / Dark)
+## 32. Themes (Light / Dark)
 Toggle between light and dark themes for comfortable viewing.
 
 > **Note:** Most screenshots in this documentation use the **light theme (default)**.
@@ -826,14 +840,14 @@ Toggle between light and dark themes for comfortable viewing.
 
 ---
 
-## 32. Zoom Controls
+## 33. Zoom Controls
 Adjust the font size for better readability.
 
 **Description:** Use the zoom controls (+/- buttons) in the toolbar to increase or decrease the font size. Font size preference is automatically saved across sessions.
 
 ---
 
-## 33. Mark / Unmark Commit
+## 34. Mark / Unmark Commit
 Mark commits for easy identification.
 
 **Screenshot:** `screenshots/mark-commits.webp`
@@ -846,7 +860,7 @@ Mark commits for easy identification.
 
 ---
 
-## 34. Show Local Branches
+## 35. Show Local Branches
 Display local and remote branch names alongside commits.
 
 **Description:** Toggle the "show local branches" option (via **Configure → Show/Hide → Show Local Branches** in the main window, see [2. Main Interface](#2-main-interface)) to display branch names next to commits. Local branches are shown in green, and remote branches (e.g., origin/main, origin/master) are shown in orange. This helps you identify which branch a commit belongs to or originated from, making it easier to understand the commit's context and lineage.
@@ -855,7 +869,7 @@ Display local and remote branch names alongside commits.
 
 ---
 
-## 35. Copy to Clipboard
+## 36. Copy to Clipboard
 Quickly copy commit details for sharing, debugging, or reference.
 
 **Screenshot:** `screenshots/copy-commit-details.webp`
@@ -872,7 +886,7 @@ A brief **"Copied!"** notification appears to confirm the action.
 
 ---
 
-## 36. Keyboard Shortcuts
+## 37. Keyboard Shortcuts
 Keyboard shortcuts for faster navigation and workflow.
 
 | Shortcut | Action |
@@ -891,7 +905,7 @@ Keyboard shortcuts for faster navigation and workflow.
 
 ---
 
-## 37. Update the Tool
+## 38. Update the Tool
 
 **Screenshot:** `screenshots/update-available-dialog.webp`
 
