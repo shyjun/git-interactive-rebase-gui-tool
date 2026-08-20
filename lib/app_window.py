@@ -1010,7 +1010,7 @@ def highlight_button_temporarily(button, duration_ms=3000, blinks=0, color=None)
 
 
 class GitInteractiveRebaseApp(QMainWindow):
-    def __init__(self, repo_path, commit_sha, app_start_time, base_branch=None, viewer_mode=False, browse_branch=None, parent=None, browse_limit=50, browse_file=None, browse_reflog=False, browse_stash=False):
+    def __init__(self, repo_path, commit_sha, app_start_time, base_branch=None, viewer_mode=False, browse_branch=None, parent=None, browse_limit=50, browse_file=None, browse_reflog=False, browse_stash=False, browse_file_ref=None):
         super().__init__(parent)
         self.repo_path = repo_path
         self.commit_sha = commit_sha
@@ -1019,6 +1019,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.viewer_mode = viewer_mode
         self.browse_branch = browse_branch
         self.browse_file = browse_file
+        self.browse_file_ref = browse_file_ref
         self.browse_reflog = browse_reflog
         self.browse_stash = browse_stash
         self.browse_mode = bool(browse_branch or browse_file or browse_reflog or browse_stash)
@@ -1177,8 +1178,12 @@ class GitInteractiveRebaseApp(QMainWindow):
             self.setWindowTitle(title)
             return
         if self.browse_file:
-            title = (f"Browse File: {self.browse_file} (read-only, latest "
-                     f"{self.browse_limit}), path={self.repo_path}")
+            if self.browse_file_ref:
+                title = (f"Browse File: {self.browse_file} @ {self.browse_file_ref} (read-only, latest "
+                         f"{self.browse_limit}), path={self.repo_path}")
+            else:
+                title = (f"Browse File: {self.browse_file} (read-only, latest "
+                         f"{self.browse_limit}), path={self.repo_path}")
             self.setWindowTitle(title)
             return
         if self.browse_branch:
@@ -3024,10 +3029,11 @@ class GitInteractiveRebaseApp(QMainWindow):
         self._open_file_log_viewer(file_path, commit_limit)
 
     def _open_file_log_viewer(self, file_path, commit_limit):
+        file_ref = self.browse_branch if self.browse_branch else None
         viewer = GitInteractiveRebaseApp(
             self.repo_path, self.commit_sha, self.app_start_time,
             viewer_mode=True, browse_file=file_path, parent=self,
-            browse_limit=commit_limit,
+            browse_limit=commit_limit, browse_file_ref=file_ref,
         )
         # The browse viewer inherits the main window's current zoom and theme.
         viewer.current_font_size = self.current_font_size
@@ -7241,6 +7247,7 @@ for i, filename in enumerate(files):
         repo_path = self.repo_path
         branch = self.browse_branch
         filepath = self.browse_file
+        file_ref = self.browse_file_ref
         reflog = self.browse_reflog
         stash = self.browse_stash
         browse_limit = self.browse_limit
@@ -7248,7 +7255,7 @@ for i, filename in enumerate(files):
         def worker():
             try:
                 if filepath:
-                    history = get_file_history(repo_path, filepath, limit=browse_limit)
+                    history = get_file_history(repo_path, filepath, limit=browse_limit, ref=file_ref)
                 elif stash:
                     history = get_stash_history(repo_path, limit=browse_limit)
                     self._browse_load_result = (True, history, {})
