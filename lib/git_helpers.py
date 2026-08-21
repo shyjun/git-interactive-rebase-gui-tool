@@ -1587,11 +1587,16 @@ def _read_version_sha():
         from lib.utils import get_assets_path
         import json
         path = os.path.join(get_assets_path(), "app_version.json")
+        print(f"[_read_version_sha] reading {path}")
         if os.path.isfile(path):
             with open(path, encoding='utf-8') as f:
-                return json.load(f).get("sha")
-    except Exception:
-        pass
+                data = json.load(f)
+                sha = data.get("sha")
+                print(f"[_read_version_sha] found sha={sha}")
+                return sha
+        print("[_read_version_sha] file not found")
+    except Exception as e:
+        print(f"[_read_version_sha] error: {e}")
     return None
 
 
@@ -1632,7 +1637,9 @@ def perform_self_update(tool_dir):
     """
     if not _is_git_install(tool_dir):
         old_sha = _read_version_sha()
+        print(f"[perform_self_update] pip path, tool_dir={tool_dir}, old_sha={old_sha}")
         if not old_sha:
+            print("[perform_self_update] no version info, installing fresh")
             ok, stdout, stderr = _run_capture(tool_dir, ["pip", "install", "--upgrade", GIT_REPO_URL])
             if ok:
                 return True, "Update complete. The tool has been upgraded via pip."
@@ -1640,17 +1647,23 @@ def perform_self_update(tool_dir):
 
         # Fetch remote SHA for up-to-date check
         ls_url = GIT_REPO_URL.removeprefix("git+")
+        print(f"[perform_self_update] ls_url={ls_url}")
         ok, stdout, stderr = _run_capture(tool_dir, ["git", "ls-remote", ls_url, "HEAD"])
+        print(f"[perform_self_update] ls-remote ok={ok}, stdout={stdout.strip()[:80]}, stderr={stderr.strip()[:80]}")
         if not ok or not stdout.strip():
             return False, f"Could not check remote version:\n{stderr.strip() or stdout.strip() or 'unknown error'}"
         remote_sha = stdout.split()[0]
+        print(f"[perform_self_update] local={old_sha[:8] if old_sha else '?'} remote={remote_sha[:8]} match={old_sha == remote_sha}")
 
         if old_sha == remote_sha:
             return True, "You are already using the latest version."
 
+        print("[perform_self_update] running pip install --upgrade")
         ok, stdout, stderr = _run_capture(tool_dir, ["pip", "install", "--upgrade", GIT_REPO_URL])
+        print(f"[perform_self_update] pip install ok={ok}")
         if ok:
             new_sha = _read_version_sha()
+            print(f"[perform_self_update] new_sha={new_sha}")
             if new_sha:
                 return True, f"Update complete.\n\nOld: {old_sha[:8]}\nNew: {new_sha[:8]}"
             return True, "Update complete. The tool has been upgraded via pip."
