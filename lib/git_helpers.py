@@ -1567,8 +1567,38 @@ def _run_capture(cwd, args):
 
 
 def _is_git_install(tool_dir):
-    """True if the tool lives in a git clone (has a .git dir/folder)."""
-    return os.path.isdir(os.path.join(tool_dir, ".git"))
+    """True if the tool lives in a git clone or worktree (has a .git directory or file)."""
+    dot_git = os.path.join(tool_dir, ".git")
+    if os.path.isdir(dot_git):
+        return True
+    if os.path.isfile(dot_git):
+        try:
+            with open(dot_git, encoding='utf-8') as f:
+                return f.read().strip().startswith("gitdir:")
+        except OSError:
+            pass
+    return False
+
+
+def _detect_default_branch(repo_path):
+    """Returns the default branch name (e.g. 'master' or 'main') of 'origin'."""
+    try:
+        r = subprocess.run(["git", "rev-parse", "--abbrev-ref", "origin/HEAD"],
+                           cwd=repo_path, capture_output=True, text=True,
+                           encoding='utf-8', errors='replace', check=True)
+        branch = r.stdout.strip()
+        if branch.startswith("origin/"):
+            return branch.split("/", 1)[1]
+        return "master"
+    except subprocess.CalledProcessError:
+        for candidate in ("master", "main"):
+            try:
+                subprocess.run(["git", "rev-parse", f"origin/{candidate}"],
+                               cwd=repo_path, capture_output=True, text=True, check=True)
+                return candidate
+            except subprocess.CalledProcessError:
+                continue
+        return "master"
 
 
 def build_update_command(tool_dir, is_pip=False):
@@ -1592,6 +1622,8 @@ def perform_self_update(tool_dir):
         return False, f"pip install failed:\n{stderr.strip() or stdout.strip() or 'unknown error'}"
 
     # git-clone install
+    default_branch = _detect_default_branch(tool_dir)
+
     ok, stdout, stderr = _run_capture(tool_dir, ["git", "status", "--porcelain"])
     if not ok:
         return False, f"Could not check working tree status:\n{stderr.strip()}"
@@ -1605,13 +1637,13 @@ def perform_self_update(tool_dir):
 
     ok, stdout, stderr = _run_capture(tool_dir, ["git", "rev-parse", "HEAD"])
     local_sha = stdout.strip() if ok else ""
-    ok, stdout, stderr = _run_capture(tool_dir, ["git", "rev-parse", "origin/master"])
+    ok, stdout, stderr = _run_capture(tool_dir, ["git", "rev-parse", f"origin/{default_branch}"])
     remote_sha = stdout.strip() if ok else ""
 
     if local_sha and local_sha == remote_sha:
         return True, "You are already using the latest version."
 
-    ok, _, stderr = _run_capture(tool_dir, ["git", "reset", "--hard", "origin/master"])
+    ok, _, stderr = _run_capture(tool_dir, ["git", "reset", "--hard", f"origin/{default_branch}"])
     if not ok:
         return False, f"git reset --hard failed:\n{stderr.strip()}"
 
