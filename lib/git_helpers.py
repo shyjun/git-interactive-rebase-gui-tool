@@ -1554,7 +1554,7 @@ def resolve_ref(repo_path, ref):
         return None
 
 
-GIT_REPO_URL = "https://github.com/shyjun/git-interactive-rebase-gui-tool.git"
+GIT_REPO_URL = "git+https://github.com/shyjun/git-interactive-rebase-gui-tool.git"
 
 
 def _run_capture(cwd, args):
