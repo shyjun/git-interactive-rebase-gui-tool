@@ -100,6 +100,8 @@ A Python-based Git Interactive Rebase GUI tool to visually manage commit history
 Right-clicking any commit gives you quick access to:
 
 * Mark / unmark a commit, view the commit (opens the tabbed Plain / File-wise viewer)
+* **Create Patch** — save the commit as a format-patch file (re-appliable via Repo → Apply Patch…)
+* **Tag** — create a lightweight or annotated git tag on the commit
 * Reset hard to a commit, reset HEAD to here (keep changes), set the BEST commit, revert
 * Rephrase, drop
 * **Squash commits** submenu — squash with above/below, or multi-select any range to squash (also via the **Perform action on selected commits** menu)

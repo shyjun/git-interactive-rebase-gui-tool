@@ -55,6 +55,7 @@ Visual documentation for the Git Interactive Rebase GUI Tool. Each section showc
 37. [Copy to Clipboard](#37-copy-to-clipboard)
 38. [Keyboard Shortcuts](#38-keyboard-shortcuts)
 39. [Update the Tool](#39-update-the-tool)
+40. [Tag Commit](#40-tag-commit)
 
 ---
 
@@ -132,6 +133,7 @@ The status bar holds a **Configure** button whose **Show/Hide** menu lets you to
 - **Show Rebase** → rebase markers
 - **Show Squash** → squash markers
 - **Show Local Branches** → local/remote branch names next to commits
+- **Show Tags** → tag names next to commits (purple `{tag}` labels)
 - **Show Stats** → per-commit line stats
 - **Show Date** → commit dates
 - **Show Diffs** → the right-side diff pane
@@ -152,6 +154,7 @@ Access all commit actions via right-click menu.
 
 - Show / View commit {sha} (opens the tabbed Plain + File-wise viewer)
 - Create Patch (save the commit as a format-patch file, re-appliable via Apply Patch)
+- Tag (create a lightweight or annotated git tag on the commit)
 - Mark / Unmark commit
 - Copy SHA / Copy Message / Copy Both
 - Reset hard to this commit
@@ -205,6 +208,7 @@ The **Configure** button in the status bar controls which markers, columns, and 
 - **Show Rebase** → rebase markers (see [Rebase Options](#20-rebase-options))
 - **Show Squash** → squash markers
 - **Show Local Branches** → local/remote branch names next to commits (see [Show Local Branches](#36-show-local-branches))
+- **Show Tags** → tag names next to commits (see [Tag Commit](#40-tag-commit))
 - **Show Stats** → per-commit line stats
 - **Show Date** → commit dates
 - **Show Diffs** → the right-side diff pane (see [Diff Pane](#10-diff-pane))
@@ -935,3 +939,9 @@ Keyboard shortcuts for faster navigation and workflow.
 - **Cancel** → Dismiss the dialog.
 
 For a cloned installation, the update refuses to run if the local clone has uncommitted changes — commit or stash them and try again.
+
+---
+
+## 40. Tag Commit
+
+**Description:** Right-click a commit and select **Tag** to open the tagging dialog. Enter a tag name, optionally tick **Annotate** to create an annotated tag with a message, and click **Create Tag**. The new tag appears in the commit list when **Show Tags** is enabled (see [Configure Menu](#2-main-interface)). Both lightweight and annotated tags are supported.
