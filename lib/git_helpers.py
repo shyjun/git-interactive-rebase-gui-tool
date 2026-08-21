@@ -1336,18 +1336,56 @@ def _parse_patch_commit_message(patch_path):
     return default_subject, ""
 
 
+def _count_format_patch_sections(patch_path):
+    """Counts the number of format-patch sections in a file by looking for
+    'From ' lines at the start of a line (the format-patch envelope header)."""
+    count = 0
+    try:
+        with open(patch_path, 'r', encoding='utf-8', errors='replace') as f:
+            for line in f:
+                if line.startswith("From ") and " Mon Sep 17 " in line:
+                    count += 1
+    except OSError:
+        pass
+    return count
+
+
 def apply_patch_file(repo_path, patch_path, commit_wanted):
     """Applies a unified-diff patch file to the repository.
 
-    If *commit_wanted* is True, the changes are staged and committed using the
-    patch's own commit message (parsed from its headers). Otherwise the changes
-    are applied to the working tree only (left unstaged).
+    If the patch contains multiple format-patch sections (consolidated patch),
+    uses 'git am' to create individual commits for each section, preserving
+    each commit's message, author, and date.
 
-    Uses 'git apply --check' first as a dry run so a failing patch never leaves
-    the repository in a partially-applied state. Returns a (ok, detail) tuple;
-    on failure *detail* holds the git error text."""
+    If the patch is a single section, uses 'git apply' with 'git apply --check'
+    as a dry run so a failing patch never leaves the repository in a
+    partially-applied state.
+
+    If *commit_wanted* is False (single patch only), changes are left unstaged.
+    Returns a (ok, detail) tuple; on failure *detail* holds the git error text."""
     if not patch_path or not os.path.isfile(patch_path):
         return False, "Patch file does not exist."
+
+    num_sections = _count_format_patch_sections(patch_path)
+
+    if num_sections > 1 and commit_wanted:
+        # Multiple format-patch sections: use git am to create individual commits.
+        # git am is safe on failure — nothing is committed until all patches apply.
+        try:
+            result = subprocess.run(["git", "am", patch_path],
+                                    cwd=repo_path, capture_output=True, text=True,
+                                    encoding='utf-8', errors='replace')
+            if result.returncode != 0:
+                subprocess.run(["git", "am", "--abort"], cwd=repo_path,
+                               capture_output=True, text=True)
+                return False, (result.stderr or "Patch could not be applied.").strip()
+        except subprocess.SubprocessError as e:
+            subprocess.run(["git", "am", "--abort"], cwd=repo_path,
+                           capture_output=True, text=True)
+            return False, str(e)
+        return True, f"Applied {num_sections} commits from patch."
+
+    # Single patch section (or commit_wanted=False): use git apply
     try:
         check = subprocess.run(["git", "apply", "--check", "--ignore-whitespace", patch_path],
                                cwd=repo_path, capture_output=True, text=True, encoding='utf-8', errors='replace')
