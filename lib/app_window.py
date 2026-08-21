@@ -83,6 +83,7 @@ from PySide6.QtWidgets import (
     QWidgetAction,
     QStatusBar,
     QToolButton,
+    QFileDialog,
 )
 # pyrefly: ignore [missing-import]
 from PySide6.QtGui import (
@@ -4062,6 +4063,8 @@ class GitInteractiveRebaseApp(QMainWindow):
 
         mark_action = QAction(f"Mark / Unmark commit {sha}", self)
         view_action = QAction(f"Show / View commit {sha}", self)
+        create_patch_action = QAction("Create Patch", self)
+        create_patch_action.setToolTip("Save this commit as a patch file (re-appliable via Repo → Apply Patch…).")
         reset_action = QAction(f"Reset Hard to {sha}", self)
         reset_here_action = QAction("Reset HEAD to Here (Keep Changes as Unstaged)", self)
         set_best_action = QAction("set as BEST_COMMITID", self)
@@ -4105,6 +4108,7 @@ class GitInteractiveRebaseApp(QMainWindow):
 
         mark_action.triggered.connect(lambda: self.toggle_mark_commit(item))
         view_action.triggered.connect(lambda: self.view_commit(item))
+        create_patch_action.triggered.connect(lambda: self.handle_create_patch(item))
         reset_action.triggered.connect(lambda: self.handle_reset(item))
         reset_here_action.triggered.connect(lambda: self.handle_reset_to_here(item))
         set_best_action.triggered.connect(lambda: self.handle_set_best_commit(item))
@@ -4119,6 +4123,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         if self.multi_select_mode:
             mark_action.setEnabled(False)
             view_action.setEnabled(False)
+            create_patch_action.setEnabled(False)
             reset_action.setEnabled(False)
             reset_here_action.setEnabled(False)
             set_best_action.setEnabled(False)
@@ -4135,6 +4140,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         menu.addAction(mark_action)
         menu.addSeparator()
         menu.addAction(view_action)
+        menu.addAction(create_patch_action)
         menu.addSeparator()
         menu.addAction(reset_action)
         menu.addAction(reset_here_action)
@@ -4522,6 +4528,50 @@ class GitInteractiveRebaseApp(QMainWindow):
             self._open_viewer(dialog)
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not fetch commit diff: {str(e)}")
+
+    def handle_create_patch(self, item):
+        """Saves the selected commit as a format-patch file chosen by the user.
+        The patch carries the commit's own message, so it can be re-applied via
+        Repo → Apply Patch… (including as a commit)."""
+        if not item:
+            return
+        sha = item.text().split()[0]
+        subject = get_commit_subject(self.repo_path, sha) or ""
+        slug = re.sub(r'[^A-Za-z0-9._-]+', '-', subject).strip('-').lower()[:40]
+        default_name = f"{sha[:8]}-{slug}.patch" if slug else f"{sha[:8]}.patch"
+        save_path, _ = QFileDialog.getSaveFileName(
+            self, "Create Patch", default_name,
+            "Patch files (*.patch);;All files (*)")
+        if not save_path:
+            return
+
+        try:
+            result = subprocess.run(
+                ["git", "format-patch", "-1", sha, "--stdout"],
+                cwd=self.repo_path, capture_output=True, check=True,
+                text=True, encoding='utf-8', errors='replace')
+        except subprocess.CalledProcessError as e:
+            QMessageBox.critical(
+                self, "Create Patch Failed",
+                f"Could not create a patch for commit {sha[:8]}.\n\n"
+                f"{e.stderr or str(e)}")
+            return
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Could not create patch: {str(e)}")
+            return
+
+        try:
+            with open(save_path, 'w', encoding='utf-8') as f:
+                f.write(result.stdout)
+        except OSError as e:
+            QMessageBox.critical(self, "Create Patch Failed",
+                                 f"Could not write patch file:\n{e}")
+            return
+
+        QMessageBox.information(
+            self, "Patch Created",
+            f"Patch saved to:\n{save_path}\n\n"
+            f"It can be re-applied via Repo → Apply Patch….")
 
     def handle_view_commit_by_sha(self):
         """Opens the file-wise view of any commit entered by the user.
