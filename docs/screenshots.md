@@ -46,14 +46,15 @@ Visual documentation for the Git Interactive Rebase GUI Tool. Each section showc
 28. [Find Merge-base](#28-find-merge-base)
 29. [Cherry-pick](#29-cherry-pick)
 30. [Apply Patch](#30-apply-patch)
-31. [Viewer Mode](#31-viewer-mode)
-32. [Themes (Light / Dark)](#32-themes-light--dark)
-33. [Zoom Controls](#33-zoom-controls)
-34. [Mark / Unmark Commit](#34-mark--unmark-commit)
-35. [Show Local Branches](#35-show-local-branches)
-36. [Copy to Clipboard](#36-copy-to-clipboard)
-37. [Keyboard Shortcuts](#37-keyboard-shortcuts)
-38. [Update the Tool](#38-update-the-tool)
+31. [Create Patch](#31-create-patch)
+32. [Viewer Mode](#32-viewer-mode)
+33. [Themes (Light / Dark)](#33-themes-light--dark)
+34. [Zoom Controls](#34-zoom-controls)
+35. [Mark / Unmark Commit](#35-mark--unmark-commit)
+36. [Show Local Branches](#36-show-local-branches)
+37. [Copy to Clipboard](#37-copy-to-clipboard)
+38. [Keyboard Shortcuts](#38-keyboard-shortcuts)
+39. [Update the Tool](#39-update-the-tool)
 
 ---
 
@@ -93,7 +94,7 @@ python3 git_interactive_rebase.py HEAD^^^
 
 ### Option 3: Start in Viewer Mode (read-only)
 
-Launch the tool with all history-modifying operations disabled. Useful for safely browsing a repository (see [Viewer Mode](#31-viewer-mode)).
+Launch the tool with all history-modifying operations disabled. Useful for safely browsing a repository (see [Viewer Mode](#32-viewer-mode)).
 
 ```bash
 python3 git_interactive_rebase.py --viewer-mode
@@ -150,6 +151,7 @@ Access all commit actions via right-click menu.
 **Description:** Right-click any commit to see the context menu with all available actions:
 
 - Show / View commit {sha} (opens the tabbed Plain + File-wise viewer)
+- Create Patch (save the commit as a format-patch file, re-appliable via Apply Patch)
 - Mark / Unmark commit
 - Copy SHA / Copy Message / Copy Both
 - Reset hard to this commit
@@ -202,7 +204,7 @@ The **Configure** button in the status bar controls which markers, columns, and 
 - **Show Origin** → origin markers
 - **Show Rebase** → rebase markers (see [Rebase Options](#20-rebase-options))
 - **Show Squash** → squash markers
-- **Show Local Branches** → local/remote branch names next to commits (see [Show Local Branches](#34-show-local-branches))
+- **Show Local Branches** → local/remote branch names next to commits (see [Show Local Branches](#36-show-local-branches))
 - **Show Stats** → per-commit line stats
 - **Show Date** → commit dates
 - **Show Diffs** → the right-side diff pane (see [Diff Pane](#10-diff-pane))
@@ -222,7 +224,7 @@ The **Perform action on selected commits** menu lists the actions that can be ap
 **Description:** Enter multi-select mode with **Select multiple commits**, then open the **Perform action on selected commits** menu (next to the selection button). Each commit gets a tick box, and the menu offers the following actions based on how many commits are checked:
 
 - **Squash selected commits** → Available when **2 or more** adjacent commits are checked (see [Squash Commits](#15-squash-commits))
-- **Mark selected commits** → Available when **1 or more** commits are checked (see [Mark / Unmark Commit](#33-mark--unmark-commit))
+- **Mark selected commits** → Available when **1 or more** commits are checked (see [Mark / Unmark Commit](#35-mark--unmark-commit))
 - **Drop selected commits** → Available when **1 or more** commits are checked (see [Drop Commit](#12-drop-commit))
 - **Move selected commits** → Shows a hint explaining that a contiguous (adjacent) block of checked commits can be dragged to a new position (see [Reorder Commits](#13-reorder-commits))
 
@@ -388,7 +390,7 @@ Perform an action on multiple commits at once — squash an adjacent range, mark
 Enter multi-selection mode with the **Select multiple commits** button in the toolbar (or via the context menu), then check the commits you want to act on. Each commit gets a tick box; the **Perform action on selected commits** menu (next to the selection button) offers the available actions based on how many commits are checked:
 
 - **Squash selected commits** → Available when **2 or more** adjacent commits are checked. Opens the squash dialog to combine them into one (see [Squash Commits](#15-squash-commits))
-- **Mark selected commits** → Available when **1 or more** commits are checked. Marks all checked commits at once (see [Mark / Unmark Commit](#33-mark--unmark-commit))
+- **Mark selected commits** → Available when **1 or more** commits are checked. Marks all checked commits at once (see [Mark / Unmark Commit](#35-mark--unmark-commit))
 - **Drop selected commits** → Available when **1 or more** commits are checked. Drops the checked commits one by one, **newest first**. If a drop fails part-way through, you can **skip that commit and continue** with the remaining pending ones, or **stop** and handle it manually (see [Drop Commit](#12-drop-commit))
 - **Move selected commits** → Available when **1 or more** commits are checked. Shows a hint explaining that a contiguous (adjacent) block of checked commits can be dragged to a new position to reorder them together (see [Reorder Commits](#13-reorder-commits)).
 - **Drag to reorder** → In multi-select mode you can also click and drag the checked commits as a group to a new position. The checked commits must form one **adjacent (contiguous) block**; dragging works like the normal reorder drag (see [Reorder Commits](#13-reorder-commits)). A confirmation dialog shows the range being moved before it is applied.
@@ -562,7 +564,7 @@ Available options include:
 - **Commit all unsaved changes to a single "bulk" commit** → Save all current changes into one temporary commit and continue
 - **Amend all changes to the current `HEAD` commit** → Amend HEAD commit with the unstaged changes
 - **Discard changes** → Discard the unstaged changes
-- **Start in Viewer Mode** → Start the app in viewer mode. No history modifying operations will be allowed (see [Viewer Mode](#31-viewer-mode))
+- **Start in Viewer Mode** → Start the app in viewer mode. No history modifying operations will be allowed (see [Viewer Mode](#32-viewer-mode))
 - **Exit** → Cancel launch and resolve changes manually
 
 > **Note:** Untracked files are **not considered** during this process and are left untouched (not stashed or modified).
@@ -586,7 +588,7 @@ When changes are detected, the tool provides the same safe handling options avai
 - Switch to Viewer Mode
 - Cancel and resolve changes manually
 
-If an app-created stash already exists, new changes are **merged into the existing stash** rather than creating a second one. In **Viewer Mode**, history-modifying rescan options are disabled (see [Viewer Mode](#31-viewer-mode)).
+If an app-created stash already exists, new changes are **merged into the existing stash** rather than creating a second one. In **Viewer Mode**, history-modifying rescan options are disabled (see [Viewer Mode](#32-viewer-mode)).
 
 This makes it easy to keep the application open throughout a development session while safely incorporating newly created changes into your interactive rebase workflow.
 
@@ -816,7 +818,19 @@ Apply a unified-diff or format-patch file to your repository.
 
 ---
 
-## 31. Viewer Mode
+## 31. Create Patch
+Save any commit as a patch file from the context menu.
+
+**Description:** Right-click a commit and choose **Create Patch** (right below **Show / View commit**) to export it as a format-patch file:
+
+- A save dialog opens, defaulting to `<sha>-<subject>.patch`
+- The patch is generated with `git format-patch` and carries the commit's own message, so it round-trips: re-apply it later via **Repo → Apply Patch…** (including as a commit)
+- Works for every commit in the list, including root commits
+- Greyed out in multi-select mode like the other single-commit actions
+
+---
+
+## 32. Viewer Mode
 Run the tool as a read-only browser.
 
 **Screenshot:** `screenshots/viewer-mode.webp`
@@ -827,7 +841,7 @@ Run the tool as a read-only browser.
 
 ---
 
-## 32. Themes (Light / Dark)
+## 33. Themes (Light / Dark)
 Toggle between light and dark themes for comfortable viewing.
 
 > **Note:** Most screenshots in this documentation use the **light theme (default)**.
@@ -840,14 +854,14 @@ Toggle between light and dark themes for comfortable viewing.
 
 ---
 
-## 33. Zoom Controls
+## 34. Zoom Controls
 Adjust the font size for better readability.
 
 **Description:** Use the zoom controls (+/- buttons) in the toolbar to increase or decrease the font size. Font size preference is automatically saved across sessions.
 
 ---
 
-## 34. Mark / Unmark Commit
+## 35. Mark / Unmark Commit
 Mark commits for easy identification.
 
 **Screenshot:** `screenshots/mark-commits.webp`
@@ -860,7 +874,7 @@ Mark commits for easy identification.
 
 ---
 
-## 35. Show Local Branches
+## 36. Show Local Branches
 Display local and remote branch names alongside commits.
 
 **Description:** Toggle the "show local branches" option (via **Configure → Show/Hide → Show Local Branches** in the main window, see [2. Main Interface](#2-main-interface)) to display branch names next to commits. Local branches are shown in green, and remote branches (e.g., origin/main, origin/master) are shown in orange. This helps you identify which branch a commit belongs to or originated from, making it easier to understand the commit's context and lineage.
@@ -869,7 +883,7 @@ Display local and remote branch names alongside commits.
 
 ---
 
-## 36. Copy to Clipboard
+## 37. Copy to Clipboard
 Quickly copy commit details for sharing, debugging, or reference.
 
 **Screenshot:** `screenshots/copy-commit-details.webp`
@@ -886,7 +900,7 @@ A brief **"Copied!"** notification appears to confirm the action.
 
 ---
 
-## 37. Keyboard Shortcuts
+## 38. Keyboard Shortcuts
 Keyboard shortcuts for faster navigation and workflow.
 
 | Shortcut | Action |
@@ -905,7 +919,7 @@ Keyboard shortcuts for faster navigation and workflow.
 
 ---
 
-## 38. Update the Tool
+## 39. Update the Tool
 
 **Screenshot:** `screenshots/update-available-dialog.webp`
 

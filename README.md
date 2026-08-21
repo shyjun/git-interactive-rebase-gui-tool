@@ -59,6 +59,7 @@ A Python-based Git Interactive Rebase GUI tool to visually manage commit history
 * **Browse Stashes**: Open a read-only window of the repository's stash list with an always-visible diff pane, plus **Apply + Keep**, **Apply + Drop**, and **Drop** actions (toolbar buttons and right-click menu) with confirmations and auto-refresh.
 * **Find Merge-base**: Compute the merge-base between the current branch and any other branch, with one-click **Copy SHA to clipboard** (Repo menu → **Find Merge-base…**).
 * **Apply Patch**: Apply a unified-diff/format-patch file via **Apply Patch…** in the Repo menu. Choose whether the changes are committed (using the patch's own commit message) or left unstaged in the working tree; failures are detected with a dry-run check so the repository is never left partially applied. The original patch file is not modified or deleted.
+* **Create Patch**: Export any commit as a format-patch file via **Create Patch** in the commit right-click menu. The patch keeps the commit's own message, so it round-trips through Apply Patch.
 * **Non-modal viewer windows**: The tabbed View Commit window, PR Diff, and consolidated-diff windows stay open while you keep using the main window — switch freely between them without closing the viewer.
 
 ### ⚡ Git Integration
