@@ -393,6 +393,9 @@ Enter multi-selection mode with the **Select multiple commits** button in the to
 - **Mark selected commits** → Available when **1 or more** commits are checked. Marks all checked commits at once (see [Mark / Unmark Commit](#35-mark--unmark-commit))
 - **Drop selected commits** → Available when **1 or more** commits are checked. Drops the checked commits one by one, **newest first**. If a drop fails part-way through, you can **skip that commit and continue** with the remaining pending ones, or **stop** and handle it manually (see [Drop Commit](#12-drop-commit))
 - **Move selected commits** → Available when **1 or more** commits are checked. Shows a hint explaining that a contiguous (adjacent) block of checked commits can be dragged to a new position to reorder them together (see [Reorder Commits](#13-reorder-commits)).
+- **Create patch(s) from selected commits** → Available when **1 or more** commits are checked. Opens a submenu with two options:
+  - **Consolidated single patch** → Combines all selected commits into one unified-diff file (requires **2 or more** commits). A save dialog lets you choose the output file.
+  - **Multiple patches** → Creates one format-patch file per commit in a chosen folder (requires **1 or more** commits). Each patch carries the commit's own message, so it round-trips through [Apply Patch](#30-apply-patch).
 - **Drag to reorder** → In multi-select mode you can also click and drag the checked commits as a group to a new position. The checked commits must form one **adjacent (contiguous) block**; dragging works like the normal reorder drag (see [Reorder Commits](#13-reorder-commits)). A confirmation dialog shows the range being moved before it is applied.
 
 To leave selection mode without acting, click **Cancel multiple selection** (or use the context menu) to deselect everything and return to normal mode.
