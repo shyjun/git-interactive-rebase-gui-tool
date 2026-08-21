@@ -1656,7 +1656,7 @@ def perform_self_update(tool_dir):
         print(f"[perform_self_update] local={old_sha[:8] if old_sha else '?'} remote={remote_sha[:8]} match={old_sha == remote_sha}")
 
         if old_sha == remote_sha:
-            return True, "You are already using the latest version."
+            return True, f"You are already using the latest version. ({old_sha[:8]})"
 
         print("[perform_self_update] running pip install --upgrade")
         ok, stdout, stderr = _run_capture(tool_dir, ["pip", "install", "--upgrade", GIT_REPO_URL])
