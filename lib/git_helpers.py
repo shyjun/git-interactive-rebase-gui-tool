@@ -254,6 +254,52 @@ def get_reflog_history(repo_path, limit=None):
     except subprocess.CalledProcessError as e:
         raise Exception(f"Failed to fetch reflog history: {e.stderr}")
 
+def get_tags_history(repo_path, limit=None):
+    """Fetches all tags in the repository (most recent first).
+
+    Returns parsed dicts in the same shape as get_git_history, with the
+    tag name stored in ``message`` and ``raw_text`` formatted as
+    ``<commit_sha> <tag_name>`` so existing SHA-extraction logic keeps
+    working.
+    """
+    try:
+        # %(objectname:short) = tag object SHA (annotated) or commit SHA (lightweight)
+        # %(*objectname:short) = commit SHA (annotated) or empty (lightweight)
+        # %(refname:short)     = tag name
+        # %(creatordate:iso)  = tag date
+        cmd = ["git", "for-each-ref",
+               "--sort=-creatordate",
+               "--format=%(objectname:short)\t%(*objectname:short)\t%(refname:short)\t%(creatordate:iso)",
+               "refs/tags/"]
+        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True,
+                                encoding='utf-8', errors='replace')
+        entries = []
+        for line in result.stdout.strip().split('\n'):
+            if not line.strip():
+                continue
+            parts = line.split('\t')
+            if len(parts) < 3:
+                continue
+            obj_sha, deref_sha, tag_name = parts[0], parts[1], parts[2]
+            date = parts[3] if len(parts) > 3 else ""
+            commit_sha = deref_sha if deref_sha else obj_sha
+            raw = f"{commit_sha} {tag_name}"
+            entries.append({
+                "sha": commit_sha,
+                "message": tag_name,
+                "date": date,
+                "author": "",
+                "parents": "",
+                "added": 0,
+                "deleted": 0,
+                "raw_text": raw,
+            })
+            if limit is not None and len(entries) >= limit:
+                break
+        return entries
+    except subprocess.CalledProcessError as e:
+        raise Exception(f"Failed to fetch tags: {e.stderr}")
+
 def get_stash_history(repo_path, limit=None):
     """Fetches the repository's stash list (most recent first).
 
