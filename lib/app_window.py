@@ -168,6 +168,8 @@ from lib.git_helpers import (
     build_update_command,
     perform_self_update,
     apply_patch_file,
+    _is_git_install,
+    GIT_REPO_URL,
 )
 from lib.dialogs import (
     DiffViewerDialog,
@@ -2556,13 +2558,13 @@ class GitInteractiveRebaseApp(QMainWindow):
 
     def handle_check_for_updates(self):
         """Checks for updates from the remote repository."""
-        REPO_URL = "https://github.com/shyjun/git-interactive-rebase-gui-tool.git"
+        REPO_URL = GIT_REPO_URL.removeprefix("git+")
         UPDATE_URL = "https://github.com/shyjun/git-interactive-rebase-gui-tool?tab=readme-ov-file#-staying-updated"
 
         # 1. Find the tool's own directory
         tool_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
         local_sha = "Unknown"
-        is_git_install = os.path.exists(os.path.join(tool_dir, ".git"))
+        is_git_install = _is_git_install(tool_dir)
 
         # 2. Extract local SHA
         if is_git_install:
