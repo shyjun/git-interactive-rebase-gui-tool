@@ -1632,10 +1632,26 @@ def perform_self_update(tool_dir):
     """
     if not _is_git_install(tool_dir):
         old_sha = _read_version_sha()
+        if not old_sha:
+            ok, stdout, stderr = _run_capture(tool_dir, ["pip", "install", "--upgrade", GIT_REPO_URL])
+            if ok:
+                return True, "Update complete. The tool has been upgraded via pip."
+            return False, f"pip install failed:\n{stderr.strip() or stdout.strip() or 'unknown error'}"
+
+        # Fetch remote SHA for up-to-date check
+        ls_url = GIT_REPO_URL.removeprefix("git+")
+        ok, stdout, stderr = _run_capture(tool_dir, ["git", "ls-remote", ls_url, "HEAD"])
+        if not ok or not stdout.strip():
+            return False, f"Could not check remote version:\n{stderr.strip() or stdout.strip() or 'unknown error'}"
+        remote_sha = stdout.split()[0]
+
+        if old_sha == remote_sha:
+            return True, "You are already using the latest version."
+
         ok, stdout, stderr = _run_capture(tool_dir, ["pip", "install", "--upgrade", GIT_REPO_URL])
         if ok:
             new_sha = _read_version_sha()
-            if old_sha and new_sha:
+            if new_sha:
                 return True, f"Update complete.\n\nOld: {old_sha[:8]}\nNew: {new_sha[:8]}"
             return True, "Update complete. The tool has been upgraded via pip."
         return False, f"pip install failed:\n{stderr.strip() or stdout.strip() or 'unknown error'}"
