@@ -1022,7 +1022,7 @@ def highlight_button_temporarily(button, duration_ms=3000, blinks=0, color=None)
 
 
 class GitInteractiveRebaseApp(QMainWindow):
-    def __init__(self, repo_path, commit_sha, app_start_time, base_branch=None, viewer_mode=False, browse_branch=None, parent=None, browse_limit=50, browse_file=None, browse_reflog=False, browse_stash=False, browse_file_ref=None, browse_tags=False):
+    def __init__(self, repo_path, commit_sha, app_start_time, base_branch=None, viewer_mode=False, browse_branch=None, parent=None, browse_limit=50, browse_file=None, browse_reflog=False, browse_stash=False, browse_file_ref=None, browse_tags=False, browse_tag=False):
         super().__init__(parent)
         self.repo_path = repo_path
         self.commit_sha = commit_sha
@@ -1035,6 +1035,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.browse_reflog = browse_reflog
         self.browse_stash = browse_stash
         self.browse_tags = browse_tags
+        self.browse_tag = browse_tag
         self.browse_mode = bool(browse_branch or browse_file or browse_reflog or browse_stash or browse_tags)
         if browse_branch or browse_file or browse_reflog or browse_stash or browse_tags:
             self.viewer_mode = True
@@ -1206,7 +1207,8 @@ class GitInteractiveRebaseApp(QMainWindow):
             self.setWindowTitle(title)
             return
         if self.browse_branch:
-            title = (f"Browse Branch: {self.browse_branch} (read-only, latest "
+            label = "Browse Tag" if self.browse_tag else "Browse Branch"
+            title = (f"{label}: {self.browse_branch} (read-only, latest "
                      f"{self.browse_limit}), path={self.repo_path}")
             self.setWindowTitle(title)
             return
@@ -2961,7 +2963,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         viewer = GitInteractiveRebaseApp(
             self.repo_path, self.commit_sha, self.app_start_time,
             viewer_mode=True, browse_branch=sha, parent=self,
-            browse_limit=commit_limit,
+            browse_limit=commit_limit, browse_tag=self.browse_tags,
         )
         # The browse viewer inherits the main window's current zoom and theme.
         viewer.current_font_size = self.current_font_size
