@@ -4630,7 +4630,7 @@ class GitInteractiveRebaseApp(QMainWindow):
             return
         QMessageBox.information(self, "Tag Created",
                                 f"Tag '{tag_name}' created on commit {sha[:8]}.")
-        self.refresh_commits()
+        self.load_history()
 
     def handle_view_commit_by_sha(self):
         """Opens the file-wise view of any commit entered by the user.
