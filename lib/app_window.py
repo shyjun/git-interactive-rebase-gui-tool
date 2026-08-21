@@ -1730,6 +1730,21 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.perform_action_menu.addAction(self.mark_selected_action)
         self.perform_action_menu.addAction(self.drop_selected_action)
         self.perform_action_menu.addAction(self.move_selected_action)
+        self.perform_action_menu.addSeparator()
+
+        self.create_patch_menu = QMenu("Create patch(s) from selected commits", self)
+        self.create_patch_menu.setToolTip("Generate patch files from the selected commits.")
+        self.create_patch_consolidated_action = QAction("Consolidated single patch", self)
+        self.create_patch_consolidated_action.setToolTip("Combine all selected commits into one unified-diff patch.")
+        self.create_patch_consolidated_action.triggered.connect(
+            lambda: self.handle_create_patch_selected(consolidated=True))
+        self.create_patch_multiple_action = QAction("Multiple patches", self)
+        self.create_patch_multiple_action.setToolTip("Create one format-patch file per selected commit.")
+        self.create_patch_multiple_action.triggered.connect(
+            lambda: self.handle_create_patch_selected(consolidated=False))
+        self.create_patch_menu.addAction(self.create_patch_consolidated_action)
+        self.create_patch_menu.addAction(self.create_patch_multiple_action)
+        self.perform_action_menu.addMenu(self.create_patch_menu)
         self.perform_action_btn.setMenu(self.perform_action_menu)
         self.cancel_multi_btn = QPushButton("Cancel multiple selection")
         self.cancel_multi_btn.setToolTip("Cancel multi-select mode.")
@@ -4922,6 +4937,101 @@ class GitInteractiveRebaseApp(QMainWindow):
         selected_shas = [self.list_widget.item(i).text().split()[0] for i in selected_indices]
 
         self.perform_multi_squash(selected_shas)
+
+    def handle_create_patch_selected(self, consolidated=False):
+        """Creates patch files from selected commits.
+
+        consolidated=True: all changes combined into one unified-diff file.
+        consolidated=False: one format-patch file per commit."""
+        selected_indices = []
+        for i in range(self.list_widget.count()):
+            item = self.list_widget.item(i)
+            if item.checkState() == Qt.Checked:
+                selected_indices.append(i)
+
+        if not selected_indices:
+            QMessageBox.warning(self, "No Commits Selected",
+                                "Please select at least one commit.")
+            return
+
+        shas = [self.list_widget.item(i).text().split()[0] for i in selected_indices]
+        # List order is newest-first; reverse to chronological (oldest first)
+        shas = list(reversed(shas))
+
+        # Resolve short SHAs to full SHAs for git operations
+        try:
+            shas = [resolve_ref(self.repo_path, s) or s for s in shas]
+        except Exception:
+            pass
+
+        if consolidated:
+            if len(shas) < 2:
+                QMessageBox.warning(self, "Not Enough Selected",
+                                    "Select at least 2 commits for a consolidated patch.")
+                return
+            default = f"{shas[0][:8]}-to-{shas[-1][:8]}.patch"
+            save_path, _ = QFileDialog.getSaveFileName(
+                self, "Save Consolidated Patch", default,
+                "Patch files (*.patch);;All files (*)")
+            if not save_path:
+                return
+            try:
+                # Check if oldest commit has a parent (root commits need no ^)
+                has_parent = resolve_ref(self.repo_path, f"{shas[0]}^") is not None
+                if has_parent:
+                    diff_args = ["git", "diff", f"{shas[0]}^", shas[-1]]
+                else:
+                    diff_args = ["git", "diff", shas[0], shas[-1]]
+                result = subprocess.run(
+                    diff_args,
+                    cwd=self.repo_path, capture_output=True, check=True,
+                    text=True, encoding='utf-8', errors='replace')
+                with open(save_path, 'w', encoding='utf-8') as f:
+                    f.write(result.stdout)
+            except subprocess.CalledProcessError as e:
+                QMessageBox.critical(self, "Patch Failed",
+                                     f"Could not create consolidated patch.\n\n{e.stderr}")
+                return
+            except OSError as e:
+                QMessageBox.critical(self, "Patch Failed",
+                                     f"Could not write patch file:\n{e}")
+                return
+            QMessageBox.information(
+                self, "Patch Created",
+                f"Consolidated patch saved to:\n{save_path}\n\n"
+                f"Contains changes from {shas[0][:8]} to {shas[-1][:8]} "
+                f"({len(shas)} commits).")
+        else:
+            folder = QFileDialog.getExistingDirectory(
+                self, "Save Patches", self.repo_path)
+            if not folder:
+                return
+            count = 0
+            errors = []
+            for sha in shas:
+                try:
+                    result = subprocess.run(
+                        ["git", "format-patch", "-1", sha, "--stdout"],
+                        cwd=self.repo_path, capture_output=True, check=True,
+                        text=True, encoding='utf-8', errors='replace')
+                    subject = get_commit_subject(self.repo_path, sha) or ""
+                    slug = re.sub(r'[^A-Za-z0-9._-]+', '-', subject).strip('-').lower()[:40]
+                    fname = f"{sha[:8]}-{slug}.patch" if slug else f"{sha[:8]}.patch"
+                    fpath = os.path.join(folder, fname)
+                    with open(fpath, 'w', encoding='utf-8') as f:
+                        f.write(result.stdout)
+                    count += 1
+                except (subprocess.CalledProcessError, OSError) as e:
+                    errors.append(f"{sha[:8]}: {e}")
+            if errors:
+                QMessageBox.warning(
+                    self, "Patch Errors",
+                    f"Patches saved: {count}\nFailed: {len(errors)}\n\n"
+                    + "\n".join(errors))
+            else:
+                QMessageBox.information(
+                    self, "Patches Created",
+                    f"{count} patch(es) saved to:\n{folder}")
 
     def handle_mark_selected(self):
         """Marks each checked commit, then exits multi-select mode."""
