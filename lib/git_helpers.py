@@ -1689,7 +1689,7 @@ def perform_self_update(tool_dir):
     remote_sha = stdout.strip() if ok else ""
 
     if local_sha and local_sha == remote_sha:
-        return True, "You are already using the latest version."
+        return True, f"You are already using the latest version. ({local_sha[:8]})"
 
     ok, _, stderr = _run_capture(tool_dir, ["git", "reset", "--hard", f"origin/{default_branch}"])
     if not ok:
