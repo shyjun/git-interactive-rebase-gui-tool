@@ -328,50 +328,33 @@ def get_local_branches_map(repo_path, current_branch=None, extra_remotes=None):
 
 
 def get_tags_map(repo_path):
-    """Returns a dict mapping short_sha to a list of tag names.
+    """Returns a dict mapping commit short_sha to a list of tag names.
 
-    Handles both lightweight tags (objectname == commit SHA) and annotated
-    tags (objectname == tag object SHA) by dereferencing annotated tags to
-    find the underlying commit SHA.
+    Handles both lightweight and annotated tags in a single pass by
+    using %(*objectname:short) to dereference annotated tags to their
+    underlying commit SHA.
     """
     try:
-        # First pass: get all tags. For lightweight tags, objectname is the
-        # commit SHA. For annotated tags, it's the tag object SHA.
-        cmd = ["git", "for-each-ref", "--format=%(objectname:short) %(refname:short)", "refs/tags/"]
+        # %(objectname:short) = tag object SHA (annotated) or commit SHA (lightweight)
+        # %(*objectname:short) = commit SHA (annotated) or empty (lightweight)
+        # %(refname:short)     = tag name
+        cmd = ["git", "for-each-ref",
+               "--format=%(objectname:short)\t%(*objectname:short)\t%(refname:short)",
+               "refs/tags/"]
         result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True,
                                 encoding='utf-8', errors='replace')
         tag_map = {}
-        unresolved = []  # (tag_object_sha, tag_name) for annotated tags
         for line in result.stdout.strip().split('\n'):
             if not line.strip():
                 continue
-            parts = line.strip().split(maxsplit=1)
-            if len(parts) == 2:
-                sha, tag = parts
-                tag_map.setdefault(sha, []).append(tag)
-                unresolved.append((sha, tag))
-
-        # Second pass: dereference annotated tags to find their commit SHA.
-        # Remove the tag-object entry and re-add under the commit SHA.
-        for sha, tag in unresolved:
-            try:
-                deref = subprocess.run(
-                    ["git", "rev-parse", f"{tag}^{{commit}}"],
-                    cwd=repo_path, capture_output=True, text=True,
-                    encoding='utf-8', errors='replace')
-                if deref.returncode == 0:
-                    commit_sha = deref.stdout.strip()[:len(sha)]
-                    if commit_sha != sha:
-                        # Remove from old (tag object) key
-                        if sha in tag_map:
-                            tag_map[sha] = [t for t in tag_map[sha] if t != tag]
-                            if not tag_map[sha]:
-                                del tag_map[sha]
-                        # Add under commit SHA
-                        tag_map.setdefault(commit_sha, []).append(tag)
-            except Exception:
-                pass
-
+            parts = line.split('\t')
+            if len(parts) != 3:
+                continue
+            obj_sha, deref_sha, tag = parts
+            # Use dereferenced SHA for annotated tags, original for lightweight
+            commit_sha = deref_sha if deref_sha else obj_sha
+            if commit_sha:
+                tag_map.setdefault(commit_sha, []).append(tag)
         return tag_map
     except subprocess.CalledProcessError:
         return {}
