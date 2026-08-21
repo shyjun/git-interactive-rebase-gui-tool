@@ -4976,18 +4976,15 @@ class GitInteractiveRebaseApp(QMainWindow):
             if not save_path:
                 return
             try:
-                # Check if oldest commit has a parent (root commits need no ^)
-                has_parent = resolve_ref(self.repo_path, f"{shas[0]}^") is not None
-                if has_parent:
-                    diff_args = ["git", "diff", f"{shas[0]}^", shas[-1]]
-                else:
-                    diff_args = ["git", "diff", shas[0], shas[-1]]
-                result = subprocess.run(
-                    diff_args,
-                    cwd=self.repo_path, capture_output=True, check=True,
-                    text=True, encoding='utf-8', errors='replace')
+                patches = []
+                for sha in shas:
+                    r = subprocess.run(
+                        ["git", "format-patch", "-1", sha, "--stdout"],
+                        cwd=self.repo_path, capture_output=True, check=True,
+                        text=True, encoding='utf-8', errors='replace')
+                    patches.append(r.stdout)
                 with open(save_path, 'w', encoding='utf-8') as f:
-                    f.write(result.stdout)
+                    f.write("\n".join(patches))
             except subprocess.CalledProcessError as e:
                 QMessageBox.critical(self, "Patch Failed",
                                      f"Could not create consolidated patch.\n\n{e.stderr}")
