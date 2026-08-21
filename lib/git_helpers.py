@@ -1580,6 +1580,21 @@ def _is_git_install(tool_dir):
     return False
 
 
+def _read_version_sha():
+    """Reads the SHA from app_version.json in the installed assets directory.
+    Returns the SHA string or None if not found."""
+    try:
+        from lib.utils import get_assets_path
+        import json
+        path = os.path.join(get_assets_path(), "app_version.json")
+        if os.path.isfile(path):
+            with open(path, encoding='utf-8') as f:
+                return json.load(f).get("sha")
+    except Exception:
+        pass
+    return None
+
+
 def _detect_default_branch(repo_path):
     """Returns the default branch name (e.g. 'master' or 'main') of 'origin'."""
     try:
@@ -1616,8 +1631,12 @@ def perform_self_update(tool_dir):
     clean, otherwise the update is aborted without making any changes.
     """
     if not _is_git_install(tool_dir):
+        old_sha = _read_version_sha()
         ok, stdout, stderr = _run_capture(tool_dir, ["pip", "install", "--upgrade", GIT_REPO_URL])
         if ok:
+            new_sha = _read_version_sha()
+            if old_sha and new_sha:
+                return True, f"Update complete.\n\nOld: {old_sha[:8]}\nNew: {new_sha[:8]}"
             return True, "Update complete. The tool has been upgraded via pip."
         return False, f"pip install failed:\n{stderr.strip() or stdout.strip() or 'unknown error'}"
 
