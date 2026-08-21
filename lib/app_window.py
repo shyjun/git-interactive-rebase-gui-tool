@@ -119,6 +119,7 @@ from lib.git_helpers import (
     get_file_history,
     get_reflog_history,
     get_stash_history,
+    get_tags_history,
     get_head_sha,
     get_full_head_sha,
     get_current_branch,
@@ -1021,7 +1022,7 @@ def highlight_button_temporarily(button, duration_ms=3000, blinks=0, color=None)
 
 
 class GitInteractiveRebaseApp(QMainWindow):
-    def __init__(self, repo_path, commit_sha, app_start_time, base_branch=None, viewer_mode=False, browse_branch=None, parent=None, browse_limit=50, browse_file=None, browse_reflog=False, browse_stash=False, browse_file_ref=None):
+    def __init__(self, repo_path, commit_sha, app_start_time, base_branch=None, viewer_mode=False, browse_branch=None, parent=None, browse_limit=50, browse_file=None, browse_reflog=False, browse_stash=False, browse_file_ref=None, browse_tags=False):
         super().__init__(parent)
         self.repo_path = repo_path
         self.commit_sha = commit_sha
@@ -1033,8 +1034,9 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.browse_file_ref = browse_file_ref
         self.browse_reflog = browse_reflog
         self.browse_stash = browse_stash
-        self.browse_mode = bool(browse_branch or browse_file or browse_reflog or browse_stash)
-        if browse_branch or browse_file or browse_reflog or browse_stash:
+        self.browse_tags = browse_tags
+        self.browse_mode = bool(browse_branch or browse_file or browse_reflog or browse_stash or browse_tags)
+        if browse_branch or browse_file or browse_reflog or browse_stash or browse_tags:
             self.viewer_mode = True
         self.is_dark_theme = False  # refined in load_settings/apply_theme
         self.start_time_full_head = get_full_head_sha(self.repo_path)
@@ -1189,6 +1191,11 @@ class GitInteractiveRebaseApp(QMainWindow):
                      f"{self.browse_limit}), path={self.repo_path}")
             self.setWindowTitle(title)
             return
+        if self.browse_tags:
+            title = (f"Browse Tags (read-only, latest "
+                     f"{self.browse_limit}), path={self.repo_path}")
+            self.setWindowTitle(title)
+            return
         if self.browse_file:
             if self.browse_file_ref:
                 title = (f"Browse File: {self.browse_file} @ {self.browse_file_ref} (read-only, latest "
@@ -1323,7 +1330,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.list_widget.setItemDelegate(CommitItemDelegate(self.list_widget))
         self.update_font()
         self.list_widget.setContextMenuPolicy(Qt.CustomContextMenu)
-        if self.browse_reflog:
+        if self.browse_reflog or self.browse_tags:
             self.list_widget.customContextMenuRequested.connect(self.show_reflog_context_menu)
         elif self.browse_stash:
             self.list_widget.customContextMenuRequested.connect(self.show_stash_context_menu)
@@ -1536,7 +1543,7 @@ class GitInteractiveRebaseApp(QMainWindow):
 
         self.right_panel.setMinimumWidth(150)
 
-        self.right_panel.setVisible(not self.browse_reflog)
+        self.right_panel.setVisible(not (self.browse_reflog or self.browse_tags))
 
         self.main_splitter.addWidget(self.right_panel)
         # default split ratio: history 60%, diff 40%
@@ -1547,7 +1554,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         # In browse (read-only) mode use only the right-side pane for details;
         # no commit-viewer dialog on double-click. In reflog mode, double-click
         # opens the selected entry's commit history viewer.
-        if self.browse_reflog:
+        if self.browse_reflog or self.browse_tags:
             self.list_widget.itemDoubleClicked.connect(self.handle_reflog_show_log)
         elif not self.browse_mode:
             self.list_widget.itemDoubleClicked.connect(self.view_commit)
@@ -1654,7 +1661,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         for btn in [self.reflog_copy_sha_btn, self.reflog_show_log_btn]:
             btn.setMinimumHeight(40)
             btn.setMinimumWidth(100)
-            btn.setVisible(bool(self.browse_reflog))
+            btn.setVisible(bool(self.browse_reflog or self.browse_tags))
         controls_layout.addWidget(self.reflog_copy_sha_btn)
         controls_layout.addWidget(self.reflog_show_log_btn)
         self.stash_copy_sha_btn = QPushButton("Copy")
@@ -1976,7 +1983,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self._do_update_side_diff()
 
     def _do_update_side_diff(self):
-        if self.browse_reflog:
+        if self.browse_reflog or self.browse_tags:
             return
         item = self.list_widget.currentItem()
         if not item:
@@ -2881,6 +2888,23 @@ class GitInteractiveRebaseApp(QMainWindow):
             browse_limit=50,
         )
         # The browse viewer inherits the main window's current zoom and theme.
+        viewer.current_font_size = self.current_font_size
+        viewer.update_font()
+        if viewer.is_dark_theme != self.is_dark_theme:
+            viewer.is_dark_theme = self.is_dark_theme
+            viewer.apply_theme("dark" if self.is_dark_theme else "light")
+        self.browse_windows.append(viewer)
+        viewer.show()
+
+    def handle_browse_tags(self):
+        """Opens a read-only viewer window showing all tags in the repository
+        (most recent first), with the diff pane hidden and a minimal
+        copy-SHA / show-log toolbar."""
+        viewer = GitInteractiveRebaseApp(
+            self.repo_path, self.commit_sha, self.app_start_time,
+            viewer_mode=True, browse_tags=True, parent=self,
+            browse_limit=50,
+        )
         viewer.current_font_size = self.current_font_size
         viewer.update_font()
         if viewer.is_dark_theme != self.is_dark_theme:
@@ -3900,6 +3924,10 @@ class GitInteractiveRebaseApp(QMainWindow):
         browse_reflog_action.setToolTip("Open a read-only viewer of the repository's HEAD reflog.")
         browse_reflog_action.triggered.connect(lambda *_: self.handle_browse_reflog())
 
+        browse_tags_action = QAction("Browse Tags", self)
+        browse_tags_action.setToolTip("Open a read-only viewer of all tags in the repository.")
+        browse_tags_action.triggered.connect(lambda *_: self.handle_browse_tags())
+
         browse_stash_action = QAction("Browse Stashes", self)
         browse_stash_action.setToolTip("Open a read-only viewer of the repository's stash list.")
         browse_stash_action.triggered.connect(lambda *_: self.handle_browse_stash())
@@ -3916,6 +3944,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         menu.addAction(browse_file_action)
         menu.addAction(browse_commit_log_action)
         menu.addAction(browse_reflog_action)
+        menu.addAction(browse_tags_action)
         menu.addAction(browse_stash_action)
         menu.addAction(merge_base_action)
         return menu
@@ -7532,6 +7561,7 @@ for i, filename in enumerate(files):
         file_ref = self.browse_file_ref
         reflog = self.browse_reflog
         stash = self.browse_stash
+        tags = self.browse_tags
         browse_limit = self.browse_limit
 
         def worker():
@@ -7544,6 +7574,10 @@ for i, filename in enumerate(files):
                     return
                 elif reflog:
                     history = get_reflog_history(repo_path, limit=browse_limit)
+                    self._browse_load_result = (True, history, {}, {})
+                    return
+                elif tags:
+                    history = get_tags_history(repo_path, limit=browse_limit)
                     self._browse_load_result = (True, history, {}, {})
                     return
                 else:
