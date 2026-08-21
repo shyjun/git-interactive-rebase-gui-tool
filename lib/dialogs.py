@@ -3457,6 +3457,79 @@ class ApplyPatchDialog(QDialog):
         return self.commit_cb.isChecked()
 
 
+class TagCommitDialog(QDialog):
+    """Dialog to create a git tag (lightweight or annotated) on a commit."""
+
+    def __init__(self, sha, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Tag Commit")
+        self.setMinimumWidth(440)
+        self.setMinimumHeight(260)
+        self.setModal(True)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(12)
+
+        sha_label = QLabel(f"Tagging commit: {sha[:12]}")
+        sha_label.setStyleSheet("font-weight: bold;")
+        layout.addWidget(sha_label)
+
+        tag_label = QLabel("Tag name:")
+        layout.addWidget(tag_label)
+
+        self.tag_edit = QLineEdit()
+        self.tag_edit.setPlaceholderText("e.g. v1.2.3")
+        self.tag_edit.setToolTip("Name for the git tag (e.g. v1.0.0, release-20240101).")
+        layout.addWidget(self.tag_edit)
+
+        self.annotate_cb = QCheckBox("Annotate")
+        self.annotate_cb.setChecked(False)
+        self.annotate_cb.setToolTip("If checked, creates an annotated tag with a message.")
+        self.annotate_cb.toggled.connect(self._on_annotate_toggled)
+        layout.addWidget(self.annotate_cb)
+
+        self.msg_edit = QTextEdit()
+        self.msg_edit.setPlaceholderText("Annotation message (optional)")
+        self.msg_edit.setToolTip("Message for an annotated tag. Ignored if 'Annotate' is unchecked.")
+        self.msg_edit.setEnabled(False)
+        self.msg_edit.setMinimumHeight(80)
+        layout.addWidget(self.msg_edit)
+
+        tag_btn = QPushButton("Create Tag")
+        tag_btn.setDefault(True)
+        tag_btn.setToolTip("Create the git tag.")
+        tag_btn.clicked.connect(self.accept)
+
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(self.reject)
+
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+        btn_layout.addWidget(cancel_btn)
+        btn_layout.addWidget(tag_btn)
+        layout.addLayout(btn_layout)
+
+        self.tag_edit.setFocus()
+
+    def _on_annotate_toggled(self, checked):
+        self.msg_edit.setEnabled(checked)
+        if checked:
+            self.msg_edit.setFocus()
+
+    @property
+    def tag_name(self):
+        return self.tag_edit.text().strip()
+
+    @property
+    def annotated(self):
+        return self.annotate_cb.isChecked()
+
+    @property
+    def message(self):
+        return self.msg_edit.toPlainText().strip()
+
+
 class MergeBaseDialog(QDialog):
     """Dialog to pick the branch to compare against the current branch's merge-base.
     Shows the current branch first, then a "VS" label, then a branch pulldown."""

@@ -4082,6 +4082,8 @@ class GitInteractiveRebaseApp(QMainWindow):
         view_action = QAction(f"Show / View commit {sha}", self)
         create_patch_action = QAction("Create Patch", self)
         create_patch_action.setToolTip("Save this commit as a patch file (re-appliable via Repo → Apply Patch…).")
+        tag_action = QAction("Tag", self)
+        tag_action.setToolTip("Create a git tag (lightweight or annotated) on this commit.")
         reset_action = QAction(f"Reset Hard to {sha}", self)
         reset_here_action = QAction("Reset HEAD to Here (Keep Changes as Unstaged)", self)
         set_best_action = QAction("set as BEST_COMMITID", self)
@@ -4126,6 +4128,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         mark_action.triggered.connect(lambda: self.toggle_mark_commit(item))
         view_action.triggered.connect(lambda: self.view_commit(item))
         create_patch_action.triggered.connect(lambda: self.handle_create_patch(item))
+        tag_action.triggered.connect(lambda: self.handle_tag_commit(item))
         reset_action.triggered.connect(lambda: self.handle_reset(item))
         reset_here_action.triggered.connect(lambda: self.handle_reset_to_here(item))
         set_best_action.triggered.connect(lambda: self.handle_set_best_commit(item))
@@ -4158,6 +4161,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         menu.addSeparator()
         menu.addAction(view_action)
         menu.addAction(create_patch_action)
+        menu.addAction(tag_action)
         menu.addSeparator()
         menu.addAction(reset_action)
         menu.addAction(reset_here_action)
@@ -4589,6 +4593,44 @@ class GitInteractiveRebaseApp(QMainWindow):
             self, "Patch Created",
             f"Patch saved to:\n{save_path}\n\n"
             f"It can be re-applied via Repo → Apply Patch….")
+
+    def handle_tag_commit(self, item):
+        """Opens a dialog to create a git tag (lightweight or annotated) on the selected commit."""
+        if not item:
+            return
+        sha = item.text().split()[0]
+        from lib.dialogs import TagCommitDialog
+        dlg = TagCommitDialog(sha, self)
+        if dlg.exec() != QDialog.Accepted:
+            return
+        tag_name = dlg.tag_name
+        if not tag_name:
+            QMessageBox.warning(self, "Tag", "Tag name cannot be empty.")
+            return
+        cmd = ["git", "tag"]
+        if dlg.annotated:
+            msg = dlg.message
+            if not msg:
+                QMessageBox.warning(self, "Tag", "Annotation message cannot be empty.")
+                return
+            cmd += ["-a", tag_name, "-m", msg]
+        else:
+            cmd.append(tag_name)
+        cmd.append(sha)
+        try:
+            subprocess.run(cmd, cwd=self.repo_path, capture_output=True, check=True,
+                           text=True, encoding='utf-8', errors='replace')
+        except subprocess.CalledProcessError as e:
+            QMessageBox.critical(self, "Tag Failed",
+                                 f"Could not create tag '{tag_name}' on {sha[:8]}.\n\n"
+                                 f"{e.stderr or str(e)}")
+            return
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Could not create tag: {str(e)}")
+            return
+        QMessageBox.information(self, "Tag Created",
+                                f"Tag '{tag_name}' created on commit {sha[:8]}.")
+        self.refresh_commits()
 
     def handle_view_commit_by_sha(self):
         """Opens the file-wise view of any commit entered by the user.
