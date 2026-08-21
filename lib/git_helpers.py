@@ -326,6 +326,26 @@ def get_local_branches_map(repo_path, current_branch=None, extra_remotes=None):
         print(f"[git_helpers] get_local_branches_map: git for-each-ref failed: {err}")
         return {}
 
+
+def get_tags_map(repo_path):
+    """Returns a dict mapping short_sha to a list of tag names."""
+    try:
+        cmd = ["git", "for-each-ref", "--format=%(objectname:short) %(refname:short)", "refs/tags/"]
+        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True,
+                                encoding='utf-8', errors='replace')
+        tag_map = {}
+        for line in result.stdout.strip().split('\n'):
+            if not line.strip():
+                continue
+            parts = line.strip().split(maxsplit=1)
+            if len(parts) == 2:
+                sha, tag = parts
+                tag_map.setdefault(sha, []).append(tag)
+        return tag_map
+    except subprocess.CalledProcessError:
+        return {}
+
+
 def get_head_sha(repo_path):
     """Fetches current HEAD SHA (short)."""
     try:

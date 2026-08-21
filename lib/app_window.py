@@ -134,6 +134,7 @@ from lib.git_helpers import (
     commit_exists,
     normalize_branch_ref,
     get_local_branches_map,
+    get_tags_map,
     get_file_diff_only_in_commit,
     get_revert_commit_message,
     get_commit_metadata_and_message,
@@ -459,8 +460,10 @@ class CommitItemDelegate(QStyledItemDelegate):
             painter.restore()
 
         show_branches = getattr(main_win, "show_local_branches", False)
+        show_tags = getattr(main_win, "show_tags", False)
 
         branch_text = index.data(Qt.UserRole + 1) if show_branches else None
+        tag_text = index.data(Qt.UserRole + 8) if show_tags else None
         text_rect = style.subElementRect(QStyle.SE_ItemViewItemText, opt, widget)
         if not is_multi:
             text_rect = text_rect.adjusted(GRAPH_WIDTH, 0, 0, 0)
@@ -471,42 +474,45 @@ class CommitItemDelegate(QStyledItemDelegate):
         else:
             painter.setPen(opt.palette.text().color())
 
+        is_dark = getattr(main_win, 'is_dark_theme', True) if main_win else True
+
+        if not hasattr(self, '_bold_font') or getattr(self, '_base_font', None) != opt.font:
+            self._base_font = QFont(opt.font)
+            self._bold_font = QFont(opt.font)
+            self._bold_font.setBold(True)
+
+        painter.setFont(self._bold_font)
+        fm_bold = painter.fontMetrics()
+
+        current_x = text_rect.left()
+
         if branch_text:
             branches = branch_text.split(", ")
-            current_x = text_rect.left()
-            is_dark = getattr(main_win, 'is_dark_theme', True) if main_win else True
-
-            # Setup bold font lazily and cache it
-            if not hasattr(self, '_bold_font') or getattr(self, '_base_font', None) != opt.font:
-                self._base_font = QFont(opt.font)
-                self._bold_font = QFont(opt.font)
-                self._bold_font.setBold(True)
-                # fm_bold will be recreated dynamically when painter.setFont is called
-
-            painter.setFont(self._bold_font)
-            fm_bold = painter.fontMetrics()
-
             for br in branches:
                 is_remote = br.startswith("origin/")
-
-                # Determine colors based on branch type and theme
                 if is_remote:
-                    color = QColor("#ffb74d") if is_dark else QColor("#e65100") # Amber/Orange
+                    color = QColor("#ffb74d") if is_dark else QColor("#e65100")
                 else:
-                    color = QColor("#81c784") if is_dark else QColor("#2e7d32") # Green
-
-                # If selected, use highlighted text color to ensure readability
+                    color = QColor("#81c784") if is_dark else QColor("#2e7d32")
                 if opt.state & QStyle.State_Selected:
                     color = opt.palette.highlightedText().color()
-
                 painter.setPen(color)
                 br_box = f"[{br}] "
                 painter.drawText(QRect(current_x, text_rect.top(), text_rect.width() - (current_x - text_rect.left()), text_rect.height()),
                                  Qt.AlignLeft | Qt.AlignVCenter, br_box)
-
                 current_x += fm_bold.horizontalAdvance(br_box)
-        else:
-            current_x = text_rect.left()
+
+        if tag_text:
+            tags = tag_text.split(", ")
+            for tg in tags:
+                color = QColor("#ce93d8") if is_dark else QColor("#7b1fa2")
+                if opt.state & QStyle.State_Selected:
+                    color = opt.palette.highlightedText().color()
+                painter.setPen(color)
+                tg_box = f"{{{tg}}} "
+                painter.drawText(QRect(current_x, text_rect.top(), text_rect.width() - (current_x - text_rect.left()), text_rect.height()),
+                                 Qt.AlignLeft | Qt.AlignVCenter, tg_box)
+                current_x += fm_bold.horizontalAdvance(tg_box)
 
         # Configure rest of text styling correctly
         painter.setFont(opt.font)
@@ -1060,6 +1066,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.show_rebase_options = self.settings.value(self._sk("show_rebase_options"), False, type=bool)
         self.show_squash_options = self.settings.value(self._sk("show_squash_options"), True, type=bool)
         self.show_local_branches = self.settings.value(self._sk("show_local_branches"), False, type=bool)
+        self.show_tags = self.settings.value(self._sk("show_tags"), False, type=bool)
         self.show_stats = self.settings.value(self._sk("show_stats"), True, type=bool)
         self.show_date = self.settings.value(self._sk("show_date"), True, type=bool)
 
@@ -3750,6 +3757,11 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.settings.setValue(self._sk("show_local_branches"), self.show_local_branches)
         self.list_widget.viewport().update()
 
+    def on_tags_visibility_toggled(self, visible):
+        self.show_tags = visible
+        self.settings.setValue(self._sk("show_tags"), self.show_tags)
+        self.list_widget.viewport().update()
+
     def _on_stats_toggled(self, visible):
         self.show_stats = visible
         self.settings.setValue(self._sk("show_stats"), self.show_stats)
@@ -3794,6 +3806,12 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.show_local_branches_action.setToolTip("Show local branch markers.")
         self.show_local_branches_action.toggled.connect(self.on_local_branches_visibility_toggled)
 
+        self.show_tags_action = QAction("Show Tags", self)
+        self.show_tags_action.setCheckable(True)
+        self.show_tags_action.setChecked(self.show_tags)
+        self.show_tags_action.setToolTip("Show tag markers.")
+        self.show_tags_action.toggled.connect(self.on_tags_visibility_toggled)
+
         self.show_stats_action = QAction("Show Stats", self)
         self.show_stats_action.setCheckable(True)
         self.show_stats_action.setChecked(self.show_stats)
@@ -3817,6 +3835,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         show_hide.addAction(self.show_rebase_action)
         show_hide.addAction(self.show_squash_action)
         show_hide.addAction(self.show_local_branches_action)
+        show_hide.addAction(self.show_tags_action)
         show_hide.addSeparator()
         show_hide.addAction(self.show_stats_action)
         show_hide.addAction(self.show_date_action)
@@ -7419,8 +7438,9 @@ for i, filename in enumerate(files):
                 current_branch=current_branch,
                 extra_remotes=[self.browse_branch] if self.browse_branch else None,
             )
+            tag_map = get_tags_map(self.repo_path)
 
-            self._populate_list_widget(history, branch_map, old_row)
+            self._populate_list_widget(history, branch_map, tag_map, old_row)
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))
         finally:
@@ -7430,7 +7450,7 @@ for i, filename in enumerate(files):
 
         self._refresh_history_load()
 
-    def _populate_list_widget(self, history, branch_map, old_row):
+    def _populate_list_widget(self, history, branch_map, tag_map, old_row):
         """Builds QListWidgetItems from fetched history (main thread only)."""
         for entry in history:
             if isinstance(entry, dict):
@@ -7451,6 +7471,10 @@ for i, filename in enumerate(files):
             if sha in branch_map:
                 branches_str = ", ".join(branch_map[sha])
                 item.setData(Qt.UserRole + 1, branches_str)
+
+            if sha in tag_map:
+                tags_str = ", ".join(tag_map[sha])
+                item.setData(Qt.UserRole + 8, tags_str)
 
             self.list_widget.addItem(item)
 
@@ -7520,7 +7544,7 @@ for i, filename in enumerate(files):
                     return
                 elif reflog:
                     history = get_reflog_history(repo_path, limit=browse_limit)
-                    self._browse_load_result = (True, history, {})
+                    self._browse_load_result = (True, history, {}, {})
                     return
                 else:
                     history = get_branch_history(repo_path, branch, limit=browse_limit)
@@ -7528,7 +7552,8 @@ for i, filename in enumerate(files):
                     repo_path,
                     extra_remotes=[branch] if branch else None,
                 )
-                self._browse_load_result = (True, history, branch_map)
+                tag_map = get_tags_map(repo_path)
+                self._browse_load_result = (True, history, branch_map, tag_map)
             except Exception as e:
                 self._browse_load_result = (False, [], str(e))
             finally:
@@ -7545,14 +7570,14 @@ for i, filename in enumerate(files):
         if not self._browse_load_done:
             QTimer.singleShot(50, self._start_browse_load_poll)
             return
-        success, history, branch_map_or_error = self._browse_load_result
+        success, history, branch_map_or_error, tag_map = self._browse_load_result
         if not success:
             QMessageBox.critical(self, "Error", branch_map_or_error)
             return
         self.list_widget.setUpdatesEnabled(False)
         self.list_widget.blockSignals(True)
         try:
-            self._populate_list_widget(history, branch_map_or_error, -1)
+            self._populate_list_widget(history, branch_map_or_error, tag_map, -1)
         finally:
             self.list_widget.setUpdatesEnabled(True)
             self.list_widget.blockSignals(False)
