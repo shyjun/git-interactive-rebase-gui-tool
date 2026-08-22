@@ -156,8 +156,10 @@ class BlameDialog(QDialog):
 
     def update_font(self):
         """Called when the parent window zooms in/out — updates table font."""
-        self.font_size = getattr(self, "current_font_size", self.font_size)
-        self.table.setFont(QFont("Monospace", max(8, self.font_size - 1)))
+        self.font_size = self.current_font_size
+        font = QFont("Monospace", self.current_font_size)
+        self.table.setFont(font)
+        self.table.horizontalHeader().setFont(font)
         self._refresh_table()
 
     # ------------------------------------------------------------------
@@ -228,6 +230,8 @@ class BlameDialog(QDialog):
 
         root.addLayout(search_row)
 
+        monospace = "Monospace"
+
         # Table
         self.table = QTableWidget()
         self.table.setColumnCount(6)
@@ -249,9 +253,10 @@ class BlameDialog(QDialog):
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setShowGrid(False)
         self.table.setAlternatingRowColors(True)
-        self.table.setFont(QFont(monospace, max(8, self.font_size - 1)))
         self.table.setSortingEnabled(False)
-        root.addWidget(self.table, 1)
+        font = QFont(monospace, self.current_font_size)
+        self.table.setFont(font)
+        self.table.horizontalHeader().setFont(font)
 
         # Bottom bar
         bottom_bar = QHBoxLayout()
@@ -391,7 +396,7 @@ class BlameDialog(QDialog):
             self.table.setItem(row_idx, 4, li)
 
             ci = QTableWidgetItem(code)
-            ci.setFont(QFont("Monospace", max(8, self.font_size - 1)))
+            ci.setFont(QFont("Monospace", self.current_font_size))
             self.table.setItem(row_idx, 5, ci)
 
         self.table.setColumnHidden(1, not self.show_author_cb.isChecked())
