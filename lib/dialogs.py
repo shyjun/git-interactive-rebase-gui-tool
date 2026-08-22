@@ -299,6 +299,10 @@ class SplitCommitDialog(QDialog):
         copy_action.triggered.connect(lambda checked=False, text=item.text(): self.copy_filename_to_clipboard(text))
         menu.addAction(copy_action)
 
+        blame_action = QAction("Blame file", self)
+        blame_action.triggered.connect(lambda checked=False: QMessageBox.information(self, "Not Implemented", "not implemented yet"))
+        menu.addAction(blame_action)
+
         move_action = QAction("Move file changes out of this commit", self)
         move_action.triggered.connect(lambda checked=False, text=item.text(): self.move_file_out(text))
         menu.addAction(move_action)
@@ -469,6 +473,10 @@ class DropFileFromCommitDialog(QDialog):
         copy_action = QAction("Copy filename to clipboard", self)
         copy_action.triggered.connect(lambda checked=False, text=item.text(): self.copy_filename_to_clipboard(text))
         menu.addAction(copy_action)
+
+        blame_action = QAction("Blame file", self)
+        blame_action.triggered.connect(lambda checked=False: QMessageBox.information(self, "Not Implemented", "not implemented yet"))
+        menu.addAction(blame_action)
 
         drop_action = QAction("Drop file changes from this commit", self)
         drop_action.triggered.connect(lambda checked=False, text=item.text(): self.drop_file(text))
@@ -731,6 +739,11 @@ class BranchDiffDialog(QDialog):
         copy_action = QAction("Copy filename to clipboard", self)
         copy_action.triggered.connect(lambda checked=False, text=target_path: self.copy_filename_to_clipboard(text))
         menu.addAction(copy_action)
+
+        blame_action = QAction("Blame file", self)
+        blame_action.triggered.connect(lambda checked=False: QMessageBox.information(self, "Not Implemented", "not implemented yet"))
+        menu.addAction(blame_action)
+
         menu.addSeparator()
         browse_action = QAction("Browse file log", self)
         browse_action.setToolTip("Open a read-only viewer of this file's history.")
@@ -947,6 +960,10 @@ class SingleCommitViewDialog(QDialog):
         copy_action = QAction("Copy filename to clipboard", self)
         copy_action.triggered.connect(lambda checked=False, text=target_path: self.copy_filename_to_clipboard(text))
         menu.addAction(copy_action)
+
+        blame_action = QAction("Blame file", self)
+        blame_action.triggered.connect(lambda checked=False: QMessageBox.information(self, "Not Implemented", "not implemented yet"))
+        menu.addAction(blame_action)
 
         if self.editable:
             is_only_file = self.filewise_file_list.count() <= 1
@@ -1186,6 +1203,10 @@ class FileWiseViewDialog(QDialog):
         copy_action = QAction("Copy filename to clipboard", self)
         copy_action.triggered.connect(lambda checked=False, text=target_path: self.copy_filename_to_clipboard(text))
         menu.addAction(copy_action)
+
+        blame_action = QAction("Blame file", self)
+        blame_action.triggered.connect(lambda checked=False: QMessageBox.information(self, "Not Implemented", "not implemented yet"))
+        menu.addAction(blame_action)
         
         is_only_file = self.file_list.count() <= 1
 
@@ -2546,6 +2567,11 @@ class RefineFileSelectDialog(SplitCommitDialog):
         copy_action = QAction("Copy filename to clipboard", self)
         copy_action.triggered.connect(lambda checked=False, text=item.text(): self.copy_filename_to_clipboard(text))
         menu.addAction(copy_action)
+
+        blame_action = QAction("Blame file", self)
+        blame_action.triggered.connect(lambda checked=False: QMessageBox.information(self, "Not Implemented", "not implemented yet"))
+        menu.addAction(blame_action)
+
         refine_action = QAction("Refine changes in selected file", self)
         refine_action.triggered.connect(lambda checked=False, text=item.text(): self.move_file_out(text))
         menu.addAction(refine_action)
