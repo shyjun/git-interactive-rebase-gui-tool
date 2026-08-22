@@ -2092,6 +2092,10 @@ class GitInteractiveRebaseApp(QMainWindow):
         copy_action.triggered.connect(lambda checked=False, text=target_path: self.copy_filename_to_clipboard(text))
         menu.addAction(copy_action)
 
+        blame_action = QAction("Blame file", self)
+        blame_action.triggered.connect(lambda checked=False: QMessageBox.information(self, "Not Implemented", "not implemented yet"))
+        menu.addAction(blame_action)
+
         if not self.browse_mode:
             is_only_file = self.filewise_file_list.count() <= 1
 
