@@ -203,6 +203,7 @@ from lib.dialogs import (
     MergeBaseDialog,
     MergeBaseResultDialog,
     ApplyPatchDialog,
+    show_blame_not_implemented,
 )
 from lib.utils import get_assets_path
 from lib.widgets import (
@@ -2093,7 +2094,7 @@ class GitInteractiveRebaseApp(QMainWindow):
         menu.addAction(copy_action)
 
         blame_action = QAction("Blame file", self)
-        blame_action.triggered.connect(lambda checked=False: QMessageBox.information(self, "Not Implemented", "not implemented yet"))
+        blame_action.triggered.connect(lambda checked=False, text=target_path: show_blame_not_implemented(self, text))
         menu.addAction(blame_action)
 
         if not self.browse_mode:

@@ -84,13 +84,22 @@ from lib.git_helpers import (
     get_commit_files_with_status,
 )
 from lib.utils import get_theme_colors
-from lib.widgets import (
-    DiffHighlighter,
-    DiffSearchBar,
-    DiffView,
-    FILE_ENTRY_ROLE,
-    StatsItemDelegate,
-)
+
+
+def show_blame_not_implemented(parent, filename, branch=None):
+    """Placeholder for the 'Blame file' context-menu action.
+
+    Parameters
+    ----------
+    parent : QWidget
+        Parent widget for the message box.
+    filename : str
+        Path of the file that was right-clicked.
+    branch : str | None, optional
+        Branch name (unused for now, reserved for future blame scope).
+    """
+    QMessageBox.information(parent, "Not Implemented", "not implemented yet")
+
 
 class DiffViewerDialog(QDialog):
     """Base dialog for viewing diffs with centered buttons."""
@@ -300,7 +309,7 @@ class SplitCommitDialog(QDialog):
         menu.addAction(copy_action)
 
         blame_action = QAction("Blame file", self)
-        blame_action.triggered.connect(lambda checked=False: QMessageBox.information(self, "Not Implemented", "not implemented yet"))
+        blame_action.triggered.connect(lambda checked=False, text=item.text(): show_blame_not_implemented(self, text))
         menu.addAction(blame_action)
 
         move_action = QAction("Move file changes out of this commit", self)
@@ -475,7 +484,7 @@ class DropFileFromCommitDialog(QDialog):
         menu.addAction(copy_action)
 
         blame_action = QAction("Blame file", self)
-        blame_action.triggered.connect(lambda checked=False: QMessageBox.information(self, "Not Implemented", "not implemented yet"))
+        blame_action.triggered.connect(lambda checked=False, text=item.text(): show_blame_not_implemented(self, text))
         menu.addAction(blame_action)
 
         drop_action = QAction("Drop file changes from this commit", self)
@@ -741,7 +750,7 @@ class BranchDiffDialog(QDialog):
         menu.addAction(copy_action)
 
         blame_action = QAction("Blame file", self)
-        blame_action.triggered.connect(lambda checked=False: QMessageBox.information(self, "Not Implemented", "not implemented yet"))
+        blame_action.triggered.connect(lambda checked=False, text=target_path: show_blame_not_implemented(self, text))
         menu.addAction(blame_action)
 
         menu.addSeparator()
@@ -962,7 +971,7 @@ class SingleCommitViewDialog(QDialog):
         menu.addAction(copy_action)
 
         blame_action = QAction("Blame file", self)
-        blame_action.triggered.connect(lambda checked=False: QMessageBox.information(self, "Not Implemented", "not implemented yet"))
+        blame_action.triggered.connect(lambda checked=False, text=target_path: show_blame_not_implemented(self, text))
         menu.addAction(blame_action)
 
         if self.editable:
@@ -1205,7 +1214,7 @@ class FileWiseViewDialog(QDialog):
         menu.addAction(copy_action)
 
         blame_action = QAction("Blame file", self)
-        blame_action.triggered.connect(lambda checked=False: QMessageBox.information(self, "Not Implemented", "not implemented yet"))
+        blame_action.triggered.connect(lambda checked=False, text=target_path: show_blame_not_implemented(self, text))
         menu.addAction(blame_action)
         
         is_only_file = self.file_list.count() <= 1
@@ -2569,7 +2578,7 @@ class RefineFileSelectDialog(SplitCommitDialog):
         menu.addAction(copy_action)
 
         blame_action = QAction("Blame file", self)
-        blame_action.triggered.connect(lambda checked=False: QMessageBox.information(self, "Not Implemented", "not implemented yet"))
+        blame_action.triggered.connect(lambda checked=False, text=item.text(): show_blame_not_implemented(self, text))
         menu.addAction(blame_action)
 
         refine_action = QAction("Refine changes in selected file", self)
