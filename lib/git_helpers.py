@@ -1680,6 +1680,21 @@ def _read_version_sha():
     return None
 
 
+def _write_app_version(tool_dir, sha):
+    """Write a minimal app_version.json into the installed assets directory."""
+    import json
+    from datetime import datetime, timezone
+    assets_dir = os.path.join(tool_dir, "assets")
+    os.makedirs(assets_dir, exist_ok=True)
+    data = {
+        "sha": sha,
+        "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+        "repo": "https://github.com/shyjun/git-interactive-rebase-gui-tool",
+    }
+    with open(os.path.join(assets_dir, "app_version.json"), "w") as f:
+        json.dump(data, f, indent=2)
+
+
 def _detect_default_branch(repo_path):
     """Returns the default branch name (e.g. 'master' or 'main') of 'origin'."""
     try:
@@ -1722,6 +1737,10 @@ def perform_self_update(tool_dir):
             print("[perform_self_update] no version info, installing fresh")
             ok, stdout, stderr = _run_capture(tool_dir, ["pip", "install", "--upgrade", GIT_REPO_URL])
             if ok:
+                ls_url = GIT_REPO_URL.removeprefix("git+")
+                ok2, stdout2, _ = _run_capture(tool_dir, ["git", "ls-remote", ls_url, "HEAD"])
+                sha = stdout2.split()[0] if ok2 and stdout2.strip() else "unknown"
+                _write_app_version(tool_dir, sha)
                 return True, "Update complete. The tool has been upgraded via pip."
             return False, f"pip install failed:\n{stderr.strip() or stdout.strip() or 'unknown error'}"
 
@@ -1742,11 +1761,10 @@ def perform_self_update(tool_dir):
         ok, stdout, stderr = _run_capture(tool_dir, ["pip", "install", "--upgrade", GIT_REPO_URL])
         print(f"[perform_self_update] pip install ok={ok}")
         if ok:
-            new_sha = _read_version_sha()
+            new_sha = remote_sha
+            _write_app_version(tool_dir, new_sha)
             print(f"[perform_self_update] new_sha={new_sha}")
-            if new_sha:
-                return True, f"Update complete.\n\nOld: {old_sha[:8]}\nNew: {new_sha[:8]}"
-            return True, "Update complete. The tool has been upgraded via pip."
+            return True, f"Update complete.\n\nOld: {old_sha[:8]}\nNew: {new_sha[:8]}"
         return False, f"pip install failed:\n{stderr.strip() or stdout.strip() or 'unknown error'}"
 
     # git-clone install
