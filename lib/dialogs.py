@@ -176,6 +176,7 @@ class BlameDialog(QDialog):
         self.search_opts_btn.setText("Search Options ▼")
         self.search_opts_btn.setToolTip("Search across: Author, Subject, Code")
         self.search_opts_btn.setPopupMode(QToolButton.InstantPopup)
+        self.search_opts_btn.setMinimumHeight(28)
         self.search_opts_btn.setStyleSheet("QToolButton::menu-indicator { image: none; width: 0px; }")
         opts_menu = QMenu(self)
         self.filter_author_cb = QAction("Author", self)
@@ -268,11 +269,15 @@ class BlameDialog(QDialog):
 
         refresh_btn = QPushButton("Refresh")
         refresh_btn.setToolTip("Re-run git blame and reload.")
+        refresh_btn.setMinimumHeight(40)
+        refresh_btn.setMinimumWidth(100)
         refresh_btn.clicked.connect(self._load)
         bottom_bar.addWidget(refresh_btn)
 
         exit_btn = QPushButton("Exit")
         exit_btn.setToolTip("Close this blame window.")
+        exit_btn.setMinimumHeight(40)
+        exit_btn.setMinimumWidth(100)
         exit_btn.clicked.connect(self.close)
         exit_btn.setStyleSheet("color: red; font-weight: bold;")
         bottom_bar.addWidget(exit_btn)
