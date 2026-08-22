@@ -64,6 +64,9 @@ from PySide6.QtGui import (
 from PySide6.QtWidgets import (
     QStyledItemDelegate,
     QStyle,
+    QTableWidget,
+    QHeaderView,
+    QTableWidgetItem,
 )
 
 from lib.git_helpers import (
@@ -84,21 +87,312 @@ from lib.git_helpers import (
     get_commit_files_with_status,
 )
 from lib.utils import get_theme_colors
+from lib.widgets import BrowseDimOverlay
 
 
-def show_blame_not_implemented(parent, filename, branch=None):
-    """Placeholder for the 'Blame file' context-menu action.
+def open_blame_window(parent, filename, branch=None):
+    """Open the Blame viewer for *filename* at the given *branch*/ref.
 
     Parameters
     ----------
     parent : QWidget
-        Parent widget for the message box.
+        Parent widget (used to locate the repo_path and as dialog parent).
     filename : str
         Path of the file that was right-clicked.
     branch : str | None, optional
-        Branch name (unused for now, reserved for future blame scope).
+        Branch/SHA to blame at (default: HEAD).
     """
-    QMessageBox.information(parent, "Not Implemented", "not implemented yet")
+    repo_path = getattr(parent, "repo_path", None)
+    if not repo_path:
+        QMessageBox.critical(parent, "Error", "Repository path not available.")
+        return
+    dlg = BlameDialog(repo_path, filename, ref=branch, parent=parent)
+    dlg.exec()
+
+
+class BlameDialog(QDialog):
+    """Read-only blame viewer showing per-line commit attribution in a table.
+
+    Layout follows the same greyish pattern as other browse windows:
+    - Search bar + Search Options ▼ dropdown
+    - Filter: checkboxes (Author, Subject, Code)
+    - 6-column table (Commit, Author, Date, Subject, Line, Code)
+    - Bottom bar: Always On Top, Show Author/Date/Subject, Refresh, Exit
+    """
+
+    _PALETTE = [
+        "#4ec9b0", "#f48771", "#569cd6", "#dcdcaa",
+        "#c586c0", "#ce9178", "#b5cea8", "#9cdcfe",
+    ]
+
+    def __init__(self, repo_path, filename, ref=None, font_size=10, parent=None):
+        super().__init__(parent)
+        self.repo_path = repo_path
+        self.filename = filename
+        self.ref = ref
+        self.font_size = font_size
+        self._records = []
+        self._sha_color = {}
+        self._next_color_idx = 0
+        self.is_dark_theme = False
+
+        if parent and hasattr(parent, "is_dark_theme"):
+            self.is_dark_theme = parent.is_dark_theme
+
+        self.setWindowTitle(f"Browse Blame: {filename} (blame at {ref or 'HEAD'})")
+        self.setMinimumSize(1100, 650)
+
+        self._setup_ui()
+
+        self._browse_overlay = BrowseDimOverlay(self, self.is_dark_theme)
+        self._browse_overlay.raise_()
+
+        self._load()
+
+    # ------------------------------------------------------------------
+    # UI setup
+    # ------------------------------------------------------------------
+
+    def _setup_ui(self):
+        root = QVBoxLayout(self)
+        root.setContentsMargins(8, 8, 8, 8)
+        root.setSpacing(6)
+
+        monospace = "Monospace"
+
+        # Search / Filter bar — same pattern as main app window
+        search_row = QHBoxLayout()
+        search_row.setSpacing(4)
+
+        self.search_edit = QLineEdit()
+        self.search_edit.setPlaceholderText("Search (in this file) ...")
+        self.search_edit.setToolTip("Search blame output.")
+        self.search_edit.setClearButtonEnabled(True)
+        self.search_edit.textChanged.connect(self._apply_filter)
+        search_row.addWidget(self.search_edit, 1)
+
+        self.search_opts_btn = QToolButton()
+        self.search_opts_btn.setText("Search Options ▼")
+        self.search_opts_btn.setToolTip("Search across: Author, Subject, Code")
+        self.search_opts_btn.setPopupMode(QToolButton.InstantPopup)
+        self.search_opts_btn.setStyleSheet("QToolButton::menu-indicator { image: none; width: 0px; }")
+        opts_menu = QMenu(self)
+        self.filter_author_cb = QAction("Author", self)
+        self.filter_author_cb.setCheckable(True)
+        self.filter_author_cb.setChecked(True)
+        self.filter_subject_cb = QAction("Subject", self)
+        self.filter_subject_cb.setCheckable(True)
+        self.filter_subject_cb.setChecked(True)
+        self.filter_code_cb = QAction("Code", self)
+        self.filter_code_cb.setCheckable(True)
+        self.filter_code_cb.setChecked(True)
+        opts_menu.addAction(self.filter_author_cb)
+        opts_menu.addAction(self.filter_subject_cb)
+        opts_menu.addAction(self.filter_code_cb)
+        self.filter_author_cb.triggered.connect(self._apply_filter)
+        self.filter_subject_cb.triggered.connect(self._apply_filter)
+        self.filter_code_cb.triggered.connect(self._apply_filter)
+        self.search_opts_btn.setMenu(opts_menu)
+        search_row.addWidget(self.search_opts_btn)
+
+        filter_label = QLabel("Filter:")
+        filter_label.setStyleSheet("font-size: 11px; color: gray;")
+        search_row.addWidget(filter_label)
+
+        self.filter_by_author_cb = QCheckBox("Author")
+        self.filter_by_author_cb.setChecked(True)
+        self.filter_by_author_cb.toggled.connect(self._apply_filter)
+        search_row.addWidget(self.filter_by_author_cb)
+
+        self.filter_by_subject_cb = QCheckBox("Subject")
+        self.filter_by_subject_cb.setChecked(True)
+        self.filter_by_subject_cb.toggled.connect(self._apply_filter)
+        search_row.addWidget(self.filter_by_subject_cb)
+
+        self.filter_by_code_cb = QCheckBox("Code")
+        self.filter_by_code_cb.setChecked(True)
+        self.filter_by_code_cb.toggled.connect(self._apply_filter)
+        search_row.addWidget(self.filter_by_code_cb)
+
+        root.addLayout(search_row)
+
+        # Table
+        self.table = QTableWidget()
+        self.table.setColumnCount(6)
+        self.table.setHorizontalHeaderLabels(["Commit", "Author", "Date", "Subject", "Line", "Code"])
+        header = self.table.horizontalHeader()
+        header.setStretchLastSection(True)
+        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(3, QHeaderView.Stretch)
+        header.setSectionResizeMode(4, QHeaderView.ResizeToContents)
+        self.table.verticalHeader().setVisible(False)
+        self.table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.table.setShowGrid(False)
+        self.table.setAlternatingRowColors(True)
+        self.table.setFont(QFont(monospace, max(8, self.font_size - 1)))
+        self.table.setSortingEnabled(False)
+        root.addWidget(self.table, 1)
+
+        # Bottom bar
+        bottom_bar = QHBoxLayout()
+        bottom_bar.setSpacing(12)
+
+        self.always_on_top_cb = QCheckBox("Always On Top")
+        self.always_on_top_cb.toggled.connect(self._on_always_on_top_toggled)
+        bottom_bar.addWidget(self.always_on_top_cb)
+
+        sep1 = QLabel("|")
+        sep1.setStyleSheet("color: gray;")
+        bottom_bar.addWidget(sep1)
+
+        self.show_author_cb = QCheckBox("Show Author")
+        self.show_author_cb.setChecked(True)
+        self.show_author_cb.toggled.connect(self._refresh_table)
+        bottom_bar.addWidget(self.show_author_cb)
+
+        self.show_date_cb = QCheckBox("Show Date")
+        self.show_date_cb.setChecked(True)
+        self.show_date_cb.toggled.connect(self._refresh_table)
+        bottom_bar.addWidget(self.show_date_cb)
+
+        self.show_subject_cb = QCheckBox("Show Subject")
+        self.show_subject_cb.setChecked(True)
+        self.show_subject_cb.toggled.connect(self._refresh_table)
+        bottom_bar.addWidget(self.show_subject_cb)
+
+        bottom_bar.addStretch()
+
+        refresh_btn = QPushButton("Refresh")
+        refresh_btn.setToolTip("Re-run git blame and reload.")
+        refresh_btn.clicked.connect(self._load)
+        bottom_bar.addWidget(refresh_btn)
+
+        exit_btn = QPushButton("Exit")
+        exit_btn.setToolTip("Close this blame window.")
+        exit_btn.clicked.connect(self.close)
+        exit_btn.setStyleSheet("color: red; font-weight: bold;")
+        bottom_bar.addWidget(exit_btn)
+
+        root.addLayout(bottom_bar)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if getattr(self, '_browse_overlay', None) is not None:
+            self._browse_overlay.setGeometry(self.rect())
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        if getattr(self, '_browse_overlay', None) is not None:
+            self._browse_overlay.setGeometry(self.rect())
+            self._browse_overlay.raise_()
+
+    def _on_always_on_top_toggled(self, checked):
+        flags = self.windowFlags()
+        if checked:
+            self.setWindowFlags(flags | Qt.WindowStaysOnTopHint)
+        else:
+            self.setWindowFlags(flags & ~Qt.WindowStaysOnTopHint)
+        self.show()
+
+    # ------------------------------------------------------------------
+    # Data
+    # ------------------------------------------------------------------
+
+    def _load(self):
+        from lib.git_helpers import get_git_blame
+        try:
+            self._records = get_git_blame(self.repo_path, self.filename, self.ref)
+        except Exception as e:
+            QMessageBox.critical(self, "Blame failed", str(e))
+            self._records = []
+        self._assign_colors()
+        self._refresh_table()
+
+    def _assign_colors(self):
+        self._sha_color.clear()
+        self._next_color_idx = 0
+        for rec in self._records:
+            sha = rec["sha"]
+            if sha not in self._sha_color:
+                self._sha_color[sha] = QColor(self._PALETTE[self._next_color_idx % len(self._PALETTE)])
+                self._next_color_idx += 1
+
+    # ------------------------------------------------------------------
+    # Table
+    # ------------------------------------------------------------------
+
+    def _refresh_table(self):
+        self.table.setRowCount(0)
+        filtered = self._get_filtered_records()
+        self.table.setRowCount(len(filtered))
+
+        for row_idx, rec in enumerate(filtered):
+            sha_short = rec["sha"][:7]
+            code = rec.get("code", "")
+            line_no = str(rec.get("line_no", ""))
+            author = rec.get("author", "")
+            date = rec.get("date", "")
+            subject = rec.get("summary", "")
+
+            colour = self._sha_color.get(rec["sha"], QColor("#888888"))
+
+            commit_item = QTableWidgetItem(sha_short)
+            commit_item.setForeground(colour)
+            f = commit_item.font()
+            f.setBold(True)
+            commit_item.setFont(f)
+            commit_item.setToolTip(rec["sha"])
+            self.table.setItem(row_idx, 0, commit_item)
+
+            a = QTableWidgetItem(author)
+            a.setForeground(colour)
+            self.table.setItem(row_idx, 1, a)
+
+            d = QTableWidgetItem(date)
+            d.setForeground(colour)
+            self.table.setItem(row_idx, 2, d)
+
+            s = QTableWidgetItem(subject)
+            s.setForeground(colour)
+            self.table.setItem(row_idx, 3, s)
+
+            li = QTableWidgetItem(line_no)
+            li.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            self.table.setItem(row_idx, 4, li)
+
+            ci = QTableWidgetItem(code)
+            ci.setFont(QFont("Monospace", max(8, self.font_size - 1)))
+            self.table.setItem(row_idx, 5, ci)
+
+        self.table.setColumnHidden(1, not self.show_author_cb.isChecked())
+        self.table.setColumnHidden(2, not self.show_date_cb.isChecked())
+        self.table.setColumnHidden(3, not self.show_subject_cb.isChecked())
+        self.table.resizeRowsToContents()
+
+    # ------------------------------------------------------------------
+    # Filter
+    # ------------------------------------------------------------------
+
+    def _get_filtered_records(self):
+        term = self.search_edit.text().strip().lower()
+        if not term:
+            return self._records
+
+        hits = []
+        for rec in self._records:
+            if self.filter_by_author_cb.isChecked() and term in rec.get("author", "").lower():
+                hits.append(rec)
+            elif self.filter_by_subject_cb.isChecked() and term in rec.get("summary", "").lower():
+                hits.append(rec)
+            elif self.filter_by_code_cb.isChecked() and term in rec.get("code", "").lower():
+                hits.append(rec)
+        return hits
+
+    def _apply_filter(self):
+        self._refresh_table()
 
 
 class DiffViewerDialog(QDialog):
@@ -309,7 +603,7 @@ class SplitCommitDialog(QDialog):
         menu.addAction(copy_action)
 
         blame_action = QAction("Blame file", self)
-        blame_action.triggered.connect(lambda checked=False, text=item.text(): show_blame_not_implemented(self, text))
+        blame_action.triggered.connect(lambda checked=False, text=item.text(): open_blame_window(self, text))
         menu.addAction(blame_action)
 
         move_action = QAction("Move file changes out of this commit", self)
@@ -484,7 +778,7 @@ class DropFileFromCommitDialog(QDialog):
         menu.addAction(copy_action)
 
         blame_action = QAction("Blame file", self)
-        blame_action.triggered.connect(lambda checked=False, text=item.text(): show_blame_not_implemented(self, text))
+        blame_action.triggered.connect(lambda checked=False, text=item.text(): open_blame_window(self, text))
         menu.addAction(blame_action)
 
         drop_action = QAction("Drop file changes from this commit", self)
@@ -750,7 +1044,7 @@ class BranchDiffDialog(QDialog):
         menu.addAction(copy_action)
 
         blame_action = QAction("Blame file", self)
-        blame_action.triggered.connect(lambda checked=False, text=target_path: show_blame_not_implemented(self, text))
+        blame_action.triggered.connect(lambda checked=False, text=target_path: open_blame_window(self, text))
         menu.addAction(blame_action)
 
         menu.addSeparator()
@@ -971,7 +1265,7 @@ class SingleCommitViewDialog(QDialog):
         menu.addAction(copy_action)
 
         blame_action = QAction("Blame file", self)
-        blame_action.triggered.connect(lambda checked=False, text=target_path: show_blame_not_implemented(self, text))
+        blame_action.triggered.connect(lambda checked=False, text=target_path: open_blame_window(self, text))
         menu.addAction(blame_action)
 
         if self.editable:
@@ -1214,7 +1508,7 @@ class FileWiseViewDialog(QDialog):
         menu.addAction(copy_action)
 
         blame_action = QAction("Blame file", self)
-        blame_action.triggered.connect(lambda checked=False, text=target_path: show_blame_not_implemented(self, text))
+        blame_action.triggered.connect(lambda checked=False, text=target_path: open_blame_window(self, text))
         menu.addAction(blame_action)
         
         is_only_file = self.file_list.count() <= 1
@@ -2578,7 +2872,7 @@ class RefineFileSelectDialog(SplitCommitDialog):
         menu.addAction(copy_action)
 
         blame_action = QAction("Blame file", self)
-        blame_action.triggered.connect(lambda checked=False, text=item.text(): show_blame_not_implemented(self, text))
+        blame_action.triggered.connect(lambda checked=False, text=item.text(): open_blame_window(self, text))
         menu.addAction(blame_action)
 
         refine_action = QAction("Refine changes in selected file", self)
