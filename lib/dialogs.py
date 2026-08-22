@@ -109,6 +109,8 @@ def open_blame_window(parent, filename, branch=None):
     font_size = getattr(parent, "current_font_size", 10)
     dlg = BlameDialog(repo_path, filename, ref=branch, font_size=font_size, parent=parent)
     dlg.setAttribute(Qt.WA_DeleteOnClose)
+    if hasattr(parent, "browse_windows"):
+        parent.browse_windows.append(dlg)
     dlg.show()
 
 
