@@ -135,6 +135,7 @@ class BlameDialog(QDialog):
         self.filename = filename
         self.ref = ref
         self.font_size = font_size
+        self.current_font_size = font_size
         self._records = []
         self._sha_color = {}
         self._next_color_idx = 0
@@ -152,6 +153,12 @@ class BlameDialog(QDialog):
         self._browse_overlay.raise_()
 
         self._load()
+
+    def update_font(self):
+        """Called when the parent window zooms in/out — updates table font."""
+        self.font_size = getattr(self, "current_font_size", self.font_size)
+        self.table.setFont(QFont("Monospace", max(8, self.font_size - 1)))
+        self._refresh_table()
 
     # ------------------------------------------------------------------
     # UI setup
@@ -291,6 +298,12 @@ class BlameDialog(QDialog):
         bottom_bar.addWidget(exit_btn)
 
         root.addLayout(bottom_bar)
+
+    def closeEvent(self, event):
+        parent = self.parent()
+        if parent and hasattr(parent, "browse_windows") and self in parent.browse_windows:
+            parent.browse_windows.remove(self)
+        super().closeEvent(event)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)

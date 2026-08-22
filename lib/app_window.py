@@ -3756,6 +3756,8 @@ class GitInteractiveRebaseApp(QMainWindow):
         self.settings.setValue("theme", theme)
         self._refresh_toolbar_icons()
         for viewer in list(self.browse_windows):
+            if not hasattr(viewer, "apply_theme"):
+                continue
             if viewer.is_dark_theme != self.is_dark_theme:
                 viewer.is_dark_theme = self.is_dark_theme
                 viewer.apply_theme("dark" if self.is_dark_theme else "light")
