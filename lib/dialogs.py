@@ -87,7 +87,7 @@ from lib.git_helpers import (
     get_commit_files_with_status,
 )
 from lib.utils import get_theme_colors
-from lib.widgets import BrowseDimOverlay
+from lib.widgets import BrowseDimOverlay, DiffView, DiffHighlighter
 
 
 def open_blame_window(parent, filename, branch=None):
@@ -358,15 +358,15 @@ class BlameDialog(QDialog):
     def _open_view_commit(self, sha):
         import subprocess
         try:
-            files = subprocess.run(
+            res = subprocess.run(
                 ["git", "show", "--name-status", "--format=", sha],
                 cwd=self.repo_path, capture_output=True, text=True,
                 encoding="utf-8", errors="replace"
             )
-            if files.returncode != 0 or not files.stdout.strip():
+            if res.returncode != 0 or not res.stdout.strip():
                 QMessageBox.information(self, "No Files", f"Commit {sha[:10]} has no file changes to view.")
                 return
-            dlg = SingleCommitViewDialog(self.repo_path, sha, self.current_font_size)
+            dlg = SingleCommitViewDialog(self.repo_path, sha, self.current_font_size, parent=self)
             dlg.setAttribute(Qt.WA_DeleteOnClose)
             dlg.show()
         except Exception as e:
@@ -387,6 +387,19 @@ class BlameDialog(QDialog):
                 )
                 return
             parent_sha = res.stdout.strip()
+
+            check = subprocess.run(
+                ["git", "show", f"{parent_sha}:{self.filename}"],
+                cwd=self.repo_path, capture_output=True, text=True,
+                encoding="utf-8", errors="replace"
+            )
+            if check.returncode != 0:
+                QMessageBox.information(
+                    self, "File not found",
+                    f"'{self.filename}' did not exist at commit {parent_sha[:8]}."
+                )
+                return
+
             dlg = BlameDialog(self.repo_path, self.filename, ref=parent_sha,
                               font_size=self.current_font_size)
             dlg.setAttribute(Qt.WA_DeleteOnClose)
