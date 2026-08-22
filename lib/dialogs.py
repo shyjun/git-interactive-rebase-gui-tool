@@ -87,7 +87,14 @@ from lib.git_helpers import (
     get_commit_files_with_status,
 )
 from lib.utils import get_theme_colors
-from lib.widgets import BrowseDimOverlay, DiffView, DiffHighlighter
+from lib.widgets import (
+    BrowseDimOverlay,
+    DiffHighlighter,
+    DiffSearchBar,
+    DiffView,
+    FILE_ENTRY_ROLE,
+    StatsItemDelegate,
+)
 
 
 def open_blame_window(parent, filename, branch=None):
