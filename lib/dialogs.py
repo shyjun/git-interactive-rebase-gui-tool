@@ -107,9 +107,10 @@ def open_blame_window(parent, filename, branch=None):
         QMessageBox.critical(parent, "Error", "Repository path not available.")
         return
     font_size = getattr(parent, "current_font_size", 10)
-    dlg = BlameDialog(repo_path, filename, ref=branch, font_size=font_size, parent=parent)
+    dlg = BlameDialog(repo_path, filename, ref=branch, font_size=font_size)
     dlg.setAttribute(Qt.WA_DeleteOnClose)
     if hasattr(parent, "browse_windows"):
+        dlg._browse_windows_ref = parent.browse_windows
         parent.browse_windows.append(dlg)
     dlg.show()
 
@@ -171,8 +172,6 @@ class BlameDialog(QDialog):
         root.setContentsMargins(8, 8, 8, 8)
         root.setSpacing(6)
 
-        monospace = "Monospace"
-
         # Search / Filter bar — same pattern as main app window
         search_row = QHBoxLayout()
         search_row.setSpacing(4)
@@ -230,8 +229,6 @@ class BlameDialog(QDialog):
 
         root.addLayout(search_row)
 
-        monospace = "Monospace"
-
         # Table
         self.table = QTableWidget()
         self.table.setColumnCount(6)
@@ -254,9 +251,10 @@ class BlameDialog(QDialog):
         self.table.setShowGrid(False)
         self.table.setAlternatingRowColors(True)
         self.table.setSortingEnabled(False)
-        font = QFont(monospace, self.current_font_size)
+        font = QFont("Monospace", self.current_font_size)
         self.table.setFont(font)
         self.table.horizontalHeader().setFont(font)
+        root.addWidget(self.table, 1)
 
         # Bottom bar
         bottom_bar = QHBoxLayout()
@@ -305,9 +303,9 @@ class BlameDialog(QDialog):
         root.addLayout(bottom_bar)
 
     def closeEvent(self, event):
-        parent = self.parent()
-        if parent and hasattr(parent, "browse_windows") and self in parent.browse_windows:
-            parent.browse_windows.remove(self)
+        bw = getattr(self, "_browse_windows_ref", None)
+        if bw is not None and self in bw:
+            bw.remove(self)
         super().closeEvent(event)
 
     def resizeEvent(self, event):
