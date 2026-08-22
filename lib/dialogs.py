@@ -254,6 +254,8 @@ class BlameDialog(QDialog):
         font = QFont("Monospace", self.current_font_size)
         self.table.setFont(font)
         self.table.horizontalHeader().setFont(font)
+        self.table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.table.customContextMenuRequested.connect(self._show_table_context_menu)
         root.addWidget(self.table, 1)
 
         # Bottom bar
@@ -326,6 +328,74 @@ class BlameDialog(QDialog):
         else:
             self.setWindowFlags(flags & ~Qt.WindowStaysOnTopHint)
         self.show()
+
+    # ------------------------------------------------------------------
+    # Table context menu
+    # ------------------------------------------------------------------
+
+    def _show_table_context_menu(self, pos):
+        row = self.table.rowAt(pos.y())
+        if row < 0:
+            return
+        rec = self._get_filtered_records()[row]
+        sha = rec["sha"]
+
+        menu = QMenu(self)
+        view_action = QAction("View commit", self)
+        view_action.setToolTip("Open the diff viewer for this commit.")
+        blame_action = QAction("Blame before this", self)
+        blame_action.setToolTip("Blame the file at the parent of this commit (the version just before).")
+        menu.addAction(view_action)
+        menu.addAction(blame_action)
+
+        action = menu.exec(self.table.mapToGlobal(pos))
+
+        if action == view_action:
+            self._open_view_commit(sha)
+        elif action == blame_action:
+            self._open_blame_before(sha)
+
+    def _open_view_commit(self, sha):
+        import subprocess
+        try:
+            files = subprocess.run(
+                ["git", "show", "--name-status", "--format=", sha],
+                cwd=self.repo_path, capture_output=True, text=True,
+                encoding="utf-8", errors="replace"
+            )
+            if files.returncode != 0 or not files.stdout.strip():
+                QMessageBox.information(self, "No Files", f"Commit {sha[:10]} has no file changes to view.")
+                return
+            dlg = SingleCommitViewDialog(self.repo_path, sha, self.current_font_size)
+            dlg.setAttribute(Qt.WA_DeleteOnClose)
+            dlg.show()
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Could not open commit view: {str(e)}")
+
+    def _open_blame_before(self, sha):
+        import subprocess
+        try:
+            res = subprocess.run(
+                ["git", "rev-parse", f"{sha}^"],
+                cwd=self.repo_path, capture_output=True, text=True,
+                encoding="utf-8", errors="replace"
+            )
+            if res.returncode != 0:
+                QMessageBox.information(
+                    self, "No parent",
+                    f"Commit {sha[:8]} has no parent (root commit). Cannot blame before it."
+                )
+                return
+            parent_sha = res.stdout.strip()
+            dlg = BlameDialog(self.repo_path, self.filename, ref=parent_sha,
+                              font_size=self.current_font_size)
+            dlg.setAttribute(Qt.WA_DeleteOnClose)
+            if hasattr(self, "_browse_windows_ref"):
+                dlg._browse_windows_ref = self._browse_windows_ref
+                self._browse_windows_ref.append(dlg)
+            dlg.show()
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Could not open blame before: {str(e)}")
 
     # ------------------------------------------------------------------
     # Data
