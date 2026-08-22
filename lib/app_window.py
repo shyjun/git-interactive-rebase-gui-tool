@@ -1169,12 +1169,18 @@ class GitInteractiveRebaseApp(QMainWindow):
             self.showMaximized()
 
     def closeEvent(self, event):
-        """Save settings before exiting."""
+        """Save settings, close child browse windows, then exit."""
         self.settings.setValue(self._sk("geometry"), self.saveGeometry())
         self.settings.setValue(self._sk("windowState"), self.saveState())
         self.settings.setValue(self._sk("isMaximized"), self.isMaximized())
         self.settings.setValue(self._sk("show_stats"), self.show_stats)
         self.settings.setValue(self._sk("show_date"), self.show_date)
+        for viewer in list(self.browse_windows):
+            try:
+                viewer.close()
+            except Exception:
+                pass
+        self.browse_windows.clear()
         if self.browse_mode and self.parent():
             parent = self.parent()
             if hasattr(parent, 'browse_windows') and self in parent.browse_windows:
