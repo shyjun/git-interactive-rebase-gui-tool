@@ -108,7 +108,8 @@ def open_blame_window(parent, filename, branch=None):
         return
     font_size = getattr(parent, "current_font_size", 10)
     dlg = BlameDialog(repo_path, filename, ref=branch, font_size=font_size, parent=parent)
-    dlg.exec()
+    dlg.setAttribute(Qt.WA_DeleteOnClose)
+    dlg.show()
 
 
 class BlameDialog(QDialog):
