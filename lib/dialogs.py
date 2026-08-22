@@ -350,15 +350,20 @@ class BlameDialog(QDialog):
         menu = QMenu(self)
         view_action = QAction("View commit", self)
         view_action.setToolTip("Open the diff viewer for this commit.")
+        copy_sha_action = QAction("Copy SHA to clipboard", self)
+        copy_sha_action.setToolTip("Copy the commit SHA to the clipboard.")
         blame_action = QAction("Blame before this", self)
         blame_action.setToolTip("Blame the file at the parent of this commit (the version just before).")
         menu.addAction(view_action)
+        menu.addAction(copy_sha_action)
         menu.addAction(blame_action)
 
         action = menu.exec(self.table.mapToGlobal(pos))
 
         if action == view_action:
             self._open_view_commit(sha)
+        elif action == copy_sha_action:
+            QApplication.clipboard().setText(sha)
         elif action == blame_action:
             self._open_blame_before(sha)
 
