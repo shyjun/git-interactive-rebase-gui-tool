@@ -106,7 +106,8 @@ def open_blame_window(parent, filename, branch=None):
     if not repo_path:
         QMessageBox.critical(parent, "Error", "Repository path not available.")
         return
-    dlg = BlameDialog(repo_path, filename, ref=branch, parent=parent)
+    font_size = getattr(parent, "current_font_size", 10)
+    dlg = BlameDialog(repo_path, filename, ref=branch, font_size=font_size, parent=parent)
     dlg.exec()
 
 
