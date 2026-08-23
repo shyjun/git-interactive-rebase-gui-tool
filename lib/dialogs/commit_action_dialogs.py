@@ -1,0 +1,1180 @@
+
+if __name__ == "__main__":
+    import sys
+    print("Please run the main app: git_interactive_rebase.py (git-interactive-rebase-gui-tool)")
+    sys.exit(1)
+
+# pyrefly: ignore [missing-import]
+from PySide6.QtWidgets import (
+    QApplication,
+    QMainWindow,
+    QListWidget,
+    QVBoxLayout,
+    QWidget,
+    QMessageBox,
+    QListWidgetItem,
+    QMenu,
+    QDialog,
+    QTextEdit,
+    QPushButton,
+    QHBoxLayout,
+    QLabel,
+    QRadioButton,
+    QLineEdit,
+    QSplitter,
+    QProgressBar,
+    QScrollArea,
+    QCheckBox,
+)
+# pyrefly: ignore [missing-import]
+from PySide6.QtCore import (
+    Qt,
+    QTimer,
+)
+# pyrefly: ignore [missing-import]
+from PySide6.QtGui import (
+    QFont,
+    QAction,
+    QShortcut,
+    QKeySequence,
+)
+
+from lib.git_helpers import (
+    get_file_diff_only_in_commit,
+    get_commit_metadata_and_message,
+    get_revert_commit_message,
+    get_commit_file_stats,
+    get_commit_files_with_status,
+)
+from lib.utils import get_theme_colors
+from lib.widgets import (
+    DiffHighlighter,
+    DiffSearchBar,
+    DiffView,
+    FILE_ENTRY_ROLE,
+    StatsItemDelegate,
+)
+from .hunk_file_dialogs import open_blame_window
+
+
+class DiffViewerDialog(QDialog):
+    """Base dialog for viewing diffs with centered buttons."""
+    def __init__(self, title, sha, diff_text, font_size=10, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(title)
+        self.setMinimumSize(800, 600)
+        self.font_size = font_size
+        
+        self.layout = QVBoxLayout(self)
+        
+        # Header info
+        self.setup_header(sha)
+        
+        # Full diff view
+        self.diff_view = DiffView()
+        self.diff_view.setReadOnly(True)
+        self.diff_view.setFont(QFont("Courier New", self.font_size))
+        self.diff_view.setPlainText(diff_text)
+        
+        # Determine highlighting colors based on parent theme or default to dark
+        app = QApplication.instance()
+        main_win = parent if isinstance(parent, QMainWindow) else None
+        if main_win and hasattr(main_win, 'current_theme_colors'):
+             colors = main_win.current_theme_colors
+        else:
+             # Default dark-ish colors if not found
+             colors = {"added": "#a6e22e", "removed": "#f92672", "header": "#66d9ef"}
+             
+        self.highlighter = DiffHighlighter(self.diff_view.document(), 
+                                           added_color=colors["added"],
+                                           removed_color=colors["removed"],
+                                           header_color=colors["header"])
+        
+        self.diff_view.set_separator_color(colors.get("separator", "#444444"))
+        
+        # Wrap search and diff view so they appear as one item in self.layout
+        diff_container = QWidget()
+        diff_container_layout = QVBoxLayout(diff_container)
+        diff_container_layout.setContentsMargins(0, 0, 0, 0)
+        diff_container_layout.setSpacing(0)
+
+        self.search_bar = DiffSearchBar(target_view=self.diff_view, parent=diff_container)
+        diff_container_layout.addWidget(self.search_bar)
+        
+        diff_container_layout.addWidget(self.diff_view)
+        
+        self.layout.addWidget(diff_container)
+
+        # Connect Ctrl+F explicitly just in case focus escapes
+        self.ctrl_f_shortcut = QShortcut(QKeySequence("Ctrl+F"), self)
+        self.ctrl_f_shortcut.activated.connect(self.search_bar.show_and_focus)
+        
+        # Buttons
+        self.btn_layout = QHBoxLayout()
+        self.btn_layout.addStretch() # Center spacer left
+        self.setup_buttons()
+        self.btn_layout.addStretch() # Center spacer right
+        self.layout.addLayout(self.btn_layout)
+
+    def setup_header(self, sha):
+        pass # To be overridden
+
+    def setup_buttons(self):
+        pass # To be overridden
+
+
+class SplitCommitDialog(QDialog):
+    """Dialog for moving a single file's changes out of a commit."""
+    def __init__(self, repo_path, sha, files, font_size=10, parent=None):
+        super().__init__(parent)
+        self.repo_path = repo_path
+        self.sha = sha
+        self.font_size = font_size
+        self.selected_file = None
+        self.setWindowTitle(f"Split Commit: {sha}")
+        self.setMinimumSize(860, 620)
+
+        # Diff colors from parent theme
+        main_win = parent if isinstance(parent, QMainWindow) else None
+        if main_win and hasattr(main_win, 'current_theme_colors'):
+            colors = main_win.current_theme_colors
+        else:
+            colors = {"added": "#a6e22e", "removed": "#f92672", "header": "#66d9ef", "separator": "#444444"}
+        self.colors = colors
+
+        # Fetch per-file edit stats for display
+        try:
+            self.file_stats = get_commit_file_stats(repo_path, sha)
+        except:
+            self.file_stats = {}
+
+        # Fetch commit details
+        try:
+            meta, msg = get_commit_metadata_and_message(repo_path, sha)
+        except:
+            meta = "Unknown"
+            msg = "Could not fetch message"
+
+        layout = QVBoxLayout(self)
+
+        # Main Vertical Splitter
+        self.main_splitter = QSplitter(Qt.Vertical)
+        self.main_splitter.setChildrenCollapsible(False)
+
+        # Row 1: Commit Message (Resizable)
+        msg_widget = QWidget()
+        msg_layout = QVBoxLayout(msg_widget)
+        msg_layout.setContentsMargins(0, 0, 0, 0)
+        
+        msg_header = QLabel(f"Commit: <b>{sha}</b> <span style='color:gray;'>({meta})</span>")
+        msg_header.setTextFormat(Qt.RichText)
+        msg_layout.addWidget(msg_header)
+        
+        self.msg_view = QTextEdit()
+        self.msg_view.setReadOnly(True)
+        self.msg_view.setPlainText(msg)
+        self.msg_view.setFont(QFont("Courier New", font_size))
+        msg_layout.addWidget(self.msg_view)
+        
+        self.main_splitter.addWidget(msg_widget)
+
+        # Row 2: File List
+        file_widget = QWidget()
+        file_layout = QVBoxLayout(file_widget)
+        file_layout.setContentsMargins(0, 5, 0, 0)
+        file_layout.addWidget(QLabel("<b>Select a file</b> to move out of this commit:"))
+        
+        self.file_list = QListWidget()
+        self.file_list.setMinimumHeight(60)
+        self.file_list.setFont(QFont("Courier New", font_size))
+        for f in files:
+            item = QListWidgetItem(f)
+            item.setData(Qt.UserRole, self.file_stats.get(f))
+            self.file_list.addItem(item)
+        stats_delegate = StatsItemDelegate(
+            added_color=colors.get("added", "#22863a"),
+            removed_color=colors.get("removed", "#cb2431"),
+            parent=self.file_list
+        )
+        self.file_list.setItemDelegate(stats_delegate)
+        self.file_list.currentTextChanged.connect(self.on_file_selected)
+        self.file_list.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.file_list.customContextMenuRequested.connect(self.show_file_context_menu)
+        file_layout.addWidget(self.file_list)
+        
+        self.main_splitter.addWidget(file_widget)
+
+        # Row 3: Diff View
+        diff_widget = QWidget()
+        diff_layout = QVBoxLayout(diff_widget)
+        diff_layout.setContentsMargins(0, 5, 0, 0)
+        diff_layout.addWidget(QLabel("<b>File Diff:</b>"))
+        
+        self.diff_view = DiffView()
+        self.diff_view.setMinimumHeight(100)
+        self.diff_view.setReadOnly(True)
+        self.diff_view.setFont(QFont("Courier New", font_size))
+        self.diff_view.setPlaceholderText("Select a file above to view its diff...")
+        self.highlighter = DiffHighlighter(
+            self.diff_view.document(),
+            added_color=colors["added"],
+            removed_color=colors["removed"],
+            header_color=colors["header"]
+        )
+        
+        self.search_bar = DiffSearchBar(target_view=self.diff_view, parent=diff_widget)
+        diff_layout.addWidget(self.search_bar)
+        diff_layout.addWidget(self.diff_view)
+        
+        self.ctrl_f_shortcut = QShortcut(QKeySequence("Ctrl+F"), self)
+        self.ctrl_f_shortcut.activated.connect(self.search_bar.show_and_focus)
+
+        self.main_splitter.addWidget(diff_widget)
+
+        # Initial sizes for [Message, File List, Diff View]
+        self.main_splitter.setSizes([100, 150, 350])
+        layout.addWidget(self.main_splitter)
+
+        # Buttons
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+        self.move_btn = QPushButton("Move Out of Commit")
+        self.move_btn.setMinimumWidth(160)
+        self.move_btn.setEnabled(False)  # only enabled when a file is selected
+        self.move_btn.setProperty("class", "dialog-btn")
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.setMinimumWidth(100)
+        cancel_btn.setProperty("class", "dialog-btn-secondary")
+        self.move_btn.clicked.connect(self.accept)
+        cancel_btn.clicked.connect(self.reject)
+        btn_layout.addWidget(self.move_btn)
+        btn_layout.addWidget(cancel_btn)
+        btn_layout.addStretch()
+        layout.addLayout(btn_layout)
+
+        # Auto-select first file
+        if files:
+            self.file_list.setCurrentRow(0)
+
+    def show_file_context_menu(self, pos):
+        item = self.file_list.itemAt(pos)
+        if not item:
+            return
+        menu = QMenu(self)
+        copy_action = QAction("Copy filename to clipboard", self)
+        copy_action.triggered.connect(lambda checked=False, text=item.text(): self.copy_filename_to_clipboard(text))
+        menu.addAction(copy_action)
+
+        blame_action = QAction("Blame file", self)
+        blame_action.triggered.connect(lambda checked=False, text=item.text(): open_blame_window(self, text))
+        menu.addAction(blame_action)
+
+        move_action = QAction("Move file changes out of this commit", self)
+        move_action.triggered.connect(lambda checked=False, text=item.text(): self.move_file_out(text))
+        menu.addAction(move_action)
+
+        menu.exec(self.file_list.mapToGlobal(pos))
+
+    def move_file_out(self, filepath):
+        self.selected_file = filepath
+        self.accept()
+
+    def copy_filename_to_clipboard(self, filename):
+        QApplication.clipboard().setText(filename)
+        QMessageBox.information(self, "Copied", f"Copied '{filename}' to clipboard.")
+
+    def on_file_selected(self, filepath):
+        if not filepath:
+            return
+        self.selected_file = filepath
+        self.move_btn.setEnabled(True)
+        try:
+            diff = get_file_diff_only_in_commit(self.repo_path, self.sha, filepath)
+            self.diff_view.setPlainText(diff)
+            self.diff_view.set_separator_color(self.colors.get("separator", "#444444"))
+        except Exception as e:
+            self.diff_view.setPlainText(f"Error loading diff: {e}")
+
+    def get_selected_file(self):
+        return self.selected_file
+
+
+class DropFileFromCommitDialog(QDialog):
+    """Dialog for dropping a single file's changes from a commit."""
+    def __init__(self, repo_path, sha, files, font_size=10, parent=None):
+        super().__init__(parent)
+        self.repo_path = repo_path
+        self.sha = sha
+        self.font_size = font_size
+        self.selected_file = None
+        self.setWindowTitle(f"Drop File From Commit: {sha}")
+        self.setMinimumSize(860, 620)
+
+        # Diff colors from parent theme
+        main_win = parent if isinstance(parent, QMainWindow) else None
+        if main_win and hasattr(main_win, 'current_theme_colors'):
+            colors = main_win.current_theme_colors
+        else:
+            colors = {"added": "#a6e22e", "removed": "#f92672", "header": "#66d9ef", "separator": "#444444"}
+        self.colors = colors
+
+        # Fetch per-file edit stats for display
+        try:
+            self.file_stats = get_commit_file_stats(repo_path, sha)
+        except:
+            self.file_stats = {}
+
+        # Fetch commit details
+        try:
+            meta, msg = get_commit_metadata_and_message(repo_path, sha)
+        except:
+            meta = "Unknown"
+            msg = "Could not fetch message"
+
+        layout = QVBoxLayout(self)
+
+        # Main Vertical Splitter
+        self.main_splitter = QSplitter(Qt.Vertical)
+        self.main_splitter.setChildrenCollapsible(False)
+
+        # Row 1: Commit Message (Resizable)
+        msg_widget = QWidget()
+        msg_layout = QVBoxLayout(msg_widget)
+        msg_layout.setContentsMargins(0, 0, 0, 0)
+        
+        msg_header = QLabel(f"Commit: <b>{sha}</b> <span style='color:gray;'>({meta})</span>")
+        msg_header.setTextFormat(Qt.RichText)
+        msg_layout.addWidget(msg_header)
+        
+        self.msg_view = QTextEdit()
+        self.msg_view.setReadOnly(True)
+        self.msg_view.setPlainText(msg)
+        self.msg_view.setFont(QFont("Courier New", font_size))
+        msg_layout.addWidget(self.msg_view)
+        
+        self.main_splitter.addWidget(msg_widget)
+
+        # Row 2: File List
+        file_widget = QWidget()
+        file_layout = QVBoxLayout(file_widget)
+        file_layout.setContentsMargins(0, 5, 0, 0)
+        file_layout.addWidget(QLabel("<b>Select a file</b> to drop from this commit:"))
+        
+        self.file_list = QListWidget()
+        self.file_list.setMinimumHeight(60)
+        self.file_list.setFont(QFont("Courier New", font_size))
+        for f in files:
+            item = QListWidgetItem(f)
+            item.setData(Qt.UserRole, self.file_stats.get(f))
+            self.file_list.addItem(item)
+        stats_delegate = StatsItemDelegate(
+            added_color=colors.get("added", "#22863a"),
+            removed_color=colors.get("removed", "#cb2431"),
+            parent=self.file_list
+        )
+        self.file_list.setItemDelegate(stats_delegate)
+        self.file_list.currentTextChanged.connect(self.on_file_selected)
+        self.file_list.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.file_list.customContextMenuRequested.connect(self.show_file_context_menu)
+        file_layout.addWidget(self.file_list)
+        
+        self.main_splitter.addWidget(file_widget)
+
+        # Row 3: Diff View
+        diff_widget = QWidget()
+        diff_layout = QVBoxLayout(diff_widget)
+        diff_layout.setContentsMargins(0, 5, 0, 0)
+        diff_layout.addWidget(QLabel("<b>File Diff:</b>"))
+        
+        self.diff_view = DiffView()
+        self.diff_view.setMinimumHeight(100)
+        self.diff_view.setReadOnly(True)
+        self.diff_view.setFont(QFont("Courier New", font_size))
+        self.diff_view.setPlaceholderText("Select a file above to view its diff...")
+        self.highlighter = DiffHighlighter(
+            self.diff_view.document(),
+            added_color=colors["added"],
+            removed_color=colors["removed"],
+            header_color=colors["header"]
+        )
+        
+        self.search_bar = DiffSearchBar(target_view=self.diff_view, parent=diff_widget)
+        diff_layout.addWidget(self.search_bar)
+        diff_layout.addWidget(self.diff_view)
+        
+        self.ctrl_f_shortcut = QShortcut(QKeySequence("Ctrl+F"), self)
+        self.ctrl_f_shortcut.activated.connect(self.search_bar.show_and_focus)
+
+        self.main_splitter.addWidget(diff_widget)
+
+        # Initial sizes for [Message, File List, Diff View]
+        self.main_splitter.setSizes([100, 150, 350])
+        layout.addWidget(self.main_splitter)
+
+        # Buttons
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+        self.drop_btn = QPushButton("Drop selected file changes from this commit")
+        self.drop_btn.setMinimumWidth(160)
+        self.drop_btn.setEnabled(False)  # only enabled when a file is selected
+        self.drop_btn.setProperty("class", "dialog-btn")
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.setMinimumWidth(100)
+        cancel_btn.setProperty("class", "dialog-btn-secondary")
+        self.drop_btn.clicked.connect(self.accept)
+        cancel_btn.clicked.connect(self.reject)
+        btn_layout.addWidget(self.drop_btn)
+        btn_layout.addWidget(cancel_btn)
+        btn_layout.addStretch()
+        layout.addLayout(btn_layout)
+
+        # Auto-select first file
+        if files:
+            self.file_list.setCurrentRow(0)
+
+    def show_file_context_menu(self, pos):
+        item = self.file_list.itemAt(pos)
+        if not item:
+            return
+        menu = QMenu(self)
+        copy_action = QAction("Copy filename to clipboard", self)
+        copy_action.triggered.connect(lambda checked=False, text=item.text(): self.copy_filename_to_clipboard(text))
+        menu.addAction(copy_action)
+
+        blame_action = QAction("Blame file", self)
+        blame_action.triggered.connect(lambda checked=False, text=item.text(): open_blame_window(self, text))
+        menu.addAction(blame_action)
+
+        drop_action = QAction("Drop file changes from this commit", self)
+        drop_action.triggered.connect(lambda checked=False, text=item.text(): self.drop_file(text))
+        menu.addAction(drop_action)
+
+        remove_onwards_action = QAction("Remove file from this commit onwards", self)
+        remove_onwards_action.triggered.connect(lambda checked=False, text=item.text(): self.remove_file_onwards(text))
+        menu.addAction(remove_onwards_action)
+
+        menu.exec(self.file_list.mapToGlobal(pos))
+
+    def drop_file(self, filepath):
+        self.selected_file = filepath
+        self.accept()
+
+    def remove_file_onwards(self, filepath):
+        main_win = self.parent() if isinstance(self.parent(), QMainWindow) else None
+        if main_win and hasattr(main_win, 'perform_remove_file_from_commit_onwards'):
+            self.accept()
+            QTimer.singleShot(0, lambda: main_win.perform_remove_file_from_commit_onwards(self.sha, filepath))
+
+    def copy_filename_to_clipboard(self, filename):
+        QApplication.clipboard().setText(filename)
+        QMessageBox.information(self, "Copied", f"Copied '{filename}' to clipboard.")
+
+    def on_file_selected(self, filepath):
+        if not filepath:
+            return
+        self.selected_file = filepath
+        self.drop_btn.setEnabled(True)
+        try:
+            diff = get_file_diff_only_in_commit(self.repo_path, self.sha, filepath)
+            self.diff_view.setPlainText(diff)
+            self.diff_view.set_separator_color(self.colors.get("separator", "#444444"))
+        except Exception as e:
+            self.diff_view.setPlainText(f"Error loading diff: {e}")
+
+    def get_selected_file(self):
+        return self.selected_file
+
+
+class DropDialog(DiffViewerDialog):
+    def __init__(self, sha, diff_text, font_size=10, parent=None):
+        super().__init__("Confirm Drop Commit", sha, diff_text, font_size, parent)
+
+    def setup_header(self, sha):
+        label = QLabel(f"Are you sure you want to drop the commit: <b>{sha}</b>?")
+        # Use theme-aware warning color
+        app = QApplication.instance()
+        main_win = self.parent() if isinstance(self.parent(), QMainWindow) else None
+        warning_color = "#f92672" # Default red
+        if main_win and hasattr(main_win, 'current_theme_colors'):
+             warning_color = main_win.current_theme_colors["removed"]
+             
+        label.setStyleSheet(f"color: {warning_color};") 
+        self.layout.addWidget(label)
+
+    def setup_buttons(self):
+        self.yes_btn = QPushButton("Yes, Drop it")
+        self.no_btn = QPushButton("No, Cancel")
+        
+        self.yes_btn.setMinimumWidth(120)
+        self.no_btn.setMinimumWidth(120)
+        
+        self.yes_btn.setProperty("class", "dialog-btn")
+        self.no_btn.setProperty("class", "dialog-btn")
+        
+        self.yes_btn.clicked.connect(self.accept)
+        self.no_btn.clicked.connect(self.reject)
+        
+        self.btn_layout.addWidget(self.yes_btn)
+        self.btn_layout.addWidget(self.no_btn)
+
+
+class ConfirmDropFileDialog(DiffViewerDialog):
+    """Confirmation dialog showing file diff before dropping file changes from a commit."""
+    def __init__(self, sha, filepath, diff_text, font_size=10, parent=None):
+        self.filepath = filepath
+        super().__init__(f"Confirm Drop File Changes: {sha}", sha, diff_text, font_size, parent)
+
+    def setup_header(self, sha):
+        label = QLabel(f"Are you sure you want to drop changes of <b>{self.filepath}</b> from commit: <b>{sha}</b>?")
+        label.setWordWrap(True)
+        # Use theme-aware warning color
+        main_win = self.parent() if isinstance(self.parent(), QMainWindow) else None
+        warning_color = "#f92672"
+        if main_win and hasattr(main_win, 'current_theme_colors'):
+            warning_color = main_win.current_theme_colors["removed"]
+        label.setStyleSheet(f"color: {warning_color};")
+        self.layout.addWidget(label)
+
+    def setup_buttons(self):
+        self.yes_btn = QPushButton("Yes, Drop this file's changes")
+        self.no_btn = QPushButton("No, Cancel")
+
+        self.yes_btn.setMinimumWidth(180)
+        self.no_btn.setMinimumWidth(120)
+
+        self.yes_btn.setProperty("class", "dialog-btn")
+        self.no_btn.setProperty("class", "dialog-btn")
+
+        self.yes_btn.clicked.connect(self.accept)
+        self.no_btn.clicked.connect(self.reject)
+
+        self.btn_layout.addWidget(self.yes_btn)
+        self.btn_layout.addWidget(self.no_btn)
+
+
+class ConfirmMoveFileDialog(DiffViewerDialog):
+    """Confirmation dialog showing file diff before moving file changes out of a commit."""
+    def __init__(self, sha, filepath, diff_text, font_size=10, parent=None):
+        self.filepath = filepath
+        super().__init__(f"Confirm Move File Out: {sha}", sha, diff_text, font_size, parent)
+
+    def setup_header(self, sha):
+        label = QLabel(f"Are you sure you want to move changes of <b>{self.filepath}</b> out of commit: <b>{sha}</b>?")
+        label.setWordWrap(True)
+        self.layout.addWidget(label)
+
+    def setup_buttons(self):
+        self.yes_btn = QPushButton("Yes, Move this file out")
+        self.no_btn = QPushButton("No, Cancel")
+
+        self.yes_btn.setMinimumWidth(180)
+        self.no_btn.setMinimumWidth(120)
+
+        self.yes_btn.setProperty("class", "dialog-btn")
+        self.no_btn.setProperty("class", "dialog-btn")
+
+        self.yes_btn.clicked.connect(self.accept)
+        self.no_btn.clicked.connect(self.reject)
+
+        self.btn_layout.addWidget(self.yes_btn)
+        self.btn_layout.addWidget(self.no_btn)
+
+
+class ConfirmRemoveFileOnwardsDialog(DiffViewerDialog):
+    """Confirmation dialog for removing a file from a commit and all subsequent commits."""
+    def __init__(self, sha, filepath, diff_text, later_modifications_detected=False, font_size=10, parent=None):
+        self.filepath = filepath
+        self.later_modifications_detected = later_modifications_detected
+        super().__init__("Remove File from This Commit Onwards?", sha, diff_text, font_size, parent)
+
+    def setup_header(self, sha):
+        msg = (
+            f"<b>File:</b><br>{self.filepath}<br><br>"
+            f"This will remove the file from:<br><br>"
+            f"✓ Selected commit ({sha})"
+        )
+        if self.later_modifications_detected:
+            msg += f"<br>✓ All following commits that modify it"
+        
+        label = QLabel(msg)
+        label.setWordWrap(True)
+        label.setTextFormat(Qt.RichText)
+        self.layout.addWidget(label)
+
+        if self.later_modifications_detected:
+            # Use theme-aware warning color
+            main_win = self.parent() if isinstance(self.parent(), QMainWindow) else None
+            warning_color = "#f92672"
+            if main_win and hasattr(main_win, 'current_theme_colors'):
+                warning_color = main_win.current_theme_colors["removed"]
+            warning_label = QLabel(
+                "<b>Warning:</b><br>"
+                "This file is modified in later commits.<br><br>"
+                "The operation may fail or stop during rebase and require manual conflict resolution."
+            )
+            warning_label.setWordWrap(True)
+            warning_label.setTextFormat(Qt.RichText)
+            warning_label.setStyleSheet(f"color: {warning_color}; padding: 6px; border: 1px solid {warning_color}; border-radius: 4px;")
+            self.layout.addWidget(warning_label)
+
+    def setup_buttons(self):
+        if self.later_modifications_detected:
+            self.yes_btn = QPushButton("Yes, Remove from Future Commits Too")
+            self.no_btn = QPushButton("Cancel")
+            
+            # Make the yes button red to indicate destructive action
+            # We use an inline style that mimics dialog-btn but overrides colors
+            main_win = self.parent() if isinstance(self.parent(), QMainWindow) else None
+            warning_color = "#f92672" # default red
+            if main_win and hasattr(main_win, 'current_theme_colors'):
+                warning_color = main_win.current_theme_colors.get("removed", "#f92672")
+                
+            self.yes_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: transparent;
+                    color: {warning_color};
+                    border: 1px solid {warning_color};
+                    border-radius: 4px;
+                    padding: 8px 16px;
+                }}
+                QPushButton:hover {{
+                    background-color: rgba(249, 38, 114, 0.1);
+                }}
+            """)
+            self.no_btn.setProperty("class", "dialog-btn")
+        else:
+            self.yes_btn = QPushButton("Yes, Remove from this commit onwards")
+            self.no_btn = QPushButton("No, Cancel")
+            self.yes_btn.setProperty("class", "dialog-btn")
+            self.no_btn.setProperty("class", "dialog-btn")
+
+        self.yes_btn.setMinimumWidth(260)
+        self.no_btn.setMinimumWidth(120)
+
+        self.yes_btn.clicked.connect(self.accept)
+        self.no_btn.clicked.connect(self.reject)
+
+        self.btn_layout.addWidget(self.yes_btn)
+        self.btn_layout.addWidget(self.no_btn)
+
+
+class AggressiveRemoveConfirmationDialog(QDialog):
+    """
+    Second confirmation dialog when a user chooses to remove a file from history
+    and that file is modified in future commits.
+    """
+    def __init__(self, filepath, commits_modifying_file, has_empty_commits=False, font_size=10, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Proceed with aggressive file removal?")
+        self.setMinimumSize(600, 480)
+        self.font_size = font_size
+        self.has_empty_commits = has_empty_commits
+
+        layout = QVBoxLayout(self)
+
+        label_file = QLabel(f"<b>File:</b><br>{filepath}<br>")
+        label_file.setTextFormat(Qt.RichText)
+        layout.addWidget(label_file)
+
+        label_desc = QLabel("The following commits modify this file and will also be updated:")
+        layout.addWidget(label_desc)
+
+        # List of future commits
+        commit_list = QTextEdit()
+        commit_list.setReadOnly(True)
+        commit_list.setFont(QFont("Courier New", self.font_size))
+        
+        # Display each commit
+        commits_text = ""
+        for sha, msg in commits_modifying_file:
+            commits_text += f"{sha[:8]}  {msg.splitlines()[0] if msg else ''}\n"
+        commit_list.setPlainText(commits_text)
+        layout.addWidget(commit_list)
+
+        label_explain = QLabel(
+            "<br><b>This operation will:</b><br><br>"
+            "✓ Remove file changes from the above commits<br>"
+            "✓ Remove file changes from currently selected commit<br>"
+            "✓ Rewrite commit history<br>"
+        )
+        label_explain.setTextFormat(Qt.RichText)
+        layout.addWidget(label_explain)
+
+        main_win = parent if isinstance(parent, QMainWindow) else None
+        warning_color = "#f92672"
+        if main_win and hasattr(main_win, 'current_theme_colors'):
+            warning_color = main_win.current_theme_colors.get("removed", "#f92672")
+
+        label_warning = QLabel("Do this only if you understand the implications of rewriting commit history.")
+        label_warning.setStyleSheet(f"color: {warning_color}; font-weight: bold;")
+        layout.addWidget(label_warning)
+
+        self.drop_empty_checkbox = QCheckBox("Drop commits that become empty")
+        self.drop_empty_checkbox.setToolTip("Commits containing only changes to the selected file will be removed if they become empty.")
+        if self.has_empty_commits:
+            self.drop_empty_checkbox.setChecked(True)
+        else:
+            self.drop_empty_checkbox.setChecked(False)
+            self.drop_empty_checkbox.setEnabled(False)
+            self.drop_empty_checkbox.setStyleSheet("color: gray;")
+            
+        check_layout = QHBoxLayout()
+        check_layout.addStretch()
+        check_layout.addWidget(self.drop_empty_checkbox)
+        check_layout.addStretch()
+        layout.addLayout(check_layout)
+
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+
+        self.proceed_btn = QPushButton("Proceed Anyway")
+        self.cancel_btn = QPushButton("Cancel")
+
+        self.proceed_btn.setMinimumWidth(160)
+        self.cancel_btn.setMinimumWidth(100)
+
+        self.proceed_btn.setProperty("class", "dialog-btn")
+        self.cancel_btn.setProperty("class", "dialog-btn-secondary")
+
+        self.proceed_btn.clicked.connect(self.accept)
+        self.cancel_btn.clicked.connect(self.reject)
+
+        btn_layout.addWidget(self.proceed_btn)
+        btn_layout.addWidget(self.cancel_btn)
+        btn_layout.addStretch()
+
+        layout.addLayout(btn_layout)
+
+
+class RephraseDialog(QDialog):
+    """Dialog for editing commit message."""
+    def __init__(self, sha, current_message, font_size=10, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(f"Rephrase Commit: {sha}")
+        self.setMinimumSize(600, 400)
+        self.font_size = font_size
+        
+        layout = QVBoxLayout(self)
+        
+        label = QLabel(f"Edit commit message for: <b>{sha}</b>")
+        layout.addWidget(label)
+        
+        self.message_edit = QTextEdit()
+        self.message_edit.setFont(QFont("Courier New", self.font_size))
+        self.message_edit.setPlainText(current_message)
+        layout.addWidget(self.message_edit)
+        
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+        
+        self.apply_btn = QPushButton("Apply")
+        self.discard_btn = QPushButton("Discard")
+        
+        for btn in [self.apply_btn, self.discard_btn]:
+            btn.setMinimumWidth(120)
+            btn.setMinimumHeight(40)
+            btn.setProperty("class", "dialog-btn")
+            
+        self.apply_btn.clicked.connect(self.accept)
+        self.discard_btn.clicked.connect(self.reject)
+        
+        self.message_edit.textChanged.connect(self.on_text_changed)
+        self.on_text_changed()
+        
+        btn_layout.addWidget(self.apply_btn)
+        btn_layout.addWidget(self.discard_btn)
+        btn_layout.addStretch()
+        
+        layout.addLayout(btn_layout)
+
+    def get_message(self):
+        return self.message_edit.toPlainText().strip()
+        
+    def on_text_changed(self):
+        self.apply_btn.setEnabled(bool(self.message_edit.toPlainText().strip()))
+
+
+class NewCommitMessageDialog(QDialog):
+    """Dialog for entering a new commit message (e.g. during Move Hunks)."""
+    def __init__(self, title, label_text, default_message="", font_size=10, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(title)
+        self.setMinimumSize(600, 400)
+        self.font_size = font_size
+        
+        layout = QVBoxLayout(self)
+        
+        self.label = QLabel(label_text)
+        self.label.setWordWrap(True)
+        layout.addWidget(self.label)
+        
+        self.message_edit = QTextEdit()
+        self.message_edit.setFont(QFont("Courier New", self.font_size))
+        self.message_edit.setPlainText(default_message)
+        layout.addWidget(self.message_edit)
+        
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+        
+        self.proceed_btn = QPushButton("Proceed")
+        self.cancel_btn = QPushButton("Cancel")
+        
+        for btn in [self.proceed_btn, self.cancel_btn]:
+            btn.setMinimumWidth(120)
+            btn.setMinimumHeight(40)
+            btn.setProperty("class", "dialog-btn")
+            
+        self.proceed_btn.clicked.connect(self.accept)
+        self.cancel_btn.clicked.connect(self.reject)
+        
+        self.message_edit.textChanged.connect(self.on_text_changed)
+        self.on_text_changed()
+        
+        btn_layout.addWidget(self.proceed_btn)
+        btn_layout.addWidget(self.cancel_btn)
+        btn_layout.addStretch()
+        
+        layout.addLayout(btn_layout)
+
+    def get_message(self):
+        return self.message_edit.toPlainText().strip()
+        
+    def on_text_changed(self):
+        self.proceed_btn.setEnabled(bool(self.message_edit.toPlainText().strip()))
+
+
+class CherryPickDialog(QDialog):
+    """Dialog for entering a commit SHA to cherry-pick."""
+    def __init__(self, font_size=10, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Cherry-pick Commit")
+        self.setFixedSize(600, 180)
+        self.font_size = font_size
+        self.chosen = None
+
+        layout = QVBoxLayout(self)
+
+        self.label = QLabel("Enter the commit SHA.")
+        self.label.setWordWrap(True)
+        layout.addWidget(self.label)
+
+        self.sha_edit = QLineEdit()
+        self.sha_edit.setPlaceholderText("Commit SHA")
+        self.sha_edit.setFont(QFont("Courier New", self.font_size))
+        self.sha_edit.setMinimumHeight(36)
+        layout.addWidget(self.sha_edit)
+
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+
+        self.cherry_pick_btn = QPushButton("Cherry-pick")
+        self.no_commit_btn = QPushButton("Cherry-pick (--no-commit)")
+        self.cancel_btn = QPushButton("Cancel")
+
+        for btn in [self.cherry_pick_btn, self.no_commit_btn, self.cancel_btn]:
+            btn.setMinimumWidth(120)
+            btn.setMinimumHeight(40)
+            btn.setProperty("class", "dialog-btn")
+
+        self.cherry_pick_btn.clicked.connect(lambda: self._choose("normal"))
+        self.no_commit_btn.clicked.connect(lambda: self._choose("no_commit"))
+        self.cancel_btn.clicked.connect(self.reject)
+
+        self.sha_edit.textChanged.connect(self.on_text_changed)
+        self.on_text_changed()
+
+        btn_layout.addWidget(self.cherry_pick_btn)
+        btn_layout.addWidget(self.no_commit_btn)
+        btn_layout.addWidget(self.cancel_btn)
+        btn_layout.addStretch()
+
+        layout.addLayout(btn_layout)
+
+    def _choose(self, choice):
+        self.chosen = choice
+        self.accept()
+
+    def get_sha(self):
+        return self.sha_edit.text().strip()
+
+    def on_text_changed(self):
+        has_text = bool(self.sha_edit.text().strip())
+        self.cherry_pick_btn.setEnabled(has_text)
+        self.no_commit_btn.setEnabled(has_text)
+
+
+class RevertCommitDialog(QDialog):
+    """Dialog for editing the commit message before reverting a commit."""
+    def __init__(self, sha, revert_message, font_size=10, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(f"Revert Commit: {sha}")
+        self.setMinimumSize(600, 300)
+        self.font_size = font_size
+
+        layout = QVBoxLayout(self)
+
+        label = QLabel(
+            f"Reverting commit <b>{sha}</b>. "
+            "Edit the revert commit message below:"
+        )
+        label.setTextFormat(Qt.RichText)
+        label.setWordWrap(True)
+        layout.addWidget(label)
+
+        self.message_edit = QTextEdit()
+        self.message_edit.setFont(QFont("Courier New", self.font_size))
+        self.message_edit.setPlainText(revert_message)
+        layout.addWidget(self.message_edit)
+
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+
+        self.revert_btn = QPushButton("Revert")
+        self.cancel_btn = QPushButton("Cancel")
+
+        for btn in [self.revert_btn, self.cancel_btn]:
+            btn.setMinimumWidth(120)
+            btn.setMinimumHeight(40)
+            btn.setProperty("class", "dialog-btn")
+
+        self.revert_btn.clicked.connect(self.accept)
+        self.cancel_btn.clicked.connect(self.reject)
+
+        self.message_edit.textChanged.connect(self._on_text_changed)
+        self._on_text_changed()
+
+        btn_layout.addWidget(self.revert_btn)
+        btn_layout.addWidget(self.cancel_btn)
+        btn_layout.addStretch()
+        layout.addLayout(btn_layout)
+
+    def get_message(self):
+        return self.message_edit.toPlainText().strip()
+
+    def _on_text_changed(self):
+        self.revert_btn.setEnabled(bool(self.message_edit.toPlainText().strip()))
+
+
+class SquashDialog(QDialog):
+    """Dialog for choosing and editing commit message during squash."""
+    def __init__(self, sha1, msg1, sha2, msg2, font_size=10, parent=None, default_radio=1):
+        super().__init__(parent)
+        self.setWindowTitle("Interactive Squash")
+        self.setMinimumSize(600, 400)
+        self.font_size = font_size
+        
+        self.msg1 = msg1
+        self.msg2 = msg2
+        
+        layout = QVBoxLayout(self)
+        
+        # Label
+        layout.addWidget(QLabel("Select or edit the final commit message:"))
+        
+        # Radio Buttons
+        self.radio1 = QRadioButton(f"Use commit msg of {sha1}: {msg1.splitlines()[0][:50]}...")
+        self.radio2 = QRadioButton(f"Use commit msg of {sha2}: {msg2.splitlines()[0][:50]}...")
+        
+        layout.addWidget(self.radio1)
+        layout.addWidget(self.radio2)
+        
+        # Text Editor
+        self.editor = QTextEdit()
+        self.editor.setFont(QFont("Courier New", self.font_size))
+        layout.addWidget(self.editor)
+        
+        # Connections
+        self.radio1.toggled.connect(self.on_radio_toggled)
+        self.radio2.toggled.connect(self.on_radio_toggled)
+        
+        # Default selection
+        if default_radio == 2:
+            self.radio2.setChecked(True)
+            self.editor.setPlainText(self.msg2)
+        else:
+            self.radio1.setChecked(True)
+            self.editor.setPlainText(self.msg1)
+        
+        # Buttons
+        btn_layout = QHBoxLayout()
+        self.proceed_btn = QPushButton("Proceed")
+        self.cancel_btn = QPushButton("Cancel")
+        
+        self.proceed_btn.setProperty("class", "dialog-btn")
+        self.cancel_btn.setProperty("class", "dialog-btn")
+        
+        self.proceed_btn.clicked.connect(self.accept)
+        self.cancel_btn.clicked.connect(self.reject)
+        
+        self.editor.textChanged.connect(self.on_text_changed)
+        self.on_text_changed()
+        
+        btn_layout.addStretch()
+        btn_layout.addWidget(self.proceed_btn)
+        btn_layout.addWidget(self.cancel_btn)
+        layout.addLayout(btn_layout)
+
+    def on_radio_toggled(self):
+        if self.radio1.isChecked():
+            self.editor.setPlainText(self.msg1)
+        elif self.radio2.isChecked():
+            self.editor.setPlainText(self.msg2)
+
+    def get_message(self):
+        return self.editor.toPlainText().strip()
+        
+    def on_text_changed(self):
+        self.proceed_btn.setEnabled(bool(self.editor.toPlainText().strip()))
+
+
+class MultiSquashDialog(QDialog):
+    """Dialog for squashing N commits — shows one radio per commit for message selection."""
+    def __init__(self, sha_msg_pairs, font_size=10, parent=None):
+        """
+        sha_msg_pairs: list of (sha, full_commit_message) in newest→oldest order
+        """
+        super().__init__(parent)
+        self.setWindowTitle("Squash Commits — Choose Final Commit Message")
+        self.setMinimumSize(680, 480)
+        self.sha_msg_pairs = sha_msg_pairs
+
+        layout = QVBoxLayout(self)
+        layout.addWidget(QLabel(
+            f"<b>Squashing {len(sha_msg_pairs)} commits.</b>  "
+            "Select which commit message to use as the base, then edit:"
+        ))
+
+        # Main splitter to allow resizing between the list and the editor
+        self.splitter = QSplitter(Qt.Vertical)
+        
+        # Scroll area for the radio buttons
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setFrameShape(QScrollArea.NoFrame)
+        self.scroll_area.setMinimumHeight(100)
+        
+        self.scroll_content = QWidget()
+        self.scroll_layout = QVBoxLayout(self.scroll_content)
+        self.scroll_layout.setContentsMargins(5, 5, 5, 5)
+
+        # Dynamic radio buttons — one per commit
+        self.radios = []
+        for sha, msg in sha_msg_pairs:
+            first_line = msg.splitlines()[0][:60] if msg else "(empty)"
+            radio = QRadioButton(f"{sha}: {first_line}...")
+            self.scroll_layout.addWidget(radio)
+            self.radios.append(radio)
+        
+        self.scroll_layout.addStretch()
+        self.scroll_area.setWidget(self.scroll_content)
+        
+        # Text editor
+        self.editor = QTextEdit()
+        self.editor.setFont(QFont("Courier New", font_size))
+        self.editor.setMinimumHeight(100)
+
+        # Add to splitter
+        self.splitter.addWidget(self.scroll_area)
+        self.splitter.addWidget(self.editor)
+        
+        # Disable collapsing for both panes to ensure minimum heights are respected
+        self.splitter.setCollapsible(0, False)
+        self.splitter.setCollapsible(1, False)
+        
+        # Set stretch factors: list area gets some, editor gets more
+        self.splitter.setStretchFactor(0, 1)
+        self.splitter.setStretchFactor(1, 2)
+        
+        layout.addWidget(self.splitter)
+
+        # Wire radio toggling to update editor
+        for i, radio in enumerate(self.radios):
+            radio.toggled.connect(lambda checked, idx=i: self._on_radio(checked, idx))
+
+        # Default: first commit selected
+        self.radios[0].setChecked(True)
+        self.editor.setPlainText(sha_msg_pairs[0][1])
+
+        # Buttons
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+        self.proceed_btn = QPushButton("Proceed")
+        self.cancel_btn = QPushButton("Cancel")
+        self.proceed_btn.setProperty("class", "dialog-btn")
+        self.cancel_btn.setProperty("class", "dialog-btn")
+        self.proceed_btn.clicked.connect(self.accept)
+        self.cancel_btn.clicked.connect(self.reject)
+        
+        self.editor.textChanged.connect(self.on_text_changed)
+        self.on_text_changed()
+        btn_layout.addWidget(self.proceed_btn)
+        btn_layout.addWidget(self.cancel_btn)
+        layout.addLayout(btn_layout)
+
+    def _on_radio(self, checked, idx):
+        if checked:
+            self.editor.setPlainText(self.sha_msg_pairs[idx][1])
+
+    def get_message(self):
+        return self.editor.toPlainText().strip()
+        
+    def on_text_changed(self):
+        self.proceed_btn.setEnabled(bool(self.editor.toPlainText().strip()))
+
+
+class ProgressDialog(QDialog):
+    """Indeterminate progress dialog for background operations."""
+    def __init__(self, title, message, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(title)
+        self.setFixedSize(450, 150)
+        self.setModal(True)
+        
+        # Disable close button and other hints to make it more "locked"
+        self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint & ~Qt.WindowCloseButtonHint)
+        
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(25, 25, 25, 25)
+        layout.setSpacing(10)
+        
+        self.label = QLabel(message)
+        self.label.setAlignment(Qt.AlignCenter)
+        self.label.setStyleSheet("font-weight: bold; font-size: 14px;")
+        layout.addWidget(self.label)
+        
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, 0)  # Indeterminate
+        self.progress_bar.setMinimumHeight(20)
+        layout.addWidget(self.progress_bar)
+        
+        # Add some spacing at the bottom
+        layout.addSpacing(10)
+
+
+class RefineFileSelectDialog(SplitCommitDialog):
+    """File-selection dialog for Refine Changes. Reuses SplitCommitDialog layout."""
+    def __init__(self, repo_path, sha, files, font_size=10, parent=None):
+        super().__init__(repo_path, sha, files, font_size, parent)
+        self.setWindowTitle(f"Refine Changes: {sha}")
+        self.move_btn.setText("Refine changes in selected file")
+        # Update the instruction label
+        label = self.main_splitter.widget(1).layout().itemAt(0).widget()
+        label.setText("<b>Select a file</b> to refine changes in this commit:")
+
+    def show_file_context_menu(self, pos):
+        item = self.file_list.itemAt(pos)
+        if not item:
+            return
+        menu = QMenu(self)
+        copy_action = QAction("Copy filename to clipboard", self)
+        copy_action.triggered.connect(lambda checked=False, text=item.text(): self.copy_filename_to_clipboard(text))
+        menu.addAction(copy_action)
+
+        blame_action = QAction("Blame file", self)
+        blame_action.triggered.connect(lambda checked=False, text=item.text(): open_blame_window(self, text))
+        menu.addAction(blame_action)
+
+        refine_action = QAction("Refine changes in selected file", self)
+        refine_action.triggered.connect(lambda checked=False, text=item.text(): self.move_file_out(text))
+        menu.addAction(refine_action)
+        menu.exec(self.file_list.mapToGlobal(pos))
