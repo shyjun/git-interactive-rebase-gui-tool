@@ -45,6 +45,7 @@ class BrowseMixin:
         # Normalise so remote-only branches (e.g. 'feature' living only at
         # 'origin/feature') are loaded explicitly instead of by DWIM guess.
         browse_ref = normalize_branch_ref(self.repo_path, branch_name)
+        print(f"[browse] Opening branch: '{branch_name}' → ref='{browse_ref}', limit={commit_limit}")
 
         AppClass = _get_app_class()
         viewer = AppClass(
@@ -60,6 +61,102 @@ class BrowseMixin:
             viewer.apply_theme("dark" if self.is_dark_theme else "light")
         self.browse_windows.append(viewer)
         viewer.show()
+        print(f"[browse] Branch viewer shown ({len(self.browse_windows)} browse windows open)")
+
+    def handle_browse_commit_log(self):
+        """Opens a read-only viewer window showing a commit's recent history.
+        Prompts for a commit SHA (or ref) and the number of commits to load,
+        validating that the commit exists."""
+        dialog = BrowseCommitLogDialog(self.repo_path, parent=self)
+        if dialog.exec() != QDialog.Accepted:
+            return
+        commit_id = dialog.commit_id
+        commit_limit = dialog.commit_limit
+        if not commit_id:
+            QMessageBox.warning(self, "No commit",
+                                "Please enter a commit SHA or ref to browse.")
+            return
+        if not commit_exists(self.repo_path, commit_id):
+            QMessageBox.critical(self, "Commit does not exist",
+                                 f"'{commit_id}' does not resolve to a commit.")
+
+        print(f"[browse] Opening commit log: '{commit_id}', limit={commit_limit}")
+        AppClass = _get_app_class()
+        viewer = AppClass(
+            self.repo_path, self.commit_sha, self.app_start_time,
+            viewer_mode=True, browse_branch=commit_id, parent=self,
+            browse_limit=commit_limit,
+        )
+        # The browse viewer inherits the main window's current zoom and theme.
+        viewer.current_font_size = self.current_font_size
+        viewer.update_font()
+        if viewer.is_dark_theme != self.is_dark_theme:
+            viewer.is_dark_theme = self.is_dark_theme
+            viewer.apply_theme("dark" if self.is_dark_theme else "light")
+        self.browse_windows.append(viewer)
+        viewer.show()
+        print(f"[browse] Commit log viewer shown ({len(self.browse_windows)} browse windows open)")
+
+    def handle_browse_reflog(self):
+        """Opens a read-only viewer window showing the repository's HEAD reflog
+        (most recent entries first), with the diff pane hidden and a minimal
+        copy-SHA / show-log toolbar."""
+        print(f"[browse] Opening reflog viewer, limit=50")
+        AppClass = _get_app_class()
+        viewer = AppClass(
+            self.repo_path, self.commit_sha, self.app_start_time,
+            viewer_mode=True, browse_reflog=True, parent=self,
+            browse_limit=50,
+        )
+        # The browse viewer inherits the main window's current zoom and theme.
+        viewer.current_font_size = self.current_font_size
+        viewer.update_font()
+        if viewer.is_dark_theme != self.is_dark_theme:
+            viewer.is_dark_theme = self.is_dark_theme
+            viewer.apply_theme("dark" if self.is_dark_theme else "light")
+        self.browse_windows.append(viewer)
+        viewer.show()
+        print(f"[browse] Reflog viewer shown ({len(self.browse_windows)} browse windows open)")
+
+    def handle_browse_tags(self):
+        """Opens a read-only viewer window showing all tags in the repository
+        (most recent first), with the diff pane hidden and a minimal
+        copy-SHA / show-log toolbar."""
+        print(f"[browse] Opening tags browser, limit=50")
+        AppClass = _get_app_class()
+        viewer = AppClass(
+            self.repo_path, self.commit_sha, self.app_start_time,
+            viewer_mode=True, browse_tags=True, parent=self,
+            browse_limit=50,
+        )
+        viewer.current_font_size = self.current_font_size
+        viewer.update_font()
+        if viewer.is_dark_theme != self.is_dark_theme:
+            viewer.is_dark_theme = self.is_dark_theme
+            viewer.apply_theme("dark" if self.is_dark_theme else "light")
+        self.browse_windows.append(viewer)
+        viewer.show()
+        print(f"[browse] Tags browser shown ({len(self.browse_windows)} browse windows open)")
+
+    def handle_browse_stash(self):
+        """Opens a read-only viewer window showing the repository's stash list
+        (most recent first), with the diff pane always visible."""
+        print(f"[browse] Opening stash browser, limit=50")
+        AppClass = _get_app_class()
+        viewer = AppClass(
+            self.repo_path, self.commit_sha, self.app_start_time,
+            viewer_mode=True, browse_stash=True, parent=self,
+            browse_limit=50,
+        )
+        # The browse viewer inherits the main window's current zoom and theme.
+        viewer.current_font_size = self.current_font_size
+        viewer.update_font()
+        if viewer.is_dark_theme != self.is_dark_theme:
+            viewer.is_dark_theme = self.is_dark_theme
+            viewer.apply_theme("dark" if self.is_dark_theme else "light")
+        self.browse_windows.append(viewer)
+        viewer.show()
+        print(f"[browse] Stash browser shown ({len(self.browse_windows)} browse windows open)")
 
     def handle_browse_commit_log(self):
         """Opens a read-only viewer window showing a commit's recent history.
@@ -177,6 +274,7 @@ class BrowseMixin:
         if not ok:
             return
         sha = item.text().split()[0]
+        print(f"[browse] Reflog show-log: SHA={sha[:10]}, limit={commit_limit}")
         AppClass = _get_app_class()
         viewer = AppClass(
             self.repo_path, self.commit_sha, self.app_start_time,
@@ -233,6 +331,7 @@ class BrowseMixin:
         if not item:
             return
         sha = item.text().split()[0]
+        print(f"[browse] Stash apply: SHA={sha[:10]}, drop_after={drop_after}")
         confirm = QMessageBox.question(
             self, "Apply Stash",
             f"Apply stash {sha[:8]}?\n\n"
@@ -241,9 +340,11 @@ class BrowseMixin:
                else "The stash will be KEPT after the apply."),
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         if confirm != QMessageBox.Yes:
+            print(f"[browse] Stash apply cancelled")
             return
         success, err = stash_apply(self.repo_path, sha)
         if not success:
+            print(f"[browse] Stash apply FAILED: {err}")
             QMessageBox.critical(
                 self, "Apply Failed",
                 f"Failed to apply stash {sha[:8]}.\n\n"
@@ -255,6 +356,7 @@ class BrowseMixin:
         dropped = False
         if drop_after:
             dropped = stash_drop(self.repo_path, sha)
+            print(f"[browse] Stash drop after apply: success={dropped}")
 
         msg = ("Apply success. Use 'Rescan Repo' to handle the unstaged changes.")
         if drop_after:
@@ -268,17 +370,21 @@ class BrowseMixin:
         if not item:
             return
         sha = item.text().split()[0]
+        print(f"[browse] Stash drop: SHA={sha[:10]}")
         confirm = QMessageBox.question(
             self, "Drop Stash",
             f"Drop stash {sha[:8]}? This cannot be undone.",
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         if confirm != QMessageBox.Yes:
+            print(f"[browse] Stash drop cancelled")
             return
         dropped = stash_drop(self.repo_path, sha)
         if dropped:
+            print(f"[browse] Stash dropped successfully")
             QMessageBox.information(self, "Stash Dropped",
                                     f"Stash {sha[:8]} was dropped.")
         else:
+            print(f"[browse] Stash drop FAILED")
             QMessageBox.critical(self, "Drop Failed",
                                  f"Failed to drop stash {sha[:8]}.")
         self._reload_stash_list()
@@ -295,6 +401,7 @@ class BrowseMixin:
                                 "Please choose a branch to compare against.")
             return
         current_branch = get_current_branch(self.repo_path) or "HEAD (detached)"
+        print(f"[browse] Finding merge-base: current='{current_branch}' vs '{other_branch}'")
         if not branch_exists(self.repo_path, other_branch):
             QMessageBox.critical(self, "Branch does not exist",
                                  f"The branch '{other_branch}' does not exist.")
@@ -304,9 +411,11 @@ class BrowseMixin:
         try:
             base_sha = get_merge_base(self.repo_path, ref)
         except Exception as e:
+            print(f"[browse] Merge-base error: {e}")
             QMessageBox.critical(self, "Merge Base Error", f"Could not find the merge base.\n\nError: {e}")
             return
         if not base_sha:
+            print(f"[browse] No common ancestor found")
             QMessageBox.warning(
                 self, "No common ancestor",
                 f"No merge-base found between '{current_branch}' and '{other_branch}'.\n\n"
@@ -315,6 +424,7 @@ class BrowseMixin:
 
         short_sha = base_sha[:8]
         subject = get_commit_subject(self.repo_path, base_sha) or ""
+        print(f"[browse] Merge-base found: {short_sha} — {subject}")
         text = (f"Merge-base of <b>{current_branch}</b> and <b>{other_branch}</b>:\n\n"
                 f"{base_sha}\n({short_sha}) {subject}\n\n"
                 "Copy the SHA to the clipboard, or click OK to close.")
@@ -337,6 +447,7 @@ class BrowseMixin:
             QMessageBox.critical(self, "File does not exist",
                                  f"The file '{file_path}' does not exist.")
             return
+        print(f"[browse] Opening file log: '{file_path}', limit={commit_limit}")
         self._open_file_log_viewer(file_path, commit_limit)
 
     def open_file_log_for(self, file_path, commit_limit=None):
@@ -344,10 +455,12 @@ class BrowseMixin:
         without prompting (used by file-wise context menus)."""
         if commit_limit is None:
             commit_limit = self.browse_limit
+        print(f"[browse] File log for: '{file_path}', limit={commit_limit}")
         self._open_file_log_viewer(file_path, commit_limit)
 
     def _open_file_log_viewer(self, file_path, commit_limit):
         file_ref = self.browse_branch if self.browse_branch else None
+        print(f"[browse] Creating file-log viewer: '{file_path}', ref={file_ref}, limit={commit_limit}")
         AppClass = _get_app_class()
         viewer = AppClass(
             self.repo_path, self.commit_sha, self.app_start_time,

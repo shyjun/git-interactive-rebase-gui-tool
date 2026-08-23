@@ -39,6 +39,7 @@ class CommitOpsMixin:
                                  f"The file '{patch_path}' does not exist.")
             return
 
+        print(f"[commit] Applying patch: '{patch_path}', commit={commit_wanted}")
         progress = ProgressDialog("Apply Patch", "Applying patch...", self)
         progress.show()
         QApplication.processEvents()
@@ -48,6 +49,7 @@ class CommitOpsMixin:
             progress.close()
 
         if not ok:
+            print(f"[commit] Patch apply FAILED: {detail}")
             QMessageBox.critical(
                 self, "Apply Patch Failed",
                 f"Patch could not be applied.\n\n{detail}\n\n"
@@ -55,6 +57,7 @@ class CommitOpsMixin:
             )
             return
 
+        print(f"[commit] Patch applied successfully")
         self.load_history()
         QMessageBox.information(
             self, "Patch Applied",
@@ -109,7 +112,7 @@ class CommitOpsMixin:
     def handle_revert_commit(self, item):
         """Handles the 'Revert this commit' context menu action."""
         sha = item.text().split()[0]
-        print(f"Preparing to revert {sha}...")
+        print(f"[commit] Preparing to revert {sha[:10]}...")
         try:
             default_message = get_revert_commit_message(self.repo_path, sha)
             dialog = RevertCommitDialog(sha, default_message, self.current_font_size, self)
@@ -117,8 +120,9 @@ class CommitOpsMixin:
                 revert_message = dialog.get_message()
                 self.perform_revert_commit(sha, revert_message)
             else:
-                print(f"Cancelled revert {sha}.")
+                print(f"[commit] Cancelled revert {sha[:10]}.")
         except Exception as e:
+            print(f"[commit] Revert prepare FAILED: {e}")
             QMessageBox.critical(self, "Error", f"Could not prepare revert: {str(e)}")
 
     def perform_revert_commit(self, sha, revert_message):
@@ -211,10 +215,12 @@ class CommitOpsMixin:
         if not item:
             return
         sha = item.text().split()[0]
+        print(f"[commit] Viewing commit: {sha[:10]}")
         try:
             dialog = SingleCommitViewDialog(self.repo_path, sha, self.current_font_size, self, editable=True)
             self._open_viewer(dialog)
         except Exception as e:
+            print(f"[commit] View commit FAILED: {e}")
             QMessageBox.critical(self, "Error", f"Could not fetch commit diff: {str(e)}")
 
     def handle_create_patch(self, item):
@@ -224,6 +230,7 @@ class CommitOpsMixin:
         if not item:
             return
         sha = item.text().split()[0]
+        print(f"[commit] Creating patch for {sha[:10]}")
         subject = get_commit_subject(self.repo_path, sha) or ""
         slug = re.sub(r'[^A-Za-z0-9._-]+', '-', subject).strip('-').lower()[:40]
         default_name = f"{sha[:8]}-{slug}.patch" if slug else f"{sha[:8]}.patch"
@@ -231,6 +238,7 @@ class CommitOpsMixin:
             self, "Create Patch", default_name,
             "Patch files (*.patch);;All files (*)")
         if not save_path:
+            print(f"[commit] Patch creation cancelled")
             return
 
         try:
@@ -266,9 +274,11 @@ class CommitOpsMixin:
         if not item:
             return
         sha = item.text().split()[0]
+        print(f"[commit] Tagging commit: {sha[:10]}")
         from lib.dialogs import TagCommitDialog
         dlg = TagCommitDialog(sha, self)
         if dlg.exec() != QDialog.Accepted:
+            print(f"[commit] Tag creation cancelled")
             return
         tag_name = dlg.tag_name
         if not tag_name:
@@ -313,6 +323,7 @@ class CommitOpsMixin:
         if not sha:
             QMessageBox.critical(self, "Commit not found", f"'{ref}' is not a valid SHA or ref in this repository.")
             return
+        print(f"[commit] Viewing commit by SHA: {ref} → {sha[:10]}")
         try:
             files = get_commit_files_with_status(self.repo_path, sha)
             if not files:
