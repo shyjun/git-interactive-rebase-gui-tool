@@ -4,7 +4,7 @@ from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QLineEdit, QSplitter, QCheckBox, QToolButton, QMenu,
     QWidgetAction, QRadioButton, QGroupBox, QSizePolicy,
-    QStatusBar, QListWidgetItem, QTabWidget, QTextEdit, QPushButton,
+    QStatusBar, QListWidget, QListWidgetItem, QTabWidget, QTextEdit, QPushButton,
 )
 from lib.app_window.commit_list import CommitListWidget
 from lib.app_window.delegates import CommitItemDelegate
