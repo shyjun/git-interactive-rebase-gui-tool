@@ -470,26 +470,32 @@ class BlameDialog(QDialog):
             f.setBold(True)
             commit_item.setFont(f)
             commit_item.setToolTip(rec["sha"])
+            commit_item.setFlags(commit_item.flags() & ~Qt.TextWordWrap)
             self.table.setItem(row_idx, 0, commit_item)
 
             a = QTableWidgetItem(author)
             a.setForeground(colour)
+            a.setFlags(a.flags() & ~Qt.TextWordWrap)
             self.table.setItem(row_idx, 1, a)
 
             d = QTableWidgetItem(date)
             d.setForeground(colour)
+            d.setFlags(d.flags() & ~Qt.TextWordWrap)
             self.table.setItem(row_idx, 2, d)
 
             s = QTableWidgetItem(subject)
             s.setForeground(colour)
+            s.setFlags(s.flags() & ~Qt.TextWordWrap)
             self.table.setItem(row_idx, 3, s)
 
             li = QTableWidgetItem(line_no)
             li.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            li.setFlags(li.flags() & ~Qt.TextWordWrap)
             self.table.setItem(row_idx, 4, li)
 
             ci = QTableWidgetItem(code)
             ci.setFont(QFont("Monospace", self.current_font_size))
+            ci.setFlags(ci.flags() & ~Qt.TextWordWrap)
             self.table.setItem(row_idx, 5, ci)
 
         self.table.setColumnHidden(1, not self.show_author_cb.isChecked())
