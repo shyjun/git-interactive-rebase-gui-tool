@@ -98,17 +98,8 @@ from lib.widgets import (
 
 
 def open_blame_window(parent, filename, branch=None):
-    """Open the Blame viewer for *filename* at the given *branch*/ref.
-
-    Parameters
-    ----------
-    parent : QWidget
-        Parent widget (used to locate the repo_path and as dialog parent).
-    filename : str
-        Path of the file that was right-clicked.
-    branch : str | None, optional
-        Branch/SHA to blame at (default: HEAD).
-    """
+    ref = branch or "HEAD"
+    print(f"[blame] Opening blame viewer for '{filename}' at {ref}")
     repo_path = getattr(parent, "repo_path", None)
     if not repo_path:
         QMessageBox.critical(parent, "Error", "Repository path not available.")
@@ -427,10 +418,14 @@ class BlameDialog(QDialog):
     # ------------------------------------------------------------------
 
     def _load(self):
+        ref_str = self.ref or "HEAD"
+        print(f"[blame] Loading blame for '{self.filename}' at {ref_str} ...")
         from lib.git_helpers import get_git_blame
         try:
             self._records = get_git_blame(self.repo_path, self.filename, self.ref)
+            print(f"[blame] Loaded {len(self._records)} blame lines for '{self.filename}' at {ref_str}")
         except Exception as e:
+            print(f"[blame] Failed: {e}")
             QMessageBox.critical(self, "Blame failed", str(e))
             self._records = []
         self._assign_colors()
