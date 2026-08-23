@@ -384,13 +384,13 @@ class BranchDiffDialog(QDialog):
             return
         target_path = item.text()
         menu = QMenu(self)
-        copy_action = QAction("Copy filename to clipboard", self)
-        copy_action.triggered.connect(lambda checked=False, text=target_path: self.copy_filename_to_clipboard(text))
-        menu.addAction(copy_action)
-
         blame_action = QAction("Blame file", self)
         blame_action.triggered.connect(lambda checked=False, text=target_path: open_blame_window(self, text))
         menu.addAction(blame_action)
+
+        copy_action = QAction("Copy filename to clipboard", self)
+        copy_action.triggered.connect(lambda checked=False, text=target_path: self.copy_filename_to_clipboard(text))
+        menu.addAction(copy_action)
 
         menu.addSeparator()
         browse_action = QAction("Browse file log", self)
@@ -605,13 +605,13 @@ class SingleCommitViewDialog(QDialog):
         entry = item.data(FILE_ENTRY_ROLE)
         target_path = entry[2] if entry and entry[0] == 'R' else item.text()
         menu = QMenu(self)
-        copy_action = QAction("Copy filename to clipboard", self)
-        copy_action.triggered.connect(lambda checked=False, text=target_path: self.copy_filename_to_clipboard(text))
-        menu.addAction(copy_action)
-
         blame_action = QAction("Blame file", self)
         blame_action.triggered.connect(lambda checked=False, text=target_path: open_blame_window(self, text))
         menu.addAction(blame_action)
+
+        copy_action = QAction("Copy filename to clipboard", self)
+        copy_action.triggered.connect(lambda checked=False, text=target_path: self.copy_filename_to_clipboard(text))
+        menu.addAction(copy_action)
 
         if self.editable:
             is_only_file = self.filewise_file_list.count() <= 1
@@ -848,13 +848,13 @@ class FileWiseViewDialog(QDialog):
         entry = item.data(FILE_ENTRY_ROLE)
         target_path = entry[2] if entry and entry[0] == 'R' else item.text()
         menu = QMenu(self)
-        copy_action = QAction("Copy filename to clipboard", self)
-        copy_action.triggered.connect(lambda checked=False, text=target_path: self.copy_filename_to_clipboard(text))
-        menu.addAction(copy_action)
-
         blame_action = QAction("Blame file", self)
         blame_action.triggered.connect(lambda checked=False, text=target_path: open_blame_window(self, text))
         menu.addAction(blame_action)
+
+        copy_action = QAction("Copy filename to clipboard", self)
+        copy_action.triggered.connect(lambda checked=False, text=target_path: self.copy_filename_to_clipboard(text))
+        menu.addAction(copy_action)
         
         is_only_file = self.file_list.count() <= 1
 

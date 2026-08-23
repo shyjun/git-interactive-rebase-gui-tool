@@ -261,13 +261,13 @@ class SplitCommitDialog(QDialog):
         if not item:
             return
         menu = QMenu(self)
-        copy_action = QAction("Copy filename to clipboard", self)
-        copy_action.triggered.connect(lambda checked=False, text=item.text(): self.copy_filename_to_clipboard(text))
-        menu.addAction(copy_action)
-
         blame_action = QAction("Blame file", self)
         blame_action.triggered.connect(lambda checked=False, text=item.text(): open_blame_window(self, text))
         menu.addAction(blame_action)
+
+        copy_action = QAction("Copy filename to clipboard", self)
+        copy_action.triggered.connect(lambda checked=False, text=item.text(): self.copy_filename_to_clipboard(text))
+        menu.addAction(copy_action)
 
         move_action = QAction("Move file changes out of this commit", self)
         move_action.triggered.connect(lambda checked=False, text=item.text(): self.move_file_out(text))
@@ -437,13 +437,13 @@ class DropFileFromCommitDialog(QDialog):
         if not item:
             return
         menu = QMenu(self)
-        copy_action = QAction("Copy filename to clipboard", self)
-        copy_action.triggered.connect(lambda checked=False, text=item.text(): self.copy_filename_to_clipboard(text))
-        menu.addAction(copy_action)
-
         blame_action = QAction("Blame file", self)
         blame_action.triggered.connect(lambda checked=False, text=item.text(): open_blame_window(self, text))
         menu.addAction(blame_action)
+
+        copy_action = QAction("Copy filename to clipboard", self)
+        copy_action.triggered.connect(lambda checked=False, text=item.text(): self.copy_filename_to_clipboard(text))
+        menu.addAction(copy_action)
 
         drop_action = QAction("Drop file changes from this commit", self)
         drop_action.triggered.connect(lambda checked=False, text=item.text(): self.drop_file(text))
@@ -1166,13 +1166,13 @@ class RefineFileSelectDialog(SplitCommitDialog):
         if not item:
             return
         menu = QMenu(self)
-        copy_action = QAction("Copy filename to clipboard", self)
-        copy_action.triggered.connect(lambda checked=False, text=item.text(): self.copy_filename_to_clipboard(text))
-        menu.addAction(copy_action)
-
         blame_action = QAction("Blame file", self)
         blame_action.triggered.connect(lambda checked=False, text=item.text(): open_blame_window(self, text))
         menu.addAction(blame_action)
+
+        copy_action = QAction("Copy filename to clipboard", self)
+        copy_action.triggered.connect(lambda checked=False, text=item.text(): self.copy_filename_to_clipboard(text))
+        menu.addAction(copy_action)
 
         refine_action = QAction("Refine changes in selected file", self)
         refine_action.triggered.connect(lambda checked=False, text=item.text(): self.move_file_out(text))
