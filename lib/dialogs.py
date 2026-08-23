@@ -143,7 +143,7 @@ class BlameDialog(QDialog):
         if parent and hasattr(parent, "is_dark_theme"):
             self.is_dark_theme = parent.is_dark_theme
 
-        self.setWindowTitle(f"Browse Blame: {filename} (blame at {ref or 'HEAD'})")
+        self.setWindowTitle(f"Blame: {filename} (blame at {ref or 'HEAD'})")
         self.setMinimumSize(1100, 650)
 
         self._setup_ui()
