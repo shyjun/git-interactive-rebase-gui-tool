@@ -92,6 +92,10 @@ def open_blame_window(parent, filename, branch=None):
     if hasattr(parent, "browse_windows"):
         dlg._browse_windows_ref = parent.browse_windows
         parent.browse_windows.append(dlg)
+        offset = len(parent.browse_windows) * 30
+        if offset > 150:
+            offset = offset % 150
+        dlg.move(offset, offset)
     dlg.show()
     dlg.raise_()
     dlg.activateWindow()
