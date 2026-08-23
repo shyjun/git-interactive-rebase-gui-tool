@@ -32,8 +32,9 @@ class CherryPickMixin:
         if not self._check_no_unstaged_changes():
             return
 
-        cmd = ["git", "cherry-pick"]
         no_commit = dialog.chosen == "no_commit"
+        print(f"[cherry-pick] Cherry-picking {sha[:10]}, no_commit={no_commit}")
+        cmd = ["git", "cherry-pick"]
         if no_commit:
             cmd.append("--no-commit")
         cmd.append(sha)

@@ -46,6 +46,7 @@ class StashMixin:
         """Pop the app-created managed stash after a confirmation showing stash details."""
         if not self.app_managed_stash_sha:
             return
+        print(f"[stash] Pop managed stash: {self.app_managed_stash_sha[:10]}")
         status, _ = get_stash_status(self.repo_path, self.app_managed_stash_sha)
         if status == "ERROR":
             QMessageBox.critical(
@@ -98,6 +99,7 @@ class StashMixin:
         old_sha = self.app_managed_stash_sha
         if not old_sha:
             return
+        print(f"[stash] Merging into managed stash: {old_sha[:10]}")
         progress = ProgressDialog("Merging Stash", "Merging changes into app-created stash...", self)
         progress.show()
         QApplication.processEvents()
@@ -142,6 +144,7 @@ class StashMixin:
         if not self._check_head_unchanged():
             return
 
+        print(f"[stash] Opening selective commit dialog")
         try:
             unstaged_files = get_unstaged_files(self.repo_path, ignore_submodules=True)
             if not unstaged_files:

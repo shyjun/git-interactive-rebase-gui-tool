@@ -18,6 +18,9 @@ class InitMixin:
 
     def __init__(self, repo_path, commit_sha, app_start_time, base_branch=None, viewer_mode=False, browse_branch=None, parent=None, browse_limit=50, browse_file=None, browse_reflog=False, browse_stash=False, browse_file_ref=None, browse_tags=False, browse_tag=False):
         super().__init__(parent)
+        mode = "viewer" if viewer_mode else "browse" if (browse_branch or browse_file or browse_reflog or browse_stash or browse_tags) else "main"
+        print(f"[init] Creating window: mode={mode}, branch='{browse_branch}', file='{browse_file}', "
+              f"reflog={browse_reflog}, stash={browse_stash}, tags={browse_tags}, limit={browse_limit}")
         self.repo_path = repo_path
         self.commit_sha = commit_sha
         self.app_start_time = app_start_time
