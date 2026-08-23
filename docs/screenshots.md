@@ -954,9 +954,9 @@ For a cloned installation, the update refuses to run if the local clone has unco
 
 Open a per-line blame viewer for any file in a commit, with search, filtering, and commit inspection.
 
-**Screenshot:** `screenshots/browse-blame.webp`
+**Screenshot:** `screenshots/blame-a-file.webp`
 
-![Browse Blame](screenshots/browse-blame.webp)
+![Blame a file](screenshots/blame-a-file.webp)
 
 **Description:** Right-click a file in the **File-wise Diff** tab (or any file list context menu) and select **Blame file** to open a read-only blame viewer styled with a dimmed grey overlay (matching the other browse windows). The viewer shows a table with columns:
 
