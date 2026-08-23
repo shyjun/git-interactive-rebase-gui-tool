@@ -7585,7 +7585,7 @@ for i, filename in enumerate(files):
                     history = get_file_history(repo_path, filepath, limit=browse_limit, ref=file_ref)
                 elif stash:
                     history = get_stash_history(repo_path, limit=browse_limit)
-                    self._browse_load_result = (True, history, {})
+                    self._browse_load_result = (True, history, {}, {})
                     return
                 elif reflog:
                     history = get_reflog_history(repo_path, limit=browse_limit)
@@ -7604,7 +7604,7 @@ for i, filename in enumerate(files):
                 tag_map = get_tags_map(repo_path)
                 self._browse_load_result = (True, history, branch_map, tag_map)
             except Exception as e:
-                self._browse_load_result = (False, [], str(e))
+                self._browse_load_result = (False, [], str(e), {})
             finally:
                 self._browse_load_done = True
 
