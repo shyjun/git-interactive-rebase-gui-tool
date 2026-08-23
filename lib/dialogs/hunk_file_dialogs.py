@@ -87,15 +87,21 @@ def open_blame_window(parent, filename, branch=None):
         QMessageBox.critical(parent, "Error", "Repository path not available.")
         return
     font_size = getattr(parent, "current_font_size", 10)
-    dlg = BlameDialog(repo_path, filename, ref=branch, font_size=font_size)
+    dlg = BlameDialog(repo_path, filename, ref=branch, font_size=font_size, parent=parent)
     dlg.setAttribute(Qt.WA_DeleteOnClose)
     if hasattr(parent, "browse_windows"):
         dlg._browse_windows_ref = parent.browse_windows
         parent.browse_windows.append(dlg)
-        offset = len(parent.browse_windows) * 30
-        if offset > 150:
-            offset = offset % 150
-        dlg.move(offset, offset)
+    else:
+        root = parent
+        while root.parent():
+            root = root.parent()
+        if hasattr(root, "browse_windows"):
+            dlg._browse_windows_ref = root.browse_windows
+            root.browse_windows.append(dlg)
+        else:
+            root.browse_windows = [dlg]
+            dlg._browse_windows_ref = root.browse_windows
     dlg.show()
     dlg.raise_()
     dlg.activateWindow()
@@ -118,6 +124,7 @@ class BlameDialog(QDialog):
 
     def __init__(self, repo_path, filename, ref=None, font_size=10, parent=None):
         super().__init__(parent)
+        self.setWindowFlags(Qt.Window)
         self.repo_path = repo_path
         self.filename = filename
         self.ref = ref
@@ -389,12 +396,24 @@ class BlameDialog(QDialog):
                 return
 
             dlg = BlameDialog(self.repo_path, self.filename, ref=parent_sha,
-                              font_size=self.current_font_size)
+                              font_size=self.current_font_size, parent=self)
             dlg.setAttribute(Qt.WA_DeleteOnClose)
             if hasattr(self, "_browse_windows_ref"):
                 dlg._browse_windows_ref = self._browse_windows_ref
                 self._browse_windows_ref.append(dlg)
+            else:
+                root = self
+                while root.parent():
+                    root = root.parent()
+                if hasattr(root, "browse_windows"):
+                    dlg._browse_windows_ref = root.browse_windows
+                    root.browse_windows.append(dlg)
+                else:
+                    root.browse_windows = [dlg]
+                    dlg._browse_windows_ref = root.browse_windows
             dlg.show()
+            dlg.raise_()
+            dlg.activateWindow()
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not open blame before: {str(e)}")
 
