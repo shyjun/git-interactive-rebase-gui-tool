@@ -183,26 +183,21 @@ class BlameDialog(QDialog):
 
         self.search_opts_btn = QToolButton()
         self.search_opts_btn.setText("Search Options ▼")
-        self.search_opts_btn.setToolTip("Search across: Author, Subject, Code")
+        self.search_opts_btn.setToolTip("Search options: Match Case, Whole Word")
         self.search_opts_btn.setPopupMode(QToolButton.InstantPopup)
         self.search_opts_btn.setMinimumHeight(28)
         self.search_opts_btn.setStyleSheet("QToolButton::menu-indicator { image: none; width: 0px; }")
         opts_menu = QMenu(self)
-        self.filter_author_cb = QAction("Author", self)
-        self.filter_author_cb.setCheckable(True)
-        self.filter_author_cb.setChecked(True)
-        self.filter_subject_cb = QAction("Subject", self)
-        self.filter_subject_cb.setCheckable(True)
-        self.filter_subject_cb.setChecked(True)
-        self.filter_code_cb = QAction("Code", self)
-        self.filter_code_cb.setCheckable(True)
-        self.filter_code_cb.setChecked(True)
-        opts_menu.addAction(self.filter_author_cb)
-        opts_menu.addAction(self.filter_subject_cb)
-        opts_menu.addAction(self.filter_code_cb)
-        self.filter_author_cb.triggered.connect(self._apply_filter)
-        self.filter_subject_cb.triggered.connect(self._apply_filter)
-        self.filter_code_cb.triggered.connect(self._apply_filter)
+        self.match_case_action = QAction("Match Case", self)
+        self.match_case_action.setCheckable(True)
+        self.match_case_action.setChecked(False)
+        self.whole_word_action = QAction("Whole Word", self)
+        self.whole_word_action.setCheckable(True)
+        self.whole_word_action.setChecked(False)
+        opts_menu.addAction(self.match_case_action)
+        opts_menu.addAction(self.whole_word_action)
+        self.match_case_action.triggered.connect(self._apply_filter)
+        self.whole_word_action.triggered.connect(self._apply_filter)
         self.search_opts_btn.setMenu(opts_menu)
         search_row.addWidget(self.search_opts_btn)
 
@@ -498,17 +493,34 @@ class BlameDialog(QDialog):
     # ------------------------------------------------------------------
 
     def _get_filtered_records(self):
-        term = self.search_edit.text().strip().lower()
+        term = self.search_edit.text().strip()
         if not term:
             return self._records
 
+        case_sensitive = self.match_case_action.isChecked()
+        whole_word = self.whole_word_action.isChecked()
+
+        if not case_sensitive:
+            term = term.lower()
+
+        def _match(text):
+            if not text:
+                return False
+            if not case_sensitive:
+                text = text.lower()
+            if whole_word:
+                import re
+                pattern = re.compile(r'\b' + re.escape(term) + r'\b')
+                return bool(pattern.search(text))
+            return term in text
+
         hits = []
         for rec in self._records:
-            if self.filter_by_author_cb.isChecked() and term in rec.get("author", "").lower():
+            if self.filter_by_author_cb.isChecked() and _match(rec.get("author", "")):
                 hits.append(rec)
-            elif self.filter_by_subject_cb.isChecked() and term in rec.get("summary", "").lower():
+            elif self.filter_by_subject_cb.isChecked() and _match(rec.get("summary", "")):
                 hits.append(rec)
-            elif self.filter_by_code_cb.isChecked() and term in rec.get("code", "").lower():
+            elif self.filter_by_code_cb.isChecked() and _match(rec.get("code", "")):
                 hits.append(rec)
         return hits
 
