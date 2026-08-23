@@ -56,6 +56,7 @@ Visual documentation for the Git Interactive Rebase GUI Tool. Each section showc
 38. [Keyboard Shortcuts](#38-keyboard-shortcuts)
 39. [Update the Tool](#39-update-the-tool)
 40. [Tag Commit](#40-tag-commit)
+41. [Blame a file](#41-blame-a-file)
 
 ---
 
@@ -321,6 +322,7 @@ Browse a commit's changes file by file.
 Right-click a file in the file-wise file list for per-file actions:
 
 - **Copy filename to clipboard**
+- **Blame file** → Opens a read-only blame viewer (see [Blame a file](#41-blame-a-file))
 - **Browse file log** → opens a read-only viewer of that file's history
 
 When the viewer was opened from a commit in the current list (right-click **Show / View commit {sha}**, or double-click), the commit is known to be in the current branch, so history-modifying actions are also available:
@@ -330,7 +332,7 @@ When the viewer was opened from a commit in the current list (right-click **Show
 - **Remove file from this commit onwards**
 - **Refine/Edit changes in selected file**
 
-When the viewer was opened by SHA via **Repo → View a Commit…**, the commit may be arbitrary (even outside the current branch), so only the safe actions (**Copy filename**, **Browse file log**) are shown.
+When the viewer was opened by SHA via **Repo → View a Commit…**, the commit may be arbitrary (even outside the current branch), so only the safe actions (**Copy filename**, **Blame file**, **Browse file log**) are shown.
 
 ---
 
@@ -945,3 +947,30 @@ For a cloned installation, the update refuses to run if the local clone has unco
 ## 40. Tag Commit
 
 **Description:** Right-click a commit and select **Tag** to open the tagging dialog. Enter a tag name, optionally tick **Annotate** to create an annotated tag with a message, and click **Create Tag**. The new tag appears in the commit list when **Show Tags** is enabled (see [Configure Menu](#2-main-interface)). Both lightweight and annotated tags are supported.
+
+---
+
+## 41. Blame a file
+
+Open a per-line blame viewer for any file in a commit, with search, filtering, and commit inspection.
+
+**Screenshot:** `screenshots/browse-blame.webp`
+
+![Browse Blame](screenshots/browse-blame.webp)
+
+**Description:** Right-click a file in the **File-wise Diff** tab (or any file list context menu) and select **Blame file** to open a read-only blame viewer styled with a dimmed grey overlay (matching the other browse windows). The viewer shows a table with columns:
+
+- **Commit** — Short SHA (coloured dot, bold) — right-click for context menu
+- **Author** — Commit author (hideable via **Show Author** checkbox)
+- **Date** — Commit timestamp (hideable via **Show Date** checkbox)
+- **Subject** — Commit summary (hideable via **Show Subject** checkbox)
+- **Line** — Line number in the file
+- **Code** — Line content (monospace, same zoom level as the main window)
+
+Right-click any row to open the context menu:
+
+- **View commit** → Opens the same tabbed diff viewer (Plain + File-wise) as the main window
+- **Copy SHA to clipboard** → Copies the commit SHA
+- **Blame before this** → Opens a new blame window showing the file as it was in the parent commit (useful for seeing what changed in the blamed line's commit). Shows a friendly message if the file didn't exist before that commit.
+
+The bottom bar also includes **Always On Top**, **Show Author / Date / Subject** column toggles, **Refresh** (re-runs `git blame`), and **Exit**. The search bar supports filtering by **Author**, **Subject**, and **Code** via the **Search Options** dropdown.
