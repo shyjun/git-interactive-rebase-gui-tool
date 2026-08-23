@@ -79,6 +79,17 @@ from lib.widgets import (
 )
 
 
+def _find_main_window(widget):
+    """Walk up the widget tree to find the main application window."""
+    w = widget
+    while w:
+        from PySide6.QtWidgets import QMainWindow
+        if isinstance(w, QMainWindow):
+            return w
+        w = w.parent()
+    return widget
+
+
 def open_blame_window(parent, filename, branch=None):
     ref = branch or "HEAD"
     print(f"[blame] Opening blame viewer for '{filename}' at {ref}")
@@ -86,8 +97,12 @@ def open_blame_window(parent, filename, branch=None):
     if not repo_path:
         QMessageBox.critical(parent, "Error", "Repository path not available.")
         return
-    font_size = getattr(parent, "current_font_size", 10)
-    dlg = BlameDialog(repo_path, filename, ref=branch, font_size=font_size, parent=parent)
+    main_win = _find_main_window(parent)
+    font_size = getattr(main_win, "current_font_size", None) or getattr(parent, "current_font_size", None) or getattr(parent, "font_size", 10)
+    is_dark = getattr(main_win, "is_dark_theme", None)
+    if is_dark is None:
+        is_dark = getattr(parent, "is_dark_theme", False)
+    dlg = BlameDialog(repo_path, filename, ref=branch, font_size=font_size, parent=parent, is_dark_theme=is_dark)
     dlg.setAttribute(Qt.WA_DeleteOnClose)
     if hasattr(parent, "browse_windows"):
         dlg._browse_windows_ref = parent.browse_windows
@@ -122,7 +137,7 @@ class BlameDialog(QDialog):
         "#c586c0", "#ce9178", "#b5cea8", "#9cdcfe",
     ]
 
-    def __init__(self, repo_path, filename, ref=None, font_size=10, parent=None):
+    def __init__(self, repo_path, filename, ref=None, font_size=10, parent=None, is_dark_theme=None):
         super().__init__(parent)
         self.setWindowFlags(Qt.Window)
         self.repo_path = repo_path
@@ -133,10 +148,12 @@ class BlameDialog(QDialog):
         self._records = []
         self._sha_color = {}
         self._next_color_idx = 0
-        self.is_dark_theme = False
-
-        if parent and hasattr(parent, "is_dark_theme"):
+        if is_dark_theme is not None:
+            self.is_dark_theme = is_dark_theme
+        elif parent and hasattr(parent, "is_dark_theme"):
             self.is_dark_theme = parent.is_dark_theme
+        else:
+            self.is_dark_theme = False
 
         self.setWindowTitle(f"Blame: {filename} (blame at {ref or 'HEAD'})")
         self.setMinimumSize(1100, 650)
