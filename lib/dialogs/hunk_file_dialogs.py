@@ -163,7 +163,7 @@ class BlameDialog(QDialog):
         self._browse_overlay = BrowseDimOverlay(self, self.is_dark_theme)
         self._browse_overlay.raise_()
 
-        self._load()
+        QTimer.singleShot(0, self._load)
 
     def update_font(self):
         """Called when the parent window zooms in/out — updates table font."""
