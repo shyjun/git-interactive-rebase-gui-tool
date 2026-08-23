@@ -87,7 +87,7 @@ def open_blame_window(parent, filename, branch=None):
         QMessageBox.critical(parent, "Error", "Repository path not available.")
         return
     font_size = getattr(parent, "current_font_size", 10)
-    dlg = BlameDialog(repo_path, filename, ref=branch, font_size=font_size, parent=parent)
+    dlg = BlameDialog(repo_path, filename, ref=branch, font_size=font_size)
     dlg.setAttribute(Qt.WA_DeleteOnClose)
     if hasattr(parent, "browse_windows"):
         dlg._browse_windows_ref = parent.browse_windows
