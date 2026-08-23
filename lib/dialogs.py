@@ -400,7 +400,7 @@ class BlameDialog(QDialog):
             if check.returncode != 0:
                 QMessageBox.information(
                     self, "File not found",
-                    f"'{self.filename}' did not exist at commit {parent_sha[:8]}."
+                    f"'{self.filename}' did not exist before {sha[:8]}."
                 )
                 return
 
