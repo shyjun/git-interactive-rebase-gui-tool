@@ -264,6 +264,20 @@ class BlameDialog(QDialog):
         self.table.customContextMenuRequested.connect(self._show_table_context_menu)
         root.addWidget(self.table, 1)
 
+        # Progress overlay (shown during loading)
+        self._progress_bar = QProgressBar()
+        self._progress_bar.setRange(0, 0)
+        self._progress_bar.setFixedHeight(28)
+        self._progress_bar.setTextVisible(True)
+        self._progress_bar.setFormat("Loading blame…")
+        self._progress_bar.setStyleSheet(
+            "QProgressBar { text-align: center; font-size: 12px; "
+            "border: 1px solid gray; border-radius: 4px; background: #3c3c3c; color: white; }"
+            "QProgressBar::chunk { background: #569cd6; border-radius: 3px; }"
+        )
+        self._progress_bar.hide()
+        root.addWidget(self._progress_bar)
+
         # Bottom bar
         bottom_bar = QHBoxLayout()
         bottom_bar.setSpacing(12)
@@ -441,6 +455,9 @@ class BlameDialog(QDialog):
     def _load(self):
         ref_str = self.ref or "HEAD"
         print(f"[blame] Loading blame for '{self.filename}' at {ref_str} ...")
+        self._progress_bar.show()
+        self._progress_bar.setFormat(f"Loading blame for {self.filename} …")
+        QApplication.processEvents()
         from lib.git_helpers import get_git_blame
         try:
             self._records = get_git_blame(self.repo_path, self.filename, self.ref)
@@ -449,6 +466,7 @@ class BlameDialog(QDialog):
             print(f"[blame] Failed: {e}")
             QMessageBox.critical(self, "Blame failed", str(e))
             self._records = []
+        self._progress_bar.hide()
         self._assign_colors()
         self._refresh_table()
 
