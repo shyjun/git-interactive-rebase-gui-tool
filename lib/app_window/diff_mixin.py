@@ -1,6 +1,7 @@
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import QApplication, QListWidgetItem, QMessageBox, QMenu
+import os
 from lib.git_helpers import (
     get_commit_metadata_and_message, get_commit_diff,
     get_file_diff_only_in_commit, get_commit_files_with_status,
@@ -139,6 +140,10 @@ class DiffMixin:
         copy_action.triggered.connect(lambda checked=False, text=target_path: self.copy_filename_to_clipboard(text))
         menu.addAction(copy_action)
 
+        copy_fullpath_action = QAction("Copy fullpath to clipboard", self)
+        copy_fullpath_action.triggered.connect(lambda checked=False, text=target_path: self.copy_fullpath_to_clipboard(text))
+        menu.addAction(copy_fullpath_action)
+
         if not self.browse_mode:
             is_only_file = self.filewise_file_list.count() <= 1
 
@@ -201,6 +206,11 @@ class DiffMixin:
     def copy_filename_to_clipboard(self, filename):
         QApplication.clipboard().setText(filename)
         QMessageBox.information(self, "Copied", f"Copied '{filename}' to clipboard.")
+
+    def copy_fullpath_to_clipboard(self, filename):
+        fullpath = os.path.join(self.repo_path, filename)
+        QApplication.clipboard().setText(fullpath)
+        QMessageBox.information(self, "Copied", f"Copied '{fullpath}' to clipboard.")
 
     def on_filewise_file_selected(self, filepath):
         if not filepath:
