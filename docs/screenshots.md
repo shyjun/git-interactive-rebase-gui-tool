@@ -322,6 +322,7 @@ Browse a commit's changes file by file.
 Right-click a file in the file-wise file list for per-file actions:
 
 - **Copy filename to clipboard**
+- **Copy fullpath to clipboard** — copies the full repository path of the file
 - **Blame file** → Opens a read-only blame viewer (see [Blame a file](#41-blame-a-file))
 - **Browse file log** → opens a read-only viewer of that file's history
 
@@ -332,7 +333,7 @@ When the viewer was opened from a commit in the current list (right-click **Show
 - **Remove file from this commit onwards**
 - **Refine/Edit changes in selected file**
 
-When the viewer was opened by SHA via **Repo → View a Commit…**, the commit may be arbitrary (even outside the current branch), so only the safe actions (**Copy filename**, **Blame file**, **Browse file log**) are shown.
+When the viewer was opened by SHA via **Repo → View a Commit…**, the commit may be arbitrary (even outside the current branch), so only the safe actions (**Copy filename**, **Copy fullpath**, **Blame file**, **Browse file log**) are shown.
 
 ---
 
