@@ -33,9 +33,14 @@ class InitMixin:
         self.browse_stash = browse_stash
         self.browse_tags = browse_tags
         self.browse_tag = browse_tag
-        self.browse_mode = bool((browse_branch or browse_file or browse_reflog or browse_stash or browse_tags) and not cli_mode)
-        if (browse_branch or browse_file or browse_reflog or browse_stash or browse_tags) and not cli_mode:
+        self.browse_mode = bool(browse_branch or browse_file or browse_reflog or browse_stash or browse_tags)
+        if browse_branch or browse_file or browse_reflog or browse_stash or browse_tags:
             self.viewer_mode = True
+        if cli_mode:
+            self.viewer_mode = True
+            self.cli_mode = True
+        else:
+            self.cli_mode = False
         self.is_dark_theme = False  # refined in load_settings/apply_theme
         self.start_time_full_head = get_full_head_sha(self.repo_path)
         self.start_time_head = get_head_sha(self.repo_path)
@@ -216,6 +221,10 @@ class InitMixin:
                      f"{self.browse_limit}), path={self.repo_path}")
             self.setWindowTitle(title)
             return
+        if self.browse_branch and getattr(self, 'cli_mode', False):
+            title = f"git-interactive-rebase-gui-tool [VIEWER MODE] : branch={self.browse_branch} (read-only), path={self.repo_path}"
+            self.setWindowTitle(title)
+            return
         branch = get_current_branch(self.repo_path)
         mode_str = " [VIEWER MODE]" if self.viewer_mode else ""
         title = f"git-interactive-rebase-gui-tool{mode_str} : branch={branch}, path={self.repo_path}, app_start_time={app_time}"
@@ -291,16 +300,30 @@ class InitMixin:
         if not self.viewer_mode:
             return True
         highlight_button_temporarily(self.exit_viewer_mode_btn, blinks=5)
-        QMessageBox.information(
-            self,
-            "Viewer Mode",
-            "git-interactive-rebase-gui-tool is running in Viewer Mode.\n\n"
-            "Please press the 'Exit Viewer Mode' button or restart the tool without --viewer-mode "
-            "to perform history-modifying operations."
-        )
+        if getattr(self, 'cli_mode', False):
+            QMessageBox.information(
+                self,
+                "Viewer Mode",
+                "git-interactive-rebase-gui-tool is running in Viewer Mode.\n\n"
+                "This branch was opened in read-only mode with --branch. "
+                "History-modifying operations are not available.")
+        else:
+            QMessageBox.information(
+                self,
+                "Viewer Mode",
+                "git-interactive-rebase-gui-tool is running in Viewer Mode.\n\n"
+                "Please press the 'Exit Viewer Mode' button or restart the tool without --viewer-mode "
+                "to perform history-modifying operations."
+            )
         return False
 
     def handle_exit_viewer_mode(self):
+        if getattr(self, 'cli_mode', False):
+            QMessageBox.information(
+                self, "Viewer Mode",
+                "Cannot exit viewer mode when opened with --branch.\n\n"
+                "The branch was opened in read-only mode.")
+            return
         self.viewer_mode = False
         self.exit_viewer_mode_btn.setVisible(False)
         self.update_window_title()
