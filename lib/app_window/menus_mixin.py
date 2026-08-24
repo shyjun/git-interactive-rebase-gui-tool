@@ -75,6 +75,10 @@ class MenusMixin:
 
         menu.addSeparator()
 
+        self.external_tools_action = QAction("External tools", self)
+        self.external_tools_action.setToolTip("Configure external tool integrations.")
+        self.external_tools_action.triggered.connect(lambda *_: QMessageBox.information(self, "External tools", "Not implemented yet."))
+
         self.help_action = QAction("Help", self)
         self.help_action.setToolTip("Show usage help.")
         self.help_action.triggered.connect(lambda *_: self._show_help_dialog())
@@ -83,6 +87,7 @@ class MenusMixin:
         self.check_updates_action.setToolTip("Check for a newer version online.")
         self.check_updates_action.triggered.connect(lambda *_: self.handle_check_for_updates())
 
+        menu.addAction(self.external_tools_action)
         menu.addAction(self.help_action)
         menu.addAction(self.check_updates_action)
 
