@@ -404,7 +404,15 @@ class BlameDialog(QDialog):
                 QMessageBox.information(self, "No Files", f"Commit {sha[:10]} has no file changes to view.")
                 return
             from lib.dialogs import SingleCommitViewDialog
-            dlg = SingleCommitViewDialog(self.repo_path, sha, self.current_font_size, parent=self)
+            colors = None
+            w = self
+            while w:
+                from PySide6.QtWidgets import QMainWindow
+                if isinstance(w, QMainWindow) and hasattr(w, 'current_theme_colors'):
+                    colors = w.current_theme_colors
+                    break
+                w = w.parent()
+            dlg = SingleCommitViewDialog(self.repo_path, sha, self.current_font_size, parent=self, colors=colors)
             dlg.setAttribute(Qt.WA_DeleteOnClose)
             flags = (dlg.windowFlags() & ~Qt.Dialog) | Qt.Window
             dlg.setWindowFlags(flags)
