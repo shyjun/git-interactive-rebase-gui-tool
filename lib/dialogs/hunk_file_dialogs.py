@@ -239,6 +239,11 @@ class BlameDialog(QDialog):
         self.filter_by_code_cb.toggled.connect(self._apply_filter)
         search_row.addWidget(self.filter_by_code_cb)
 
+        self.filter_by_commit_cb = QCheckBox("Commit")
+        self.filter_by_commit_cb.setChecked(False)
+        self.filter_by_commit_cb.toggled.connect(self._apply_filter)
+        search_row.addWidget(self.filter_by_commit_cb)
+
         root.addLayout(search_row)
 
         # Table
@@ -592,7 +597,9 @@ class BlameDialog(QDialog):
 
         hits = []
         for rec in self._records:
-            if self.filter_by_author_cb.isChecked() and _match(rec.get("author", "")):
+            if self.filter_by_commit_cb.isChecked() and _match(rec.get("sha", "")):
+                hits.append(rec)
+            elif self.filter_by_author_cb.isChecked() and _match(rec.get("author", "")):
                 hits.append(rec)
             elif self.filter_by_subject_cb.isChecked() and _match(rec.get("summary", "")):
                 hits.append(rec)
@@ -605,10 +612,11 @@ class BlameDialog(QDialog):
         if query:
             case = self.match_case_action.isChecked()
             whole = self.whole_word_action.isChecked()
+            commit = self.filter_by_commit_cb.isChecked()
             author = self.filter_by_author_cb.isChecked()
             subject = self.filter_by_subject_cb.isChecked()
             code = self.filter_by_code_cb.isChecked()
-            print(f"[blame] Filter: '{query}' case={case} whole_word={whole} author={author} subject={subject} code={code}")
+            print(f"[blame] Filter: '{query}' case={case} whole_word={whole} commit={commit} author={author} subject={subject} code={code}")
         self._refresh_table()
 
 
