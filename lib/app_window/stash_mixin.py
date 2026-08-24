@@ -13,6 +13,7 @@ from lib.dialogs import (
     NewCommitMessageDialog, ProgressDialog,
 )
 from lib.app_window.helpers import highlight_button_temporarily
+from lib.app_window.split_utils import parse_hunks as _parse_hunks, rebuild_patch as _rebuild_patch
 
 
 class StashMixin:
@@ -272,7 +273,7 @@ class StashMixin:
             for f in checked:
                 diff_text = get_unstaged_file_diff(self.repo_path, f)
                 diff_by_file[f] = diff_text
-                hunks_by_file[f] = self._parse_hunks(diff_text)
+                hunks_by_file[f] = _parse_hunks(diff_text)
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not load diffs for hunk selection: {e}")
             return
@@ -306,7 +307,7 @@ class StashMixin:
                 if line.startswith("@@"):
                     break
                 header_lines.append(line)
-            patch_by_file[f] = self._rebuild_patch("\n".join(header_lines), hunks, kept)
+            patch_by_file[f] = _rebuild_patch("\n".join(header_lines), hunks, kept)
 
         # Checked files with no parseable hunks (e.g. binaries) are staged whole
         whole_files = [f for f in checked if not hunks_by_file.get(f)]
