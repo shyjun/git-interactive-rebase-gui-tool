@@ -249,7 +249,7 @@ class RescanMixin:
         # In browse mode, always reload via the async, limit-bounded loader so we
         # never block the GUI thread on an unlimited full-history scan (which hangs
         # on large repos like vim).
-        if self.browse_mode:
+        if self.browse_mode or self.browse_branch:
             self.load_browse_history_async()
             return
 

@@ -125,23 +125,16 @@ def main():
     commit_sha = args.commit_sha
     base_branch = None  # only set when auto-detected from branch base
     if args.branch:
-        # Explicit branch provided: find merge-base with that branch
+        # Explicit branch provided: open in browse mode for that branch
         try:
             if not branch_exists(repo_path, args.branch):
                 QMessageBox.critical(None, "Branch does not exist",
                     f"The branch '{args.branch}' does not exist in this repository.")
                 sys.exit(1)
             ref = normalize_branch_ref(repo_path, args.branch)
-            base_sha = get_merge_base(repo_path, ref)
-            if not base_sha:
-                QMessageBox.critical(None, "No merge-base",
-                    f"No merge-base found between HEAD and '{args.branch}'.")
-                sys.exit(1)
-            commit_sha = base_sha
-            base_branch = ref
-            print(f"Using --branch '{args.branch}': merge-base is {commit_sha[:8]}")
+            print(f"Using --branch '{args.branch}': browsing branch '{ref}'")
         except Exception as e:
-            QMessageBox.critical(None, "Error", f"Could not find merge-base with '{args.branch}': {e}")
+            QMessageBox.critical(None, "Error", f"Could not find branch '{args.branch}': {e}")
             sys.exit(1)
     elif not commit_sha:
         try:
@@ -269,7 +262,7 @@ def main():
             print("Exiting as requested by the user.")
             sys.exit(0)
 
-    window = GitInteractiveRebaseApp(repo_path, commit_sha, app_start_time, base_branch=base_branch, viewer_mode=args.viewer_mode)
+    window = GitInteractiveRebaseApp(repo_path, commit_sha, app_start_time, base_branch=base_branch, viewer_mode=args.viewer_mode, browse_branch=ref if args.branch else None, cli_mode=bool(args.branch))
     window.show()
     if created_stash_sha:
         window.app_managed_stash_sha = created_stash_sha
