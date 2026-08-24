@@ -40,6 +40,9 @@ from lib.git_helpers import (
     discard_changes,
     get_stash_status,
     STASH_NOTHING_STASHED,
+    branch_exists,
+    normalize_branch_ref,
+    get_merge_base,
     perform_self_update,
 )
 from lib.app_window import (
@@ -64,6 +67,7 @@ def main():
     parser.add_argument("--viewer-mode", action="store_true", help="Run in read-only viewer mode.")
     parser.add_argument("--update", action="store_true", help="Update the tool to the latest version and exit.")
     parser.add_argument("--version", action="store_true", help="Print the tool's version (short git id) and exit.")
+    parser.add_argument("--branch", type=str, help="Use the merge-base of HEAD and this branch as the starting point.")
     parser.add_argument("commit_sha", type=str, nargs="?", help="Starting commit SHA (optional, defaults to root)")
     args = parser.parse_args()
 
@@ -120,7 +124,26 @@ def main():
 
     commit_sha = args.commit_sha
     base_branch = None  # only set when auto-detected from branch base
-    if not commit_sha:
+    if args.branch:
+        # Explicit branch provided: find merge-base with that branch
+        try:
+            if not branch_exists(repo_path, args.branch):
+                QMessageBox.critical(None, "Branch does not exist",
+                    f"The branch '{args.branch}' does not exist in this repository.")
+                sys.exit(1)
+            ref = normalize_branch_ref(repo_path, args.branch)
+            base_sha = get_merge_base(repo_path, ref)
+            if not base_sha:
+                QMessageBox.critical(None, "No merge-base",
+                    f"No merge-base found between HEAD and '{args.branch}'.")
+                sys.exit(1)
+            commit_sha = base_sha
+            base_branch = ref
+            print(f"Using --branch '{args.branch}': merge-base is {commit_sha[:8]}")
+        except Exception as e:
+            QMessageBox.critical(None, "Error", f"Could not find merge-base with '{args.branch}': {e}")
+            sys.exit(1)
+    elif not commit_sha:
         try:
             print("No commit SHA provided. Detecting branch base...")
             base_sha, base_branch = get_branch_base_info(repo_path)
