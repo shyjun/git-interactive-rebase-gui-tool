@@ -406,7 +406,11 @@ class BlameDialog(QDialog):
             from lib.dialogs import SingleCommitViewDialog
             dlg = SingleCommitViewDialog(self.repo_path, sha, self.current_font_size, parent=self)
             dlg.setAttribute(Qt.WA_DeleteOnClose)
+            flags = (dlg.windowFlags() & ~Qt.Dialog) | Qt.Window
+            dlg.setWindowFlags(flags)
             dlg.show()
+            dlg.raise_()
+            dlg.activateWindow()
             print(f"[blame] SingleCommitViewDialog shown for {sha[:10]}")
         except Exception as e:
             print(f"[blame] ERROR: Could not open commit view: {e}")
