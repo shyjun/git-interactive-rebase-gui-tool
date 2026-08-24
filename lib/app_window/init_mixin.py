@@ -16,7 +16,7 @@ from lib.app_window.helpers import highlight_button_temporarily
 class InitMixin:
     """__init__, settings, and lifecycle methods for GitInteractiveRebaseApp."""
 
-    def __init__(self, repo_path, commit_sha, app_start_time, base_branch=None, viewer_mode=False, browse_branch=None, parent=None, browse_limit=50, browse_file=None, browse_reflog=False, browse_stash=False, browse_file_ref=None, browse_tags=False, browse_tag=False):
+    def __init__(self, repo_path, commit_sha, app_start_time, base_branch=None, viewer_mode=False, browse_branch=None, parent=None, browse_limit=50, browse_file=None, browse_reflog=False, browse_stash=False, browse_file_ref=None, browse_tags=False, browse_tag=False, cli_mode=False):
         super().__init__(parent)
         mode = "viewer" if viewer_mode else "browse" if (browse_branch or browse_file or browse_reflog or browse_stash or browse_tags) else "main"
         print(f"[init] Creating window: mode={mode}, branch='{browse_branch}', file='{browse_file}', "
@@ -33,8 +33,8 @@ class InitMixin:
         self.browse_stash = browse_stash
         self.browse_tags = browse_tags
         self.browse_tag = browse_tag
-        self.browse_mode = bool(browse_branch or browse_file or browse_reflog or browse_stash or browse_tags)
-        if browse_branch or browse_file or browse_reflog or browse_stash or browse_tags:
+        self.browse_mode = bool((browse_branch or browse_file or browse_reflog or browse_stash or browse_tags) and not cli_mode)
+        if (browse_branch or browse_file or browse_reflog or browse_stash or browse_tags) and not cli_mode:
             self.viewer_mode = True
         self.is_dark_theme = False  # refined in load_settings/apply_theme
         self.start_time_full_head = get_full_head_sha(self.repo_path)
@@ -210,7 +210,7 @@ class InitMixin:
                          f"{self.browse_limit}), path={self.repo_path}")
             self.setWindowTitle(title)
             return
-        if self.browse_branch:
+        if self.browse_branch and self.browse_mode:
             label = "Browse Tag" if self.browse_tag else "Browse Branch"
             title = (f"{label}: {self.browse_branch} (read-only, latest "
                      f"{self.browse_limit}), path={self.repo_path}")
