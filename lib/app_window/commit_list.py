@@ -16,6 +16,12 @@ class CommitListWidget(QListWidget):
             self.setDragDropMode(QListWidget.InternalMove)
         self.setUniformItemSizes(True)
 
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Escape and getattr(self.main_window, 'multi_select_mode', False):
+            self.main_window.exit_multi_select_mode()
+            return
+        super().keyPressEvent(event)
+
     def dropEvent(self, event):
         try:
             if getattr(self.main_window, "multi_select_mode", False):
