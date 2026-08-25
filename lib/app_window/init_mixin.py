@@ -348,3 +348,9 @@ class InitMixin:
 
         # Squash Options Visibility
         self.squash_group.setVisible(self.show_squash_options)
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Escape and getattr(self, 'multi_select_mode', False):
+            self.exit_multi_select_mode()
+            return
+        super().keyPressEvent(event)
