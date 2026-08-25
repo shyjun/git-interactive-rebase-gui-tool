@@ -3,8 +3,8 @@ import os
 import shlex
 import sys
 import re
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QColor
+from PySide6.QtCore import Qt, QTimer, QUrl
+from PySide6.QtGui import QColor, QDesktopServices
 from PySide6.QtWidgets import QApplication, QMessageBox, QMenu
 from PySide6.QtGui import QAction
 
@@ -84,9 +84,8 @@ def add_open_with_system_default_action(menu, target_path, parent):
     open_menu = menu.addMenu("Open")
     open_default_action = QAction("With System Default App", parent)
     open_default_action.triggered.connect(
-        lambda checked=False, filepath=target_path: QMessageBox.information(
-            parent, "Not Implemented",
-            f"Opening '{filepath}' with the system default app is not implemented yet."
+        lambda checked=False, filepath=target_path: QDesktopServices.openUrl(
+            QUrl.fromLocalFile(os.path.join(parent.repo_path, filepath))
         )
     )
     open_menu.addAction(open_default_action)
