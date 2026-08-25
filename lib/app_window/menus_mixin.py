@@ -478,6 +478,27 @@ class MenusMixin:
         consolidated_menu.addAction(set_start_action)
         consolidated_menu.addAction(diff_here_action)
         consolidated_menu.addAction(head_to_here_action)
+        consolidated_menu.addSeparator()
+
+        if self.consolidated_diff_start_sha:
+            start_short = self.consolidated_diff_start_sha[:8]
+            difftool_start_action = QAction(f"Git Difftool from {start_short} to Here", self)
+            difftool_start_action.triggered.connect(
+                lambda: self._run_difftool(self.consolidated_diff_start_sha, sha))
+        else:
+            difftool_start_action = QAction("Git Difftool from Start to Here", self)
+            difftool_start_action.setEnabled(False)
+
+        difftool_head_action = QAction("Git Difftool from HEAD to Here", self)
+        difftool_head_action.triggered.connect(
+            lambda: self._run_difftool(self.get_head_sha(), sha))
+
+        if self.multi_select_mode:
+            difftool_start_action.setEnabled(False)
+            difftool_head_action.setEnabled(False)
+
+        consolidated_menu.addAction(difftool_start_action)
+        consolidated_menu.addAction(difftool_head_action)
 
         menu.addSeparator()
         menu.addAction(copy_sha_action)
@@ -585,20 +606,8 @@ class MenusMixin:
             self.log_action(sha, "moved down", old_head, new_head)
             QMessageBox.information(self, "Success", "Commit moved successfully.")
 
-    def handle_difftool_selected(self):
-        """Run 'git difftool' between exactly two selected commits."""
-        selected_indices = [i for i in range(self.list_widget.count())
-                           if self.list_widget.item(i).checkState() == Qt.Checked]
-        if len(selected_indices) != 2:
-            QMessageBox.warning(
-                self, "Git Difftool",
-                "Exactly 2 commits must be selected to run git difftool.\n\n"
-                f"{len(selected_indices)} commit(s) selected.")
-            return
-
-        shas = [self.list_widget.item(i).text().split()[0] for i in selected_indices]
-        sha1, sha2 = shas[0], shas[1]
-
+    def _run_difftool(self, sha1, sha2):
+        """Show confirmation and run 'git difftool' between two SHAs."""
         box = QMessageBox(self)
         box.setWindowTitle("Git Difftool")
         box.setTextFormat(Qt.RichText)
@@ -621,3 +630,17 @@ class MenusMixin:
             )
         except Exception as e:
             QMessageBox.critical(self, "Git Difftool Failed", f"Could not run git difftool: {e}")
+
+    def handle_difftool_selected(self):
+        """Run 'git difftool' between exactly two selected commits."""
+        selected_indices = [i for i in range(self.list_widget.count())
+                           if self.list_widget.item(i).checkState() == Qt.Checked]
+        if len(selected_indices) != 2:
+            QMessageBox.warning(
+                self, "Git Difftool",
+                "Exactly 2 commits must be selected to run git difftool.\n\n"
+                f"{len(selected_indices)} commit(s) selected.")
+            return
+
+        shas = [self.list_widget.item(i).text().split()[0] for i in selected_indices]
+        self._run_difftool(shas[0], shas[1])
