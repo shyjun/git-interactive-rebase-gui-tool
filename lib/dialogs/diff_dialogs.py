@@ -96,7 +96,7 @@ from lib.widgets import (
     StatsItemDelegate,
 )
 from .hunk_file_dialogs import open_blame_window
-from lib.app_window.helpers import add_open_with_system_default_action
+from lib.app_window.helpers import add_open_with_system_default_action, is_editable_branch
 
 
 class DiffViewerDialog(QDialog):
@@ -616,7 +616,7 @@ class SingleCommitViewDialog(QDialog):
         copy_action.triggered.connect(lambda checked=False, text=target_path: self.copy_filename_to_clipboard(text))
         menu.addAction(copy_action)
 
-        if self.editable:
+        if self.editable and is_editable_branch(self):
             is_only_file = self.filewise_file_list.count() <= 1
 
             move_action = QAction("Move file changes out of this commit", self)
