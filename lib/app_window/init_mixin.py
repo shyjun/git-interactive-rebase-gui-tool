@@ -105,7 +105,7 @@ class InitMixin:
             self.load_history()
         self.update_rebase_buttons()
         self.list_widget.setFocus()
-        self.installEventFilter(self)
+        QApplication.instance().installEventFilter(self)
 
         if self.viewer_mode and not self.browse_mode:
             QTimer.singleShot(0, self._notify_viewer_mode)
