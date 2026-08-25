@@ -1,4 +1,5 @@
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QShortcut, QKeySequence
 from PySide6.QtWidgets import QListWidget, QMessageBox
 
 
@@ -15,12 +16,15 @@ class CommitListWidget(QListWidget):
             self.setDropIndicatorShown(True)
             self.setDragDropMode(QListWidget.InternalMove)
         self.setUniformItemSizes(True)
+        # QShortcut with ApplicationShortcut context intercepts ESC globally
+        # before any widget's keyPressEvent can consume it.
+        self.esc_shortcut = QShortcut(QKeySequence(Qt.Key_Escape), self)
+        self.esc_shortcut.setContext(Qt.ApplicationShortcut)
+        self.esc_shortcut.activated.connect(self._on_esc)
 
-    def keyPressEvent(self, event):
-        if event.key() == Qt.Key_Escape and getattr(self.main_window, 'multi_select_mode', False):
+    def _on_esc(self):
+        if getattr(self.main_window, 'multi_select_mode', False):
             self.main_window.exit_multi_select_mode()
-            return
-        super().keyPressEvent(event)
 
     def dropEvent(self, event):
         try:
