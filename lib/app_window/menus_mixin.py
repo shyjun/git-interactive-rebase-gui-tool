@@ -644,3 +644,14 @@ class MenusMixin:
 
         shas = [self.list_widget.item(i).text().split()[0] for i in selected_indices]
         self._run_difftool(shas[0], shas[1])
+
+    def handle_copy_selected_shas(self):
+        """Copy the SHAs of all selected commits to the clipboard in order."""
+        selected_indices = [i for i in range(self.list_widget.count())
+                           if self.list_widget.item(i).checkState() == Qt.Checked]
+        if not selected_indices:
+            QMessageBox.warning(self, "No commits selected", "No commits are selected.")
+            return
+        shas = [self.list_widget.item(i).text().split()[0] for i in selected_indices]
+        QApplication.clipboard().setText("\n".join(shas))
+        QMessageBox.information(self, "Copied", f"Copied {len(shas)} SHA(s) to clipboard.")
