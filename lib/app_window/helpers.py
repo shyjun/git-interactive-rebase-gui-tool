@@ -5,7 +5,8 @@ import sys
 import re
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QColor
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QMessageBox, QMenu
+from PySide6.QtGui import QAction
 
 PR_DIFF_SIZE_WARN_THRESHOLD = 200_000
 
@@ -76,6 +77,19 @@ def highlight_button_temporarily(button, duration_ms=3000, blinks=0, color=None)
 
     set_stylesheet(highlight)
     QTimer.singleShot(400, toggle)
+
+
+def add_open_with_system_default_action(menu, target_path, parent):
+    """Add 'Open > With System Default App' submenu before Blame in a context menu."""
+    open_menu = menu.addMenu("Open")
+    open_default_action = QAction("With System Default App", parent)
+    open_default_action.triggered.connect(
+        lambda checked=False, filepath=target_path: QMessageBox.information(
+            parent, "Not Implemented",
+            f"Opening '{filepath}' with the system default app is not implemented yet."
+        )
+    )
+    open_menu.addAction(open_default_action)
 
 
 def get_theme_stylesheet(theme_name):
