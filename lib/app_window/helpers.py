@@ -1,7 +1,9 @@
 import pathlib
 import os
 import shlex
+import subprocess
 import sys
+import tempfile
 import re
 from PySide6.QtCore import Qt, QTimer, QUrl
 from PySide6.QtGui import QColor, QDesktopServices
@@ -79,16 +81,48 @@ def highlight_button_temporarily(button, duration_ms=3000, blinks=0, color=None)
     QTimer.singleShot(400, toggle)
 
 
-def add_open_with_system_default_action(menu, target_path, parent):
-    """Add 'Open > With System Default App' submenu before Blame in a context menu."""
+def add_open_with_system_default_action(menu, target_path, parent, sha=None, repo_path=None):
+    """Add 'Open > With System Default App' submenu before Blame in a context menu.
+    If sha is provided, extracts the file content from that commit (for browsing
+    a different branch). Otherwise opens the file from the working tree."""
     open_menu = menu.addMenu("Open")
     open_default_action = QAction("With System Default App", parent)
-    open_default_action.triggered.connect(
-        lambda checked=False, filepath=target_path: QDesktopServices.openUrl(
-            QUrl.fromLocalFile(os.path.join(parent.repo_path, filepath))
+    if sha:
+        rp = repo_path or parent.repo_path
+        open_default_action.triggered.connect(
+            lambda checked=False, filepath=target_path, s=sha, r=rp: _open_file_from_commit(r, s, filepath, parent)
         )
-    )
+    else:
+        open_default_action.triggered.connect(
+            lambda checked=False, filepath=target_path: QDesktopServices.openUrl(
+                QUrl.fromLocalFile(os.path.join(parent.repo_path, filepath))
+            )
+        )
     open_menu.addAction(open_default_action)
+
+
+def _open_file_from_commit(repo_path, sha, filepath, parent):
+    """Extract a file from a specific commit to /tmp and open it."""
+    try:
+        result = subprocess.run(
+            ["git", "show", f"{sha}:{filepath}"],
+            cwd=repo_path, capture_output=True, text=True,
+            encoding='utf-8', errors='replace'
+        )
+        if result.returncode != 0:
+            QMessageBox.warning(
+                parent, "Open Failed",
+                f"Could not extract '{filepath}' from commit {sha[:8]}.\n\n{result.stderr}"
+            )
+            return
+        basename = os.path.basename(filepath)
+        tmp_dir = tempfile.mkdtemp(prefix="git-browse-")
+        tmp_path = os.path.join(tmp_dir, basename)
+        with open(tmp_path, 'w', encoding='utf-8') as f:
+            f.write(result.stdout)
+        QDesktopServices.openUrl(QUrl.fromLocalFile(tmp_path))
+    except Exception as e:
+        QMessageBox.warning(parent, "Open Failed", f"Could not open file: {e}")
 
 
 def is_editable_branch(parent):

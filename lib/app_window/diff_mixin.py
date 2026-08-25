@@ -133,7 +133,11 @@ class DiffMixin:
         entry = item.data(FILE_ENTRY_ROLE)
         target_path = entry[2] if entry and entry[0] == 'R' else item.text()
         menu = QMenu(self)
-        add_open_with_system_default_action(menu, target_path, self)
+        commit_sha = None
+        list_item = self.list_widget.currentItem()
+        if list_item:
+            commit_sha = list_item.text().split()[0]
+        add_open_with_system_default_action(menu, target_path, self, sha=commit_sha)
         blame_action = QAction("Blame file", self)
         blame_action.triggered.connect(lambda checked=False, text=target_path: open_blame_window(self, text))
         menu.addAction(blame_action)
