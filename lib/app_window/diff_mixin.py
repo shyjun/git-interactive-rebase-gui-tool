@@ -251,6 +251,11 @@ class DiffMixin:
 
     def handle_esc_shortcut(self):
         """Clear filter and focus when Esc is pressed."""
+        # 0. Exit multi-select mode if active
+        if getattr(self, 'multi_select_mode', False):
+            self.exit_multi_select_mode()
+            return
+
         # 1. Try to clear plain diff search if active and has content/focus
         if self.diff_tab_widget.currentIndex() == 0 and (self.plain_diff_search.search_input.text() or self.plain_diff_search.search_input.hasFocus()):
             self.plain_diff_search.escape_pressed()

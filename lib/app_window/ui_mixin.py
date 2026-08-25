@@ -636,6 +636,7 @@ class UIMixin:
         self.slash_shortcut.activated.connect(self.handle_slash_shortcut)
 
         self.esc_shortcut = QShortcut(QKeySequence("Esc"), self)
+        self.esc_shortcut.setContext(Qt.ApplicationShortcut)
         self.esc_shortcut.activated.connect(self.handle_esc_shortcut)
 
         self.f5_shortcut = QShortcut(QKeySequence("F5"), self)

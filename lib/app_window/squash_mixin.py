@@ -97,9 +97,7 @@ class SquashMixin:
 
     def enter_multi_select_mode(self):
         """Enters checkbox multi-select mode on the commit list."""
-        print("[dbg] enter_multi_select_mode() called")
         self.multi_select_mode = True
-        print(f"[dbg] multi_select_mode set to {self.multi_select_mode}")
         self._apply_multi_select_flags()
         self.list_widget.itemChanged.connect(self.on_multi_select_changed)
         self.multi_select_btn.setEnabled(False)
@@ -108,7 +106,6 @@ class SquashMixin:
         # Give the commit list keyboard focus so Space toggles the current
         # item's checkbox instead of falling onto a toolbar button (e.g. zoom).
         self.list_widget.setFocus()
-        print("[dbg] enter_multi_select_mode() complete")
 
     def _apply_multi_select_flags(self):
         """Adds checkable flags to the current list items and clears their checks.
@@ -127,8 +124,6 @@ class SquashMixin:
 
     def exit_multi_select_mode(self):
         """Exits checkbox multi-select mode and restores normal list behaviour."""
-        print("[dbg] exit_multi_select_mode() called")
-        print(f"[dbg] multi_select_mode was: {getattr(self, 'multi_select_mode', 'NOT SET')}")
         self.multi_select_mode = False
         try:
             self.list_widget.itemChanged.disconnect(self.on_multi_select_changed)
@@ -144,7 +139,6 @@ class SquashMixin:
         self.multi_select_btn.setEnabled(True)
         self.perform_action_btn.setEnabled(False)
         self.cancel_multi_btn.setEnabled(False)
-        print("[dbg] exit_multi_select_mode() complete")
 
     def on_multi_select_changed(self, changed_item):
         """Enables the 'Perform action' menu only when commits are checked."""
