@@ -584,3 +584,40 @@ class MenusMixin:
             new_head = self.get_head_sha()
             self.log_action(sha, "moved down", old_head, new_head)
             QMessageBox.information(self, "Success", "Commit moved successfully.")
+
+    def handle_difftool_selected(self):
+        """Run 'git difftool' between exactly two selected commits."""
+        selected_indices = [i for i in range(self.list_widget.count())
+                           if self.list_widget.item(i).checkState() == Qt.Checked]
+        if len(selected_indices) != 2:
+            QMessageBox.warning(
+                self, "Git Difftool",
+                "Exactly 2 commits must be selected to run git difftool.\n\n"
+                f"{len(selected_indices)} commit(s) selected.")
+            return
+
+        shas = [self.list_widget.item(i).text().split()[0] for i in selected_indices]
+        sha1, sha2 = shas[0], shas[1]
+
+        box = QMessageBox(self)
+        box.setWindowTitle("Git Difftool")
+        box.setTextFormat(Qt.RichText)
+        box.setText(
+            f"About to run:<br><br>"
+            f"<b>git difftool {sha1[:8]} {sha2[:8]}</b><br><br>"
+            f"This will open your configured difftool to compare the two commits."
+        )
+        box.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+        box.setDefaultButton(QMessageBox.Cancel)
+        if box.exec() != QMessageBox.Ok:
+            return
+
+        import subprocess
+        print(f"[difftool] Running: git difftool {sha1[:8]} {sha2[:8]}")
+        try:
+            subprocess.Popen(
+                ["git", "difftool", sha1, sha2],
+                cwd=self.repo_path
+            )
+        except Exception as e:
+            QMessageBox.critical(self, "Git Difftool Failed", f"Could not run git difftool: {e}")
