@@ -15,13 +15,14 @@ class CommitListWidget(QListWidget):
             self.setDropIndicatorShown(True)
             self.setDragDropMode(QListWidget.InternalMove)
         self.setUniformItemSizes(True)
+        self.viewport().installEventFilter(self)
 
-    def event(self, event):
+    def eventFilter(self, obj, event):
         if event.type() == QEvent.KeyPress and event.key() == Qt.Key_Escape:
             if getattr(self.main_window, 'multi_select_mode', False):
                 self.main_window.exit_multi_select_mode()
                 return True
-        return super().event(event)
+        return super().eventFilter(obj, event)
 
     def dropEvent(self, event):
         try:
