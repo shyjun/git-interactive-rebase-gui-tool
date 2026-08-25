@@ -9,6 +9,7 @@ from lib.git_helpers import (
 from lib.dialogs import (
     BrowseBranchDialog, BrowseCommitLogDialog, BrowseFileLogDialog,
     MergeBaseDialog, MergeBaseResultDialog, StashNoticeDialog,
+    OpenFileAtRefDialog,
 )
 
 # Lazy import to avoid circular dependency - GitInteractiveRebaseApp
@@ -475,3 +476,42 @@ class BrowseMixin:
             viewer.apply_theme("dark" if self.is_dark_theme else "light")
         self.browse_windows.append(viewer)
         viewer.show()
+
+    def handle_open_file_at_ref(self):
+        """Open a file at a specific commit/branch/tag using the system default app.
+        Shows a dialog to pick the ref and file, then extracts and opens it."""
+        dialog = OpenFileAtRefDialog(self.repo_path, parent=self)
+        if dialog.exec() != QDialog.Accepted:
+            return
+        filepath = dialog.selected_file
+        sha = dialog.resolved_sha
+        if not filepath or not sha:
+            return
+
+        print(f"[browse] Open file at ref: '{filepath}' at {sha[:8]}")
+
+        try:
+            import subprocess
+            import tempfile
+            from PySide6.QtCore import QUrl
+            from PySide6.QtGui import QDesktopServices
+
+            result = subprocess.run(
+                ["git", "show", f"{sha}:{filepath}"],
+                cwd=self.repo_path, capture_output=True, text=True,
+                encoding='utf-8', errors='replace'
+            )
+            if result.returncode != 0:
+                QMessageBox.critical(self, "Open Failed",
+                                     f"Could not extract '{filepath}' from {sha[:8]}.\n\n{result.stderr}")
+                return
+
+            basename = os.path.basename(filepath)
+            tmp_dir = tempfile.mkdtemp(prefix="git-open-")
+            tmp_path = os.path.join(tmp_dir, basename)
+            with open(tmp_path, 'w', encoding='utf-8') as f:
+                f.write(result.stdout)
+            QDesktopServices.openUrl(QUrl.fromLocalFile(tmp_path))
+            print(f"[browse] Opened '{filepath}' from {sha[:8]} via {tmp_path}")
+        except Exception as e:
+            QMessageBox.critical(self, "Open Failed", f"Could not open file: {e}")
