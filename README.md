@@ -89,7 +89,7 @@ A Python-based Git Interactive Rebase GUI tool to visually manage commit history
 | Shortcut | Action |
 |-----------|----------|
 | `/` | Focus the search bar |
-| `Esc` | Clear search / close dialog |
+| `Esc` | Clear search, close dialog, or exit multi-select mode |
 | `Ctrl+F` | Focus the diff search bar (available in every diff view) |
 | `Ctrl+Q` | Exit application |
 | `Ctrl+Z` | Undo last operation (disabled while editing text) |
