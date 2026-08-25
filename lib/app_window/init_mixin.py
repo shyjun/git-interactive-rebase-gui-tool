@@ -1,7 +1,7 @@
 import subprocess
 import time
 
-from PySide6.QtCore import Qt, QSettings, QTimer, QEvent
+from PySide6.QtCore import Qt, QSettings, QTimer
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QMainWindow, QApplication, QMessageBox
 
@@ -92,7 +92,6 @@ class InitMixin:
 
         self.setup_ui()
         self.restore_visibility_settings()
-        QApplication.instance().installEventFilter(self)
         self.load_settings()
 
         # Debounce timer for side diff updates
@@ -349,10 +348,3 @@ class InitMixin:
 
         # Squash Options Visibility
         self.squash_group.setVisible(self.show_squash_options)
-
-    def eventFilter(self, obj, event):
-        if event.type() == QEvent.KeyPress and event.key() == Qt.Key_Escape:
-            if getattr(self, 'multi_select_mode', False):
-                self.exit_multi_select_mode()
-                return True
-        return False
