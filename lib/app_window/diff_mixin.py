@@ -137,7 +137,8 @@ class DiffMixin:
         list_item = self.list_widget.currentItem()
         if list_item:
             commit_sha = list_item.text().split()[0]
-        is_head = commit_sha and commit_sha == self.get_head_sha()
+        head_sha = self.get_head_sha()
+        is_head = bool(commit_sha) and (commit_sha == head_sha or head_sha.startswith(commit_sha))
         add_open_with_system_default_action(menu, target_path, self, sha=commit_sha, is_head=is_head)
         blame_action = QAction("Blame file", self)
         blame_action.triggered.connect(lambda checked=False, text=target_path: open_blame_window(self, text))
