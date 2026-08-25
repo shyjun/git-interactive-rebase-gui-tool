@@ -1,9 +1,9 @@
 import subprocess
 import time
 
-from PySide6.QtCore import Qt, QSettings, QTimer, QEvent
+from PySide6.QtCore import Qt, QSettings, QTimer
 from PySide6.QtGui import QFont
-from PySide6.QtWidgets import QMainWindow, QApplication, QMessageBox
+from PySide6.QtWidgets import QMainWindow, QMessageBox
 
 from lib.git_helpers import (
     get_full_head_sha, get_head_sha, get_current_branch,
@@ -108,14 +108,6 @@ class InitMixin:
 
         if self.viewer_mode and not self.browse_mode:
             QTimer.singleShot(0, self._notify_viewer_mode)
-
-    def eventFilter(self, obj, event):
-        if event.type() == QEvent.KeyPress and event.key() == Qt.Key_Escape:
-            if getattr(self, 'multi_select_mode', False):
-                print(f"[esc] eventFilter on {obj.__class__.__name__}: EXITING multi-select")
-                self.exit_multi_select_mode()
-                return True
-        return super().eventFilter(obj, event)
 
     def _sk(self, key):
         """Scopes a settings key by window type so main and browse windows keep
