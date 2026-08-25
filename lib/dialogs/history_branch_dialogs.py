@@ -20,12 +20,8 @@ from PySide6.QtWidgets import (
     QTextEdit,
     QMessageBox,
     QApplication,
-    QListWidget,
-    QListWidgetItem,
-    QSplitter,
 )
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont
 
 from lib.git_helpers import get_branch_names, get_current_branch
 from lib.utils import get_theme_colors
@@ -504,8 +500,8 @@ class MergeBaseResultDialog(QDialog):
 
 class OpenFileAtRefDialog(QDialog):
     """Dialog to open a file at a specific commit/branch/tag.
-    User enters a SHA/branch/HEAD, browses the file list, and opens the
-    selected file with the system default application."""
+    User enters a SHA/branch/HEAD, types or browses for a file, and opens
+    it with the system default application."""
 
     def __init__(self, repo_path, parent=None):
         super().__init__(parent)
@@ -513,17 +509,16 @@ class OpenFileAtRefDialog(QDialog):
         self.selected_file = None
         self.resolved_sha = None
         self.setWindowTitle("Open File at Commit")
-        self.setMinimumSize(600, 500)
+        self.setMinimumWidth(550)
         self.setModal(True)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(15, 15, 15, 15)
-        layout.setSpacing(10)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(12)
 
-        # SHA / branch input
-        ref_layout = QHBoxLayout()
+        # SHA / branch / tag input
         ref_label = QLabel("Commit / Branch / Tag:")
-        ref_layout.addWidget(ref_label)
+        layout.addWidget(ref_label)
 
         self.ref_combo = QComboBox()
         self.ref_combo.setEditable(True)
@@ -531,42 +526,27 @@ class OpenFileAtRefDialog(QDialog):
         self.ref_combo.addItems(get_branch_names(self.repo_path))
         if self.ref_combo.lineEdit():
             self.ref_combo.lineEdit().setPlaceholderText("e.g. HEAD, main, abc1234, v1.0")
-        ref_layout.addWidget(self.ref_combo)
-        layout.addLayout(ref_layout)
+        layout.addWidget(self.ref_combo)
 
-        # Browse button
-        browse_btn = QPushButton("Browse Files")
-        browse_btn.setToolTip("List all files at the specified commit/branch/tag.")
-        browse_btn.clicked.connect(self._load_files)
-        layout.addWidget(browse_btn)
+        # File input
+        file_label = QLabel("File:")
+        layout.addWidget(file_label)
 
-        # Status label
-        self.status_label = QLabel("")
-        self.status_label.setStyleSheet("color: gray;")
-        layout.addWidget(self.status_label)
+        file_layout = QHBoxLayout()
+        self.file_edit = QLineEdit()
+        self.file_edit.setPlaceholderText("e.g. src/main.c, README.md")
+        file_layout.addWidget(self.file_edit)
 
-        # Search bar
-        search_layout = QHBoxLayout()
-        search_label = QLabel("Filter:")
-        search_layout.addWidget(search_label)
-        self.search_edit = QLineEdit()
-        self.search_edit.setPlaceholderText("Type to filter files...")
-        self.search_edit.textChanged.connect(self._filter_files)
-        search_layout.addWidget(self.search_edit)
-        layout.addLayout(search_layout)
-
-        # File list
-        self.file_list = QListWidget()
-        self.file_list.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.file_list.itemDoubleClicked.connect(self._on_open)
-        layout.addWidget(self.file_list)
+        browse_btn = QPushButton("Browse…")
+        browse_btn.setToolTip("List files at the selected commit and pick one.")
+        browse_btn.clicked.connect(self._browse_file)
+        file_layout.addWidget(browse_btn)
+        layout.addLayout(file_layout)
 
         # Buttons
         open_btn = QPushButton("Open with Default App")
         open_btn.setDefault(True)
-        open_btn.setEnabled(False)
         open_btn.clicked.connect(self._on_open)
-        self.open_btn = open_btn
 
         cancel_btn = QPushButton("Cancel")
         cancel_btn.clicked.connect(self.reject)
@@ -579,20 +559,76 @@ class OpenFileAtRefDialog(QDialog):
 
         self.ref_combo.setFocus()
 
-    def _load_files(self):
-        """List all files at the given ref using git ls-tree."""
+    def _browse_file(self):
+        """Show a file picker populated with files at the given ref."""
+        ref = self.ref_combo.currentText().strip()
+        if not ref:
+            QMessageBox.warning(self, "No ref", "Please enter a commit, branch, or tag first.")
+            return
+
+        try:
+            import subprocess
+            result = subprocess.run(
+                ["git", "ls-tree", "-r", "--name-only", ref],
+                cwd=self.repo_path, capture_output=True, text=True,
+                encoding='utf-8', errors='replace'
+            )
+            if result.returncode != 0:
+                QMessageBox.critical(self, "Invalid Ref",
+                                     f"'{ref}' does not resolve to a valid commit.\n\n{result.stderr}")
+                return
+            files = [f for f in result.stdout.strip().split('\n') if f.strip()]
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Could not list files: {e}")
+            return
+
+        # Simple selection dialog
+        from PySide6.QtWidgets import QDialog, QListWidget, QDialogButtonBox
+        pick = QDialog(self)
+        pick.setWindowTitle(f"Select file at {ref}")
+        pick.setMinimumSize(500, 400)
+        pick_layout = QVBoxLayout(pick)
+
+        search = QLineEdit()
+        search.setPlaceholderText("Type to filter…")
+        pick_layout.addWidget(search)
+
+        lst = QListWidget()
+        for f in files:
+            lst.addItem(f)
+        pick_layout.addWidget(lst)
+
+        def filter_list(text):
+            lst.clear()
+            term = text.lower()
+            for f in files:
+                if term in f.lower():
+                    lst.addItem(f)
+        search.textChanged.connect(filter_list)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.accepted.connect(pick.accept)
+        buttons.rejected.connect(pick.reject)
+        pick_layout.addWidget(buttons)
+
+        if pick.exec() == QDialog.Accepted and lst.currentItem():
+            self.file_edit.setText(lst.currentItem().text())
+
+    def _on_open(self):
+        """Resolve the ref and accept with the file path."""
+        filepath = self.file_edit.text().strip()
+        if not filepath:
+            QMessageBox.information(self, "No file", "Please enter or browse for a file.")
+            return
+
         ref = self.ref_combo.currentText().strip()
         if not ref:
             QMessageBox.warning(self, "No ref", "Please enter a commit, branch, or tag.")
             return
 
-        self.status_label.setText(f"Loading files at '{ref}'...")
-        self.file_list.clear()
-        QApplication.processEvents()
-
+        # Resolve ref to SHA
         try:
             import subprocess
-            # Resolve the ref to a full SHA
             result = subprocess.run(
                 ["git", "rev-parse", ref],
                 cwd=self.repo_path, capture_output=True, text=True,
@@ -600,49 +636,12 @@ class OpenFileAtRefDialog(QDialog):
             )
             if result.returncode != 0:
                 QMessageBox.critical(self, "Invalid Ref",
-                                     f"'{ref}' does not resolve to a valid commit.\n\n{result.stderr}")
-                self.status_label.setText("")
+                                     f"'{ref}' does not resolve.\n\n{result.stderr}")
                 return
             self.resolved_sha = result.stdout.strip()
-
-            # List all files at that commit
-            result = subprocess.run(
-                ["git", "ls-tree", "-r", "--name-only", ref],
-                cwd=self.repo_path, capture_output=True, text=True,
-                encoding='utf-8', errors='replace'
-            )
-            if result.returncode != 0:
-                QMessageBox.critical(self, "Error",
-                                     f"Could not list files.\n\n{result.stderr}")
-                self.status_label.setText("")
-                return
-
-            files = [f for f in result.stdout.strip().split('\n') if f.strip()]
-            self._all_files = files
-            for f in files:
-                self.file_list.addItem(f)
-
-            self.status_label.setText(f"{len(files)} files at '{ref}' ({self.resolved_sha[:8]})")
-            self.open_btn.setEnabled(True)
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to load files: {e}")
-            self.status_label.setText("")
-
-    def _filter_files(self, text):
-        """Filter the file list by the search text."""
-        if not hasattr(self, '_all_files'):
+            QMessageBox.critical(self, "Error", f"Could not resolve ref: {e}")
             return
-        self.file_list.clear()
-        term = text.lower()
-        for f in self._all_files:
-            if term in f.lower():
-                self.file_list.addItem(f)
 
-    def _on_open(self, *_):
-        """Open the selected file from the resolved commit."""
-        item = self.file_list.currentItem()
-        if not item:
-            QMessageBox.information(self, "No file selected", "Please select a file to open.")
-            return
-        self.selected_file = item.text()
+        self.selected_file = filepath
         self.accept()
