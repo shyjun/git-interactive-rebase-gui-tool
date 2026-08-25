@@ -81,13 +81,13 @@ def highlight_button_temporarily(button, duration_ms=3000, blinks=0, color=None)
     QTimer.singleShot(400, toggle)
 
 
-def add_open_with_system_default_action(menu, target_path, parent, sha=None, repo_path=None):
+def add_open_with_system_default_action(menu, target_path, parent, sha=None, repo_path=None, is_head=False):
     """Add 'Open > With System Default App' submenu before Blame in a context menu.
-    If sha is provided, extracts the file content from that commit (for browsing
-    a different branch). Otherwise opens the file from the working tree."""
+    If sha is provided and is_head is False, extracts the file content from that
+    commit (for browsing a different branch). Otherwise opens from the working tree."""
     open_menu = menu.addMenu("Open")
     open_default_action = QAction("With System Default App", parent)
-    if sha:
+    if sha and not is_head:
         rp = repo_path or parent.repo_path
         open_default_action.triggered.connect(
             lambda checked=False, filepath=target_path, s=sha, r=rp: _open_file_from_commit(r, s, filepath, parent)
@@ -123,6 +123,21 @@ def _open_file_from_commit(repo_path, sha, filepath, parent):
         QDesktopServices.openUrl(QUrl.fromLocalFile(tmp_path))
     except Exception as e:
         QMessageBox.warning(parent, "Open Failed", f"Could not open file: {e}")
+
+
+def _get_head_sha(repo_path):
+    """Get the current HEAD SHA for a repo."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=repo_path, capture_output=True, text=True,
+            encoding='utf-8', errors='replace'
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+    except Exception:
+        pass
+    return None
 
 
 def is_editable_branch(parent):
