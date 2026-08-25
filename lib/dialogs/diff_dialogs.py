@@ -96,7 +96,7 @@ from lib.widgets import (
     StatsItemDelegate,
 )
 from .hunk_file_dialogs import open_blame_window
-from lib.app_window.helpers import add_open_with_system_default_action, is_editable_branch
+from lib.app_window.helpers import add_open_with_system_default_action, is_editable_branch, _get_head_sha
 
 
 class DiffViewerDialog(QDialog):
@@ -385,7 +385,8 @@ class BranchDiffDialog(QDialog):
             return
         target_path = item.text()
         menu = QMenu(self)
-        add_open_with_system_default_action(menu, target_path, self, sha=self.end_sha)
+        add_open_with_system_default_action(menu, target_path, self, sha=self.end_sha,
+            is_head=self.end_sha == _get_head_sha(self.repo_path))
         blame_action = QAction("Blame file", self)
         blame_action.triggered.connect(lambda checked=False, text=target_path: open_blame_window(self, text))
         menu.addAction(blame_action)
@@ -607,7 +608,8 @@ class SingleCommitViewDialog(QDialog):
         entry = item.data(FILE_ENTRY_ROLE)
         target_path = entry[2] if entry and entry[0] == 'R' else item.text()
         menu = QMenu(self)
-        add_open_with_system_default_action(menu, target_path, self, sha=self.sha)
+        add_open_with_system_default_action(menu, target_path, self, sha=self.sha,
+            is_head=self.sha == _get_head_sha(self.repo_path))
         blame_action = QAction("Blame file", self)
         blame_action.triggered.connect(lambda checked=False, text=target_path: open_blame_window(self, text))
         menu.addAction(blame_action)
@@ -851,7 +853,8 @@ class FileWiseViewDialog(QDialog):
         entry = item.data(FILE_ENTRY_ROLE)
         target_path = entry[2] if entry and entry[0] == 'R' else item.text()
         menu = QMenu(self)
-        add_open_with_system_default_action(menu, target_path, self, sha=self.sha)
+        add_open_with_system_default_action(menu, target_path, self, sha=self.sha,
+            is_head=self.sha == _get_head_sha(self.repo_path))
         blame_action = QAction("Blame file", self)
         blame_action.triggered.connect(lambda checked=False, text=target_path: open_blame_window(self, text))
         menu.addAction(blame_action)
