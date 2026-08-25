@@ -105,7 +105,8 @@ class InitMixin:
             self.load_history()
         self.update_rebase_buttons()
         self.list_widget.setFocus()
-        self._multi_esc = QShortcut(QKeySequence(Qt.Key_Escape), self, Qt.ApplicationShortcut)
+        self._multi_esc = QShortcut(QKeySequence(Qt.Key_Escape), self)
+        self._multi_esc.setContext(Qt.ApplicationShortcut)
         self._multi_esc.activated.connect(self._on_esc)
 
         if self.viewer_mode and not self.browse_mode:
