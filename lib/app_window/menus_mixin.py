@@ -144,6 +144,10 @@ class MenusMixin:
         browse_stash_action.setToolTip("Open a read-only viewer of the repository's stash list.")
         browse_stash_action.triggered.connect(lambda *_: self.handle_browse_stash())
 
+        open_file_ref_action = QAction("Open File at Commit…", self)
+        open_file_ref_action.setToolTip("Browse and open a file at any commit, branch, or tag with the system default app.")
+        open_file_ref_action.triggered.connect(lambda *_: self.handle_open_file_at_ref())
+
         merge_base_action = QAction("Find Merge-base…", self)
         merge_base_action.setToolTip("Find the merge-base of the current branch and another branch.")
         merge_base_action.triggered.connect(lambda *_: self.handle_find_merge_base())
@@ -158,6 +162,7 @@ class MenusMixin:
         menu.addAction(browse_reflog_action)
         menu.addAction(browse_tags_action)
         menu.addAction(browse_stash_action)
+        menu.addAction(open_file_ref_action)
         menu.addAction(merge_base_action)
         return menu
 

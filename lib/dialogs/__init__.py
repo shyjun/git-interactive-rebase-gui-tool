@@ -36,6 +36,7 @@ from .history_branch_dialogs import (
     TagCommitDialog,
     MergeBaseDialog,
     MergeBaseResultDialog,
+    OpenFileAtRefDialog,
 )
 
 from .hunk_file_dialogs import (
