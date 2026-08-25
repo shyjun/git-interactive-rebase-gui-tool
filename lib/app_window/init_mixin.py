@@ -1,9 +1,9 @@
 import subprocess
 import time
 
-from PySide6.QtCore import Qt, QSettings, QTimer, QEvent
-from PySide6.QtGui import QFont
-from PySide6.QtWidgets import QMainWindow, QApplication, QMessageBox
+from PySide6.QtCore import Qt, QSettings, QTimer
+from PySide6.QtGui import QFont, QShortcut, QKeySequence
+from PySide6.QtWidgets import QMainWindow, QMessageBox
 
 from lib.git_helpers import (
     get_full_head_sha, get_head_sha, get_current_branch,
@@ -105,18 +105,15 @@ class InitMixin:
             self.load_history()
         self.update_rebase_buttons()
         self.list_widget.setFocus()
-        QApplication.instance().installEventFilter(self)
+        self._multi_esc = QShortcut(QKeySequence(Qt.Key_Escape), self, Qt.ApplicationShortcut)
+        self._multi_esc.activated.connect(self._on_esc)
 
         if self.viewer_mode and not self.browse_mode:
             QTimer.singleShot(0, self._notify_viewer_mode)
 
-    def eventFilter(self, obj, event):
-        if event.type() == QEvent.KeyPress and event.key() == Qt.Key_Escape:
-            if getattr(self, 'multi_select_mode', False):
-                print("[esc] QApp eventFilter: EXITING multi-select")
-                self.exit_multi_select_mode()
-                return True
-        return False
+    def _on_esc(self):
+        if getattr(self, 'multi_select_mode', False):
+            self.exit_multi_select_mode()
 
     def _sk(self, key):
         """Scopes a settings key by window type so main and browse windows keep
