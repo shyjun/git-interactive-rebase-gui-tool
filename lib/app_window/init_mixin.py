@@ -351,12 +351,15 @@ class InitMixin:
         self.squash_group.setVisible(self.show_squash_options)
 
     def setup_esc_shortcut(self):
-        """Install a global ESC shortcut that works even when child widgets have focus."""
-        from PySide6.QtGui import QKeySequence, QShortcut
-        esc = QShortcut(QKeySequence(Qt.Key_Escape), self)
-        esc.setContext(Qt.WindowShortcut)
-        esc.activated.connect(self._handle_esc)
+        """Install an application-level event filter for ESC to exit multi-select mode.
+        This works regardless of which child widget has focus."""
+        from PySide6.QtGui import QKeySequence
+        from PySide6.QtCore import QEvent
+        QApplication.instance().installEventFilter(self)
 
-    def _handle_esc(self):
-        if getattr(self, 'multi_select_mode', False):
-            self.exit_multi_select_mode()
+    def eventFilter(self, obj, event):
+        if event.type() == QEvent.KeyPress and event.key() == Qt.Key_Escape:
+            if getattr(self, 'multi_select_mode', False):
+                self.exit_multi_select_mode()
+                return True
+        return super().eventFilter(obj, event)
