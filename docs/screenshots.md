@@ -168,7 +168,7 @@ Access all commit actions via right-click menu.
 - Move Commit (up / down, or drag to reorder)
 - Split Commit (drop file change, move file out, split to separate commits)
 - Refine changes (hunk-level)
-- Consolidated Diff (set start, diff to here, diff HEAD to here)
+- Consolidated Diff (set start, diff to here, diff HEAD to here, git difftool)
 - Browse file log
 
 ---
@@ -191,6 +191,7 @@ The **Repo** button in the main window's toolbar groups the repository-wide tool
 - **Browse Log of a Commit** → Open a read-only history window for any commit SHA or ref, prompted with the number of commits to show (see [Browse Log of a Commit](#23-browse-log-of-a-commit))
 - **Browse Reflog** → Open a read-only window of the repository's HEAD reflog (see [Browse Reflog](#24-browse-reflog))
 - **Browse Stashes** → Open a read-only window of the repository's stash list (see [Browse Stashes](#25-browse-stashes))
+- **Open File at Commit…** → Browse and open a file at any commit, branch, or tag with the system default app. Enter a SHA/branch/tag, type or browse for a file, and open that version of the file (see [Open with System Default App](#92-file-wise-diff))
 - **Find Merge-base…** → Compute the merge-base between the current branch and another branch (see [Find Merge-base](#28-find-merge-base))
 
 ---
@@ -404,9 +405,10 @@ Enter multi-selection mode with the **Select multiple commits** button in the to
 - **Create patch(s) from selected commits** → Available when **1 or more** commits are checked. Opens a submenu with two options:
   - **Consolidated single patch** → Combines all selected commits into one unified-diff file (requires **2 or more** commits). A save dialog lets you choose the output file.
   - **Multiple patches** → Creates one format-patch file per commit in a chosen folder (requires **1 or more** commits). Each patch carries the commit's own message, so it round-trips through [Apply Patch](#30-apply-patch).
+- **Git Difftool (requires exactly 2 commits)** → Available when **exactly 2** commits are checked. Shows a confirmation dialog with the command, then runs `git difftool <sha1> <sha2>` to open your configured difftool.
 - **Drag to reorder** → In multi-select mode you can also click and drag the checked commits as a group to a new position. The checked commits must form one **adjacent (contiguous) block**; dragging works like the normal reorder drag (see [Reorder Commits](#13-reorder-commits)). A confirmation dialog shows the range being moved before it is applied.
 
-To leave selection mode without acting, click **Cancel multiple selection** (or use the context menu) to deselect everything and return to normal mode.
+To leave selection mode without acting, click **Cancel multiple selection** (or press `Esc`, or use the context menu) to deselect everything and return to normal mode.
 
 ---
 
@@ -788,6 +790,8 @@ Diff any range of history in one combined view.
 - **Set start commit** → Mark the selected commit as the range start
 - **Diff to here** → Show the combined diff from the start commit to the selected commit
 - **Diff HEAD to here** → Show the combined diff from HEAD down to the selected commit
+- **Git Difftool from \<start\> to Here** → Run `git difftool` between the start commit and the selected commit (disabled if no start SHA is set)
+- **Git Difftool from HEAD to Here** → Run `git difftool` between HEAD and the selected commit
 
 The result opens in a read-only combined view. You can also set the start commit by right-clicking **"Mark the selected from commit for consolidated diff"**.
 
@@ -917,7 +921,7 @@ Keyboard shortcuts for faster navigation and workflow.
 | Shortcut | Action |
 |----------|--------|
 | `/` | Focus the commit search bar |
-| `Esc` | Clear search, close dialogs, or exit search mode |
+| `Esc` | Clear search, close dialogs, exit search mode, or exit multi-select mode |
 | `Ctrl+F` | Focus the diff search bar (available in every diff view) |
 | `Ctrl+Q` | Exit the application |
 | `Ctrl+Z` | Undo the last operation (disabled while editing text) |
@@ -925,7 +929,7 @@ Keyboard shortcuts for faster navigation and workflow.
 
 **Notes:**
 
-- `Esc` behaves contextually and may close dialogs, clear filters, or exit search depending on the active view.
+- `Esc` behaves contextually and may close dialogs, clear filters, exit search, or exit multi-select mode depending on the active state.
 - `Ctrl+F` focuses the diff search bar, which is available in every diff view (see [Diff Search Bar](#8-diff-search-bar)).
 
 ---
