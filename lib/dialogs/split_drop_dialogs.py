@@ -43,7 +43,7 @@ from lib.widgets import (
 )
 from .hunk_file_dialogs import open_blame_window
 from .diff_viewer_dialog import DiffViewerDialog
-from lib.app_window.helpers import add_open_with_system_default_action
+from lib.app_window.helpers import add_open_with_system_default_action, is_editable_branch
 
 
 class SplitCommitDialog(QDialog):
@@ -193,9 +193,10 @@ class SplitCommitDialog(QDialog):
         copy_action.triggered.connect(lambda checked=False, text=item.text(): self.copy_filename_to_clipboard(text))
         menu.addAction(copy_action)
 
-        move_action = QAction("Move file changes out of this commit", self)
-        move_action.triggered.connect(lambda checked=False, text=item.text(): self.move_file_out(text))
-        menu.addAction(move_action)
+        if is_editable_branch(self):
+            move_action = QAction("Move file changes out of this commit", self)
+            move_action.triggered.connect(lambda checked=False, text=item.text(): self.move_file_out(text))
+            menu.addAction(move_action)
 
         menu.exec(self.file_list.mapToGlobal(pos))
 
@@ -370,13 +371,14 @@ class DropFileFromCommitDialog(QDialog):
         copy_action.triggered.connect(lambda checked=False, text=item.text(): self.copy_filename_to_clipboard(text))
         menu.addAction(copy_action)
 
-        drop_action = QAction("Drop file changes from this commit", self)
-        drop_action.triggered.connect(lambda checked=False, text=item.text(): self.drop_file(text))
-        menu.addAction(drop_action)
+        if is_editable_branch(self):
+            drop_action = QAction("Drop file changes from this commit", self)
+            drop_action.triggered.connect(lambda checked=False, text=item.text(): self.drop_file(text))
+            menu.addAction(drop_action)
 
-        remove_onwards_action = QAction("Remove file from this commit onwards", self)
-        remove_onwards_action.triggered.connect(lambda checked=False, text=item.text(): self.remove_file_onwards(text))
-        menu.addAction(remove_onwards_action)
+            remove_onwards_action = QAction("Remove file from this commit onwards", self)
+            remove_onwards_action.triggered.connect(lambda checked=False, text=item.text(): self.remove_file_onwards(text))
+            menu.addAction(remove_onwards_action)
 
         menu.exec(self.file_list.mapToGlobal(pos))
 
@@ -662,7 +664,8 @@ class RefineFileSelectDialog(SplitCommitDialog):
         copy_action.triggered.connect(lambda checked=False, text=item.text(): self.copy_filename_to_clipboard(text))
         menu.addAction(copy_action)
 
-        refine_action = QAction("Refine changes in selected file", self)
-        refine_action.triggered.connect(lambda checked=False, text=item.text(): self.move_file_out(text))
-        menu.addAction(refine_action)
+        if is_editable_branch(self):
+            refine_action = QAction("Refine changes in selected file", self)
+            refine_action.triggered.connect(lambda checked=False, text=item.text(): self.move_file_out(text))
+            menu.addAction(refine_action)
         menu.exec(self.file_list.mapToGlobal(pos))

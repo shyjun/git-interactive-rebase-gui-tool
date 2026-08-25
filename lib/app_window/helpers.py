@@ -91,6 +91,17 @@ def add_open_with_system_default_action(menu, target_path, parent):
     open_menu.addAction(open_default_action)
 
 
+def is_editable_branch(parent):
+    """Return True if the parent dialog's main window is on the checked-out branch.
+    Walks the widget tree to find the root main window and checks viewer_mode."""
+    widget = parent
+    while widget is not None:
+        if hasattr(widget, 'viewer_mode') and hasattr(widget, 'browse_mode'):
+            return not widget.viewer_mode
+        widget = widget.parent() if hasattr(widget, 'parent') else None
+    return True
+
+
 def get_theme_stylesheet(theme_name):
     if theme_name == "dark":
         return """

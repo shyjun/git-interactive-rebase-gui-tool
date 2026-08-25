@@ -146,7 +146,7 @@ class DiffMixin:
         copy_fullpath_action.triggered.connect(lambda checked=False, text=target_path: self.copy_fullpath_to_clipboard(text))
         menu.addAction(copy_fullpath_action)
 
-        if not self.browse_mode:
+        if not self.browse_mode and not self.viewer_mode:
             is_only_file = self.filewise_file_list.count() <= 1
 
             move_action = QAction("Move file changes out of this commit", self)
