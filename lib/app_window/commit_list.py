@@ -1,4 +1,4 @@
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QEvent
 from PySide6.QtWidgets import QListWidget, QMessageBox
 
 
@@ -15,6 +15,13 @@ class CommitListWidget(QListWidget):
             self.setDropIndicatorShown(True)
             self.setDragDropMode(QListWidget.InternalMove)
         self.setUniformItemSizes(True)
+
+    def event(self, event):
+        if event.type() == QEvent.KeyPress and event.key() == Qt.Key_Escape:
+            if getattr(self.main_window, 'multi_select_mode', False):
+                self.main_window.exit_multi_select_mode()
+                return True
+        return super().event(event)
 
     def dropEvent(self, event):
         try:
