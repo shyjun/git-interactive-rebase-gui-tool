@@ -184,8 +184,9 @@ class SplitCommitDialog(QDialog):
         if not item:
             return
         menu = QMenu(self)
+        head = _get_head_sha(self.repo_path)
         add_open_with_system_default_action(menu, item.text(), self, sha=self.sha,
-            is_head=self.sha == _get_head_sha(self.repo_path))
+            is_head=self.sha == head or head.startswith(self.sha))
         blame_action = QAction("Blame file", self)
         blame_action.triggered.connect(lambda checked=False, text=item.text(): open_blame_window(self, text))
         menu.addAction(blame_action)
@@ -363,8 +364,9 @@ class DropFileFromCommitDialog(QDialog):
         if not item:
             return
         menu = QMenu(self)
+        head = _get_head_sha(self.repo_path)
         add_open_with_system_default_action(menu, item.text(), self, sha=self.sha,
-            is_head=self.sha == _get_head_sha(self.repo_path))
+            is_head=self.sha == head or head.startswith(self.sha))
         blame_action = QAction("Blame file", self)
         blame_action.triggered.connect(lambda checked=False, text=item.text(): open_blame_window(self, text))
         menu.addAction(blame_action)
@@ -657,8 +659,9 @@ class RefineFileSelectDialog(SplitCommitDialog):
         if not item:
             return
         menu = QMenu(self)
+        head = _get_head_sha(self.repo_path)
         add_open_with_system_default_action(menu, item.text(), self, sha=self.sha,
-            is_head=self.sha == _get_head_sha(self.repo_path))
+            is_head=self.sha == head or head.startswith(self.sha))
         blame_action = QAction("Blame file", self)
         blame_action.triggered.connect(lambda checked=False, text=item.text(): open_blame_window(self, text))
         menu.addAction(blame_action)
