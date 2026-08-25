@@ -105,6 +105,8 @@ class SquashMixin:
         self.multi_select_btn.setEnabled(False)
         self.perform_action_btn.setEnabled(False)
         self.cancel_multi_btn.setEnabled(True)
+        # Install event filter directly on the list widget to catch ESC
+        self.list_widget.installEventFilter(self)
         # Give the commit list keyboard focus so Space toggles the current
         # item's checkbox instead of falling onto a toolbar button (e.g. zoom).
         self.list_widget.setFocus()
