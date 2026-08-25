@@ -16,8 +16,8 @@ class CommitListWidget(QListWidget):
             self.setDropIndicatorShown(True)
             self.setDragDropMode(QListWidget.InternalMove)
         self.setUniformItemSizes(True)
-        sc = QShortcut(QKeySequence(Qt.Key_Escape), main_window, context=Qt.ApplicationShortcut)
-        sc.activated.connect(self._on_esc_shortcut)
+        self._multi_esc = QShortcut(QKeySequence(Qt.Key_Escape), main_window, context=Qt.ApplicationShortcut)
+        self._multi_esc.activated.connect(self._on_esc_shortcut)
 
     def _on_esc_shortcut(self):
         if getattr(self.main_window, 'multi_select_mode', False):
