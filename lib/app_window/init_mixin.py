@@ -1,7 +1,7 @@
 import subprocess
 import time
 
-from PySide6.QtCore import Qt, QSettings, QTimer
+from PySide6.QtCore import Qt, QSettings, QTimer, QEvent
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QMainWindow, QApplication, QMessageBox
 
@@ -353,8 +353,6 @@ class InitMixin:
     def setup_esc_shortcut(self):
         """Install an application-level event filter for ESC to exit multi-select mode.
         This works regardless of which child widget has focus."""
-        from PySide6.QtGui import QKeySequence
-        from PySide6.QtCore import QEvent
         QApplication.instance().installEventFilter(self)
 
     def eventFilter(self, obj, event):
