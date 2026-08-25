@@ -105,7 +105,6 @@ class InitMixin:
             self.load_history()
         self.update_rebase_buttons()
         self.list_widget.setFocus()
-        QApplication.instance().installEventFilter(self)
 
         if self.viewer_mode and not self.browse_mode:
             QTimer.singleShot(0, self._notify_viewer_mode)
@@ -113,7 +112,7 @@ class InitMixin:
     def eventFilter(self, obj, event):
         if event.type() == QEvent.KeyPress and event.key() == Qt.Key_Escape:
             if getattr(self, 'multi_select_mode', False):
-                print("[esc] Application eventFilter caught ESC in multi-select mode")
+                print(f"[esc] eventFilter on {obj.__class__.__name__}: EXITING multi-select")
                 self.exit_multi_select_mode()
                 return True
         return super().eventFilter(obj, event)
