@@ -6,9 +6,11 @@ from .core import _parse_combined_log, _parse_reflog_records, _parse_stash_recor
 def get_git_history(repo_path, start_sha, end_sha, limit=None):
     """Fetches git history from *start_sha* (exclusive) down to *end_sha* inclusive.
 
-    Uses a single ``git log`` call with ``%x1f``-delimited fields and
-    ``%x1f%B%x1e`` body+record-separator so stats and full commit messages
-    are parsed in one pass (was previously two subprocess calls).
+    Uses a single ``git log`` call with ``%x1f``-delimited fields, ``%x1f%B%x1e``
+    body+record-separator, and ``%D`` decorator so stats, full commit messages,
+    and tag info are all parsed in one pass.
+
+    Returns (commits, tag_map) where tag_map maps commit sha to a list of tag names.
 
     Args:
         limit: optional max number of commits to return (``-n`` flag)."""
@@ -26,7 +28,7 @@ def get_git_history(repo_path, start_sha, end_sha, limit=None):
             else ["git", "log", sha_to]
         )
         log_cmd += [
-            "--format=%h%x1f%cd%x1f%an%x1f%s%x1f%P%x1f%B%x1e",
+            "--format=%h%x1f%cd%x1f%an%x1f%s%x1f%P%x1f%B%x1f%D%x1e",
             "--date=format:%d %b %Y",
             "--shortstat",
         ]
@@ -37,10 +39,10 @@ def get_git_history(repo_path, start_sha, end_sha, limit=None):
         return _parse_combined_log(result.stdout)
 
     try:
-        commits = _build(start_sha, end_sha)
+        commits, tag_map = _build(start_sha, end_sha)
         if not commits and start_sha != end_sha:
-            commits = _build(end_sha, start_sha)
-        return commits
+            commits, tag_map = _build(end_sha, start_sha)
+        return commits, tag_map
     except subprocess.CalledProcessError as e:
         raise Exception(f"Failed to fetch git history: {e.stderr}")
 
@@ -48,11 +50,11 @@ def get_git_history(repo_path, start_sha, end_sha, limit=None):
 def get_branch_history(repo_path, branch, limit=None):
     """Fetches a branch's history (commits reachable from its tip).
 
-    Uses the same single-pass combined format as get_git_history."""
+    Returns (commits, tag_map) like get_git_history."""
     try:
         log_cmd = [
             "git", "log", branch,
-            "--format=%h%x1f%cd%x1f%an%x1f%s%x1f%P%x1f%B%x1e",
+            "--format=%h%x1f%cd%x1f%an%x1f%s%x1f%P%x1f%B%x1f%D%x1e",
             "--date=format:%d %b %Y",
             "--shortstat"
         ]
@@ -66,13 +68,11 @@ def get_branch_history(repo_path, branch, limit=None):
 def get_file_history(repo_path, filepath, limit=None, ref=None):
     """Fetches the history of a single file (commits that touched it).
 
-    Uses ``git log --follow`` so the history persists across renames, and the
-    ``--shortstat`` stats reflect only that file's changes per commit.
-    Uses the same single-pass combined format as get_git_history."""
+    Returns (commits, tag_map) like get_git_history."""
     try:
         log_cmd = [
             "git", "log", "--follow",
-            "--format=%h%x1f%cd%x1f%an%x1f%s%x1f%P%x1f%B%x1e",
+            "--format=%h%x1f%cd%x1f%an%x1f%s%x1f%P%x1f%B%x1f%D%x1e",
             "--date=format:%d %b %Y",
             "--shortstat"
         ]

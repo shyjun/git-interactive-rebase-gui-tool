@@ -53,24 +53,17 @@ def _parse_log_records(stdout):
     return commits
 
 def _parse_combined_log(stdout):
-    """Parse ``git log --format=...%x1f%B%x1e --shortstat`` in one pass.
+    """Parse ``git log --format=...%x1f%B%x1f%D%x1e --shortstat`` in one pass.
 
-    Combines the old _parse_log_records + _attach_full_messages into a single
-    subprocess call.  Format fields are separated by ``\\x1f``; records are
-    terminated by ``\\x1e``; shortstat lines appear between records.
-
-    Chunk layout after splitting on ``\\x1e`` (for N commits):
-      chunk 0: ``sha\\x1fdate\\x1fauthor\\x1fsubject\\x1fparents\\x1fbody``
-      chunk 1..N-1: ``\\n\\n<shortstat for prev>\\n<next_sha>\\x1f...``
-      chunk N: ``\\n\\n<shortstat for last>``
-
-    The shortstat in chunk N belongs to the commit parsed from chunk N-1.
+    Returns (commits, tag_map) where tag_map maps commit sha to a list of tag
+    names extracted from the ``%D`` decorator field.
     """
     stat_re = re.compile(
         r'\s*\d+\s+files?\s+changed(?:,\s+(\d+)\s+insertions?\(\+\))?(?:,\s+(\d+)\s+deletions?\(-\))?'
     )
 
     commits = []
+    tag_map = {}
 
     chunks = stdout.split('\x1e')
 
@@ -102,21 +95,40 @@ def _parse_combined_log(stdout):
             continue
 
         # ---- we have format fields — this is a new commit ----
-        fields = post.split('\x1f')
-        # fields: [date, author, subject, parents, body…]
-        if len(fields) < 5:
+        # Split all \x1f-separated fields.  Format is:
+        #   sha (in pre) | date | author | subject | parents | body | decorate\x1e...
+        # So after splitting post on \x1f we get: [date, author, subject, parents, body, decorate\x1e...]
+        all_fields = post.split('\x1f')
+        if len(all_fields) < 5:
             continue
 
-        # SHA is the last token on the last line before the first \x1f
         sha = pre.strip().split('\n')[-1].strip()
         if not sha or len(sha) < 7:
             continue
 
-        date = fields[0].strip()
-        author = fields[1].strip()
-        subject = fields[2].strip()
-        parents = fields[3].strip()
-        body = '\x1f'.join(fields[4:]).strip()
+        date = all_fields[0].strip()
+        author = all_fields[1].strip()
+        subject = all_fields[2].strip()
+        parents = all_fields[3].strip()
+        # Body is field 4; may span multiple lines
+        body = all_fields[4].strip() if len(all_fields) > 4 else ""
+        # Decorate is field 5 (after body, before \x1e)
+        decorate = ""
+        if len(all_fields) > 5:
+            decorate = all_fields[5].split('\x1e')[0].strip().split('\n')[0].strip()
+
+        # Parse tags from decorate string
+        if decorate:
+            for part in decorate.split(','):
+                part = part.strip()
+                if part.startswith('tag: '):
+                    tag_map.setdefault(sha, []).append(part[5:])
+
+        # Attach the stat extracted from this chunk's leading lines to the
+        # PREVIOUS commit (chunk N's stat belongs to chunk N-1's commit).
+        if commits and (added + deleted > 0):
+            commits[-1]["added"] = added
+            commits[-1]["deleted"] = deleted
 
         commits.append({
             "sha": sha,
@@ -124,18 +136,12 @@ def _parse_combined_log(stdout):
             "author": author,
             "message": body if body else subject,
             "parents": parents,
-            "added": 0,  # filled from next chunk's pending_stat
+            "added": 0,
             "deleted": 0,
             "raw_text": f"{sha} {subject}",
         })
 
-        # Now attach the stat extracted above to the *previous* commit
-        # (chunk N's leading stat belongs to the commit parsed in chunk N-1)
-        if len(commits) > 1 and (added + deleted > 0):
-            commits[-2]["added"] = added
-            commits[-2]["deleted"] = deleted
-
-    return commits
+    return commits, tag_map
 
 
 def _attach_full_messages(repo_path, commits, log_cmd):
