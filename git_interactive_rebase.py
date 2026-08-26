@@ -124,6 +124,7 @@ def main():
 
     commit_sha = args.commit_sha
     base_branch = None  # only set when auto-detected from branch base
+    detect_base = False  # True when no args → async base detection after window opens
     if args.branch:
         # Explicit branch provided: open in browse mode for that branch
         try:
@@ -137,19 +138,12 @@ def main():
             QMessageBox.critical(None, "Error", f"Could not find branch '{args.branch}': {e}")
             sys.exit(1)
     elif not commit_sha:
-        try:
-            print("No commit SHA provided. Detecting branch base...")
-            base_sha, base_branch = get_branch_base_info(repo_path)
-            if base_sha:
-                commit_sha = base_sha
-                print(f"Detected branch base: {commit_sha} (looks like it branched out from '{base_branch}', showing commits since that point)")
-            else:
-                print("Could not detect branch base. Falling back to recent history limit (HEAD~200)...")
-                commit_sha = get_recent_history_start(repo_path, count=200)
-                print(f"Defaulting to recent history: {commit_sha}")
-        except Exception as e:
-            QMessageBox.critical(None, "Error", f"Could not find start commit: {e}")
-            sys.exit(1)
+        # No SHA provided: show recent history immediately; detect base in
+        # background but only use it if the range is <= 200 commits.
+        print("No commit SHA provided. Will detect branch base after window opens.")
+        base_sha = get_recent_history_start(repo_path, count=200)
+        commit_sha = base_sha
+        detect_base = True
     else:
         # Resolve the provided SHA/ref (like HEAD^^^^) to a concrete static SHA-1 hash.
         # This is critical so the base doesn't drift when the rebase rewrites HEAD!
@@ -262,7 +256,7 @@ def main():
             print("Exiting as requested by the user.")
             sys.exit(0)
 
-    window = GitInteractiveRebaseApp(repo_path, commit_sha, app_start_time, base_branch=base_branch, viewer_mode=args.viewer_mode, browse_branch=ref if args.branch else None, cli_mode=bool(args.branch))
+    window = GitInteractiveRebaseApp(repo_path, commit_sha, app_start_time, base_branch=base_branch, viewer_mode=args.viewer_mode, browse_branch=ref if args.branch else None, cli_mode=bool(args.branch), auto_detect_base=detect_base)
     window.show()
     if created_stash_sha:
         window.app_managed_stash_sha = created_stash_sha

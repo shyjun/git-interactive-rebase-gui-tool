@@ -439,6 +439,57 @@ class RescanMixin:
             self.update_side_diff()
         self._refresh_history_load()
 
+    def _detect_base_async(self):
+        """Detect branch base in background thread, then reload if range <= 200."""
+        import threading
+        repo_path = self.repo_path
+
+        def worker():
+            try:
+                from lib.git_helpers import get_branch_base_info
+                base_sha, branch_name = get_branch_base_info(repo_path)
+                if not base_sha:
+                    print("[detect_base] No base detected, keeping fallback range")
+                    from PySide6.QtCore import QMetaObject, Qt, Q_ARG
+                    QMetaObject.invokeMethod(
+                        self, "_apply_detected_base",
+                        Qt.QueuedConnection,
+                        Q_ARG(str, ""), Q_ARG(str, ""), Q_ARG(int, 0)
+                    )
+                    return
+                # Count commits in the detected range
+                import subprocess
+                count_out = subprocess.check_output(
+                    ["git", "rev-list", "--count", f"{base_sha}..HEAD"],
+                    cwd=repo_path, encoding='utf-8', errors='replace'
+                ).strip()
+                count = int(count_out)
+                print(f"[detect_base] Detected base: {base_sha[:8]} (branch={branch_name}, {count} commits)")
+                from PySide6.QtCore import QMetaObject, Qt, Q_ARG
+                QMetaObject.invokeMethod(
+                    self, "_apply_detected_base",
+                    Qt.QueuedConnection,
+                    Q_ARG(str, base_sha), Q_ARG(str, branch_name), Q_ARG(int, count)
+                )
+            except Exception as e:
+                print(f"[detect_base] Error: {e}")
+
+        print("[detect_base] Starting async branch-base detection...")
+        thread = threading.Thread(target=worker, daemon=True)
+        thread.start()
+
+    @Slot(str, str, int)
+    def _apply_detected_base(self, base_sha, branch_name, commit_count):
+        """Apply the detected branch base only if range <= 200 commits."""
+        if not base_sha or commit_count > 200:
+            if base_sha:
+                print(f"[detect_base] Range too large ({commit_count} > 200), keeping 200 fallback")
+            return
+        self.commit_sha = base_sha
+        self.base_branch = branch_name
+        print(f"[detect_base] Reloading history with base: {base_sha[:8]} (branch={branch_name})")
+        self.load_history()
+
     def _count_total_commits_async(self):
         """Count total commits in repo in background thread to avoid blocking startup."""
         import threading
