@@ -2,7 +2,7 @@ from PySide6.QtCore import Qt, QPoint
 from PySide6.QtGui import QFont, QAction
 from PySide6.QtWidgets import QApplication, QMessageBox, QMenu
 from lib.git_helpers import get_commit_files
-from lib.app_window.helpers import MATCH_ROLE
+from lib.app_window.helpers import MATCH_ROLE, add_open_with_system_default_action
 
 
 class MenusMixin:
@@ -196,6 +196,11 @@ class MenusMixin:
 
         menu = QMenu()
         menu.setFont(QFont("Monospace", max(8, self.current_font_size - 2)))
+
+        if self.browse_file:
+            sha = item.text().split()[0]
+            add_open_with_system_default_action(menu, self.browse_file, self, sha=sha, is_head=False)
+            menu.addSeparator()
 
         copy_sha_action = QAction("Copy SHA to clipboard", self)
         copy_msg_action = QAction("Copy commit msg to clipboard", self)
