@@ -141,7 +141,7 @@ class DiffMixin:
         is_head = bool(commit_sha) and (commit_sha == head_sha or head_sha.startswith(commit_sha))
         add_open_with_system_default_action(menu, target_path, self, sha=commit_sha, is_head=is_head)
         blame_action = QAction("Blame file", self)
-        blame_action.triggered.connect(lambda checked=False, text=target_path: open_blame_window(self, text))
+        blame_action.triggered.connect(lambda checked=False, text=target_path: open_blame_window(self, text, branch=commit_sha))
         menu.addAction(blame_action)
 
         copy_action = QAction("Copy filename to clipboard", self)

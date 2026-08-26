@@ -389,7 +389,7 @@ class BranchDiffDialog(QDialog):
         add_open_with_system_default_action(menu, target_path, self, sha=self.end_sha,
             is_head=self.end_sha == head or head.startswith(self.end_sha))
         blame_action = QAction("Blame file", self)
-        blame_action.triggered.connect(lambda checked=False, text=target_path: open_blame_window(self, text))
+        blame_action.triggered.connect(lambda checked=False, text=target_path: open_blame_window(self, text, branch=self.end_sha))
         menu.addAction(blame_action)
 
         copy_action = QAction("Copy filename to clipboard", self)
@@ -613,7 +613,7 @@ class SingleCommitViewDialog(QDialog):
         add_open_with_system_default_action(menu, target_path, self, sha=self.sha,
             is_head=self.sha == head or head.startswith(self.sha))
         blame_action = QAction("Blame file", self)
-        blame_action.triggered.connect(lambda checked=False, text=target_path: open_blame_window(self, text))
+        blame_action.triggered.connect(lambda checked=False, text=target_path: open_blame_window(self, text, branch=self.end_sha))
         menu.addAction(blame_action)
 
         copy_action = QAction("Copy filename to clipboard", self)
@@ -859,7 +859,7 @@ class FileWiseViewDialog(QDialog):
         add_open_with_system_default_action(menu, target_path, self, sha=self.sha,
             is_head=self.sha == head or head.startswith(self.sha))
         blame_action = QAction("Blame file", self)
-        blame_action.triggered.connect(lambda checked=False, text=target_path: open_blame_window(self, text))
+        blame_action.triggered.connect(lambda checked=False, text=target_path: open_blame_window(self, text, branch=self.end_sha))
         menu.addAction(blame_action)
 
         copy_action = QAction("Copy filename to clipboard", self)
