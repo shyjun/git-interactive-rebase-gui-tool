@@ -26,6 +26,7 @@ def _parse_blame_porcelain(stdout):
                 "author_time": 0,
                 "author_tz": "",
                 "summary": "",
+                "filename": "",
                 "code": "",
             }
             continue
@@ -44,6 +45,8 @@ def _parse_blame_porcelain(stdout):
             current["author_tz"] = raw_line[len("author-tz "):]
         elif raw_line.startswith("summary "):
             current["summary"] = raw_line[len("summary "):]
+        elif raw_line.startswith("filename "):
+            current["filename"] = raw_line[len("filename "):]
         elif raw_line.startswith("\t"):
             current["code"] = raw_line[1:]
 
