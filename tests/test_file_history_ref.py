@@ -40,7 +40,7 @@ class TestGetFileHistoryRef(unittest.TestCase):
                        capture_output=True, text=True)
 
     def _subjects(self, entries):
-        return [e["message"] for e in entries]
+        return [e["message"] for e in entries[0]]
 
     def test_ref_scopes_to_branch(self):
         master = self._subjects(get_file_history(self.repo, "f.txt", ref="master"))
