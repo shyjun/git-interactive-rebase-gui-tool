@@ -31,6 +31,7 @@ from PySide6.QtCore import (
     Qt,
     QTimer,
     QEvent,
+    QSettings,
 )
 # pyrefly: ignore [missing-import]
 from PySide6.QtGui import (
@@ -132,7 +133,21 @@ class BlameDialog(QDialog):
         self.setMinimumSize(1100, 650)
         print(f"[blame] BlameDialog created: '{self.windowTitle()}', parent={type(parent).__name__ if parent else 'None'}")
 
+        # Restore saved geometry
+        self._settings = QSettings("shyjun", "GitInteractiveRebase")
+        geometry = self._settings.value("blame/geometry")
+        if geometry:
+            self.restoreGeometry(geometry)
+        else:
+            self.resize(1100, 650)
+
         self._setup_ui()
+
+        # Keyboard shortcuts (consistent with main app)
+        from PySide6.QtGui import QShortcut, QKeySequence
+        QShortcut(QKeySequence("/"), self).activated.connect(self._focus_search)
+        QShortcut(QKeySequence("Esc"), self).activated.connect(self._clear_search)
+        QShortcut(QKeySequence("F5"), self).activated.connect(self._load)
 
         self._browse_overlay = BrowseDimOverlay(self, self.is_dark_theme)
         self._browse_overlay.raise_()
@@ -241,6 +256,7 @@ class BlameDialog(QDialog):
         self.table.horizontalHeader().setFont(font)
         self.table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.table.customContextMenuRequested.connect(self._show_table_context_menu)
+        self.table.cellDoubleClicked.connect(self._on_cell_double_clicked)
         root.addWidget(self.table, 1)
 
         # Progress overlay (shown during loading)
@@ -305,6 +321,8 @@ class BlameDialog(QDialog):
 
     def closeEvent(self, event):
         print(f"[blame] Closing: '{self.windowTitle()}'")
+        # Save geometry for next session
+        self._settings.setValue("blame/geometry", self.saveGeometry())
         bw = getattr(self, "_browse_windows_ref", None)
         if bw is not None and self in bw:
             bw.remove(self)
@@ -334,6 +352,26 @@ class BlameDialog(QDialog):
     # Table context menu
     # ------------------------------------------------------------------
 
+    def _on_cell_double_clicked(self, row, col):
+        """Double-click on a blame row opens the commit viewer."""
+        records = self._get_filtered_records()
+        if row < 0 or row >= len(records):
+            return
+        sha = records[row]["sha"]
+        self._open_view_commit(sha)
+
+    def _focus_search(self):
+        """Focus the search bar (bound to / shortcut)."""
+        self.search_edit.setFocus()
+        self.search_edit.selectAll()
+
+    def _clear_search(self):
+        """Clear search filter (bound to Esc shortcut)."""
+        if self.search_edit.text():
+            self.search_edit.clear()
+        else:
+            self.close()
+
     def _show_table_context_menu(self, pos):
         row = self.table.rowAt(pos.y())
         if row < 0:
@@ -354,7 +392,6 @@ class BlameDialog(QDialog):
         copy_sha_action.setToolTip("Copy the commit SHA to the clipboard.")
         blame_action = QAction("Blame before this", self)
         blame_action.setToolTip("Blame the file at the parent of this commit (the version just before).")
-        menu.addAction(view_action)
         menu.addAction(copy_sha_action)
         menu.addAction(blame_action)
 

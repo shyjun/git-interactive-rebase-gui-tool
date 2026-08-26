@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtGui import QIcon
 from PySide6.QtCore import (
+    Qt,
     QSettings,
     QTimer,
 )
@@ -99,6 +100,19 @@ def main():
     print(f"App started at {app_start_time} | HEAD commit: {head_sha}")
 
     app = QApplication(sys.argv)
+
+    # Global Ctrl+Q handler — closes the active window (any window)
+    from PySide6.QtCore import QObject, QEvent
+    class CtrlQFilter(QObject):
+        def eventFilter(self, obj, event):
+            if event.type() == QEvent.KeyPress:
+                if event.key() == Qt.Key_Q and (event.modifiers() & Qt.ControlModifier):
+                    active = app.activeWindow()
+                    if active:
+                        active.close()
+                    return True
+            return False
+    app.installEventFilter(CtrlQFilter())
 
     # Set global application icon
     try:
