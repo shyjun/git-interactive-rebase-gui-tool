@@ -148,6 +148,9 @@ class BlameDialog(QDialog):
         QShortcut(QKeySequence("/"), self).activated.connect(self._focus_search)
         QShortcut(QKeySequence("Esc"), self).activated.connect(self._clear_search)
         QShortcut(QKeySequence("F5"), self).activated.connect(self._load)
+        ctrl_q = QShortcut(QKeySequence("Ctrl+Q"), self)
+        ctrl_q.setContext(Qt.WindowShortcut)
+        ctrl_q.activated.connect(self.close)
 
         self._browse_overlay = BrowseDimOverlay(self, self.is_dark_theme)
         self._browse_overlay.raise_()
