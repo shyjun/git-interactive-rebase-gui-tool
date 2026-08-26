@@ -7,7 +7,7 @@ from lib.git_helpers import (
     get_git_history, get_branch_history, get_file_history,
     get_reflog_history, get_stash_history, get_tags_history,
     get_head_sha, get_full_head_sha, get_current_branch,
-    get_local_branches_map, get_tags_map,
+    get_local_branches_map,
     has_uncommitted_changes, stash_changes, STASH_NOTHING_STASHED,
     commit_file, bulk_commit_all, amend_with_head, discard_changes,
     get_unstaged_files, get_diff_between, get_files_between,
@@ -167,7 +167,7 @@ class RescanMixin:
                 diff_text = get_diff_between(self.repo_path, start_sha, end_sha)
                 files = get_files_between(self.repo_path, start_sha, end_sha)
                 file_stats = get_file_stats_between(self.repo_path, start_sha, end_sha)
-                num_commits = len(get_git_history(self.repo_path, start_sha, end_sha))
+                num_commits = len(get_git_history(self.repo_path, start_sha, end_sha)[0])
             finally:
                 progress.close()
 
@@ -274,15 +274,14 @@ class RescanMixin:
         self.list_widget.blockSignals(True)
         try:
             if self.browse_branch:
-                history = get_branch_history(self.repo_path, self.browse_branch)
+                history, tag_map = get_branch_history(self.repo_path, self.browse_branch)
             else:
-                history = get_git_history(self.repo_path, self.commit_sha, self.get_head_sha())
+                history, tag_map = get_git_history(self.repo_path, self.commit_sha, self.get_head_sha())
             branch_map = get_local_branches_map(
                 self.repo_path,
                 current_branch=current_branch,
                 extra_remotes=[self.browse_branch] if self.browse_branch else None,
             )
-            tag_map = get_tags_map(self.repo_path)
 
             print(f"[rescan] Loaded {len(history)} commits, {len(branch_map)} branches, {len(tag_map)} tags")
             self._populate_list_widget(history, branch_map, tag_map, old_row)
@@ -387,7 +386,7 @@ class RescanMixin:
         def worker():
             try:
                 if filepath:
-                    history = get_file_history(repo_path, filepath, limit=browse_limit, ref=file_ref)
+                    history, tag_map = get_file_history(repo_path, filepath, limit=browse_limit, ref=file_ref)
                 elif stash:
                     history = get_stash_history(repo_path, limit=browse_limit)
                     self._browse_load_result = (True, history, {}, {})
@@ -401,12 +400,11 @@ class RescanMixin:
                     self._browse_load_result = (True, history, {}, {})
                     return
                 else:
-                    history = get_branch_history(repo_path, branch, limit=browse_limit)
+                    history, tag_map = get_branch_history(repo_path, branch, limit=browse_limit)
                 branch_map = get_local_branches_map(
                     repo_path,
                     extra_remotes=[branch] if branch else None,
                 )
-                tag_map = get_tags_map(repo_path)
                 self._browse_load_result = (True, history, branch_map, tag_map)
             except Exception as e:
                 print(f"[browse] Async load FAILED: {e}")
