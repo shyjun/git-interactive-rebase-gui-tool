@@ -16,7 +16,7 @@ from lib.app_window.helpers import highlight_button_temporarily
 class InitMixin:
     """__init__, settings, and lifecycle methods for GitInteractiveRebaseApp."""
 
-    def __init__(self, repo_path, commit_sha, app_start_time, base_branch=None, viewer_mode=False, browse_branch=None, parent=None, browse_limit=50, browse_file=None, browse_reflog=False, browse_stash=False, browse_file_ref=None, browse_tags=False, browse_tag=False, cli_mode=False):
+    def __init__(self, repo_path, commit_sha, app_start_time, base_branch=None, viewer_mode=False, browse_branch=None, parent=None, browse_limit=50, browse_file=None, browse_reflog=False, browse_stash=False, browse_file_ref=None, browse_tags=False, browse_tag=False, cli_mode=False, auto_detect_base=False):
         super().__init__(parent)
         mode = "viewer" if viewer_mode else "browse" if (browse_branch or browse_file or browse_reflog or browse_stash or browse_tags) else "main"
         print(f"[init] Creating window: mode={mode}, branch='{browse_branch}', file='{browse_file}', "
@@ -25,6 +25,7 @@ class InitMixin:
         self.commit_sha = commit_sha
         self.app_start_time = app_start_time
         self.base_branch = base_branch  # set only when auto-detected; None when SHA provided manually
+        self._auto_detect_base = auto_detect_base
         self.viewer_mode = viewer_mode
         self.browse_branch = browse_branch
         self.browse_file = browse_file
@@ -103,6 +104,8 @@ class InitMixin:
             self.load_browse_history_async()
         else:
             self.load_history()
+            if self._auto_detect_base:
+                QTimer.singleShot(0, self._detect_base_async)
         self.update_rebase_buttons()
         self.list_widget.setFocus()
 
