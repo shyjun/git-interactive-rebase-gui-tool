@@ -619,7 +619,7 @@ class SingleCommitViewDialog(QDialog):
         add_open_with_system_default_action(menu, target_path, self, sha=self.sha,
             is_head=self.sha == head or head.startswith(self.sha))
         blame_action = QAction("Blame file", self)
-        blame_action.triggered.connect(lambda checked=False, text=target_path: open_blame_window(self, text, branch=self.end_sha))
+        blame_action.triggered.connect(lambda checked=False, text=target_path: open_blame_window(self, text, branch=self.sha))
         menu.addAction(blame_action)
 
         copy_action = QAction("Copy filename to clipboard", self)
@@ -865,7 +865,7 @@ class FileWiseViewDialog(QDialog):
         add_open_with_system_default_action(menu, target_path, self, sha=self.sha,
             is_head=self.sha == head or head.startswith(self.sha))
         blame_action = QAction("Blame file", self)
-        blame_action.triggered.connect(lambda checked=False, text=target_path: open_blame_window(self, text, branch=self.end_sha))
+        blame_action.triggered.connect(lambda checked=False, text=target_path: open_blame_window(self, text, branch=self.sha))
         menu.addAction(blame_action)
 
         copy_action = QAction("Copy filename to clipboard", self)
