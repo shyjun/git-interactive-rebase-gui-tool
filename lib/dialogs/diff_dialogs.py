@@ -426,6 +426,12 @@ class SingleCommitViewDialog(QDialog):
         self.setWindowTitle(f"View Commit: {sha}")
         self.setMinimumSize(860, 620)
 
+        # Ctrl+Q closes the window (consistent with main app)
+        from PySide6.QtGui import QShortcut, QKeySequence
+        ctrl_q = QShortcut(QKeySequence("Ctrl+Q"), self)
+        ctrl_q.setContext(Qt.WindowShortcut)
+        ctrl_q.activated.connect(self.close)
+
         # Diff colors: optional pre-resolved colors, else from the parent theme
         if colors is None:
             main_win = parent if isinstance(parent, QMainWindow) else None
