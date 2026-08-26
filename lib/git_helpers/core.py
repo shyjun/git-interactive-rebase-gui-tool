@@ -52,6 +52,92 @@ def _parse_log_records(stdout):
 
     return commits
 
+def _parse_combined_log(stdout):
+    """Parse ``git log --format=...%x1f%B%x1e --shortstat`` in one pass.
+
+    Combines the old _parse_log_records + _attach_full_messages into a single
+    subprocess call.  Format fields are separated by ``\\x1f``; records are
+    terminated by ``\\x1e``; shortstat lines appear between records.
+
+    Chunk layout after splitting on ``\\x1e`` (for N commits):
+      chunk 0: ``sha\\x1fdate\\x1fauthor\\x1fsubject\\x1fparents\\x1fbody``
+      chunk 1..N-1: ``\\n\\n<shortstat for prev>\\n<next_sha>\\x1f...``
+      chunk N: ``\\n\\n<shortstat for last>``
+
+    The shortstat in chunk N belongs to the commit parsed from chunk N-1.
+    """
+    stat_re = re.compile(
+        r'\s*\d+\s+files?\s+changed(?:,\s+(\d+)\s+insertions?\(\+\))?(?:,\s+(\d+)\s+deletions?\(-\))?'
+    )
+
+    commits = []
+
+    chunks = stdout.split('\x1e')
+
+    for chunk in chunks:
+        chunk = chunk.strip()
+        if not chunk:
+            continue
+
+        added, deleted = 0, 0
+
+        # ---- extract shortstat from leading lines (before first \x1f) ----
+        has_fields = '\x1f' in chunk
+        if has_fields:
+            pre, post = chunk.split('\x1f', 1)
+        else:
+            pre, post = chunk, ""
+
+        for line in pre.split('\n'):
+            m = stat_re.search(line)
+            if m:
+                added = int(m.group(1)) if m.group(1) else 0
+                deleted = int(m.group(2)) if m.group(2) else 0
+
+        if not has_fields:
+            # Trailing shortstat-only chunk — applies to the last commit
+            if commits and added + deleted > 0:
+                commits[-1]["added"] = added
+                commits[-1]["deleted"] = deleted
+            continue
+
+        # ---- we have format fields — this is a new commit ----
+        fields = post.split('\x1f')
+        # fields: [date, author, subject, parents, body…]
+        if len(fields) < 5:
+            continue
+
+        # SHA is the last token on the last line before the first \x1f
+        sha = pre.strip().split('\n')[-1].strip()
+        if not sha or len(sha) < 7:
+            continue
+
+        date = fields[0].strip()
+        author = fields[1].strip()
+        subject = fields[2].strip()
+        parents = fields[3].strip()
+        body = '\x1f'.join(fields[4:]).strip()
+
+        commits.append({
+            "sha": sha,
+            "date": date,
+            "author": author,
+            "message": body if body else subject,
+            "parents": parents,
+            "added": 0,  # filled from next chunk's pending_stat
+            "deleted": 0,
+            "raw_text": f"{sha} {subject}",
+        })
+
+        # Now attach the stat extracted above to the *previous* commit
+        # (chunk N's leading stat belongs to the commit parsed in chunk N-1)
+        if len(commits) > 1 and (added + deleted > 0):
+            commits[-2]["added"] = added
+            commits[-2]["deleted"] = deleted
+
+    return commits
+
+
 def _attach_full_messages(repo_path, commits, log_cmd):
     """Batch-fetches full commit messages (subject + body) and fills them into commits."""
     try:
