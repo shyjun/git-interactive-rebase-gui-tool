@@ -188,7 +188,7 @@ class SplitCommitDialog(QDialog):
         add_open_with_system_default_action(menu, item.text(), self, sha=self.sha,
             is_head=self.sha == head or head.startswith(self.sha))
         blame_action = QAction("Blame file", self)
-        blame_action.triggered.connect(lambda checked=False, text=item.text(): open_blame_window(self, text))
+        blame_action.triggered.connect(lambda checked=False, text=item.text(): open_blame_window(self, text, branch=self.sha))
         menu.addAction(blame_action)
 
         copy_action = QAction("Copy filename to clipboard", self)
@@ -368,7 +368,7 @@ class DropFileFromCommitDialog(QDialog):
         add_open_with_system_default_action(menu, item.text(), self, sha=self.sha,
             is_head=self.sha == head or head.startswith(self.sha))
         blame_action = QAction("Blame file", self)
-        blame_action.triggered.connect(lambda checked=False, text=item.text(): open_blame_window(self, text))
+        blame_action.triggered.connect(lambda checked=False, text=item.text(): open_blame_window(self, text, branch=self.sha))
         menu.addAction(blame_action)
 
         copy_action = QAction("Copy filename to clipboard", self)
@@ -663,7 +663,7 @@ class RefineFileSelectDialog(SplitCommitDialog):
         add_open_with_system_default_action(menu, item.text(), self, sha=self.sha,
             is_head=self.sha == head or head.startswith(self.sha))
         blame_action = QAction("Blame file", self)
-        blame_action.triggered.connect(lambda checked=False, text=item.text(): open_blame_window(self, text))
+        blame_action.triggered.connect(lambda checked=False, text=item.text(): open_blame_window(self, text, branch=self.sha))
         menu.addAction(blame_action)
 
         copy_action = QAction("Copy filename to clipboard", self)
