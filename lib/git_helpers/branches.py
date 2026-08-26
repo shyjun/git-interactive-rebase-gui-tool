@@ -14,39 +14,34 @@ def get_current_branch(repo_path):
 def get_local_branches_map(repo_path, current_branch=None, extra_remotes=None):
     """Returns a dict mapping short_sha to a list of branch names (local + specific remotes).
 
-    extra_remotes: additional remote branch names (e.g. "origin/feature") to
-    include when building the per-commit branch labels, used by the read-only
-    branch browser so the browsed remote branch tip is tagged too.
+    Queries only the local branches plus the 3 target remote refs (master,
+    main, current_branch) instead of enumerating every origin/* tracking ref,
+    which is much faster on repos with many remote branches.
     """
     try:
-        # Get current branch to include its remote counterpart
         if current_branch is None:
             current_branch = get_current_branch(repo_path)
-        
-        # for-each-ref with multiple patterns. %(refname:short) for remotes is origin/branch.
-        cmd = ["git", "for-each-ref", "--format=%(objectname:short) %(refname:short)", 
-               "refs/heads/", "refs/remotes/origin/"]
-        
-        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
-        
-        target_remotes = ["origin/master", "origin/main"]
+
+        # Build the list of remote ref patterns to query
+        remote_patterns = ["refs/remotes/origin/master", "refs/remotes/origin/main"]
         if current_branch and current_branch != "DETACHED":
-            target_remotes.append(f"origin/{current_branch}")
+            remote_patterns.append(f"refs/remotes/origin/{current_branch}")
         if extra_remotes:
             for r in extra_remotes:
                 if r.startswith("origin/"):
-                    target_remotes.append(r)
-            
+                    remote_patterns.append(f"refs/remotes/{r}")
+
+        cmd = ["git", "for-each-ref", "--format=%(objectname:short) %(refname:short)",
+               "refs/heads/"] + remote_patterns
+
+        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
+
         branch_map = {}
         for line in result.stdout.strip().split('\n'):
             if not line.strip(): continue
             parts = line.strip().split(maxsplit=1)
             if len(parts) == 2:
                 sha, branch = parts
-                # If it's a remote, only include it if it's one of our targets
-                if branch.startswith("origin/"):
-                    if branch not in target_remotes:
-                        continue
                 branch_map.setdefault(sha, []).append(branch)
         return branch_map
     except subprocess.CalledProcessError as exc:
