@@ -345,6 +345,11 @@ class BlameDialog(QDialog):
         menu = QMenu(self)
         view_action = QAction("View commit", self)
         view_action.setToolTip("Open the diff viewer for this commit.")
+        menu.addAction(view_action)
+        from lib.app_window.helpers import add_open_with_system_default_action
+        orig_filename = rec.get("filename") or self.filename
+        add_open_with_system_default_action(menu, orig_filename, self, sha=sha, is_head=False)
+        menu.addSeparator()
         copy_sha_action = QAction("Copy SHA to clipboard", self)
         copy_sha_action.setToolTip("Copy the commit SHA to the clipboard.")
         blame_action = QAction("Blame before this", self)
