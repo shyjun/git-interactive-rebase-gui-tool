@@ -112,11 +112,13 @@ def get_root_commit(repo_path):
 
 def get_recent_history_start(repo_path, count=1000):
     """
-    Returns the SHA of the commit 'count' steps back from HEAD.
+    Returns the SHA of the commit 'count' first-parent steps back from HEAD.
     If history is shorter than 'count', returns the root commit.
+    Uses --first-parent so the skip count matches the range count exactly,
+    even in repos with many merge commits (e.g. the Linux kernel).
     """
     try:
-        cmd = ["git", "rev-list", "--max-count=1", f"--skip={count}", "HEAD"]
+        cmd = ["git", "rev-list", "--first-parent", "--max-count=1", f"--skip={count}", "HEAD"]
         result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, encoding='utf-8', errors='replace')
         sha = result.stdout.strip()
         if sha:

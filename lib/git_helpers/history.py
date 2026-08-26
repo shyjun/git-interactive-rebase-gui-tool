@@ -44,7 +44,9 @@ def get_git_history(repo_path, start_sha, end_sha, limit=None):
 def get_git_history_fast(repo_path, start_sha, end_sha, limit=None):
     """Fetch commit history without --shortstat (fast, ~0.01s for 200 commits).
 
-    Returns (commits, tag_map) like get_git_history but with added/deleted=0."""
+    Returns (commits, tag_map) like get_git_history but with added/deleted=0.
+    Uses --first-parent so the commit count matches the skip count from
+    get_recent_history_start, even in repos with many merge commits."""
     def _build(sha_from, sha_to):
         has_parent = False
         try:
@@ -55,8 +57,8 @@ def get_git_history_fast(repo_path, start_sha, end_sha, limit=None):
             has_parent = False
 
         log_cmd = (
-            ["git", "log", f"{sha_from}..{sha_to}"] if has_parent
-            else ["git", "log", sha_to]
+            ["git", "log", "--first-parent", f"{sha_from}..{sha_to}"] if has_parent
+            else ["git", "log", "--first-parent", sha_to]
         )
         log_cmd += [
             "--format=%h%x1f%cd%x1f%an <%ae>%x1f%s%x1f%P%x1f%B%x1f%D%x1e",
