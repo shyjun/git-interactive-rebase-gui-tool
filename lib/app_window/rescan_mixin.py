@@ -4,7 +4,8 @@ from datetime import datetime
 from PySide6.QtCore import Qt, QTimer, Slot, Q_ARG, QMetaObject
 from PySide6.QtWidgets import QApplication, QMessageBox, QListWidgetItem, QInputDialog, QDialog
 from lib.git_helpers import (
-    get_git_history, get_branch_history, get_file_history,
+    get_git_history, get_git_history_fast, get_commit_stats,
+    get_branch_history, get_file_history,
     get_reflog_history, get_stash_history, get_tags_history,
     get_head_sha, get_full_head_sha, get_current_branch,
     get_local_branches_map,
@@ -275,8 +276,11 @@ class RescanMixin:
         try:
             if self.browse_branch:
                 history, tag_map = get_branch_history(self.repo_path, self.browse_branch)
+                self._stats_range = None
             else:
-                history, tag_map = get_git_history(self.repo_path, self.commit_sha, self.get_head_sha())
+                # Fast path: load commits without --shortstat (~0.1s vs ~1s)
+                history, tag_map = get_git_history_fast(self.repo_path, self.commit_sha, self.get_head_sha())
+                self._stats_range = (self.commit_sha, self.get_head_sha())
             branch_map = get_local_branches_map(
                 self.repo_path,
                 current_branch=current_branch,
@@ -294,6 +298,10 @@ class RescanMixin:
             QTimer.singleShot(0, self.update_side_diff)
 
         self._refresh_history_load()
+
+        # Load stats (added/deleted) in background if we used the fast path
+        if self._stats_range:
+            self._load_stats_async()
 
     def _populate_list_widget(self, history, branch_map, tag_map, old_row):
         """Builds QListWidgetItems from fetched history (main thread only)."""
@@ -333,6 +341,49 @@ class RescanMixin:
         # checkable flags so the UI stays consistent (tick boxes visible, etc.).
         if self.multi_select_mode:
             self._apply_multi_select_flags()
+
+    def _load_stats_async(self):
+        """Load commit stats (added/deleted) in background thread after commits are shown."""
+        start_sha, end_sha = self._stats_range
+        repo_path = self.repo_path
+        self._stats_done = False
+        self._stats_result = None
+
+        def worker():
+            try:
+                # No limit — load stats for all commits shown
+                stats = get_commit_stats(repo_path, start_sha, end_sha)
+                self._stats_result = stats
+                self._stats_done = True
+            except Exception as e:
+                print(f"[stats] Error loading stats: {e}")
+                self._stats_done = True
+
+        print("[stats] Loading commit stats in background...")
+        thread = threading.Thread(target=worker, daemon=True)
+        thread.start()
+        self._stats_timer = QTimer(self)
+        self._stats_timer.setInterval(50)
+        self._stats_timer.timeout.connect(self._poll_stats)
+        self._stats_timer.start()
+
+    def _poll_stats(self):
+        """Poll for stats completion."""
+        if not self._stats_done:
+            return
+        self._stats_timer.stop()
+        stats = self._stats_result
+        if stats:
+            count = 0
+            for i in range(self.list_widget.count()):
+                item = self.list_widget.item(i)
+                sha = item.text().split()[0]
+                if sha in stats:
+                    added, deleted = stats[sha]
+                    item.setData(Qt.UserRole + 3, (added, deleted))
+                    count += 1
+            print(f"[stats] Applied stats to {count} commits")
+        self._stats_result = None
 
     def _refresh_history_load(self):
         """Post-load updates shared by sync and async history loading."""
@@ -484,6 +535,9 @@ class RescanMixin:
         if not base_sha or commit_count > 200:
             if base_sha:
                 print(f"[detect_base] Range too large ({commit_count} > 200), keeping 200 fallback")
+                self.total_commits_label.setText(
+                    f"Branch '{branch_name}' has {commit_count} commits, showing 200"
+                )
             return
         self.commit_sha = base_sha
         self.base_branch = branch_name

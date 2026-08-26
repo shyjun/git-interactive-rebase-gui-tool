@@ -12,6 +12,8 @@ from .core import (
 
 from .history import (
     get_git_history,
+    get_git_history_fast,
+    get_commit_stats,
     get_branch_history,
     get_file_history,
     get_reflog_history,
