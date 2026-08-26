@@ -1,13 +1,18 @@
 import subprocess
 
-from .core import _parse_log_records, _attach_full_messages, _parse_reflog_records, _parse_stash_records
+from .core import _parse_combined_log, _parse_reflog_records, _parse_stash_records
 
 
-def get_git_history(repo_path, start_sha, end_sha):
-    """Fetches git history from *start_sha* (exclusive) down to *end_sha* inclusive, yielding parsed objects.
-    If the range is reversed (start is newer than end) the equivalent commits are returned."""
+def get_git_history(repo_path, start_sha, end_sha, limit=None):
+    """Fetches git history from *start_sha* (exclusive) down to *end_sha* inclusive.
+
+    Uses a single ``git log`` call with ``%x1f``-delimited fields and
+    ``%x1f%B%x1e`` body+record-separator so stats and full commit messages
+    are parsed in one pass (was previously two subprocess calls).
+
+    Args:
+        limit: optional max number of commits to return (``-n`` flag)."""
     def _build(sha_from, sha_to):
-        # Check if sha_from has a parent
         has_parent = False
         try:
             subprocess.run(["git", "rev-parse", f"{sha_from}^"],
@@ -16,19 +21,23 @@ def get_git_history(repo_path, start_sha, end_sha):
         except:
             has_parent = False
 
-        if has_parent:
-            log_cmd = ["git", "log", f"{sha_from}..{sha_to}", "--format=%h|%cd|%an <%ae>|%s|%P", "--date=format:%d %b %Y", "--shortstat"]
-        else:
-            log_cmd = ["git", "log", sha_to, "--format=%h|%cd|%an <%ae>|%s|%P", "--date=format:%d %b %Y", "--shortstat"]
+        log_cmd = (
+            ["git", "log", f"{sha_from}..{sha_to}"] if has_parent
+            else ["git", "log", sha_to]
+        )
+        log_cmd += [
+            "--format=%h%x1f%cd%x1f%an%x1f%s%x1f%P%x1f%B%x1e",
+            "--date=format:%d %b %Y",
+            "--shortstat",
+        ]
+        if limit is not None:
+            log_cmd.append(f"-n{limit}")
 
         result = subprocess.run(log_cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
-        commits = _parse_log_records(result.stdout)
-        return _attach_full_messages(repo_path, commits, log_cmd)
+        return _parse_combined_log(result.stdout)
 
     try:
         commits = _build(start_sha, end_sha)
-        # If the requested direction has no commits but the reverse does, the user
-        # chose a "newer" start; count the commits between the two instead of 0.
         if not commits and start_sha != end_sha:
             commits = _build(end_sha, start_sha)
         return commits
@@ -39,24 +48,18 @@ def get_git_history(repo_path, start_sha, end_sha):
 def get_branch_history(repo_path, branch, limit=None):
     """Fetches a branch's history (commits reachable from its tip).
 
-    Args:
-        repo_path: repository path.
-        branch: branch name/ref.
-        limit: max number of commits to return (None = unlimited).
-
-    Returns parsed commit dicts in the same shape as get_git_history."""
+    Uses the same single-pass combined format as get_git_history."""
     try:
         log_cmd = [
             "git", "log", branch,
-            "--format=%h|%cd|%an <%ae>|%s|%P",
+            "--format=%h%x1f%cd%x1f%an%x1f%s%x1f%P%x1f%B%x1e",
             "--date=format:%d %b %Y",
             "--shortstat"
         ]
         if limit is not None:
             log_cmd.append(f"-n{limit}")
         result = subprocess.run(log_cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
-        commits = _parse_log_records(result.stdout)
-        return _attach_full_messages(repo_path, commits, log_cmd)
+        return _parse_combined_log(result.stdout)
     except subprocess.CalledProcessError as e:
         raise Exception(f"Failed to fetch branch history: {e.stderr}")
 
@@ -65,18 +68,11 @@ def get_file_history(repo_path, filepath, limit=None, ref=None):
 
     Uses ``git log --follow`` so the history persists across renames, and the
     ``--shortstat`` stats reflect only that file's changes per commit.
-
-    Args:
-        repo_path: repository path.
-        filepath: repo-relative path of the file to browse.
-        limit: max number of commits to return (None = unlimited).
-        ref: ref/branch/SHA to scope the history to (None = HEAD).
-
-    Returns parsed commit dicts in the same shape as get_git_history."""
+    Uses the same single-pass combined format as get_git_history."""
     try:
         log_cmd = [
             "git", "log", "--follow",
-            "--format=%h|%cd|%an <%ae>|%s|%P",
+            "--format=%h%x1f%cd%x1f%an%x1f%s%x1f%P%x1f%B%x1e",
             "--date=format:%d %b %Y",
             "--shortstat"
         ]
@@ -86,8 +82,7 @@ def get_file_history(repo_path, filepath, limit=None, ref=None):
             log_cmd.append(f"-n{limit}")
         log_cmd += ["--", filepath]
         result = subprocess.run(log_cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
-        commits = _parse_log_records(result.stdout)
-        return _attach_full_messages(repo_path, commits, log_cmd)
+        return _parse_combined_log(result.stdout)
     except subprocess.CalledProcessError as e:
         raise Exception(f"Failed to fetch file history: {e.stderr}")
 
