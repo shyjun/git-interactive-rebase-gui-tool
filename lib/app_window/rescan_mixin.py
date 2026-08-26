@@ -300,7 +300,7 @@ class RescanMixin:
         self._refresh_history_load()
 
         # Load stats (added/deleted) in background if we used the fast path
-        if self._stats_range:
+        if self._stats_range and self.show_stats:
             self._load_stats_async()
 
     def _populate_list_widget(self, history, branch_map, tag_map, old_row):
