@@ -94,6 +94,10 @@ def main():
 
     repo_path = os.path.abspath(os.path.expanduser(args.location))
 
+    # Ignore SIGHUP so the app survives terminal close when launched with &
+    import signal
+    signal.signal(signal.SIGHUP, signal.SIG_IGN)
+
     now = datetime.now()
     app_start_time = f"{now.strftime('%I.%M%p').lower()} {now.day}-{now.strftime('%b-%Y')}"
     head_sha = get_full_head_sha(repo_path)
