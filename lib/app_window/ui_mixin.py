@@ -310,7 +310,10 @@ class UIMixin:
         self.refresh_btn.setToolTip("Reload the commit history from git.")
         self._set_refresh_icon(self.refresh_btn)
         self.exit_btn = QPushButton("Exit")
-        self.exit_btn.setToolTip("Close the application.")
+        if not self.browse_mode:
+            self.exit_btn.setToolTip("Close the application and all child windows.")
+        else:
+            self.exit_btn.setToolTip("Close the application.")
         self._set_exit_icon(self.exit_btn)
         self.exit_btn.setStyleSheet("color: red; font-weight: bold;")
 

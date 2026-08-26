@@ -75,9 +75,9 @@ class MenusMixin:
 
         menu.addSeparator()
 
-        self.external_tools_action = QAction("External tools", self)
+        self.external_tools_action = QAction("External tools integration", self)
         self.external_tools_action.setToolTip("Configure external tool integrations.")
-        self.external_tools_action.triggered.connect(lambda *_: QMessageBox.information(self, "External tools", "Not implemented yet."))
+        self.external_tools_action.triggered.connect(lambda *_: QMessageBox.information(self, "External tools integration", "Not implemented yet."))
 
         self.help_action = QAction("Help", self)
         self.help_action.setToolTip("Show usage help.")
