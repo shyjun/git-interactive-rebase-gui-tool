@@ -291,7 +291,8 @@ class RescanMixin:
         finally:
             self.list_widget.setUpdatesEnabled(True)
             self.list_widget.blockSignals(False)
-            self.update_side_diff()
+            # Defer side diff so the window appears immediately
+            QTimer.singleShot(0, self.update_side_diff)
 
         self._refresh_history_load()
 
