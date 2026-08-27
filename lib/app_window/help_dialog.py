@@ -15,7 +15,10 @@ class HelpDialog(QDialog):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Help")
+        # Get tool version (short git SHA) for title
+        from lib.git_helpers import get_head_sha
+        tool_sha = get_head_sha(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+        self.setWindowTitle(f"Help — git-interactive-rebase-gui-tool ({tool_sha})")
         self.setMinimumWidth(450)
         self.setModal(True)
 
