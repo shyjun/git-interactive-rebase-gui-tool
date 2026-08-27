@@ -15,9 +15,10 @@ class UpdateMixin:
         UPDATE_URL = "https://github.com/shyjun/git-interactive-rebase-gui-tool?tab=readme-ov-file#-staying-updated"
 
         # 1. Find the tool's own directory
-        tool_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        tool_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
         local_sha = "Unknown"
         is_git_install = _is_git_install(tool_dir)
+        print(f"[check_update] tool_dir={tool_dir}  is_git={is_git_install}")
 
         # 2. Extract local SHA
         if is_git_install:
@@ -72,9 +73,6 @@ class UpdateMixin:
                 return
 
             remote_sha = stdout.split()[0]
-
-            # Debug prints
-            pass
 
             if remote_sha == local_sha:
                 QMessageBox.information(self, "No Updates", "You are already using the latest version.")
