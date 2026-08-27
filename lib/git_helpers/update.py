@@ -140,7 +140,7 @@ def perform_self_update(tool_dir):
             new_sha = remote_sha
             _write_app_version(tool_dir, new_sha)
             print(f"[perform_self_update] new_sha={new_sha}")
-            return True, f"Update complete.\n\nOld: {old_sha[:8]}\nNew: {new_sha[:8]}\n\nPlease restart the tool for changes to take effect."
+            return True, f"Update complete.\n\nOld: {old_sha[:8]}\nNew: {new_sha[:8]}"
         return False, f"pip install failed:\n{stderr.strip() or stdout.strip() or 'unknown error'}"
 
     # git-clone install
