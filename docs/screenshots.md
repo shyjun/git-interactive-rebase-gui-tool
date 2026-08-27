@@ -344,11 +344,7 @@ Browse a commit's diff as a single combined view.
 
 Browse a commit's changes file by file.
 
-**Screenshot:** `screenshots/file-wise-diff-viewer.webp`
-
-![File-wise Diff Viewer](screenshots/file-wise-diff-viewer.webp)
-
-**Description:** Switch to the **File-wise Diff** tab (in the right panel, or in the commit viewer) to list all changed files for the selected commit. Select any file to view its specific diff. This makes it easy to understand what each file contributed to the commit. Renames are shown as one `old => new` row.
+**Description:** Switch to the **File-wise Diff** tab (in the right panel, or in the commit viewer) to list all changed files for the selected commit. Select any file to view its specific diff. This makes it easy to understand what each file contributed to the commit. Renames are shown as one `old => new` row. (Screenshot: same as [File-Operations menu](#7-file-operations-menu).)
 
 Right-click a file in the file-wise file list for per-file actions — see [File-Operations menu](#7-file-operations-menu) for the full list of available actions.
 
