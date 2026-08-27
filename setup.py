@@ -5,7 +5,7 @@ import subprocess
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from setuptools import setup
+from setuptools import setup, find_packages
 
 
 def get_git_sha():
@@ -40,7 +40,7 @@ setup(
     license="MIT",
     python_requires=">=3.10",
     install_requires=["PySide6"],
-    packages=["lib", "assets"],
+    packages=find_packages(),
     py_modules=["git_interactive_rebase"],
     package_data={"assets": ["*"]},
     entry_points={
