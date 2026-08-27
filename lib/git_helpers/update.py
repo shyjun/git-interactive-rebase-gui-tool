@@ -104,7 +104,7 @@ def perform_self_update(tool_dir):
         print(f"[perform_self_update] pip path, tool_dir={tool_dir}, old_sha={old_sha}")
         if not old_sha:
             print("[perform_self_update] no version info, installing fresh")
-            ok, stdout, stderr = _run_capture(tool_dir, ["pip", "install", "--upgrade", GIT_REPO_URL])
+            ok, stdout, stderr = _run_capture(tool_dir, ["pip", "install", "--force-reinstall", "--no-deps", GIT_REPO_URL])
             if ok:
                 ls_url = GIT_REPO_URL.removeprefix("git+")
                 ok2, stdout2, _ = _run_capture(tool_dir, ["git", "ls-remote", ls_url, "HEAD"])
@@ -126,8 +126,8 @@ def perform_self_update(tool_dir):
         if old_sha == remote_sha:
             return True, f"You are already using the latest version. ({old_sha[:8]})"
 
-        print("[perform_self_update] running pip install --upgrade")
-        ok, stdout, stderr = _run_capture(tool_dir, ["pip", "install", "--upgrade", GIT_REPO_URL])
+        print("[perform_self_update] running pip install --force-reinstall --no-deps")
+        ok, stdout, stderr = _run_capture(tool_dir, ["pip", "install", "--force-reinstall", "--no-deps", GIT_REPO_URL])
         print(f"[perform_self_update] pip install ok={ok}")
         if ok:
             # Remove stale .pyc files so the updated .py is used on next launch.
