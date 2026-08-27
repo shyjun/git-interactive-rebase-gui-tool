@@ -78,11 +78,15 @@ def main():
         if short_sha == "Unknown":
             try:
                 assets_dir = get_assets_path()
-                with open(os.path.join(assets_dir, "app_version.json")) as f:
-                    data = json.load(f)
-                    short_sha = data.get("sha", "Unknown")
-            except Exception:
-                pass
+                vpath = os.path.join(assets_dir, "app_version.json")
+                if os.path.exists(vpath):
+                    with open(vpath) as f:
+                        data = json.load(f)
+                        short_sha = data.get("sha", "Unknown")
+            except Exception as exc:
+                print(f"[tool version] could not read app_version.json: {exc}")
+        if not short_sha:
+            short_sha = "Unknown"
         print(f"git-interactive-rebase-gui-tool {short_sha}")
         sys.exit(0)
 
@@ -106,10 +110,14 @@ def main():
     if tool_sha == "Unknown":
         try:
             assets_dir = get_assets_path()
-            with open(os.path.join(assets_dir, "app_version.json")) as f:
-                tool_sha = json.load(f).get("sha", "Unknown")
-        except Exception:
-            pass
+            vpath = os.path.join(assets_dir, "app_version.json")
+            if os.path.exists(vpath):
+                with open(vpath) as f:
+                    tool_sha = json.load(f).get("sha", "Unknown")
+        except Exception as exc:
+            print(f"[tool version] could not read app_version.json: {exc}")
+    if not tool_sha:
+        tool_sha = "Unknown"
     print(f"App started at {app_start_time} | Tool version: {tool_sha} | HEAD commit: {head_sha}")
 
     app = QApplication(sys.argv)
