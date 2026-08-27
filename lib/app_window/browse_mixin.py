@@ -4,7 +4,7 @@ from PySide6.QtWidgets import QApplication, QMessageBox, QInputDialog, QDialog
 from lib.git_helpers import (
     get_current_branch, branch_exists, commit_exists,
     normalize_branch_ref, get_merge_base, get_commit_subject,
-    stash_apply, stash_drop,
+    stash_apply, stash_drop, get_stash_history,
 )
 from lib.dialogs import (
     BrowseBranchDialog, BrowseCommitLogDialog, BrowseFileLogDialog,
@@ -232,6 +232,13 @@ class BrowseMixin:
     def handle_browse_stash(self):
         """Opens a read-only viewer window showing the repository's stash list
         (most recent first), with the diff pane always visible."""
+        try:
+            stashes = get_stash_history(self.repo_path, limit=1)
+        except Exception:
+            stashes = []
+        if not stashes:
+            QMessageBox.information(self, "No stashes", "There are no stashes in this repository.")
+            return
         AppClass = _get_app_class()
         viewer = AppClass(
             self.repo_path, self.commit_sha, self.app_start_time,
