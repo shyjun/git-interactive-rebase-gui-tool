@@ -28,6 +28,8 @@ class HelpDialog(QDialog):
                     tool_sha = json.load(f).get("sha", "unknown")
             except Exception:
                 tool_sha = "unknown"
+        if tool_sha and tool_sha != "unknown":
+            tool_sha = tool_sha[:8]
         self.setWindowTitle(f"Help — git-interactive-rebase-gui-tool ({tool_sha})")
         self.setMinimumWidth(450)
         self.setModal(True)
