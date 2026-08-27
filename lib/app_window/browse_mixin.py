@@ -4,7 +4,7 @@ from PySide6.QtWidgets import QApplication, QMessageBox, QInputDialog, QDialog
 from lib.git_helpers import (
     get_current_branch, branch_exists, commit_exists,
     normalize_branch_ref, get_merge_base, get_commit_subject,
-    stash_apply, stash_drop, get_stash_history,
+    stash_apply, stash_drop, get_stash_history, get_tags_history,
 )
 from lib.dialogs import (
     BrowseBranchDialog, BrowseCommitLogDialog, BrowseFileLogDialog,
@@ -215,6 +215,13 @@ class BrowseMixin:
         """Opens a read-only viewer window showing all tags in the repository
         (most recent first), with the diff pane hidden and a minimal
         copy-SHA / show-log toolbar."""
+        try:
+            tags = get_tags_history(self.repo_path, limit=1)
+        except Exception:
+            tags = []
+        if not tags:
+            QMessageBox.information(self, "No tags", "There are no tags in this repository.")
+            return
         AppClass = _get_app_class()
         viewer = AppClass(
             self.repo_path, self.commit_sha, self.app_start_time,
