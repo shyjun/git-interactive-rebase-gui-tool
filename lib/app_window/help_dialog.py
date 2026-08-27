@@ -3,7 +3,7 @@ import webbrowser
 from PySide6.QtCore import Qt, QRect
 from PySide6.QtGui import QPixmap, QPainter
 from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QPushButton,
+    QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QApplication, QMessageBox,
 )
 
 
@@ -122,11 +122,19 @@ class HelpDialog(QDialog):
 
         layout.addLayout(bottom_layout)
 
+    def _open_url(self, url):
+        try:
+            webbrowser.open(url)
+        except Exception:
+            QApplication.clipboard().setText(url)
+            QMessageBox.information(self, "Link copied to clipboard",
+                                    f"Could not open browser.\n\nLink copied to clipboard:\n{url}")
+
     def _open_video(self):
-        webbrowser.open(self.YOUTUBE_URL)
+        self._open_url(self.YOUTUBE_URL)
 
     def _open_readme(self):
-        webbrowser.open(self.README_URL)
+        self._open_url(self.README_URL)
 
     def _open_mail(self):
-        webbrowser.open(self.MAILTO)
+        self._open_url(self.MAILTO)
