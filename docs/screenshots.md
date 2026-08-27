@@ -54,10 +54,10 @@ Visual documentation for the Git Interactive Rebase GUI Tool. Each section showc
 36. [Mark / Unmark Commit](#36-mark--unmark-commit)
 37. [Show Local Branches](#37-show-local-branches)
 38. [Copy to Clipboard](#38-copy-to-clipboard)
-39. [Keyboard Shortcuts](#39-keyboard-shortcuts)
-40. [Update the Tool](#40-update-the-tool)
-41. [Tag Commit](#41-tag-commit)
-42. [Blame a file](#42-blame-a-file)
+39. [Update the Tool](#39-update-the-tool)
+40. [Tag Commit](#40-tag-commit)
+41. [Blame a file](#41-blame-a-file)
+42. [Keyboard Shortcuts](#42-keyboard-shortcuts)
 
 ---
 
@@ -211,7 +211,7 @@ The **Configure** button in the status bar controls which markers, columns, and 
 - **Show Rebase** → rebase markers (see [Rebase Options](#21-rebase-options))
 - **Show Squash** → squash markers
 - **Show Local Branches** → local/remote branch names next to commits (see [Show Local Branches](#37-show-local-branches))
-- **Show Tags** → tag names next to commits (see [Tag Commit](#41-tag-commit))
+- **Show Tags** → tag names next to commits (see [Tag Commit](#40-tag-commit))
 - **Show Stats** → per-commit line stats
 - **Show Date** → commit dates
 - **Show Diffs** → the right-side diff pane (see [Diff Pane](#11-diff-pane))
@@ -252,7 +252,7 @@ Right-click a file in the **File-wise Diff** tab for per-file actions.
 **Always available (all modes):**
 
 - **Open → With System Default App** — opens the file using the system's default application. When the viewer is browsing a different branch or commit, the file is extracted via `git show` to a temp location first.
-- **Blame file** → Opens a read-only blame viewer (see [Blame a file](#42-blame-a-file))
+- **Blame file** → Opens a read-only blame viewer (see [Blame a file](#41-blame-a-file))
 - **Copy filename to clipboard**
 - **Copy fullpath to clipboard** — copies the full repository path of the file
 - **Browse file log** → opens a read-only viewer of that file's history
@@ -926,26 +926,7 @@ A brief **"Copied!"** notification appears to confirm the action.
 
 ---
 
-## 39. Keyboard Shortcuts
-Keyboard shortcuts for faster navigation and workflow.
-
-| Shortcut | Action |
-|----------|--------|
-| `/` | Focus the commit search bar |
-| `Esc` | Clear search, close dialogs, exit search mode, or exit multi-select mode |
-| `Ctrl+F` | Focus the diff search bar (available in every diff view) |
-| `Ctrl+Q` | Exit the application |
-| `Ctrl+Z` | Undo the last operation (disabled while editing text) |
-| `F5` | Refresh commit list |
-
-**Notes:**
-
-- `Esc` behaves contextually and may close dialogs, clear filters, exit search, or exit multi-select mode depending on the active state.
-- `Ctrl+F` focuses the diff search bar, which is available in every diff view (see [Diff Search Bar](#9-diff-search-bar)).
-
----
-
-## 40. Update the Tool
+## 39. Update the Tool
 
 **Screenshot:** `screenshots/update-available-dialog.webp`
 
@@ -961,13 +942,13 @@ For a cloned installation, the update refuses to run if the local clone has unco
 
 ---
 
-## 41. Tag Commit
+## 40. Tag Commit
 
 **Description:** Right-click a commit and select **Tag** to open the tagging dialog. Enter a tag name, optionally tick **Annotate** to create an annotated tag with a message, and click **Create Tag**. The new tag appears in the commit list when **Show Tags** is enabled (see [Configure Menu](#5-configure-menu)). Both lightweight and annotated tags are supported.
 
 ---
 
-## 42. Blame a file
+## 41. Blame a file
 
 Open a per-line blame viewer for any file in a commit, with search, filtering, and commit inspection.
 
@@ -991,3 +972,22 @@ Right-click any row to open the context menu:
 - **Blame before this** → Opens a new blame window showing the file as it was in the parent commit (useful for seeing what changed in the blamed line's commit). Shows a friendly message if the file didn't exist before that commit.
 
 The bottom bar also includes **Always On Top**, **Show Author / Date / Subject** column toggles, **Refresh** (re-runs `git blame`), and **Exit**. The search bar supports filtering by **Author**, **Subject**, and **Code** via the **Search Options** dropdown.
+
+---
+
+## 42. Keyboard Shortcuts
+Keyboard shortcuts for faster navigation and workflow.
+
+| Shortcut | Action |
+|----------|--------|
+| `/` | Focus the commit search bar |
+| `Esc` | Clear search, close dialogs, exit search mode, or exit multi-select mode |
+| `Ctrl+F` | Focus the diff search bar (available in every diff view) |
+| `Ctrl+Q` | Exit the application |
+| `Ctrl+Z` | Undo the last operation (disabled while editing text) |
+| `F5` | Refresh commit list |
+
+**Notes:**
+
+- `Esc` behaves contextually and may close dialogs, clear filters, exit search, or exit multi-select mode depending on the active state.
+- `Ctrl+F` focuses the diff search bar, which is available in every diff view (see [Diff Search Bar](#9-diff-search-bar)).
