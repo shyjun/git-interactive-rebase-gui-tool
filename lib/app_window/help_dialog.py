@@ -17,7 +17,17 @@ class HelpDialog(QDialog):
         super().__init__(parent)
         # Get tool version (short git SHA) for title
         from lib.git_helpers import get_head_sha
-        tool_sha = get_head_sha(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+        tool_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        tool_sha = get_head_sha(tool_dir)
+        if tool_sha == "Unknown":
+            try:
+                from lib.utils import get_assets_path
+                import json
+                assets_dir = get_assets_path()
+                with open(os.path.join(assets_dir, "app_version.json")) as f:
+                    tool_sha = json.load(f).get("sha", "unknown")
+            except Exception:
+                tool_sha = "unknown"
         self.setWindowTitle(f"Help — git-interactive-rebase-gui-tool ({tool_sha})")
         self.setMinimumWidth(450)
         self.setModal(True)

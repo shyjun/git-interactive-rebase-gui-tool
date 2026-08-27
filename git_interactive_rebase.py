@@ -101,7 +101,16 @@ def main():
     now = datetime.now()
     app_start_time = f"{now.strftime('%I.%M%p').lower()} {now.day}-{now.strftime('%b-%Y')}"
     head_sha = get_full_head_sha(repo_path)
-    print(f"App started at {app_start_time} | HEAD commit: {head_sha}")
+    tool_dir = os.path.dirname(os.path.abspath(__file__))
+    tool_sha = get_head_sha(tool_dir)
+    if tool_sha == "Unknown":
+        try:
+            assets_dir = get_assets_path()
+            with open(os.path.join(assets_dir, "app_version.json")) as f:
+                tool_sha = json.load(f).get("sha", "Unknown")
+        except Exception:
+            pass
+    print(f"App started at {app_start_time} | Tool version: {tool_sha} | HEAD commit: {head_sha}")
 
     app = QApplication(sys.argv)
 
