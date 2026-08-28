@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
     QScrollArea,
     QSizePolicy,
     QMainWindow,
+    QMenu,
 )
 # pyrefly: ignore [missing-import]
 from PySide6.QtCore import (
