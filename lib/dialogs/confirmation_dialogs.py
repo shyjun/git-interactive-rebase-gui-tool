@@ -40,23 +40,23 @@ class DropDialog(DiffViewerDialog):
         warning_color = "#f92672" # Default red
         if main_win and hasattr(main_win, 'current_theme_colors'):
              warning_color = main_win.current_theme_colors["removed"]
-             
+
         label.setStyleSheet(f"color: {warning_color};") 
         self.layout.addWidget(label)
 
     def setup_buttons(self):
         self.yes_btn = QPushButton("Yes, Drop it")
         self.no_btn = QPushButton("No, Cancel")
-        
+
         self.yes_btn.setMinimumWidth(120)
         self.no_btn.setMinimumWidth(120)
-        
+
         self.yes_btn.setProperty("class", "dialog-btn")
         self.no_btn.setProperty("class", "dialog-btn")
-        
+
         self.yes_btn.clicked.connect(self.accept)
         self.no_btn.clicked.connect(self.reject)
-        
+
         self.btn_layout.addWidget(self.yes_btn)
         self.btn_layout.addWidget(self.no_btn)
 
@@ -68,43 +68,43 @@ class RephraseDialog(QDialog):
         self.setWindowTitle(f"Rephrase Commit: {sha}")
         self.setMinimumSize(600, 400)
         self.font_size = font_size
-        
+
         layout = QVBoxLayout(self)
-        
+
         label = QLabel(f"Edit commit message for: <b>{sha}</b>")
         layout.addWidget(label)
-        
+
         self.message_edit = QTextEdit()
         self.message_edit.setFont(QFont("Courier New", self.font_size))
         self.message_edit.setPlainText(current_message)
         layout.addWidget(self.message_edit)
-        
+
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
-        
+
         self.apply_btn = QPushButton("Apply")
         self.discard_btn = QPushButton("Discard")
-        
+
         for btn in [self.apply_btn, self.discard_btn]:
             btn.setMinimumWidth(120)
             btn.setMinimumHeight(40)
             btn.setProperty("class", "dialog-btn")
-            
+
         self.apply_btn.clicked.connect(self.accept)
         self.discard_btn.clicked.connect(self.reject)
-        
+
         self.message_edit.textChanged.connect(self.on_text_changed)
         self.on_text_changed()
-        
+
         btn_layout.addWidget(self.apply_btn)
         btn_layout.addWidget(self.discard_btn)
         btn_layout.addStretch()
-        
+
         layout.addLayout(btn_layout)
 
     def get_message(self):
         return self.message_edit.toPlainText().strip()
-        
+
     def on_text_changed(self):
         self.apply_btn.setEnabled(bool(self.message_edit.toPlainText().strip()))
 
@@ -228,31 +228,31 @@ class SquashDialog(QDialog):
         self.setWindowTitle("Interactive Squash")
         self.setMinimumSize(600, 400)
         self.font_size = font_size
-        
+
         self.msg1 = msg1
         self.msg2 = msg2
-        
+
         layout = QVBoxLayout(self)
-        
+
         # Label
         layout.addWidget(QLabel("Select or edit the final commit message:"))
-        
+
         # Radio Buttons
         self.radio1 = QRadioButton(f"Use commit msg of {sha1}: {msg1.splitlines()[0][:50]}...")
         self.radio2 = QRadioButton(f"Use commit msg of {sha2}: {msg2.splitlines()[0][:50]}...")
-        
+
         layout.addWidget(self.radio1)
         layout.addWidget(self.radio2)
-        
+
         # Text Editor
         self.editor = QTextEdit()
         self.editor.setFont(QFont("Courier New", self.font_size))
         layout.addWidget(self.editor)
-        
+
         # Connections
         self.radio1.toggled.connect(self.on_radio_toggled)
         self.radio2.toggled.connect(self.on_radio_toggled)
-        
+
         # Default selection
         if default_radio == 2:
             self.radio2.setChecked(True)
@@ -260,21 +260,21 @@ class SquashDialog(QDialog):
         else:
             self.radio1.setChecked(True)
             self.editor.setPlainText(self.msg1)
-        
+
         # Buttons
         btn_layout = QHBoxLayout()
         self.proceed_btn = QPushButton("Proceed")
         self.cancel_btn = QPushButton("Cancel")
-        
+
         self.proceed_btn.setProperty("class", "dialog-btn")
         self.cancel_btn.setProperty("class", "dialog-btn")
-        
+
         self.proceed_btn.clicked.connect(self.accept)
         self.cancel_btn.clicked.connect(self.reject)
-        
+
         self.editor.textChanged.connect(self.on_text_changed)
         self.on_text_changed()
-        
+
         btn_layout.addStretch()
         btn_layout.addWidget(self.proceed_btn)
         btn_layout.addWidget(self.cancel_btn)
@@ -288,7 +288,7 @@ class SquashDialog(QDialog):
 
     def get_message(self):
         return self.editor.toPlainText().strip()
-        
+
     def on_text_changed(self):
         self.proceed_btn.setEnabled(bool(self.editor.toPlainText().strip()))
 
@@ -312,13 +312,13 @@ class MultiSquashDialog(QDialog):
 
         # Main splitter to allow resizing between the list and the editor
         self.splitter = QSplitter(Qt.Vertical)
-        
+
         # Scroll area for the radio buttons
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setFrameShape(QScrollArea.NoFrame)
         self.scroll_area.setMinimumHeight(100)
-        
+
         self.scroll_content = QWidget()
         self.scroll_layout = QVBoxLayout(self.scroll_content)
         self.scroll_layout.setContentsMargins(5, 5, 5, 5)
@@ -330,10 +330,10 @@ class MultiSquashDialog(QDialog):
             radio = QRadioButton(f"{sha}: {first_line}...")
             self.scroll_layout.addWidget(radio)
             self.radios.append(radio)
-        
+
         self.scroll_layout.addStretch()
         self.scroll_area.setWidget(self.scroll_content)
-        
+
         # Text editor
         self.editor = QTextEdit()
         self.editor.setFont(QFont("Courier New", font_size))
@@ -342,15 +342,15 @@ class MultiSquashDialog(QDialog):
         # Add to splitter
         self.splitter.addWidget(self.scroll_area)
         self.splitter.addWidget(self.editor)
-        
+
         # Disable collapsing for both panes to ensure minimum heights are respected
         self.splitter.setCollapsible(0, False)
         self.splitter.setCollapsible(1, False)
-        
+
         # Set stretch factors: list area gets some, editor gets more
         self.splitter.setStretchFactor(0, 1)
         self.splitter.setStretchFactor(1, 2)
-        
+
         layout.addWidget(self.splitter)
 
         # Wire radio toggling to update editor
@@ -370,7 +370,7 @@ class MultiSquashDialog(QDialog):
         self.cancel_btn.setProperty("class", "dialog-btn")
         self.proceed_btn.clicked.connect(self.accept)
         self.cancel_btn.clicked.connect(self.reject)
-        
+
         self.editor.textChanged.connect(self.on_text_changed)
         self.on_text_changed()
         btn_layout.addWidget(self.proceed_btn)
@@ -383,7 +383,7 @@ class MultiSquashDialog(QDialog):
 
     def get_message(self):
         return self.editor.toPlainText().strip()
-        
+
     def on_text_changed(self):
         self.proceed_btn.setEnabled(bool(self.editor.toPlainText().strip()))
 
@@ -395,23 +395,23 @@ class ProgressDialog(QDialog):
         self.setWindowTitle(title)
         self.setFixedSize(450, 150)
         self.setModal(True)
-        
+
         # Disable close button and other hints to make it more "locked"
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint & ~Qt.WindowCloseButtonHint)
-        
+
         layout = QVBoxLayout(self)
         layout.setContentsMargins(25, 25, 25, 25)
         layout.setSpacing(10)
-        
+
         self.label = QLabel(message)
         self.label.setAlignment(Qt.AlignCenter)
         self.label.setStyleSheet("font-weight: bold; font-size: 14px;")
         layout.addWidget(self.label)
-        
+
         self.progress_bar = QProgressBar()
         self.progress_bar.setRange(0, 0)  # Indeterminate
         self.progress_bar.setMinimumHeight(20)
         layout.addWidget(self.progress_bar)
-        
+
         # Add some spacing at the bottom
         layout.addSpacing(10)

@@ -274,7 +274,9 @@ subprocess.check_call(['git', 'reset', '--hard', 'HEAD'])
 # 5. Clean untracked files (in case the dropped change was a new file)
 subprocess.check_call(['git', 'clean', '-fd', '--', filepath])
 """
-            import tempfile, os, stat
+            import tempfile
+            import os
+            import stat
             action_fd, action_path = tempfile.mkstemp(prefix='git_drop_action_', suffix='.py', text=True)
             with os.fdopen(action_fd, 'w', encoding='utf-8') as f:
                 f.write(action_script_content)
@@ -475,7 +477,9 @@ except Exception as e:
     print("FAILED to replace commit:", e)
     sys.exit(1)
 """
-                import tempfile, os, stat
+                import tempfile
+                import os
+                import stat
                 action_fd, action_path = tempfile.mkstemp(prefix='git_remove_action_', suffix='.py', text=True)
                 with os.fdopen(action_fd, 'w', encoding='utf-8') as f:
                     f.write(action_script_content)

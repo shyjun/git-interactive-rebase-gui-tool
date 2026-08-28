@@ -106,18 +106,18 @@ class DiffViewerDialog(QDialog):
         self.setWindowTitle(title)
         self.setMinimumSize(800, 600)
         self.font_size = font_size
-        
+
         self.layout = QVBoxLayout(self)
-        
+
         # Header info
         self.setup_header(sha)
-        
+
         # Full diff view
         self.diff_view = DiffView()
         self.diff_view.setReadOnly(True)
         self.diff_view.setFont(QFont("Courier New", self.font_size))
         self.diff_view.setPlainText(diff_text)
-        
+
         # Determine highlighting colors based on parent theme or default to dark
         app = QApplication.instance()
         main_win = parent if isinstance(parent, QMainWindow) else None
@@ -126,14 +126,14 @@ class DiffViewerDialog(QDialog):
         else:
              # Default dark-ish colors if not found
              colors = {"added": "#a6e22e", "removed": "#f92672", "header": "#66d9ef"}
-             
+
         self.highlighter = DiffHighlighter(self.diff_view.document(), 
                                            added_color=colors["added"],
                                            removed_color=colors["removed"],
                                            header_color=colors["header"])
-        
+
         self.diff_view.set_separator_color(colors.get("separator", "#444444"))
-        
+
         # Wrap search and diff view so they appear as one item in self.layout
         diff_container = QWidget()
         diff_container_layout = QVBoxLayout(diff_container)
@@ -142,15 +142,15 @@ class DiffViewerDialog(QDialog):
 
         self.search_bar = DiffSearchBar(target_view=self.diff_view, parent=diff_container)
         diff_container_layout.addWidget(self.search_bar)
-        
+
         diff_container_layout.addWidget(self.diff_view)
-        
+
         self.layout.addWidget(diff_container)
 
         # Connect Ctrl+F explicitly just in case focus escapes
         self.ctrl_f_shortcut = QShortcut(QKeySequence("Ctrl+F"), self)
         self.ctrl_f_shortcut.activated.connect(self.search_bar.show_and_focus)
-        
+
         # Buttons
         self.btn_layout = QHBoxLayout()
         self.btn_layout.addStretch() # Center spacer left
@@ -175,23 +175,23 @@ class ViewCommitDialog(DiffViewerDialog):
         label = self.layout.itemAt(0).widget()
         msg_box = self.layout.itemAt(1).widget()
         diff_view = self.layout.itemAt(2).widget()
-        
+
         self.layout.removeWidget(label)
         self.layout.removeWidget(msg_box)
         self.layout.removeWidget(diff_view)
-        
+
         splitter = QSplitter(Qt.Vertical)
         splitter.setChildrenCollapsible(False)
-        
+
         top_widget = QWidget()
         top_layout = QVBoxLayout(top_widget)
         top_layout.setContentsMargins(0, 0, 0, 0)
         top_layout.addWidget(label)
         top_layout.addWidget(msg_box)
-        
+
         splitter.addWidget(top_widget)
         splitter.addWidget(diff_view)
-        
+
         self.layout.insertWidget(0, splitter)
         splitter.setSizes([150, 450])
 
@@ -763,17 +763,17 @@ class FileWiseViewDialog(QDialog):
         msg_widget = QWidget()
         msg_layout = QVBoxLayout(msg_widget)
         msg_layout.setContentsMargins(0, 0, 0, 0)
-        
+
         msg_header = QLabel(f"Commit: <b>{sha}</b> <span style='color:gray;'>({meta})</span>")
         msg_header.setTextFormat(Qt.RichText)
         msg_layout.addWidget(msg_header)
-        
+
         self.msg_view = QTextEdit()
         self.msg_view.setReadOnly(True)
         self.msg_view.setPlainText(msg)
         self.msg_view.setFont(QFont("Courier New", font_size))
         msg_layout.addWidget(self.msg_view)
-        
+
         self.main_splitter.addWidget(msg_widget)
 
         # Row 2: File List
@@ -781,7 +781,7 @@ class FileWiseViewDialog(QDialog):
         file_layout = QVBoxLayout(file_widget)
         file_layout.setContentsMargins(0, 5, 0, 0)
         file_layout.addWidget(QLabel("<b>Select a file</b> to view its changes:"))
-        
+
         self.file_list = QListWidget()
         self.file_list.setMinimumHeight(60)
         self.file_list.setFont(QFont("Courier New", font_size))
@@ -805,7 +805,7 @@ class FileWiseViewDialog(QDialog):
         self.file_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.file_list.customContextMenuRequested.connect(self.show_file_context_menu)
         file_layout.addWidget(self.file_list)
-        
+
         self.main_splitter.addWidget(file_widget)
 
         # Row 3: Diff View
@@ -813,7 +813,7 @@ class FileWiseViewDialog(QDialog):
         diff_layout = QVBoxLayout(diff_widget)
         diff_layout.setContentsMargins(0, 5, 0, 0)
         diff_layout.addWidget(QLabel("<b>File Diff:</b>"))
-        
+
         self.diff_view = DiffView()
         self.diff_view.setMinimumHeight(100)
         self.diff_view.setReadOnly(True)
@@ -825,15 +825,15 @@ class FileWiseViewDialog(QDialog):
             removed_color=colors["removed"],
             header_color=colors["header"]
         )
-        
+
         self.search_bar = DiffSearchBar(target_view=self.diff_view, parent=diff_widget)
         diff_layout.addWidget(self.search_bar)
         diff_layout.addWidget(self.diff_view)
-        
+
         # Connect Ctrl+F explicitly
         self.ctrl_f_shortcut = QShortcut(QKeySequence("Ctrl+F"), self)
         self.ctrl_f_shortcut.activated.connect(self.search_bar.show_and_focus)
-        
+
         self.main_splitter.addWidget(diff_widget)
 
         # Initial sizes for [Message, File List, Diff View]
@@ -871,7 +871,7 @@ class FileWiseViewDialog(QDialog):
         copy_action = QAction("Copy filename to clipboard", self)
         copy_action.triggered.connect(lambda checked=False, text=target_path: self.copy_filename_to_clipboard(text))
         menu.addAction(copy_action)
-        
+
         is_only_file = self.file_list.count() <= 1
 
         move_action = QAction("Move file changes out of this commit", self)

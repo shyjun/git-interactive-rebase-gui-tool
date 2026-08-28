@@ -25,7 +25,7 @@ class UndoMixin:
             QMessageBox.No
         )
         if reply == QMessageBox.Yes:
-            print(f"[undo] Reset to BEST_COMMIT confirmed")
+            print("[undo] Reset to BEST_COMMIT confirmed")
             self.perform_reset(self.best_commit_sha)
         else:
             print(f"[undo] Cancelled reset to BEST_COMMITID ({self.best_commit_sha[:8]}).")
@@ -46,7 +46,7 @@ class UndoMixin:
             QMessageBox.No
         )
         if reply == QMessageBox.Yes:
-            print(f"[undo] Failsafe reset confirmed")
+            print("[undo] Failsafe reset confirmed")
             self.save_undo_state()
             self.perform_reset(self.start_time_head)
         else:
@@ -95,7 +95,7 @@ class UndoMixin:
             QMessageBox.No
         )
         if reply == QMessageBox.Yes:
-            print(f"[undo] Undo confirmed")
+            print("[undo] Undo confirmed")
             old_head = self.get_head_sha()
 
             self.progress_dialog = ProgressDialog("Undoing", f"Resetting hard to {self.last_head[:8]}...", self)

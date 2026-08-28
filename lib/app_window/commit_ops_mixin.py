@@ -57,7 +57,7 @@ class CommitOpsMixin:
             )
             return
 
-        print(f"[commit] Patch applied successfully")
+        print("[commit] Patch applied successfully")
         self.load_history()
         QMessageBox.information(
             self, "Patch Applied",
@@ -238,7 +238,7 @@ class CommitOpsMixin:
             self, "Create Patch", default_name,
             "Patch files (*.patch);;All files (*)")
         if not save_path:
-            print(f"[commit] Patch creation cancelled")
+            print("[commit] Patch creation cancelled")
             return
 
         try:
@@ -275,10 +275,9 @@ class CommitOpsMixin:
             return
         sha = item.text().split()[0]
         print(f"[commit] Tagging commit: {sha[:10]}")
-        from lib.dialogs import TagCommitDialog
         dlg = TagCommitDialog(sha, self)
         if dlg.exec() != QDialog.Accepted:
-            print(f"[commit] Tag creation cancelled")
+            print("[commit] Tag creation cancelled")
             return
         tag_name = dlg.tag_name
         if not tag_name:

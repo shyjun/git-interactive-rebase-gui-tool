@@ -26,3 +26,26 @@ include = ["lib*", "assets*"]
 
 [tool.setuptools.package-data]
 assets = ["*"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["F", "E", "W"]
+ignore = [
+    "F401",   # unused imports (mixin re-exports)
+    "F811",   # redefinition of unused name (mixin overrides)
+    "F841",   # unused local variable (button refs, QApplication.instance() kept for side-effects)
+    "E501",   # line too long
+    "E701",   # multiple statements on one line
+    "E722",   # bare except (intentional for git subprocess calls)
+    "E741",   # ambiguous variable names
+    "W291",   # trailing whitespace
+]
+
+[tool.ruff.lint.per-file-ignores]
+"lib/app_window/__init__.py" = ["F401"]
+"lib/dialogs/__init__.py" = ["F401"]
+"lib/git_helpers/__init__.py" = ["F401"]
+"lib/__init__.py" = ["F401"]

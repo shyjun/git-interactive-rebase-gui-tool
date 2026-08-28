@@ -433,7 +433,7 @@ class SquashMixin:
                 return True
             self.load_history()
             return False
-        except Exception as e:
+        except Exception:
             self.load_history()
             return False
 

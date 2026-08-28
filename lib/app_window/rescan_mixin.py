@@ -26,7 +26,7 @@ class RescanMixin:
 
     def handle_rescan_repo(self):
         """Safely rescan repository state, prompting user for unstaged changes identically to app startup if found."""
-        print(f"[rescan] Rescanning repository...")
+        print("[rescan] Rescanning repository...")
         unstaged_files = get_unstaged_files(self.repo_path, ignore_submodules=True)
         print(f"[rescan] Found {len(unstaged_files)} unstaged files")
         if unstaged_files:
@@ -233,10 +233,10 @@ class RescanMixin:
     def handle_manual_refresh(self):
         """Shows a progress dialog during manual refresh."""
         if self.browse_mode:
-            print(f"[rescan] Manual refresh in browse mode — reloading browse history")
+            print("[rescan] Manual refresh in browse mode — reloading browse history")
             self.load_browse_history_async()
             return
-        print(f"[rescan] Manual refresh — full history reload")
+        print("[rescan] Manual refresh — full history reload")
         progress = ProgressDialog("Refreshing", "Refreshing git history. Please wait...", self)
         progress.show()
         QApplication.processEvents()

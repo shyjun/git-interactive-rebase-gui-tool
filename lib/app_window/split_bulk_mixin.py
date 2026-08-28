@@ -379,7 +379,7 @@ for i, filename in enumerate(files):
                     if returncode == 0:
                         self.load_history()
                         new_head = self.get_head_sha()
-                        self.log_action(sha, f"split per-file", old_head, new_head)
+                        self.log_action(sha, "split per-file", old_head, new_head)
                         QMessageBox.information(self, "Success",
                             f"Commit {short_sha} has been split into {len(files)} commits.")
                     else:

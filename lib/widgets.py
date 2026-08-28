@@ -60,10 +60,10 @@ class DiffHighlighter(QSyntaxHighlighter):
         super().__init__(parent)
         self.added_format = QTextCharFormat()
         self.added_format.setForeground(QColor(added_color))
-        
+
         self.removed_format = QTextCharFormat()
         self.removed_format.setForeground(QColor(removed_color))
-        
+
         self.header_format = QTextCharFormat()
         self.header_format.setForeground(QColor(header_color))
 
@@ -94,18 +94,18 @@ class DiffView(QPlainTextEdit):
         super().__init__(parent)
         self.separator_color = QColor("#CCCCCC")
         self.draw_separators = True
-        
+
         self.line_number_area = LineNumberArea(self)
         self.show_line_numbers = False
-        
+
         self.blockCountChanged.connect(self.update_line_number_area_width)
         self.updateRequest.connect(self.update_line_number_area)
         self.update_line_number_area_width(0)
-        
+
     def set_line_numbers_visible(self, visible):
         self.show_line_numbers = visible
         self.update_line_number_area_width(self.blockCount())
-        
+
     def line_number_area_width(self):
         if not self.show_line_numbers:
             return 0
@@ -133,7 +133,7 @@ class DiffView(QPlainTextEdit):
             self.line_number_area.scroll(0, dy)
         else:
             self.line_number_area.update(0, rect.y(), self.line_number_area.width(), rect.height())
-        
+
         if rect.contains(self.viewport().rect()):
             self.update_line_number_area_width(0)
 
@@ -179,30 +179,30 @@ class DiffView(QPlainTextEdit):
     def set_separator_color(self, color):
         self.separator_color = QColor(color)
         self.viewport().update()
-        
+
     def paintEvent(self, event):
         super().paintEvent(event)
         if not self.draw_separators:
             return
-            
+
         painter = QPainter(self.viewport())
         # Disable antialiasing for sharp 1px lines
         painter.setRenderHint(QPainter.Antialiasing, False)
         painter.setRenderHint(QPainter.Antialiasing, False)
-        
+
         block = self.firstVisibleBlock()
         # Find the top of the first visible block in viewport coordinates
         offset = self.contentOffset()
         top = int(offset.y())
-        
+
         while block.isValid():
             # If the block is below the visible area, we're done
             if top > self.viewport().rect().bottom():
                 break
-            
+
             block_height = int(self.blockBoundingRect(block).height())
             bottom = top + block_height
-            
+
             # If the block is at least partially visible
             if bottom >= 0:
                 text = block.text().strip()
@@ -215,7 +215,7 @@ class DiffView(QPlainTextEdit):
                         # Use 2px thickness for better visibility
                         y = int(top + (block_height - 2) / 2)
                         painter.fillRect(0, y, self.viewport().width(), 2, self.separator_color)
-            
+
             # Move to the top of the next block
             top = bottom
             block = block.next()
@@ -228,7 +228,7 @@ class DiffSearchBar(QWidget):
         self.target_view = target_view
         self.matches = []
         self.current_match_idx = -1
-        
+
         # Colors for highlighting
         self.highlight_color = QColor("#ffeb3b") # yellow
         self.highlight_color.setAlpha(100)
@@ -296,12 +296,12 @@ class DiffSearchBar(QWidget):
         self.line_num_cb.toggled.connect(self.target_view.set_line_numbers_visible)
         self.btn_next.clicked.connect(self.next_match)
         self.btn_prev.clicked.connect(self.prev_match)
-        
+
         # Keyboard shortcuts when focused
         self.shortcut_up = QShortcut(QKeySequence(Qt.Key_Up), self)
         self.shortcut_up.setContext(Qt.WidgetWithChildrenShortcut)
         self.shortcut_up.activated.connect(self.prev_match)
-        
+
         self.shortcut_down = QShortcut(QKeySequence(Qt.Key_Down), self)
         self.shortcut_down.setContext(Qt.WidgetWithChildrenShortcut)
         self.shortcut_down.activated.connect(self.next_match)
@@ -328,7 +328,7 @@ class DiffSearchBar(QWidget):
         if not query:
             self.clear_search()
             return
-            
+
         doc = self.target_view.document()
         self.matches.clear()
         self.current_match_idx = -1
@@ -367,15 +367,15 @@ class DiffSearchBar(QWidget):
 
     def update_highlights(self):
         selections = []
-        
+
         for i, cursor in enumerate(self.matches):
             sel = QTextEdit.ExtraSelection()
             sel.cursor = cursor
             sel.format.setBackground(self.active_highlight_color if i == self.current_match_idx else self.highlight_color)
             selections.append(sel)
-            
+
         self.target_view.setExtraSelections(selections)
-        
+
         count = len(self.matches)
         if count == 0:
             self.lbl_counter.setText("0/0")
@@ -414,7 +414,7 @@ class DiffSearchBar(QWidget):
         self.current_match_idx = -1
         self.target_view.setExtraSelections([])
         self.lbl_counter.setText("0/0")
-        
+
         # Hand-in-hand with updating highlights: clear selection
         cursor = self.target_view.textCursor()
         if cursor.hasSelection():

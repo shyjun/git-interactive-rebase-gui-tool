@@ -51,7 +51,6 @@ def _find_main_window(widget):
     """Walk up the widget tree to find the main application window."""
     w = widget
     while w:
-        from PySide6.QtWidgets import QMainWindow
         if isinstance(w, QMainWindow):
             return w
         w = w.parent()
