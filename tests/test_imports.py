@@ -76,8 +76,11 @@ def _make_import_test(module_name):
         except NameError as e:
             self.fail(f"NameError importing {module_name}: {e}")
         except ImportError as e:
-            if "No module named" in str(e) and module_name.split(".")[0] in str(e):
-                self.skipTest(f"Module {module_name} not available in this environment")
+            msg = str(e)
+            if ("No module named" in msg and module_name.split(".")[0] in msg):
+                self.skipTest(f"Module {module_name} not available")
+            if ".so" in msg or "cannot open shared object" in msg:
+                self.skipTest(f"System library missing for {module_name}: {msg}")
             self.fail(f"ImportError importing {module_name}: {e}")
 
     test_func.__doc__ = f"Import {module_name}"
