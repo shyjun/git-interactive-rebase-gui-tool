@@ -1,0 +1,26 @@
+name: Lint
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: Install dependencies
+        run: |
+          pip install ruff
+          pip install PySide6
+      - name: Ruff
+        run: ruff check lib/
+      - name: Missing imports
+        run: python3 scripts/lint_imports.py
+      - name: Import tests
+        run: python3 -m pytest tests/test_imports.py -v
