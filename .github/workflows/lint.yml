@@ -16,8 +16,7 @@ jobs:
           python-version: "3.10"
       - name: Install dependencies
         run: |
-          pip install ruff
-          pip install PySide6
+          pip install ruff pytest PySide6
       - name: Ruff
         run: ruff check lib/
       - name: Missing imports
