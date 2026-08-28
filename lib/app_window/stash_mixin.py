@@ -145,7 +145,7 @@ class StashMixin:
         if not self._check_head_unchanged():
             return
 
-        print(f"[stash] Opening selective commit dialog")
+        print("[stash] Opening selective commit dialog")
         try:
             unstaged_files = get_unstaged_files(self.repo_path, ignore_submodules=True)
             if not unstaged_files:

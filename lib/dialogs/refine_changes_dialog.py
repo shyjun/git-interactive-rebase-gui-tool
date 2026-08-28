@@ -184,7 +184,7 @@ class RefineChangesDialog(QDialog):
         bot_row.addLayout(keep_col)
         bot_row.addLayout(move_col)
         bot_row.addLayout(cancel_col)
-        
+
         layout.addLayout(bot_row)
 
     def _update_counter(self, _=None):

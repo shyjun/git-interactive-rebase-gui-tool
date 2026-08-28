@@ -102,7 +102,7 @@ class BrowseMixin:
         """Opens a read-only viewer window showing the repository's HEAD reflog
         (most recent entries first), with the diff pane hidden and a minimal
         copy-SHA / show-log toolbar."""
-        print(f"[browse] Opening reflog viewer, limit=50")
+        print("[browse] Opening reflog viewer, limit=50")
         AppClass = _get_app_class()
         viewer = AppClass(
             self.repo_path, self.commit_sha, self.app_start_time,
@@ -123,7 +123,7 @@ class BrowseMixin:
         """Opens a read-only viewer window showing all tags in the repository
         (most recent first), with the diff pane hidden and a minimal
         copy-SHA / show-log toolbar."""
-        print(f"[browse] Opening tags browser, limit=50")
+        print("[browse] Opening tags browser, limit=50")
         AppClass = _get_app_class()
         viewer = AppClass(
             self.repo_path, self.commit_sha, self.app_start_time,
@@ -142,7 +142,7 @@ class BrowseMixin:
     def handle_browse_stash(self):
         """Opens a read-only viewer window showing the repository's stash list
         (most recent first), with the diff pane always visible."""
-        print(f"[browse] Opening stash browser, limit=50")
+        print("[browse] Opening stash browser, limit=50")
         AppClass = _get_app_class()
         viewer = AppClass(
             self.repo_path, self.commit_sha, self.app_start_time,
@@ -355,7 +355,7 @@ class BrowseMixin:
                else "The stash will be KEPT after the apply."),
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         if confirm != QMessageBox.Yes:
-            print(f"[browse] Stash apply cancelled")
+            print("[browse] Stash apply cancelled")
             return
         success, err = stash_apply(self.repo_path, sha)
         if not success:
@@ -391,15 +391,15 @@ class BrowseMixin:
             f"Drop stash {sha[:8]}? This cannot be undone.",
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         if confirm != QMessageBox.Yes:
-            print(f"[browse] Stash drop cancelled")
+            print("[browse] Stash drop cancelled")
             return
         dropped = stash_drop(self.repo_path, sha)
         if dropped:
-            print(f"[browse] Stash dropped successfully")
+            print("[browse] Stash dropped successfully")
             QMessageBox.information(self, "Stash Dropped",
                                     f"Stash {sha[:8]} was dropped.")
         else:
-            print(f"[browse] Stash drop FAILED")
+            print("[browse] Stash drop FAILED")
             QMessageBox.critical(self, "Drop Failed",
                                  f"Failed to drop stash {sha[:8]}.")
         self._reload_stash_list()
@@ -430,7 +430,7 @@ class BrowseMixin:
             QMessageBox.critical(self, "Merge Base Error", f"Could not find the merge base.\n\nError: {e}")
             return
         if not base_sha:
-            print(f"[browse] No common ancestor found")
+            print("[browse] No common ancestor found")
             QMessageBox.warning(
                 self, "No common ancestor",
                 f"No merge-base found between '{current_branch}' and '{other_branch}'.\n\n"

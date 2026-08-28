@@ -132,7 +132,7 @@ def get_unstaged_files(repo_path, ignore_submodules=False):
         cmd = ["git", "status", "--porcelain", "--untracked-files=no"]
         if ignore_submodules:
             cmd.append("--ignore-submodules=all")
-            
+
         result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
         files = []
         for line in result.stdout.strip().split('\n'):

@@ -5,7 +5,6 @@ from PySide6.QtGui import QColor, QPainter, QPixmap, QPen, QPainterPath, QBrush,
 
 class ToolbarMixin:
     def _set_theme_icon(self, button):
-        import math
         pixmap = QPixmap(16, 16)
         pixmap.fill(Qt.transparent)
         painter = QPainter(pixmap)

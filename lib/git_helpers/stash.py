@@ -30,7 +30,7 @@ def stash_changes(repo_path, message=None):
 
         cmd = ["git", "stash", "push", "-m", message]
         subprocess.run(cmd, cwd=repo_path, check=True, capture_output=True, text=True, encoding='utf-8', errors='replace')
-        
+
         # After stashing, check if refs/stash has changed or been created.
         # A successful push (rc 0) with no resulting refs/stash means there was
         # nothing to stash and no pre-existing stash list, i.e. a no-op, not a

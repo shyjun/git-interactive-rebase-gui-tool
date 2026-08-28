@@ -88,17 +88,17 @@ class SplitCommitDialog(QDialog):
         msg_widget = QWidget()
         msg_layout = QVBoxLayout(msg_widget)
         msg_layout.setContentsMargins(0, 0, 0, 0)
-        
+
         msg_header = QLabel(f"Commit: <b>{sha}</b> <span style='color:gray;'>({meta})</span>")
         msg_header.setTextFormat(Qt.RichText)
         msg_layout.addWidget(msg_header)
-        
+
         self.msg_view = QTextEdit()
         self.msg_view.setReadOnly(True)
         self.msg_view.setPlainText(msg)
         self.msg_view.setFont(QFont("Courier New", font_size))
         msg_layout.addWidget(self.msg_view)
-        
+
         self.main_splitter.addWidget(msg_widget)
 
         # Row 2: File List
@@ -106,7 +106,7 @@ class SplitCommitDialog(QDialog):
         file_layout = QVBoxLayout(file_widget)
         file_layout.setContentsMargins(0, 5, 0, 0)
         file_layout.addWidget(QLabel("<b>Select a file</b> to move out of this commit:"))
-        
+
         self.file_list = QListWidget()
         self.file_list.setMinimumHeight(60)
         self.file_list.setFont(QFont("Courier New", font_size))
@@ -124,7 +124,7 @@ class SplitCommitDialog(QDialog):
         self.file_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.file_list.customContextMenuRequested.connect(self.show_file_context_menu)
         file_layout.addWidget(self.file_list)
-        
+
         self.main_splitter.addWidget(file_widget)
 
         # Row 3: Diff View
@@ -132,7 +132,7 @@ class SplitCommitDialog(QDialog):
         diff_layout = QVBoxLayout(diff_widget)
         diff_layout.setContentsMargins(0, 5, 0, 0)
         diff_layout.addWidget(QLabel("<b>File Diff:</b>"))
-        
+
         self.diff_view = DiffView()
         self.diff_view.setMinimumHeight(100)
         self.diff_view.setReadOnly(True)
@@ -144,11 +144,11 @@ class SplitCommitDialog(QDialog):
             removed_color=colors["removed"],
             header_color=colors["header"]
         )
-        
+
         self.search_bar = DiffSearchBar(target_view=self.diff_view, parent=diff_widget)
         diff_layout.addWidget(self.search_bar)
         diff_layout.addWidget(self.diff_view)
-        
+
         self.ctrl_f_shortcut = QShortcut(QKeySequence("Ctrl+F"), self)
         self.ctrl_f_shortcut.activated.connect(self.search_bar.show_and_focus)
 
@@ -268,17 +268,17 @@ class DropFileFromCommitDialog(QDialog):
         msg_widget = QWidget()
         msg_layout = QVBoxLayout(msg_widget)
         msg_layout.setContentsMargins(0, 0, 0, 0)
-        
+
         msg_header = QLabel(f"Commit: <b>{sha}</b> <span style='color:gray;'>({meta})</span>")
         msg_header.setTextFormat(Qt.RichText)
         msg_layout.addWidget(msg_header)
-        
+
         self.msg_view = QTextEdit()
         self.msg_view.setReadOnly(True)
         self.msg_view.setPlainText(msg)
         self.msg_view.setFont(QFont("Courier New", font_size))
         msg_layout.addWidget(self.msg_view)
-        
+
         self.main_splitter.addWidget(msg_widget)
 
         # Row 2: File List
@@ -286,7 +286,7 @@ class DropFileFromCommitDialog(QDialog):
         file_layout = QVBoxLayout(file_widget)
         file_layout.setContentsMargins(0, 5, 0, 0)
         file_layout.addWidget(QLabel("<b>Select a file</b> to drop from this commit:"))
-        
+
         self.file_list = QListWidget()
         self.file_list.setMinimumHeight(60)
         self.file_list.setFont(QFont("Courier New", font_size))
@@ -304,7 +304,7 @@ class DropFileFromCommitDialog(QDialog):
         self.file_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.file_list.customContextMenuRequested.connect(self.show_file_context_menu)
         file_layout.addWidget(self.file_list)
-        
+
         self.main_splitter.addWidget(file_widget)
 
         # Row 3: Diff View
@@ -312,7 +312,7 @@ class DropFileFromCommitDialog(QDialog):
         diff_layout = QVBoxLayout(diff_widget)
         diff_layout.setContentsMargins(0, 5, 0, 0)
         diff_layout.addWidget(QLabel("<b>File Diff:</b>"))
-        
+
         self.diff_view = DiffView()
         self.diff_view.setMinimumHeight(100)
         self.diff_view.setReadOnly(True)
@@ -324,11 +324,11 @@ class DropFileFromCommitDialog(QDialog):
             removed_color=colors["removed"],
             header_color=colors["header"]
         )
-        
+
         self.search_bar = DiffSearchBar(target_view=self.diff_view, parent=diff_widget)
         diff_layout.addWidget(self.search_bar)
         diff_layout.addWidget(self.diff_view)
-        
+
         self.ctrl_f_shortcut = QShortcut(QKeySequence("Ctrl+F"), self)
         self.ctrl_f_shortcut.activated.connect(self.search_bar.show_and_focus)
 
@@ -492,8 +492,8 @@ class ConfirmRemoveFileOnwardsDialog(DiffViewerDialog):
             f"✓ Selected commit ({sha})"
         )
         if self.later_modifications_detected:
-            msg += f"<br>✓ All following commits that modify it"
-        
+            msg += "<br>✓ All following commits that modify it"
+
         label = QLabel(msg)
         label.setWordWrap(True)
         label.setTextFormat(Qt.RichText)
@@ -519,14 +519,14 @@ class ConfirmRemoveFileOnwardsDialog(DiffViewerDialog):
         if self.later_modifications_detected:
             self.yes_btn = QPushButton("Yes, Remove from Future Commits Too")
             self.no_btn = QPushButton("Cancel")
-            
+
             # Make the yes button red to indicate destructive action
             # We use an inline style that mimics dialog-btn but overrides colors
             main_win = self.parent() if isinstance(self.parent(), QMainWindow) else None
             warning_color = "#f92672" # default red
             if main_win and hasattr(main_win, 'current_theme_colors'):
                 warning_color = main_win.current_theme_colors.get("removed", "#f92672")
-                
+
             self.yes_btn.setStyleSheet(f"""
                 QPushButton {{
                     background-color: transparent;
@@ -581,7 +581,7 @@ class AggressiveRemoveConfirmationDialog(QDialog):
         commit_list = QTextEdit()
         commit_list.setReadOnly(True)
         commit_list.setFont(QFont("Courier New", self.font_size))
-        
+
         # Display each commit
         commits_text = ""
         for sha, msg in commits_modifying_file:
@@ -615,7 +615,7 @@ class AggressiveRemoveConfirmationDialog(QDialog):
             self.drop_empty_checkbox.setChecked(False)
             self.drop_empty_checkbox.setEnabled(False)
             self.drop_empty_checkbox.setStyleSheet("color: gray;")
-            
+
         check_layout = QHBoxLayout()
         check_layout.addStretch()
         check_layout.addWidget(self.drop_empty_checkbox)

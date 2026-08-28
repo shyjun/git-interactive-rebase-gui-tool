@@ -75,11 +75,11 @@ class UnstagedChangesDialog(QDialog):
         self.setWindowTitle("Unstaged Changes Warning")
         self.setMinimumWidth(600)
         self.setModal(True)
-        
+
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(20)
-        
+
         message = (
             "<b>You have unstaged changes in the repo.</b><br><br>"
             "If needed, we can stash the changes and go ahead with the app. "
@@ -88,18 +88,18 @@ class UnstagedChangesDialog(QDialog):
             "<b>Note:</b> Untracked files are <b>not considered</b> and will be left untouched.<br><br>"
             "Otherwise, please exit, commit/discard manually, and start the app again."
         )
-        
+
         self.label = QLabel(message)
         self.label.setWordWrap(True)
         self.label.setStyleSheet("font-size: 13px; font-weight: normal;")
         layout.addWidget(self.label)
-        
+
         btn_layout = QVBoxLayout()
         btn_layout.setSpacing(10)
-        
+
         self.view_changes_btn = QPushButton("Show unstaged changes")
         self.view_changes_btn.setToolTip("Open a read-only viewer with only the unstaged changes. No edits allowed.")
-        
+
         self.stash_btn = QPushButton("Stash and proceed to app")
         self.stash_btn.setToolTip("Stash all uncommitted changes and proceed to the app.")
 
@@ -109,29 +109,29 @@ class UnstagedChangesDialog(QDialog):
         commit_each_text = f"Commit each file changes separately and start app ({num_files} files modified, {num_files} commits)"
         self.commit_each_btn = QPushButton(commit_each_text)
         self.commit_each_btn.setToolTip("Commit each file's changes as its own commit, then start the app.")
-        
+
         bulk_commit_text = f"Commit all unsaved changes to a single 'bulk' commit (Number of modified files: {num_files})"
         self.bulk_commit_btn = QPushButton(bulk_commit_text)
         self.bulk_commit_btn.setToolTip("Commit all changes into a single 'bulk' commit, then start the app.")
-        
+
         amend_text = "Amend all changes into the HEAD commit (--amend --no-edit)"
         self.amend_btn = QPushButton(amend_text)
         self.amend_btn.setToolTip("Amend all changes into the HEAD commit (--amend --no-edit).")
-        
+
         self.discard_btn = QPushButton("Discard unstaged changes (git checkout .), staged changes if any is untouched")
         self.discard_btn.setToolTip("Discard only unstaged (worktree) changes in tracked files. Staged changes are left untouched. This cannot be undone.")
-        
+
         viewer_label = "Switch to" if from_rescan else "Start in"
         self.viewer_mode_btn = QPushButton(f"{viewer_label} Viewer Mode (No history-modifying operations will be allowed)")
         self.viewer_mode_btn.setToolTip(f"{viewer_label} Viewer Mode. Warning: no history-modifying operations are allowed.")
 
         self.exit_btn = QPushButton("Exit")
         self.exit_btn.setToolTip("Exit the application.")
-        
+
         # Style buttons a bit
         for btn in [self.view_changes_btn, self.stash_btn, self.commit_selectively_btn, self.commit_each_btn, self.bulk_commit_btn, self.amend_btn, self.discard_btn, self.viewer_mode_btn, self.exit_btn]:
             btn.setMinimumHeight(35)
-        
+
         self.view_changes_btn.clicked.connect(self.show_unstaged_changes)
         self.stash_btn.clicked.connect(self._on_stash)
         self.commit_selectively_btn.clicked.connect(lambda: self.done(self.SelectiveCommitResult))
@@ -148,7 +148,7 @@ class UnstagedChangesDialog(QDialog):
                 btn.setEnabled(False)
                 btn.setToolTip(not_allowed)
             self.viewer_mode_btn.setVisible(False)
-        
+
         btn_layout.addWidget(self.view_changes_btn)
         btn_layout.addWidget(self.stash_btn)
         btn_layout.addWidget(self.commit_selectively_btn)
@@ -158,7 +158,7 @@ class UnstagedChangesDialog(QDialog):
         btn_layout.addWidget(self.discard_btn)
         btn_layout.addWidget(self.viewer_mode_btn)
         btn_layout.addWidget(self.exit_btn)
-        
+
         layout.addLayout(btn_layout)
 
     def show_unstaged_changes(self):

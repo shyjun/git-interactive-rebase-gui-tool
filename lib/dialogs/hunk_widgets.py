@@ -46,41 +46,41 @@ class EditHunkDialog(QDialog):
         self.setWindowTitle("Edit Hunk")
         self.setMinimumSize(800, 500)
         self.original_hunk = hunk_text
-        
+
         layout = QVBoxLayout(self)
         layout.setContentsMargins(15, 15, 15, 15)
         layout.setSpacing(12)
-        
+
         # Header info
         header_layout = QVBoxLayout()
         header_layout.setSpacing(4)
-        
+
         commit_label = QLabel(f"<b>Commit:</b> <span style='color:{self.parent().colors['header'] if self.parent() and hasattr(self.parent(), 'colors') else '#66d9ef'};'>{sha}</span>&nbsp;&nbsp;changes in {filepath}")
         commit_label.setTextFormat(Qt.RichText)
         header_layout.addWidget(commit_label)
-        
+
         file_label = QLabel(f"<b>File:</b> {filepath}")
         file_label.setTextFormat(Qt.RichText)
         header_layout.addWidget(file_label)
-        
+
         hunk_label = QLabel("Edit the selected hunk below. Only valid patch format should be kept.")
         hunk_label.setStyleSheet("color: #666;")
         header_layout.addWidget(hunk_label)
-        
+
         layout.addLayout(header_layout)
-        
+
         # Editor
         editor_label = QLabel("Hunk (editable)")
         editor_label.setContentsMargins(2, 0, 0, 0)
         layout.addWidget(editor_label)
-        
+
         self.editor = QTextEdit()
         self.editor.setFont(QFont("Courier New", font_size))
         self.editor.setPlainText(hunk_text)
         self.editor.setAcceptRichText(False)
         self.editor.setLineWrapMode(QTextEdit.NoWrap)
         layout.addWidget(self.editor)
-        
+
         # Tip/Warning row
         tip_row = QHBoxLayout()
         tip_row.setSpacing(8)
@@ -96,22 +96,22 @@ class EditHunkDialog(QDialog):
         # Buttons
         btn_row = QHBoxLayout()
         btn_row.setSpacing(10)
-        
+
         reset_btn = QPushButton("Reset to Original Hunk")
         reset_btn.setMinimumHeight(32)
         reset_btn.clicked.connect(self._reset)
-        
+
         self.apply_btn = QPushButton("Apply")
         self.apply_btn.setMinimumHeight(32)
         self.apply_btn.setMinimumWidth(100)
         self.apply_btn.clicked.connect(self.accept)
         self.apply_btn.setStyleSheet("font-weight: bold;")
-        
+
         self.cancel_btn = QPushButton("Cancel")
         self.cancel_btn.setMinimumHeight(32)
         self.cancel_btn.setMinimumWidth(100)
         self.cancel_btn.clicked.connect(self.reject)
-        
+
         btn_row.addWidget(reset_btn)
         btn_row.addStretch()
         btn_row.addWidget(self.apply_btn)
@@ -131,39 +131,39 @@ class DropHunkDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Drop Hunk")
         self.setMinimumSize(800, 500)
-        
+
         layout = QVBoxLayout(self)
         layout.setContentsMargins(15, 15, 15, 15)
         layout.setSpacing(12)
-        
+
         # Header info
         header_layout = QVBoxLayout()
         header_layout.setSpacing(4)
-        
+
         main_win = self.parent().parent() if self.parent() else None
         header_color = main_win.colors['header'] if main_win and hasattr(main_win, 'colors') else '#66d9ef'
-        
+
         commit_label = QLabel(f"<b>Commit:</b> <span style='color:{header_color};'>{sha}</span>&nbsp;&nbsp;changes in {filepath}")
         commit_label.setTextFormat(Qt.RichText)
         header_layout.addWidget(commit_label)
-        
+
         file_label = QLabel(f"<b>File:</b> {filepath}")
         file_label.setTextFormat(Qt.RichText)
         header_layout.addWidget(file_label)
-        
+
         msg_label = QLabel("<b>Are you sure you want to drop this hunk from the commit?</b><br><br>This hunk will be removed from the current commit. This action can be undone using app undo/reset mechanisms if needed.")
         msg_label.setStyleSheet("color: #cc2200; font-size: 13px;")
         msg_label.setWordWrap(True)
         msg_label.setTextFormat(Qt.RichText)
         header_layout.addWidget(msg_label)
-        
+
         layout.addLayout(header_layout)
-        
+
         # Viewer
         viewer_label = QLabel("Hunk (read-only)")
         viewer_label.setContentsMargins(2, 0, 0, 0)
         layout.addWidget(viewer_label)
-        
+
         self.viewer = QTextEdit()
         self.viewer.setFont(QFont("Courier New", font_size))
         self.viewer.setPlainText(hunk_text)
@@ -171,22 +171,22 @@ class DropHunkDialog(QDialog):
         self.viewer.setAcceptRichText(False)
         self.viewer.setLineWrapMode(QTextEdit.NoWrap)
         layout.addWidget(self.viewer)
-        
+
         # Buttons
         btn_row = QHBoxLayout()
         btn_row.setSpacing(10)
-        
+
         self.drop_btn = QPushButton("Drop Hunk")
         self.drop_btn.setMinimumHeight(32)
         self.drop_btn.setMinimumWidth(100)
         self.drop_btn.clicked.connect(self.accept)
         self.drop_btn.setStyleSheet("color: #cc2200; font-weight: bold; border: 2px solid #cc2200; border-radius: 4px; padding: 5px;")
-        
+
         self.cancel_btn = QPushButton("Cancel")
         self.cancel_btn.setMinimumHeight(32)
         self.cancel_btn.setMinimumWidth(100)
         self.cancel_btn.clicked.connect(self.reject)
-        
+
         btn_row.addStretch()
         btn_row.addWidget(self.drop_btn)
         btn_row.addWidget(self.cancel_btn)
@@ -203,13 +203,13 @@ class ElidedLabel(QLabel):
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.setMaximumHeight(35)
         self._elided_text = text
-        
+
     def setText(self, text):
         if self._full_text != text:
             self._full_text = text
             self._update_elided()
             self.update()
-            
+
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self._update_elided()
@@ -217,7 +217,7 @@ class ElidedLabel(QLabel):
     def _update_elided(self):
         fm = self.fontMetrics()
         self._elided_text = fm.elidedText(self._full_text, Qt.ElideRight, self.width())
-        
+
     def mouseReleaseEvent(self, event):
         if self.checkbox and event.button() == Qt.LeftButton:
             self.checkbox.toggle()
@@ -266,23 +266,23 @@ class HunkWidget(QFrame):
         self.checkbox = QCheckBox("")
         self.checkbox.setChecked(True)
         self.checkbox.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        
+
         bold_font = self.checkbox.font()
         bold_font.setBold(True)
-        
+
         self.hunk_header_label = ElidedLabel(f"Change {hunk_index}   {hunk_header}", self.checkbox)
         self.hunk_header_label.setFont(bold_font)
-        
+
         header_row.addWidget(self.checkbox)
         header_row.addWidget(self.hunk_header_label, stretch=1)
-        
+
         header_row.addStretch()
 
         changed = sum(1 for l in hunk_text.splitlines() if l.startswith(('+', '-')) and not l.startswith(('+++', '---')))
         self.line_count_label = QLabel(f"{changed} line{'s' if changed != 1 else ''}")
         self.line_count_label.setStyleSheet("color: gray;")
         header_row.addWidget(self.line_count_label)
-        
+
         if self.allow_edit:
             self.edit_btn = QPushButton("Edit")
             self.edit_btn.setFixedWidth(70)
@@ -290,7 +290,7 @@ class HunkWidget(QFrame):
             self.edit_btn.setCursor(Qt.PointingHandCursor)
             self.edit_btn.clicked.connect(self.show_hunk_menu)
             header_row.addWidget(self.edit_btn)
-        
+
         layout.addWidget(header_widget)
 
         self.diff_view = QTextEdit()
