@@ -540,7 +540,7 @@ class BrowseMixin:
         target_file = dialog.selected_file
         if not ref_sha or not target_file:
             return
-        print(f"[diff] Difftool '{target_file}' between {ref_sha[:8]} and {current_sha[:8]}")
+        print(f"[diff] Running: git difftool {ref_sha[:8]} {current_sha[:8]} -- {target_file}")
         try:
             import subprocess
             subprocess.Popen(
