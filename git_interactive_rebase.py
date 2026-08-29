@@ -151,6 +151,11 @@ def main():
         root_res = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=repo_path, check=True, capture_output=True, encoding='utf-8', errors='replace')
         if root_res.stdout.strip():
             repo_path = root_res.stdout.strip()
+    except FileNotFoundError:
+        QMessageBox.critical(None, "Git not found",
+            "git is not installed or not in your PATH.\n\n"
+            "Install git and try again.")
+        sys.exit(1)
     except Exception:
         QMessageBox.critical(None, "Not a Git Repository",
             f"The directory '{repo_path}' is not a valid git repository.\n\n"
