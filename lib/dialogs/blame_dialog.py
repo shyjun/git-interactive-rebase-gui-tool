@@ -508,6 +508,7 @@ class BlameDialog(QDialog):
         target_file = dialog.selected_file
         if not ref_sha or not target_file:
             return
+        print(f"[blame] Running: git difftool {ref_sha[:8]} {sha[:8]} -- {target_file}")
         try:
             import subprocess
             subprocess.Popen(
