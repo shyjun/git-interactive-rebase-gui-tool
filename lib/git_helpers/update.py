@@ -49,11 +49,13 @@ def _read_version_sha():
     return None
 
 
-def _write_app_version(tool_dir, sha):
-    """Write a minimal app_version.json into the installed assets directory."""
+def _write_app_version(sha):
+    """Write a minimal app_version.json into the installed assets directory.
+    Uses get_assets_path() to find the correct location."""
     import json
     from datetime import datetime, timezone
-    assets_dir = os.path.join(tool_dir, "assets")
+    from lib.utils import get_assets_path
+    assets_dir = get_assets_path()
     os.makedirs(assets_dir, exist_ok=True)
     data = {
         "sha": sha,
@@ -65,24 +67,51 @@ def _write_app_version(tool_dir, sha):
 
 
 def _detect_default_branch(repo_path):
-    """Returns the default branch name (e.g. 'master' or 'main') of 'origin'."""
+    """Returns (remote_name, branch_name) for the default branch.
+    Prefers the remote pointing to the canonical repo URL."""
+    remotes = []
+    canonical_remote = None
     try:
-        r = subprocess.run(["git", "rev-parse", "--abbrev-ref", "origin/HEAD"],
-                           cwd=repo_path, capture_output=True, text=True,
-                           encoding='utf-8', errors='replace', check=True)
-        branch = r.stdout.strip()
-        if branch.startswith("origin/"):
-            return branch.split("/", 1)[1]
-        return "master"
-    except subprocess.CalledProcessError:
-        for candidate in ("master", "main"):
-            try:
-                subprocess.run(["git", "rev-parse", f"origin/{candidate}"],
-                               cwd=repo_path, capture_output=True, text=True, check=True)
-                return candidate
-            except subprocess.CalledProcessError:
-                continue
-        return "master"
+        r = subprocess.run(
+            ["git", "remote", "-v"],
+            cwd=repo_path, capture_output=True, text=True,
+            encoding='utf-8', errors='replace', check=True
+        )
+        seen = set()
+        for line in r.stdout.strip().split('\n'):
+            parts = line.split()
+            if parts and parts[0] not in seen:
+                seen.add(parts[0])
+                if "shyjun/git-interactive-rebase-gui-tool" in line:
+                    canonical_remote = parts[0]
+                remotes.append(parts[0])
+    except Exception:
+        remotes = ["origin"]
+
+    # Try canonical remote first, then all others, then fallback "origin"
+    for remote in ([canonical_remote] if canonical_remote else []) + remotes + ["origin"]:
+        remote = remote or "origin"
+        try:
+            r = subprocess.run(
+                ["git", "rev-parse", "--abbrev-ref", f"{remote}/HEAD"],
+                cwd=repo_path, capture_output=True, text=True,
+                encoding='utf-8', errors='replace', check=True
+            )
+            branch = r.stdout.strip()
+            if branch.startswith(f"{remote}/"):
+                return remote, branch.split("/", 1)[1]
+            return remote, "master"
+        except subprocess.CalledProcessError:
+            for candidate in ("master", "main"):
+                try:
+                    subprocess.run(
+                        ["git", "rev-parse", f"{remote}/{candidate}"],
+                        cwd=repo_path, capture_output=True, text=True, check=True
+                    )
+                    return remote, candidate
+                except subprocess.CalledProcessError:
+                    continue
+    return "origin", "master"
 
 
 def build_update_command(tool_dir, is_pip=False):
@@ -109,7 +138,7 @@ def perform_self_update(tool_dir):
                 ls_url = GIT_REPO_URL.removeprefix("git+")
                 ok2, stdout2, _ = _run_capture(tool_dir, ["git", "ls-remote", ls_url, "HEAD"])
                 sha = stdout2.split()[0] if ok2 and stdout2.strip() else "unknown"
-                _write_app_version(tool_dir, sha)
+                _write_app_version(sha)
                 return True, "Update complete. The tool has been upgraded via pip."
             return False, f"pip install failed:\n{stderr.strip() or stdout.strip() or 'unknown error'}"
 
@@ -131,20 +160,23 @@ def perform_self_update(tool_dir):
         print(f"[perform_self_update] pip install ok={ok}")
         if ok:
             # Remove stale .pyc files so the updated .py is used on next launch.
-            for pyc in glob.glob(os.path.join(tool_dir, "__pycache__", "git_interactive_rebase*.pyc")):
+            from lib.utils import get_assets_path
+            assets_dir = get_assets_path()
+            site_packages_dir = os.path.dirname(assets_dir)
+            for pyc in glob.glob(os.path.join(site_packages_dir, "__pycache__", "git_interactive_rebase*.pyc")):
                 try:
                     os.remove(pyc)
                     print(f"[perform_self_update] removed stale pyc: {pyc}")
                 except OSError:
                     pass
             new_sha = remote_sha
-            _write_app_version(tool_dir, new_sha)
+            _write_app_version(new_sha)
             print(f"[perform_self_update] new_sha={new_sha}")
             return True, f"Update complete.\n\nOld: {old_sha[:8]}\nNew: {new_sha[:8]}"
         return False, f"pip install failed:\n{stderr.strip() or stdout.strip() or 'unknown error'}"
 
     # git-clone install
-    default_branch = _detect_default_branch(tool_dir)
+    git_remote, default_branch = _detect_default_branch(tool_dir)
 
     ok, stdout, stderr = _run_capture(tool_dir, ["git", "status", "--porcelain"])
     if not ok:
@@ -153,19 +185,19 @@ def perform_self_update(tool_dir):
         return False, ("The tool's local clone has uncommitted changes, so it was not updated.\n\n"
                        "Please commit or stash them and try again.")
 
-    ok, _, stderr = _run_capture(tool_dir, ["git", "fetch", "origin"])
+    ok, _, stderr = _run_capture(tool_dir, ["git", "fetch", git_remote])
     if not ok:
         return False, f"git fetch failed:\n{stderr.strip()}"
 
     ok, stdout, stderr = _run_capture(tool_dir, ["git", "rev-parse", "HEAD"])
     local_sha = stdout.strip() if ok else ""
-    ok, stdout, stderr = _run_capture(tool_dir, ["git", "rev-parse", f"origin/{default_branch}"])
+    ok, stdout, stderr = _run_capture(tool_dir, ["git", "rev-parse", f"{git_remote}/{default_branch}"])
     remote_sha = stdout.strip() if ok else ""
 
     if local_sha and local_sha == remote_sha:
         return True, f"You are already using the latest version. ({local_sha[:8]})"
 
-    ok, _, stderr = _run_capture(tool_dir, ["git", "reset", "--hard", f"origin/{default_branch}"])
+    ok, _, stderr = _run_capture(tool_dir, ["git", "reset", "--hard", f"{git_remote}/{default_branch}"])
     if not ok:
         return False, f"git reset --hard failed:\n{stderr.strip()}"
 
