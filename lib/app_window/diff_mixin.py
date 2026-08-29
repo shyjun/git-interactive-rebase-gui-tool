@@ -144,6 +144,11 @@ class DiffMixin:
         blame_action.triggered.connect(lambda checked=False, text=target_path: open_blame_window(self, text, branch=commit_sha))
         menu.addAction(blame_action)
 
+        if commit_sha:
+            diff_ref_action = QAction("Diff against a different version of this file", self)
+            diff_ref_action.triggered.connect(lambda checked=False, text=target_path, sha=commit_sha: self.handle_diff_file_at_ref(text, sha))
+            menu.addAction(diff_ref_action)
+
         copy_action = QAction("Copy filename to clipboard", self)
         copy_action.triggered.connect(lambda checked=False, text=target_path: self.copy_filename_to_clipboard(text))
         menu.addAction(copy_action)

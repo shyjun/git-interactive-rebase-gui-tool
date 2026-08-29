@@ -392,6 +392,10 @@ class BranchDiffDialog(QDialog):
         blame_action.triggered.connect(lambda checked=False, text=target_path: open_blame_window(self, text, branch=self.end_sha))
         menu.addAction(blame_action)
 
+        diff_ref_action = QAction("Diff against a different version of this file", self)
+        diff_ref_action.triggered.connect(lambda checked=False, text=target_path: self.handle_diff_file_at_ref(text, self.end_sha))
+        menu.addAction(diff_ref_action)
+
         copy_action = QAction("Copy filename to clipboard", self)
         copy_action.triggered.connect(lambda checked=False, text=target_path: self.copy_filename_to_clipboard(text))
         menu.addAction(copy_action)
@@ -411,6 +415,23 @@ class BranchDiffDialog(QDialog):
     def copy_filename_to_clipboard(self, filename):
         QApplication.clipboard().setText(filename)
         QMessageBox.information(self, "Copied", f"Copied '{filename}' to clipboard.")
+
+    def handle_diff_file_at_ref(self, filepath, current_sha):
+        from lib.dialogs.history_branch_dialogs import DiffFileAtRefDialog
+        dialog = DiffFileAtRefDialog(self.repo_path, filepath, current_sha, parent=self)
+        if dialog.exec() != QDialog.Accepted:
+            return
+        ref_sha = dialog.resolved_sha
+        if not ref_sha:
+            return
+        try:
+            import subprocess
+            subprocess.Popen(
+                ["git", "difftool", ref_sha, current_sha, "--", filepath],
+                cwd=self.repo_path
+            )
+        except Exception as e:
+            QMessageBox.critical(self, "Difftool Failed", f"Could not run difftool: {e}")
 
 
 class SingleCommitViewDialog(QDialog):
@@ -628,6 +649,10 @@ class SingleCommitViewDialog(QDialog):
         blame_action.triggered.connect(lambda checked=False, text=target_path: open_blame_window(self, text, branch=self.sha))
         menu.addAction(blame_action)
 
+        diff_ref_action = QAction("Diff against a different version of this file", self)
+        diff_ref_action.triggered.connect(lambda checked=False, text=target_path: self.handle_diff_file_at_ref(text, self.sha))
+        menu.addAction(diff_ref_action)
+
         copy_action = QAction("Copy filename to clipboard", self)
         copy_action.triggered.connect(lambda checked=False, text=target_path: self.copy_filename_to_clipboard(text))
         menu.addAction(copy_action)
@@ -693,6 +718,23 @@ class SingleCommitViewDialog(QDialog):
     def copy_filename_to_clipboard(self, filename):
         QApplication.clipboard().setText(filename)
         QMessageBox.information(self, "Copied", f"Copied '{filename}' to clipboard.")
+
+    def handle_diff_file_at_ref(self, filepath, current_sha):
+        from lib.dialogs.history_branch_dialogs import DiffFileAtRefDialog
+        dialog = DiffFileAtRefDialog(self.repo_path, filepath, current_sha, parent=self)
+        if dialog.exec() != QDialog.Accepted:
+            return
+        ref_sha = dialog.resolved_sha
+        if not ref_sha:
+            return
+        try:
+            import subprocess
+            subprocess.Popen(
+                ["git", "difftool", ref_sha, current_sha, "--", filepath],
+                cwd=self.repo_path
+            )
+        except Exception as e:
+            QMessageBox.critical(self, "Difftool Failed", f"Could not run difftool: {e}")
 
 
 class UnstagedDiffDialog(BranchDiffDialog):
