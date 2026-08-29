@@ -550,6 +550,11 @@ class SingleCommitViewDialog(QDialog):
             self._files = get_commit_files_with_status(repo_path, sha)
         except Exception:
             self._files = []
+        self._file_stats = {}
+        try:
+            self._file_stats = get_commit_file_stats(repo_path, sha)
+        except Exception:
+            self._file_stats = {}
         self.filewise_file_list.blockSignals(True)
         for entry in self._files:
             status, path1, path2 = entry
@@ -558,6 +563,7 @@ class SingleCommitViewDialog(QDialog):
             else:
                 display = path1
             item = QListWidgetItem(display)
+            item.setData(Qt.UserRole, self._file_stats.get(path1))
             item.setData(FILE_ENTRY_ROLE, entry)
             self.filewise_file_list.addItem(item)
         self.filewise_file_list.blockSignals(False)

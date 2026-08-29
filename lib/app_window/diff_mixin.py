@@ -105,7 +105,7 @@ class DiffMixin:
                     else:
                         display = path1
                     item = QListWidgetItem(display)
-                    item.setData(Qt.UserRole, file_stats.get(display))
+                    item.setData(Qt.UserRole, file_stats.get(path1))
                     item.setData(FILE_ENTRY_ROLE, entry)
                     self.filewise_file_list.addItem(item)
                 self.filewise_file_list.blockSignals(False)
