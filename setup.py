@@ -1,21 +1,62 @@
 """
-BUG-14 fix: setup.py now delegates SHA baking to setuptools command-class hooks
-defined in _build_version_hook.py so that app_version.json is written reliably
-under both PEP 517 (pip install) and legacy (python setup.py install) builds.
-
-pyproject.toml remains the canonical source of metadata for modern tooling.
+BUG-14 fix: SHA baking is done inside setup.py itself via setuptools cmdclass
+hooks. The logic intentionally lives here (not in a separate module file) so
+that pip's isolated PEP-517 build environment can always find it — external
+module imports at setup.py level are unreliable in isolated builds.
 """
+import subprocess
+import json
+from datetime import datetime, timezone
 from pathlib import Path
 from setuptools import setup, find_packages
-from _build_version_hook import (
-    BuildPyWithVersion,
-    EggInfoWithVersion,
-    _write_version_file,
-)
+from setuptools.command.build_py import build_py as _build_py
+from setuptools.command.egg_info import egg_info as _egg_info
+
+
+def _get_git_sha() -> str:
+    try:
+        return (
+            subprocess.check_output(["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL)
+            .decode()
+            .strip()
+        )
+    except Exception:
+        return "unknown"
+
+
+def _write_version_file() -> None:
+    """Write assets/app_version.json with the current HEAD SHA."""
+    data = {
+        "sha": _get_git_sha(),
+        "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+        "repo": "https://github.com/shyjun/git-interactive-rebase-gui-tool",
+    }
+    assets_dir = Path("assets")
+    assets_dir.mkdir(exist_ok=True)
+    # Always write UTF-8 so the file is byte-identical regardless of locale.
+    (assets_dir / "app_version.json").write_text(
+        json.dumps(data, indent=2), encoding="utf-8"
+    )
+
+
+class BuildPyWithVersion(_build_py):
+    """build_py subclass that bakes the SHA before copying package files."""
+
+    def run(self):
+        _write_version_file()
+        super().run()
+
+
+class EggInfoWithVersion(_egg_info):
+    """egg_info subclass that bakes the SHA before generating egg-info."""
+
+    def run(self):
+        _write_version_file()
+        super().run()
+
 
 # Write the version file immediately so that a bare `python setup.py install`
-# (legacy mode, no PEP 517) still produces a correct file even if the
-# command-class hooks are never called by the caller.
+# (legacy mode, no PEP 517) still produces a correct file.
 _write_version_file()
 
 setup(
@@ -36,8 +77,8 @@ setup(
             "git_interactive_rebase=git_interactive_rebase:main",
         ],
     },
-    # BUG-14 fix: hook into build_py and egg_info so the SHA is baked at the
-    # correct moment during both sdist and wheel builds under PEP 517.
+    # Hooks ensure the SHA is baked at the correct moment during both sdist
+    # and wheel builds under PEP 517.
     cmdclass={
         "build_py": BuildPyWithVersion,
         "egg_info": EggInfoWithVersion,
