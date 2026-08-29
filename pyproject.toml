@@ -20,6 +20,8 @@ git_interactive_rebase = "git_interactive_rebase:main"
 [tool.setuptools]
 py-modules = ["git_interactive_rebase"]
 include-package-data = true
+# BUG-14 fix: _build_version_hook.py is build-time-only; exclude it from the wheel.
+exclude-package-data = {"*" = ["_build_version_hook.py"]}
 
 [tool.setuptools.packages.find]
 include = ["lib*", "assets*"]

@@ -73,25 +73,35 @@ def main():
     args = parser.parse_args()
 
     if args.version:
-        tool_dir = os.path.dirname(os.path.abspath(__file__))
+        # BUG-1 / BUG-12 fix: anchor to lib package, not the console-script wrapper.
+        import lib
+        tool_dir = os.path.abspath(os.path.join(os.path.dirname(lib.__file__), ".."))
         short_sha = get_head_sha(tool_dir)
         if short_sha == "Unknown":
             try:
                 assets_dir = get_assets_path()
                 vpath = os.path.join(assets_dir, "app_version.json")
                 if os.path.exists(vpath):
-                    with open(vpath) as f:
+                    with open(vpath, encoding='utf-8') as f:  # BUG-12 fix
                         data = json.load(f)
                         short_sha = data.get("sha", "Unknown")
             except Exception as exc:
                 print(f"[tool version] could not read app_version.json: {exc}")
-        if not short_sha:
+        if not short_sha or short_sha == "Unknown":
             short_sha = "Unknown"
+        else:
+            short_sha = short_sha[:8]  # BUG-5 fix: always show abbreviated 8-char SHA
         print(f"git-interactive-rebase-gui-tool {short_sha}")
         sys.exit(0)
 
     if args.update:
-        tool_dir = os.path.dirname(os.path.abspath(__file__))
+        # BUG-1 fix: derive tool_dir from the lib package location, not __file__.
+        # When installed via pip, __file__ is the generated console-script wrapper
+        # inside /usr/local/bin/ (or equivalent), which is NOT the tool's root.
+        # lib.__file__ is always inside site-packages/<lib>, so its parent is the
+        # correct installation root regardless of how the tool was invoked.
+        import lib
+        tool_dir = os.path.abspath(os.path.join(os.path.dirname(lib.__file__), ".."))
         ok, message = perform_self_update(tool_dir)
         print(message)
         sys.exit(0 if ok else 1)
@@ -105,14 +115,15 @@ def main():
     now = datetime.now()
     app_start_time = f"{now.strftime('%I.%M%p').lower()} {now.day}-{now.strftime('%b-%Y')}"
     head_sha = get_full_head_sha(repo_path)
-    tool_dir = os.path.dirname(os.path.abspath(__file__))
+    import lib
+    tool_dir = os.path.abspath(os.path.join(os.path.dirname(lib.__file__), ".."))
     tool_sha = get_head_sha(tool_dir)
     if tool_sha == "Unknown":
         try:
             assets_dir = get_assets_path()
             vpath = os.path.join(assets_dir, "app_version.json")
             if os.path.exists(vpath):
-                with open(vpath) as f:
+                with open(vpath, encoding='utf-8') as f:  # BUG-12 fix
                     tool_sha = json.load(f).get("sha", "Unknown")
         except Exception as exc:
             print(f"[tool version] could not read app_version.json: {exc}")
