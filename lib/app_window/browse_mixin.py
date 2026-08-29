@@ -529,3 +529,22 @@ class BrowseMixin:
             print(f"[browse] Opened '{filepath}' from {sha[:8]} via {tmp_path}")
         except Exception as e:
             QMessageBox.critical(self, "Open Failed", f"Could not open file: {e}")
+
+    def handle_diff_file_at_ref(self, filepath, current_sha):
+        """Diff a file against a different version using difftool."""
+        from lib.dialogs.history_branch_dialogs import DiffFileAtRefDialog
+        dialog = DiffFileAtRefDialog(self.repo_path, filepath, current_sha, parent=self)
+        if dialog.exec() != QDialog.Accepted:
+            return
+        ref_sha = dialog.resolved_sha
+        if not ref_sha:
+            return
+        print(f"[diff] Difftool '{filepath}' between {ref_sha[:8]} and {current_sha[:8]}")
+        try:
+            import subprocess
+            subprocess.Popen(
+                ["git", "difftool", ref_sha, current_sha, "--", filepath],
+                cwd=self.repo_path
+            )
+        except Exception as e:
+            QMessageBox.critical(self, "Difftool Failed", f"Could not run difftool: {e}")

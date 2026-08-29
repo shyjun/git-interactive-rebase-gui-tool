@@ -645,3 +645,98 @@ class OpenFileAtRefDialog(QDialog):
 
         self.selected_file = filepath
         self.accept()
+
+
+class DiffFileAtRefDialog(QDialog):
+    """Dialog to diff a file against a different version.
+    User selects a commit/branch/tag and runs difftool on the file."""
+
+    def __init__(self, repo_path, filepath, current_sha, parent=None):
+        super().__init__(parent)
+        self.repo_path = repo_path
+        self.filepath = filepath
+        self.current_sha = current_sha
+        self.selected_ref = None
+        self.resolved_sha = None
+        self.setWindowTitle("Diff File against Different Version")
+        self.setMinimumWidth(550)
+        self.setModal(True)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(12)
+
+        info_label = QLabel(f"File: <b>{filepath}</b>")
+        layout.addWidget(info_label)
+
+        current_label = QLabel(f"Current version: <b>{current_sha[:8]}</b>")
+        layout.addWidget(current_label)
+
+        ref_label = QLabel("Diff against (Commit / Branch / Tag):")
+        layout.addWidget(ref_label)
+
+        self.ref_combo = QComboBox()
+        self.ref_combo.setEditable(True)
+        self.ref_combo.addItem("HEAD")
+        self.ref_combo.addItems(get_branch_names(self.repo_path))
+        try:
+            import subprocess
+            result = subprocess.run(
+                ["git", "tag", "-l"], cwd=self.repo_path,
+                capture_output=True, text=True, encoding='utf-8', errors='replace'
+            )
+            if result.returncode == 0:
+                tags = [t.strip() for t in result.stdout.strip().split('\n') if t.strip()]
+                if tags:
+                    self.ref_combo.insertSeparator(self.ref_combo.count())
+                    self.ref_combo.addItems(tags)
+        except Exception:
+            pass
+        if self.ref_combo.lineEdit():
+            self.ref_combo.lineEdit().setPlaceholderText("e.g. HEAD, main, abc1234, v1.0")
+        layout.addWidget(self.ref_combo)
+
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(self.reject)
+        btn_layout.addWidget(cancel_btn)
+
+        difftool_btn = QPushButton("Run Difftool")
+        difftool_btn.setDefault(True)
+        difftool_btn.clicked.connect(self._on_difftool)
+        btn_layout.addWidget(difftool_btn)
+        layout.addLayout(btn_layout)
+
+        self.ref_combo.setFocus()
+
+    def _on_difftool(self):
+        ref = self.ref_combo.currentText().strip()
+        if not ref:
+            QMessageBox.warning(self, "No ref", "Please enter a commit, branch, or tag.")
+            return
+
+        try:
+            import subprocess
+            result = subprocess.run(
+                ["git", "rev-parse", ref],
+                cwd=self.repo_path, capture_output=True, text=True,
+                encoding='utf-8', errors='replace'
+            )
+            if result.returncode != 0:
+                QMessageBox.critical(self, "Invalid Ref",
+                                     f"'{ref}' does not resolve.\n\n{result.stderr}")
+                return
+            self.resolved_sha = result.stdout.strip()
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Could not resolve ref: {e}")
+            return
+
+        if self.resolved_sha == self.current_sha:
+            QMessageBox.information(self, "Same version",
+                                    "Selected ref is the same as the current version.")
+            return
+
+        self.selected_ref = ref
+        self.accept()

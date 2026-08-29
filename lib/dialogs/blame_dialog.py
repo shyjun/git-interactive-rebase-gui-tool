@@ -394,8 +394,10 @@ class BlameDialog(QDialog):
         copy_sha_action.setToolTip("Copy the commit SHA to the clipboard.")
         blame_action = QAction("Blame before this", self)
         blame_action.setToolTip("Blame the file at the parent of this commit (the version just before).")
+        diff_ref_action = QAction("Diff against a different version of this file", self)
         menu.addAction(copy_sha_action)
         menu.addAction(blame_action)
+        menu.addAction(diff_ref_action)
 
         action = menu.exec(self.table.mapToGlobal(pos))
 
@@ -405,6 +407,8 @@ class BlameDialog(QDialog):
             QApplication.clipboard().setText(sha)
         elif action == blame_action:
             self._open_blame_before(sha)
+        elif action == diff_ref_action:
+            self._open_diff_at_ref(orig_filename, sha)
 
     def _open_view_commit(self, sha):
         import subprocess
@@ -494,6 +498,23 @@ class BlameDialog(QDialog):
             dlg.activateWindow()
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not open blame before: {str(e)}")
+
+    def _open_diff_at_ref(self, filepath, sha):
+        from lib.dialogs.history_branch_dialogs import DiffFileAtRefDialog
+        dialog = DiffFileAtRefDialog(self.repo_path, filepath, sha, parent=self)
+        if dialog.exec() != QDialog.Accepted:
+            return
+        ref_sha = dialog.resolved_sha
+        if not ref_sha:
+            return
+        try:
+            import subprocess
+            subprocess.Popen(
+                ["git", "difftool", ref_sha, sha, "--", filepath],
+                cwd=self.repo_path
+            )
+        except Exception as e:
+            QMessageBox.critical(self, "Difftool Failed", f"Could not run difftool: {e}")
 
     # ------------------------------------------------------------------
     # Data

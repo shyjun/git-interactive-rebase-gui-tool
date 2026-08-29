@@ -37,6 +37,7 @@ from .history_branch_dialogs import (
     MergeBaseDialog,
     MergeBaseResultDialog,
     OpenFileAtRefDialog,
+    DiffFileAtRefDialog,
 )
 
 from .hunk_file_dialogs import (
