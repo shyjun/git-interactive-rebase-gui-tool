@@ -6,15 +6,25 @@ from lib.git_helpers import perform_self_update
 class GitWorker(QThread):
     finished = Signal(bool, str, str)
 
-    def __init__(self, command, cwd):
+    def __init__(self, command, cwd, timeout=30):
         super().__init__()
         self.command = command
         self.cwd = cwd
+        self.timeout = timeout
 
     def run(self):
         try:
-            result = subprocess.run(self.command, cwd=self.cwd, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
+            result = subprocess.run(
+                self.command, cwd=self.cwd,
+                capture_output=True, text=True,
+                check=True, encoding='utf-8', errors='replace',
+                timeout=self.timeout
+            )
             self.finished.emit(True, result.stdout, "")
+        except subprocess.TimeoutExpired:
+            self.finished.emit(
+                False, "", f"Command timed out after {self.timeout}s: {' '.join(str(a) for a in self.command)}"
+            )
         except subprocess.CalledProcessError as e:
             self.finished.emit(False, "", e.stderr)
         except Exception as e:
