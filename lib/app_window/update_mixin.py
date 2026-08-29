@@ -14,6 +14,12 @@ class UpdateMixin:
         REPO_URL = GIT_REPO_URL.removeprefix("git+")
         UPDATE_URL = "https://github.com/shyjun/git-interactive-rebase-gui-tool?tab=readme-ov-file#-staying-updated"
 
+        # BUG-13 fix: prevent concurrent check/update workers by disabling
+        # the action while it is already in flight.
+        if getattr(self, "_update_in_flight", False):
+            return
+        self._update_in_flight = True
+
         # 1. Find the tool's own directory
         tool_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
         local_sha = "Unknown"
@@ -23,19 +29,21 @@ class UpdateMixin:
         # 2. Extract local SHA
         if is_git_install:
             try:
-                res = subprocess.run(["git", "rev-parse", "HEAD"], cwd=tool_dir, capture_output=True, text=True, encoding='utf-8', errors='replace')
+                res = subprocess.run(
+                    ["git", "rev-parse", "HEAD"],
+                    cwd=tool_dir, capture_output=True, text=True,
+                    encoding='utf-8', errors='replace',
+                )
                 if res.returncode == 0:
                     local_sha = res.stdout.strip()
-            except:
+            except Exception:  # BUG-15 fix: catch Exception, not bare except
                 pass
         else:
             # Check for app_version.json (pip install case)
             try:
                 import json
-
                 assets_dir = get_assets_path()
                 json_path = os.path.join(assets_dir, "app_version.json")
-
                 if os.path.exists(json_path):
                     with open(json_path, "r", encoding='utf-8') as f:
                         data = json.load(f)
@@ -45,6 +53,7 @@ class UpdateMixin:
 
         # 3. If no version info found, show manual update help
         if local_sha == "Unknown":
+            self._update_in_flight = False
             msg = (
                 "<b>Version Check Unavailable</b><br><br>"
                 "Could not determine your current version (missing .git folder and app_version.json).<br><br>"
@@ -62,9 +71,12 @@ class UpdateMixin:
         # 4. Proceed with Remote check
         self.progress_dialog = ProgressDialog("Checking for Updates", "Connecting to GitHub...", self)
 
-        self.worker = GitWorker(["git", "ls-remote", REPO_URL, "HEAD"], self.repo_path)
+        # BUG-9 fix: use tool_dir (a valid directory) as cwd, not self.repo_path
+        # (the user's repository), which is semantically wrong and fragile.
+        self.worker = GitWorker(["git", "ls-remote", REPO_URL, "HEAD"], tool_dir)
 
         def on_check_finished(success, stdout, stderr):
+            self._update_in_flight = False
             if hasattr(self, 'progress_dialog'):
                 self.progress_dialog.close()
 
@@ -109,10 +121,13 @@ class UpdateMixin:
 
     def _run_self_update(self, tool_dir):
         """Performs the in-app self-update with a progress dialog."""
+        # BUG-13 fix: mark in-flight so a second invocation is blocked.
+        self._update_in_flight = True
         self.update_progress_dialog = ProgressDialog("Updating Tool", "Updating to the latest version...", self)
         self.update_worker = SelfUpdateWorker(tool_dir)
 
         def on_update_finished(ok, message):
+            self._update_in_flight = False
             if hasattr(self, 'update_progress_dialog'):
                 self.update_progress_dialog.close()
 

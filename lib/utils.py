@@ -30,21 +30,23 @@ def get_assets_path():
     """
     Resolve path to 'assets' directory.
 
-    Priority:
-    1. Installed via pip (site-packages)
-    2. Running from source repo
+    The lookup is anchored to *this file's* location (lib/utils.py) so that
+    the correct assets/ directory is always found regardless of sys.path
+    ordering or whether both a pip-installed version and a source checkout are
+    simultaneously present on sys.path.
+
+    Layout for both source-checkout and pip-install:
+        <root>/
+            lib/         ← __file__ lives here
+            assets/      ← always a sibling of lib/
     """
-
-    # --- Case 1: pip install (site-packages/assets) ---
-    for path in sys.path:
-        candidate = os.path.join(path, "assets")
-        if os.path.isdir(candidate) and os.path.exists(os.path.join(candidate, "app_icon.png")):
-            return candidate
-
-    # --- Case 2: running from source repo ---
+    # BUG-3 fix: use __file__ as an anchor, not sys.path scanning.
+    # Both `pip install` (site-packages/lib/) and source checkout share the
+    # same relative layout: lib/ and assets/ are siblings under the same root.
     try:
-        base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-        candidate = os.path.join(base_dir, "assets")
+        lib_dir = os.path.dirname(os.path.abspath(__file__))  # .../lib
+        root_dir = os.path.dirname(lib_dir)                   # .../
+        candidate = os.path.join(root_dir, "assets")
         if os.path.isdir(candidate):
             return candidate
     except Exception:
