@@ -442,7 +442,6 @@ subprocess.check_call(['git', 'clean', '-fd', '--', filepath])
                 for _ in range(3):
                     QApplication.processEvents()
 
-                # drop_sha is correctly the original SHA because we are rebasing backward
                 has_parent = False
                 try:
                     subprocess.run(["git", "rev-parse", f"{drop_sha}^"], cwd=self.repo_path, check=True, capture_output=True)
@@ -451,7 +450,6 @@ subprocess.check_call(['git', 'clean', '-fd', '--', filepath])
                     pass
                 upstream = f"{drop_sha}^" if has_parent else "--root"
 
-                # Setup skip variables logic
                 should_drop_entirely = drop_empty_commits and will_be_empty
                 if should_drop_entirely:
                     empty_commits_dropped_count += 1
@@ -479,7 +477,6 @@ except Exception as e:
 """
                 import tempfile
                 import os
-                import stat
                 action_fd, action_path = tempfile.mkstemp(prefix='git_remove_action_', suffix='.py', text=True)
                 with os.fdopen(action_fd, 'w', encoding='utf-8') as f:
                     f.write(action_script_content)
@@ -529,6 +526,134 @@ except Exception as e:
                     QMessageBox.critical(self, "Failed", f"Failed while processing {drop_sha[:8]}. Aborted.\\n\\n{result.stderr}")
                     self.load_history()
                     return
+
+            # Step 2: Create deletion commit at HEAD
+            progress.label.setText("Creating deletion commit...")
+            QApplication.processEvents()
+
+            deletion_committed = False
+            r = subprocess.run(["git", "rm", "-f", "--", filepath],
+                               cwd=self.repo_path, capture_output=True, text=True)
+            if r.returncode == 0:
+                r2 = subprocess.run(["git", "commit", "-m", f"Remove {filepath}"],
+                                    cwd=self.repo_path, capture_output=True, text=True)
+                if r2.returncode == 0:
+                    deletion_committed = True
+
+            # Step 3: Move deletion commit right after the selected commit
+            if deletion_committed:
+                progress.label.setText("Moving deletion commit to correct position...")
+                QApplication.processEvents()
+
+                new_selected_sha = subprocess.run(
+                    ["git", "rev-parse", "HEAD"], cwd=self.repo_path,
+                    capture_output=True, text=True
+                ).stdout.strip()
+
+                # Find the new SHA of the selected commit by searching from HEAD
+                log_result = subprocess.run(
+                    ["git", "log", "--oneline", "--ancestry-path", f"{sha}..HEAD"],
+                    cwd=self.repo_path, capture_output=True, text=True
+                )
+                # The selected commit was rewritten; find it by looking at commits after the rebase
+                log_result2 = subprocess.run(
+                    ["git", "log", "--format=%H %s", f"{sha[:8]}..HEAD"],
+                    cwd=self.repo_path, capture_output=True, text=True
+                )
+
+                # Find the commit whose original message matches the selected commit
+                target_new_sha = None
+                for line in log_result2.stdout.strip().split('\n'):
+                    if not line.strip():
+                        continue
+                    c_sha, c_msg = line.split(' ', 1)
+                    # Check if this is the rewritten selected commit (same message, different SHA)
+                    orig_msg = subprocess.run(
+                        ["git", "log", "--format=%s", "-1", sha],
+                        cwd=self.repo_path, capture_output=True, text=True
+                    ).stdout.strip()
+                    if c_msg == orig_msg:
+                        target_new_sha = c_sha
+                        break
+
+                if not target_new_sha:
+                    # Fallback: try using the sha directly
+                    test = subprocess.run(
+                        ["git", "cat-file", "-t", sha],
+                        cwd=self.repo_path, capture_output=True, text=True
+                    )
+                    if test.returncode == 0:
+                        target_new_sha = sha
+
+                if target_new_sha:
+                    deletion_sha = subprocess.run(
+                        ["git", "rev-parse", "HEAD"],
+                        cwd=self.repo_path, capture_output=True, text=True
+                    ).stdout.strip()
+
+                    # Rebase to move deletion commit after target
+                    move_script_content = f"""#!/usr/bin/env python3
+import sys
+
+deletion_sha = "{deletion_sha}"
+target_sha = "{target_new_sha}"
+
+todo_path = sys.argv[1]
+with open(todo_path, 'r') as tf:
+    lines = tf.readlines()
+
+deletion_line = None
+target_idx = None
+result = []
+
+for i, line in enumerate(lines):
+    stripped = line.strip()
+    if stripped.startswith('#') or not stripped:
+        result.append(line)
+        continue
+    parts = stripped.split()
+    if len(parts) < 2:
+        result.append(line)
+        continue
+    sha_part = parts[1]
+    if sha_part.startswith(deletion_sha):
+        deletion_line = line
+        continue
+    result.append(line)
+    if sha_part.startswith(target_sha):
+        target_idx = len(result) - 1
+
+if deletion_line and target_idx is not None:
+    result.insert(target_idx + 1, deletion_line)
+
+with open(todo_path, 'w') as tf:
+    tf.writelines(result)
+"""
+                    move_fd, move_path = tempfile.mkstemp(prefix='git_move_delete_', suffix='.py', text=True)
+                    with os.fdopen(move_fd, 'w', encoding='utf-8') as f:
+                        f.write(move_script_content)
+
+                    move_env = os.environ.copy()
+                    move_env["GIT_SEQUENCE_EDITOR"] = _script_command(move_path)
+                    move_env["GIT_EDITOR"] = "true"
+
+                    # Rebase from parent of target commit
+                    target_parent = subprocess.run(
+                        ["git", "rev-parse", f"{target_new_sha}^"],
+                        cwd=self.repo_path, capture_output=True, text=True
+                    ).stdout.strip()
+
+                    move_result = subprocess.run(
+                        ["git", "rebase", "-i", target_parent],
+                        cwd=self.repo_path, env=move_env, capture_output=True, text=True
+                    )
+
+                    try:
+                        os.unlink(move_path)
+                    except:
+                        pass
+
+            progress.close()
 
             progress.close()
             self.load_history()
