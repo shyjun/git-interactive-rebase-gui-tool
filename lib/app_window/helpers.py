@@ -83,14 +83,15 @@ def highlight_button_temporarily(button, duration_ms=3000, blinks=0, color=None)
 
 def add_open_with_system_default_action(menu, target_path, parent, sha=None, repo_path=None, is_head=False):
     """Add 'Open > With System Default App' submenu before Blame in a context menu.
-    If sha is provided and is_head is False, extracts the file content from that
-    commit (for browsing a different branch). Otherwise opens from the working tree."""
+    If sha is provided and the file was modified in newer commits, extracts the file
+    content from that commit to /tmp. Otherwise opens from the working tree."""
     open_menu = menu.addMenu("Open")
     open_default_action = QAction("With System Default App", parent)
-    if sha and not is_head:
+    if sha:
         rp = repo_path or parent.repo_path
         open_default_action.triggered.connect(
-            lambda checked=False, filepath=target_path, s=sha, r=rp: _open_file_from_commit(r, s, filepath, parent)
+            lambda checked=False, filepath=target_path, s=sha, r=rp, p=parent:
+                _open_file_smart(r, s, filepath, p)
         )
     else:
         open_default_action.triggered.connect(
@@ -99,6 +100,29 @@ def add_open_with_system_default_action(menu, target_path, parent, sha=None, rep
             )
         )
     open_menu.addAction(open_default_action)
+
+
+def _open_file_smart(repo_path, sha, filepath, parent):
+    """Open file: from working tree if unchanged since sha, else extract from commit."""
+    try:
+        head_sha = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=repo_path
+        ).decode().strip()
+        if sha == head_sha or head_sha.startswith(sha):
+            QDesktopServices.openUrl(
+                QUrl.fromLocalFile(os.path.join(repo_path, filepath)))
+            return
+        diff_result = subprocess.run(
+            ["git", "diff", "--name-only", sha, "HEAD", "--", filepath],
+            cwd=repo_path, capture_output=True, text=True
+        )
+        if not diff_result.stdout.strip():
+            QDesktopServices.openUrl(
+                QUrl.fromLocalFile(os.path.join(repo_path, filepath)))
+        else:
+            _open_file_from_commit(repo_path, sha, filepath, parent)
+    except Exception:
+        _open_file_from_commit(repo_path, sha, filepath, parent)
 
 
 def _open_file_from_commit(repo_path, sha, filepath, parent):
