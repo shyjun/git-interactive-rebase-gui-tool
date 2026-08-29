@@ -802,6 +802,24 @@ class DiffFileAtRefDialog(QDialog):
                                     "Selected ref is the same as the current version.")
             return
 
+        # Verify file exists at the target ref
+        try:
+            import subprocess
+            check = subprocess.run(
+                ["git", "ls-tree", self.resolved_sha, "--", filepath],
+                cwd=self.repo_path, capture_output=True, text=True,
+                encoding='utf-8', errors='replace'
+            )
+            if check.returncode != 0 or not check.stdout.strip():
+                QMessageBox.critical(
+                    self, "File not found",
+                    f"'{filepath}' does not exist at {ref} ({self.resolved_sha[:8]}).\n\n"
+                    "Use Browse… to select the correct file at that version."
+                )
+                return
+        except Exception:
+            pass
+
         self.selected_ref = ref
         self.selected_file = filepath
         self.accept()
