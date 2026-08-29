@@ -505,12 +505,13 @@ class BlameDialog(QDialog):
         if dialog.exec() != QDialog.Accepted:
             return
         ref_sha = dialog.resolved_sha
-        if not ref_sha:
+        target_file = dialog.selected_file
+        if not ref_sha or not target_file:
             return
         try:
             import subprocess
             subprocess.Popen(
-                ["git", "difftool", ref_sha, sha, "--", filepath],
+                ["git", "difftool", ref_sha, sha, "--", target_file],
                 cwd=self.repo_path
             )
         except Exception as e:

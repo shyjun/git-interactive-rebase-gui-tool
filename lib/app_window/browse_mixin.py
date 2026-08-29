@@ -537,13 +537,14 @@ class BrowseMixin:
         if dialog.exec() != QDialog.Accepted:
             return
         ref_sha = dialog.resolved_sha
-        if not ref_sha:
+        target_file = dialog.selected_file
+        if not ref_sha or not target_file:
             return
-        print(f"[diff] Difftool '{filepath}' between {ref_sha[:8]} and {current_sha[:8]}")
+        print(f"[diff] Difftool '{target_file}' between {ref_sha[:8]} and {current_sha[:8]}")
         try:
             import subprocess
             subprocess.Popen(
-                ["git", "difftool", ref_sha, current_sha, "--", filepath],
+                ["git", "difftool", ref_sha, current_sha, "--", target_file],
                 cwd=self.repo_path
             )
         except Exception as e:
