@@ -117,6 +117,8 @@ Print the tool's version (short git id) and exit:
 python3 git_interactive_rebase.py --version
 ```
 
+**Note:** If `git` is not installed or not in your PATH, the tool shows a "Git not found" dialog at startup and exits. If the current directory is not a valid git repository, a "Not a Git Repository" dialog is shown instead.
+
 ---
 
 ## 2. Main Interface
@@ -171,6 +173,12 @@ Access all commit actions via right-click menu.
 - Refine changes (hunk-level)
 - Consolidated Diff (set start, diff to here, diff HEAD to here, git difftool)
 - Browse file log
+
+In the file-wise diff viewer and blame viewer, right-clicking a file also shows:
+
+- Open → With System Default App
+- Blame file
+- Diff against a different version of this file (see [File-Operations menu](#7-file-operations-menu))
 
 ---
 
@@ -253,6 +261,7 @@ Right-click a file in the **File-wise Diff** tab for per-file actions.
 
 - **Open → With System Default App** — opens the file using the system's default application. When the viewer is browsing a different branch or commit, the file is extracted via `git show` to a temp location first.
 - **Blame file** → Opens a read-only blame viewer (see [Blame a file](#41-blame-a-file))
+- **Diff against a different version of this file** → Opens a dialog to diff the file against a different commit, branch, or tag using `git difftool`. The dialog matches the "Open File at Commit" layout: ref combo on top, editable file path with Browse (resolves files at the selected ref, so renamed files are handled). Warns if no difftool is configured, and verifies the file exists at the target ref before running.
 - **Copy filename to clipboard**
 - **Copy fullpath to clipboard** — copies the full repository path of the file
 - **Browse file log** → opens a read-only viewer of that file's history
