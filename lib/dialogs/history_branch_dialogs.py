@@ -781,6 +781,30 @@ class DiffFileAtRefDialog(QDialog):
             QMessageBox.information(self, "No file", "Please enter or browse for a file.")
             return
 
+        # Check if difftool is configured
+        try:
+            import subprocess
+            tool_check = subprocess.run(
+                ["git", "config", "diff.tool"],
+                cwd=self.repo_path, capture_output=True, text=True,
+                encoding='utf-8', errors='replace'
+            )
+            if tool_check.returncode != 0 or not tool_check.stdout.strip():
+                reply = QMessageBox.question(
+                    self, "Difftool not configured",
+                    "No difftool is configured (diff.tool is not set).\n\n"
+                    "git difftool will fall back to vimdiff.\n\n"
+                    "Configure one first, e.g.:\n"
+                    "  git config --global diff.tool vimdiff\n"
+                    "  git config --global difftool.prompt false\n\n"
+                    "Continue anyway?",
+                    QMessageBox.Yes | QMessageBox.No, QMessageBox.No
+                )
+                if reply != QMessageBox.Yes:
+                    return
+        except Exception:
+            pass
+
         try:
             import subprocess
             result = subprocess.run(
