@@ -649,7 +649,8 @@ class OpenFileAtRefDialog(QDialog):
 
 class DiffFileAtRefDialog(QDialog):
     """Dialog to diff a file against a different version.
-    User selects a commit/branch/tag and runs difftool on the file."""
+    UI matches OpenFileAtRefDialog: ref combo on top, editable file
+    path with Browse (resolves files at the selected ref)."""
 
     def __init__(self, repo_path, filepath, current_sha, parent=None):
         super().__init__(parent)
@@ -658,6 +659,7 @@ class DiffFileAtRefDialog(QDialog):
         self.current_sha = current_sha
         self.selected_ref = None
         self.resolved_sha = None
+        self.selected_file = None
         self.setWindowTitle("Diff File against Different Version")
         self.setMinimumWidth(550)
         self.setModal(True)
@@ -666,18 +668,11 @@ class DiffFileAtRefDialog(QDialog):
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(12)
 
-        info_label = QLabel(f"File: <b>{filepath}</b>")
-        layout.addWidget(info_label)
-
-        current_label = QLabel(f"Current version: <b>{current_sha[:8]}</b>")
-        layout.addWidget(current_label)
-
         ref_label = QLabel("Diff against (Commit / Branch / Tag):")
         layout.addWidget(ref_label)
 
         self.ref_combo = QComboBox()
         self.ref_combo.setEditable(True)
-        self.ref_combo.addItem("HEAD")
         self.ref_combo.addItems(get_branch_names(self.repo_path))
         try:
             import subprocess
@@ -696,6 +691,17 @@ class DiffFileAtRefDialog(QDialog):
             self.ref_combo.lineEdit().setPlaceholderText("e.g. HEAD, main, abc1234, v1.0")
         layout.addWidget(self.ref_combo)
 
+        file_layout = QHBoxLayout()
+        file_label = QLabel("File path:")
+        file_layout.addWidget(file_label)
+        self.file_edit = QLineEdit(filepath)
+        self.file_edit.setPlaceholderText("Path to the file (e.g. src/main.py)")
+        file_layout.addWidget(self.file_edit, 1)
+        browse_btn = QPushButton("Browse…")
+        browse_btn.clicked.connect(self._on_browse)
+        file_layout.addWidget(browse_btn)
+        layout.addLayout(file_layout)
+
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
 
@@ -711,10 +717,68 @@ class DiffFileAtRefDialog(QDialog):
 
         self.ref_combo.setFocus()
 
+    def _on_browse(self):
+        ref = self.ref_combo.currentText().strip()
+        if not ref:
+            QMessageBox.information(self, "No ref",
+                                    "Enter a commit, branch, or tag first.")
+            return
+        try:
+            import subprocess
+            result = subprocess.run(
+                ["git", "ls-tree", "-r", "--name-only", ref],
+                cwd=self.repo_path, capture_output=True, text=True,
+                encoding='utf-8', errors='replace'
+            )
+            if result.returncode != 0:
+                QMessageBox.critical(self, "Invalid Ref",
+                                     f"'{ref}' does not resolve to a valid commit.\n\n{result.stderr}")
+                return
+            files = [f for f in result.stdout.strip().split('\n') if f.strip()]
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Could not list files: {e}")
+            return
+
+        from PySide6.QtWidgets import QDialog as _D, QListWidget, QDialogButtonBox
+        pick = _D(self)
+        pick.setWindowTitle(f"Select file at {ref}")
+        pick.setMinimumSize(500, 400)
+        pick_layout = QVBoxLayout(pick)
+
+        search = QLineEdit()
+        search.setPlaceholderText("Type to filter…")
+        pick_layout.addWidget(search)
+
+        lst = QListWidget()
+        for f in files:
+            lst.addItem(f)
+        pick_layout.addWidget(lst)
+
+        def filter_list(text):
+            lst.clear()
+            term = text.lower()
+            for f in files:
+                if term in f.lower():
+                    lst.addItem(f)
+        search.textChanged.connect(filter_list)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.accepted.connect(pick.accept)
+        buttons.rejected.connect(pick.reject)
+        pick_layout.addWidget(buttons)
+
+        if pick.exec() == _D.Accepted and lst.currentItem():
+            self.file_edit.setText(lst.currentItem().text())
+
     def _on_difftool(self):
         ref = self.ref_combo.currentText().strip()
         if not ref:
             QMessageBox.warning(self, "No ref", "Please enter a commit, branch, or tag.")
+            return
+
+        filepath = self.file_edit.text().strip()
+        if not filepath:
+            QMessageBox.information(self, "No file", "Please enter or browse for a file.")
             return
 
         try:
@@ -739,4 +803,5 @@ class DiffFileAtRefDialog(QDialog):
             return
 
         self.selected_ref = ref
+        self.selected_file = filepath
         self.accept()
