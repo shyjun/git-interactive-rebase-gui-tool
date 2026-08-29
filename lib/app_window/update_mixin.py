@@ -52,7 +52,7 @@ class UpdateMixin:
                 pass
 
         # 3. If no version info found, show manual update help
-        if local_sha == "Unknown":
+        if not local_sha or local_sha.strip().lower() in ("unknown", ""):
             self._update_in_flight = False
             msg = (
                 "<b>Version Check Unavailable</b><br><br>"

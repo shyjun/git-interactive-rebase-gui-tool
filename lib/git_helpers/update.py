@@ -4,6 +4,8 @@ import shlex
 import logging
 import subprocess
 
+import sys
+
 _log = logging.getLogger(__name__)
 
 GIT_REPO_URL = "git+https://github.com/shyjun/git-interactive-rebase-gui-tool.git"
@@ -157,12 +159,13 @@ def perform_self_update(tool_dir):
     Returns (ok, message). For git-clone installs the working tree must be
     clean, otherwise the update is aborted without making any changes.
     """
+    pip_cmd = [sys.executable, "-m", "pip", "install", "--force-reinstall", "--no-deps", GIT_REPO_URL]
     if not _is_git_install(tool_dir):
         old_sha = _read_version_sha()
         _log.info("perform_self_update: pip path, tool_dir=%s, old_sha=%s", tool_dir, old_sha)
-        if not old_sha:
+        if not old_sha or old_sha.strip().lower() == "unknown":
             _log.info("perform_self_update: no version info, installing fresh")
-            ok, stdout, stderr = _run_capture(tool_dir, ["pip", "install", "--force-reinstall", "--no-deps", GIT_REPO_URL])
+            ok, stdout, stderr = _run_capture(tool_dir, pip_cmd)
             if ok:
                 ls_url = GIT_REPO_URL.removeprefix("git+")
                 ok2, stdout2, _ = _run_capture(tool_dir, ["git", "ls-remote", ls_url, "HEAD"])
@@ -188,18 +191,19 @@ def perform_self_update(tool_dir):
         _log.info("perform_self_update: running pip install --force-reinstall --no-deps")
         ok, stdout, stderr = _run_capture(
             tool_dir,
-            ["pip", "install", "--force-reinstall", "--no-deps", GIT_REPO_URL],
+            pip_cmd,
             timeout=300,  # pip installs can take longer
         )
         _log.info("perform_self_update: pip install ok=%s", ok)
         if ok:
-            # BUG-7 fix: clean stale .pyc files from the ENTIRE installation
-            # subtree, not just the top-level script's __pycache__.
+            # Clean stale .pyc files specifically from the tool's package subtree
             from lib.utils import get_assets_path
             assets_dir = get_assets_path()
             site_packages_dir = os.path.dirname(assets_dir)
             removed = 0
-            for pyc in glob.glob(os.path.join(site_packages_dir, "**", "*.pyc"), recursive=True):
+            pyc_targets = glob.glob(os.path.join(site_packages_dir, "lib", "**", "*.pyc"), recursive=True) + \
+                          glob.glob(os.path.join(site_packages_dir, "__pycache__", "git_interactive_rebase*.pyc"))
+            for pyc in pyc_targets:
                 try:
                     os.remove(pyc)
                     removed += 1
