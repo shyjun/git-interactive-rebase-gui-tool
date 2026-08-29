@@ -372,6 +372,7 @@ subprocess.check_call(['git', 'clean', '-fd', '--', filepath])
         self.save_undo_state()
         action_path = None
         editor_script = None
+        deletion_path = None
         try:
             short_sha = sha[:8]
 
@@ -437,223 +438,149 @@ subprocess.check_call(['git', 'clean', '-fd', '--', filepath])
 
             empty_commits_dropped_count = 0
 
-            for index, (drop_sha, msg, will_be_empty) in enumerate(commits_to_drop):
-                progress.label.setText(f"Rewriting commit {index+1}/{len(commits_to_drop)}...\n({drop_sha[:8]})")
-                for _ in range(3):
-                    QApplication.processEvents()
+            import tempfile
+            import os
 
-                has_parent = False
-                try:
-                    subprocess.run(["git", "rev-parse", f"{drop_sha}^"], cwd=self.repo_path, check=True, capture_output=True)
-                    has_parent = True
-                except:
-                    pass
-                upstream = f"{drop_sha}^" if has_parent else "--root"
-
-                should_drop_entirely = drop_empty_commits and will_be_empty
-                if should_drop_entirely:
+            # commits_to_drop is newest-first; selected commit is LAST (oldest target)
+            target_shas = [drop_sha for drop_sha, _, _ in commits_to_drop]
+            should_drop_map = {}
+            for drop_sha, _, will_be_empty in commits_to_drop:
+                should_drop_map[drop_sha] = drop_empty_commits and will_be_empty
+                if should_drop_map[drop_sha]:
                     empty_commits_dropped_count += 1
 
-                action_script_content = f"""#!/usr/bin/env python3
+            # Upstream: parent of the selected (oldest) commit
+            has_parent = False
+            try:
+                subprocess.run(["git", "rev-parse", f"{sha}^"], cwd=self.repo_path, check=True, capture_output=True)
+                has_parent = True
+            except:
+                pass
+            upstream = f"{sha}^" if has_parent else "--root"
+
+            # Exec script: cherry-picks a commit, then removes the file from it
+            action_script_content = f"""#!/usr/bin/env python3
 import subprocess
 import sys
+import os
+import tempfile
 
 filepath = {repr(filepath)}
-drop_sha = {repr(drop_sha)}
+target_sha = sys.argv[1] if len(sys.argv) > 1 else None
 
 try:
-    if subprocess.run(['git', 'rev-parse', 'HEAD~1'], capture_output=True).returncode != 0:
-        subprocess.check_call(['git', 'rm', '-f', '--ignore-unmatch', '--', filepath])
-        subprocess.check_call(['git', 'commit', '--amend', '--allow-empty', '-C', drop_sha])
-    else:
-        subprocess.check_call(['git', 'reset', '--soft', 'HEAD~1'])
-        subprocess.check_call(['git', 'reset', 'HEAD', '--', filepath])
-        subprocess.check_call(['git', 'commit', '--allow-empty', '-C', drop_sha])
-        subprocess.check_call(['git', 'reset', '--hard', 'HEAD'])
-        subprocess.check_call(['git', 'clean', '-fd', '--', filepath])
+    if target_sha:
+        subprocess.run(
+            ['git', 'cherry-pick', '--no-commit', '--strategy-option=ours', target_sha],
+            capture_output=True, text=True)
+
+    original_msg = subprocess.check_output(
+        ['git', 'log', '-1', '--format=%B', target_sha or 'HEAD']).decode('utf-8')
+
+    subprocess.run(['git', 'rm', '-f', '--ignore-unmatch', '--', filepath], capture_output=True)
+    subprocess.run(['git', 'add', '-A'], capture_output=True)
+
+    msg_fd, msg_path = tempfile.mkstemp(prefix='git_msg_', text=True)
+    with os.fdopen(msg_fd, 'w', encoding='utf-8') as f:
+        f.write(original_msg)
+    try:
+        subprocess.check_call(['git', 'commit', '--allow-empty', '-F', msg_path])
+    finally:
+        try:
+            os.unlink(msg_path)
+        except:
+            pass
 except Exception as e:
     print("FAILED to replace commit:", e)
     sys.exit(1)
 """
-                import tempfile
-                import os
-                action_fd, action_path = tempfile.mkstemp(prefix='git_remove_action_', suffix='.py', text=True)
-                with os.fdopen(action_fd, 'w', encoding='utf-8') as f:
-                    f.write(action_script_content)
+            action_fd, action_path = tempfile.mkstemp(prefix='git_remove_action_', suffix='.py', text=True)
+            with os.fdopen(action_fd, 'w', encoding='utf-8') as f:
+                f.write(action_script_content)
+            single_exec = f"exec {_script_command(action_path)}"
 
-                single_exec = f"exec {_script_command(action_path)}"
-
-                with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.py') as f:
-                    f.write("#!/usr/bin/env python3\n")
-                    f.write("import sys\n")
-                    f.write(f"target_sha = {repr(drop_sha)}\n")
-                    f.write(f"should_drop_entirely = {repr(should_drop_entirely)}\n")
-                    f.write(f"single_exec = {repr(single_exec)}\n")
-                    f.write("todo_path = sys.argv[1]\n")
-                    f.write("with open(todo_path, 'r') as tf:\n")
-                    f.write("    lines = tf.readlines()\n")
-                    f.write("output = []\n")
-                    f.write("for line in lines:\n")
-                    f.write("    stripped = line.strip()\n")
-                    f.write("    is_target = not stripped.startswith('#') and len(stripped.split()) >= 2 and stripped.split()[1].startswith(target_sha)\n")
-                    f.write("    if is_target and should_drop_entirely:\n")
-                    f.write("        continue\n")
-                    f.write("    output.append(line)\n")
-                    f.write("    if is_target and not should_drop_entirely:\n")
-                    f.write("        output.append(single_exec + '\\n')\n")
-                    f.write("with open(todo_path, 'w') as tf:\n")
-                    f.write("    tf.writelines(output)\n")
-                    editor_script = f.name
-
-                env = os.environ.copy()
-                env["GIT_SEQUENCE_EDITOR"] = _script_command(editor_script)
-                env["GIT_EDITOR"] = "true"
-
-                cmd = ["git", "rebase", "-i", upstream] if upstream != "--root" else ["git", "rebase", "-i", "--root"]
-                result = subprocess.run(cmd, cwd=self.repo_path, env=env, capture_output=True, text=True)
-
-                try:
-                    os.unlink(editor_script)
-                    os.unlink(action_path)
-                except:
-                    pass
-
-                if result.returncode != 0:
-                    ok, detail = self._abort_rebase_safely()
-                    if not ok:
-                        self._warn_rebase_abort_failure(detail)
-                    progress.close()
-                    QMessageBox.critical(self, "Failed", f"Failed while processing {drop_sha[:8]}. Aborted.\\n\\n{result.stderr}")
-                    self.load_history()
-                    return
-
-            # Step 2: Create deletion commit at HEAD
-            progress.label.setText("Creating deletion commit...")
-            QApplication.processEvents()
-
-            deletion_committed = False
-            r = subprocess.run(["git", "rm", "-f", "--", filepath],
-                               cwd=self.repo_path, capture_output=True, text=True)
-            if r.returncode == 0:
-                r2 = subprocess.run(["git", "commit", "-m", f"Remove {filepath}"],
-                                    cwd=self.repo_path, capture_output=True, text=True)
-                if r2.returncode == 0:
-                    deletion_committed = True
-
-            # Step 3: Move deletion commit right after the selected commit
-            if deletion_committed:
-                progress.label.setText("Moving deletion commit to correct position...")
-                QApplication.processEvents()
-
-                new_selected_sha = subprocess.run(
-                    ["git", "rev-parse", "HEAD"], cwd=self.repo_path,
-                    capture_output=True, text=True
-                ).stdout.strip()
-
-                # Find the new SHA of the selected commit by searching from HEAD
-                log_result = subprocess.run(
-                    ["git", "log", "--oneline", "--ancestry-path", f"{sha}..HEAD"],
-                    cwd=self.repo_path, capture_output=True, text=True
-                )
-                # The selected commit was rewritten; find it by looking at commits after the rebase
-                log_result2 = subprocess.run(
-                    ["git", "log", "--format=%H %s", f"{sha[:8]}..HEAD"],
-                    cwd=self.repo_path, capture_output=True, text=True
-                )
-
-                # Find the commit whose original message matches the selected commit
-                target_new_sha = None
-                for line in log_result2.stdout.strip().split('\n'):
-                    if not line.strip():
-                        continue
-                    c_sha, c_msg = line.split(' ', 1)
-                    # Check if this is the rewritten selected commit (same message, different SHA)
-                    orig_msg = subprocess.run(
-                        ["git", "log", "--format=%s", "-1", sha],
-                        cwd=self.repo_path, capture_output=True, text=True
-                    ).stdout.strip()
-                    if c_msg == orig_msg:
-                        target_new_sha = c_sha
-                        break
-
-                if not target_new_sha:
-                    # Fallback: try using the sha directly
-                    test = subprocess.run(
-                        ["git", "cat-file", "-t", sha],
-                        cwd=self.repo_path, capture_output=True, text=True
-                    )
-                    if test.returncode == 0:
-                        target_new_sha = sha
-
-                if target_new_sha:
-                    deletion_sha = subprocess.run(
-                        ["git", "rev-parse", "HEAD"],
-                        cwd=self.repo_path, capture_output=True, text=True
-                    ).stdout.strip()
-
-                    # Rebase to move deletion commit after target
-                    move_script_content = f"""#!/usr/bin/env python3
+            # Deletion exec script: actually removes the file from the tree
+            deletion_script_content = f"""#!/usr/bin/env python3
+import subprocess
 import sys
 
-deletion_sha = "{deletion_sha}"
-target_sha = "{target_new_sha}"
+filepath = {repr(filepath)}
 
-todo_path = sys.argv[1]
-with open(todo_path, 'r') as tf:
-    lines = tf.readlines()
-
-deletion_line = None
-target_idx = None
-result = []
-
-for i, line in enumerate(lines):
-    stripped = line.strip()
-    if stripped.startswith('#') or not stripped:
-        result.append(line)
-        continue
-    parts = stripped.split()
-    if len(parts) < 2:
-        result.append(line)
-        continue
-    sha_part = parts[1]
-    if sha_part.startswith(deletion_sha):
-        deletion_line = line
-        continue
-    result.append(line)
-    if sha_part.startswith(target_sha):
-        target_idx = len(result) - 1
-
-if deletion_line and target_idx is not None:
-    result.insert(target_idx + 1, deletion_line)
-
-with open(todo_path, 'w') as tf:
-    tf.writelines(result)
+try:
+    result = subprocess.run(['git', 'rm', '-f', '--', filepath], capture_output=True, text=True)
+    if result.returncode != 0:
+        subprocess.run(['git', 'rm', '-f', '--ignore-unmatch', '--', filepath], capture_output=True)
+    subprocess.check_call(['git', 'commit', '-m', 'Remove {filepath}'])
+except Exception as e:
+    print("FAILED to create deletion commit:", e)
+    sys.exit(1)
 """
-                    move_fd, move_path = tempfile.mkstemp(prefix='git_move_delete_', suffix='.py', text=True)
-                    with os.fdopen(move_fd, 'w', encoding='utf-8') as f:
-                        f.write(move_script_content)
+            deletion_fd, deletion_path = tempfile.mkstemp(prefix='git_delete_commit_', suffix='.py', text=True)
+            with os.fdopen(deletion_fd, 'w', encoding='utf-8') as f:
+                f.write(deletion_script_content)
+            deletion_exec = f"exec {_script_command(deletion_path)}"
 
-                    move_env = os.environ.copy()
-                    move_env["GIT_SEQUENCE_EDITOR"] = _script_command(move_path)
-                    move_env["GIT_EDITOR"] = "true"
+            # Editor script: keep pick for selected, replace others with exec, insert deletion after selected
+            with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.py') as f:
+                f.write("#!/usr/bin/env python3\n")
+                f.write("import sys\n")
+                f.write(f"target_shas = {repr(target_shas)}\n")
+                f.write(f"should_drop_map = {repr(should_drop_map)}\n")
+                f.write(f"selected_sha = {repr(sha)}\n")
+                f.write(f"single_exec = {repr(single_exec)}\n")
+                f.write(f"deletion_exec = {repr(deletion_exec)}\n")
+                f.write("todo_path = sys.argv[1]\n")
+                f.write("with open(todo_path, 'r') as tf:\n")
+                f.write("    lines = tf.readlines()\n")
+                f.write("output = []\n")
+                f.write("deletion_inserted = False\n")
+                f.write("for line in lines:\n")
+                f.write("    stripped = line.strip()\n")
+                f.write("    is_target = False\n")
+                f.write("    matched_sha = None\n")
+                f.write("    if not stripped.startswith('#') and len(stripped.split()) >= 2:\n")
+                f.write("        for ts in target_shas:\n")
+                f.write("            if stripped.split()[1].startswith(ts):\n")
+                f.write("                is_target = True\n")
+                f.write("                matched_sha = ts\n")
+                f.write("                break\n")
+                f.write("    if is_target and should_drop_map.get(matched_sha, False):\n")
+                f.write("        continue\n")
+                f.write("    if is_target and matched_sha:\n")
+                f.write("        if matched_sha == selected_sha:\n")
+                f.write("            output.append(line)\n")
+                f.write("            output.append(deletion_exec + '\\n')\n")
+                f.write("            deletion_inserted = True\n")
+                f.write("        else:\n")
+                f.write("            output.append(single_exec + ' ' + matched_sha + '\\n')\n")
+                f.write("    else:\n")
+                f.write("        output.append(line)\n")
+                f.write("with open(todo_path, 'w') as tf:\n")
+                f.write("    tf.writelines(output)\n")
+                editor_script = f.name
 
-                    # Rebase from parent of target commit
-                    target_parent = subprocess.run(
-                        ["git", "rev-parse", f"{target_new_sha}^"],
-                        cwd=self.repo_path, capture_output=True, text=True
-                    ).stdout.strip()
+            env = os.environ.copy()
+            env["GIT_SEQUENCE_EDITOR"] = _script_command(editor_script)
+            env["GIT_EDITOR"] = "true"
 
-                    move_result = subprocess.run(
-                        ["git", "rebase", "-i", target_parent],
-                        cwd=self.repo_path, env=move_env, capture_output=True, text=True
-                    )
+            cmd = ["git", "rebase", "-i", upstream] if upstream != "--root" else ["git", "rebase", "-i", "--root"]
+            result = subprocess.run(cmd, cwd=self.repo_path, env=env, capture_output=True, text=True)
 
-                    try:
-                        os.unlink(move_path)
-                    except:
-                        pass
+            try:
+                os.unlink(editor_script)
+                os.unlink(action_path)
+                os.unlink(deletion_path)
+            except:
+                pass
 
-            progress.close()
+            if result.returncode != 0:
+                ok, detail = self._abort_rebase_safely()
+                if not ok:
+                    self._warn_rebase_abort_failure(detail)
+                progress.close()
+                QMessageBox.critical(self, "Failed", f"Failed while processing {sha[:8]}. Aborted.\n\n{result.stderr}")
+                self.load_history()
+                return
 
             progress.close()
             self.load_history()
@@ -666,7 +593,7 @@ with open(todo_path, 'w') as tf:
 
             QMessageBox.information(self, "Success", success_msg)
         except Exception as e:
-            _safe_unlink(editor_script, action_path)
+            _safe_unlink(editor_script, action_path, deletion_path)
             QMessageBox.critical(self, "Error", f"An error occurred: {str(e)}")
         finally:
             self.load_history()
