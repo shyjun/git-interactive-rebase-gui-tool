@@ -697,7 +697,8 @@ class DiffFileAtRefDialog(QDialog):
         self.src_radio_group.addButton(self.src_head_radio, 1)
         self.src_selected_radio.toggled.connect(lambda: self._update_direct_enabled())
         src_layout.addWidget(self.src_selected_radio)
-        src_layout.addWidget(self.src_head_radio)
+        if selected_sha != head_sha:
+            src_layout.addWidget(self.src_head_radio)
         layout.addWidget(src_group)
 
         # --- Destination file group ---
