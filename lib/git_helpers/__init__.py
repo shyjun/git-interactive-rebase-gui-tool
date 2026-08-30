@@ -64,6 +64,7 @@ from .diffs import (
     is_file_working_tree_clean,
     run_difftool_temp_files,
     run_difftool_direct,
+    run_configured_difftool,
 )
 
 from .stash import (

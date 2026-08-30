@@ -213,3 +213,72 @@ def run_difftool_direct(repo_path, source_sha, source_file, dest_sha, dest_file)
         return True, ""
     except Exception as e:
         return False, str(e)
+
+
+def run_configured_difftool(repo_path, source_sha, source_file, dest_sha, dest_file):
+    """Run the user-configured difftool (Git or custom) on two file versions.
+
+    Reads the difftool configuration from QSettings. If custom command is set,
+    extracts files to temp and runs the custom command. Otherwise falls back to
+    git difftool.
+
+    Returns (ok, message) where message is an error description on failure.
+    """
+    from PySide6.QtCore import QSettings
+    settings = QSettings("git-interactive-rebase-gui-tool", "config")
+    mode = settings.value("difftool/mode", "git")
+
+    if mode == "custom":
+        command = settings.value("difftool/command", "")
+        args_template = settings.value("difftool/args", "{file1} {file2}")
+        if command:
+            return _run_custom_difftool(
+                repo_path, command, args_template,
+                source_sha, source_file, dest_sha, dest_file)
+
+    # Fall back to git difftool
+    return run_difftool_temp_files(repo_path, source_sha, source_file, dest_sha, dest_file)
+
+
+def _run_custom_difftool(repo_path, command, args_template,
+                          source_sha, source_file, dest_sha, dest_file):
+    """Run a custom diff tool command on two extracted file versions."""
+    import os
+    import shlex
+    import tempfile
+    try:
+        # Extract source version
+        result = subprocess.run(
+            ["git", "show", f"{source_sha}:{source_file}"],
+            cwd=repo_path, capture_output=True, text=True,
+            encoding='utf-8', errors='replace')
+        if result.returncode != 0:
+            return False, f"Could not extract source file: {result.stderr}"
+        src_data = result.stdout
+
+        # Extract destination version
+        result = subprocess.run(
+            ["git", "show", f"{dest_sha}:{dest_file}"],
+            cwd=repo_path, capture_output=True, text=True,
+            encoding='utf-8', errors='replace')
+        if result.returncode != 0:
+            return False, f"Could not extract destination file: {result.stderr}"
+        dst_data = result.stdout
+
+        # Write to temp files
+        tmp_dir = tempfile.mkdtemp(prefix="git-difftool-")
+        src_path = os.path.join(tmp_dir, os.path.basename(source_file))
+        dst_path = os.path.join(tmp_dir, os.path.basename(dest_file))
+        with open(src_path, 'w', encoding='utf-8') as f:
+            f.write(src_data)
+        with open(dst_path, 'w', encoding='utf-8') as f:
+            f.write(dst_data)
+
+        # Build command
+        args_str = args_template.replace("{file1}", src_path).replace("{file2}", dst_path)
+        cmd_parts = shlex.split(command) + shlex.split(args_str)
+
+        subprocess.Popen(cmd_parts, cwd=repo_path)
+        return True, ""
+    except Exception as e:
+        return False, str(e)

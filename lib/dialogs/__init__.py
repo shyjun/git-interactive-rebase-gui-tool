@@ -52,3 +52,7 @@ from .hunk_file_dialogs import (
     CommitSelectivelyDialog,
     UnstagedChangesDialog,
 )
+
+from .configure_dialogs import (
+    ConfigureDiffToolDialog,
+)

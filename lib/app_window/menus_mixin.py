@@ -77,7 +77,7 @@ class MenusMixin:
 
         self.external_tools_action = QAction("External tools integration", self)
         self.external_tools_action.setToolTip("Configure external tool integrations.")
-        self.external_tools_action.triggered.connect(lambda *_: QMessageBox.information(self, "External tools integration", "Not implemented yet."))
+        self.external_tools_action.triggered.connect(lambda *_: self._configure_external_tools())
 
         self.help_action = QAction("Help", self)
         self.help_action.setToolTip("Show usage help.")
@@ -97,6 +97,12 @@ class MenusMixin:
         """Pops up the configure menu under the status-bar Configure button."""
         self.configure_menu.popup(
             self.configure_btn.mapToGlobal(QPoint(0, self.configure_btn.height())))
+
+    def _configure_external_tools(self):
+        """Opens the Configure Diff Tool dialog."""
+        from lib.dialogs.configure_dialogs import ConfigureDiffToolDialog
+        dlg = ConfigureDiffToolDialog(self.repo_path, parent=self)
+        dlg.exec()
 
     def _build_repo_menu(self):
         """Builds the Repo button's menu: View PR Diff / View a Commit /
