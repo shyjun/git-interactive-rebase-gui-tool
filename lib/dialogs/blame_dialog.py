@@ -511,9 +511,11 @@ class BlameDialog(QDialog):
         if not ref_sha or not target_file:
             return
         source_sha = head_sha if dialog.src_head_radio.isChecked() else sha
+        is_head_source = dialog.src_head_radio.isChecked() or source_sha == head_sha
         if dialog.use_direct:
-            print(f"[blame] Running direct: git difftool {source_sha[:8]} {ref_sha[:8]} -- {target_file}")
-            ok, err = run_difftool_direct(self.repo_path, source_sha, target_file, ref_sha, target_file)
+            print(f"[blame] Running direct: {source_sha[:8]} {ref_sha[:8]} -- {target_file} (head_src={is_head_source})")
+            ok, err = run_difftool_direct(self.repo_path, source_sha, target_file, ref_sha, target_file,
+                                          source_is_head=is_head_source)
         else:
             print(f"[blame] Running configured: difftool {source_sha[:8]} {ref_sha[:8]} -- {target_file}")
             ok, err = run_configured_difftool(self.repo_path, source_sha, target_file, ref_sha, target_file)
