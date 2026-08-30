@@ -227,14 +227,38 @@ def run_difftool_temp_files(repo_path, source_sha, source_file, dest_sha, dest_f
         return False, str(e)
 
 
-def run_difftool_direct(repo_path, source_sha, source_file, dest_sha, dest_file):
-    """Run git difftool directly between two commits for a single file.
+def run_difftool_direct(repo_path, source_sha, source_file, dest_sha, dest_file,
+                        source_is_head=False):
+    """Run configured difftool comparing two file versions.
+
+    When source_is_head is True and source == HEAD, uses the actual repo file
+    (working tree) as source and only extracts the destination to a temp file.
+    Otherwise falls back to git difftool between two commits.
 
     Returns (ok, message) where message is an error description on failure."""
+    import os
+    import tempfile
     try:
-        subprocess.Popen(
-            ["git", "difftool", source_sha, dest_sha, "--", source_file],
-            cwd=repo_path)
+        if source_is_head:
+            # Source is the working tree file — extract only dest
+            result = subprocess.run(
+                ["git", "show", f"{dest_sha}:{dest_file}"],
+                cwd=repo_path, capture_output=True, text=True,
+                encoding='utf-8', errors='replace')
+            if result.returncode != 0:
+                return False, f"Could not extract destination file: {result.stderr}"
+            dst_tmp = tempfile.mkdtemp(prefix="git-difftool-dst-")
+            dst_path = os.path.join(dst_tmp, os.path.basename(dest_file))
+            with open(dst_path, 'w', encoding='utf-8') as f:
+                f.write(result.stdout)
+            src_path = os.path.join(repo_path, source_file)
+            cmd_parts = ["git", "difftool", "--no-index", "--", src_path, dst_path]
+            print(f"[direct] Running: {' '.join(cmd_parts)}")
+            subprocess.Popen(cmd_parts, cwd=repo_path)
+        else:
+            cmd = ["git", "difftool", source_sha, dest_sha, "--", source_file]
+            print(f"[direct] Running: {' '.join(cmd)}")
+            subprocess.Popen(cmd, cwd=repo_path)
         return True, ""
     except Exception as e:
         return False, str(e)
