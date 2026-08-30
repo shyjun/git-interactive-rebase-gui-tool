@@ -1,3 +1,4 @@
+import os
 import subprocess
 import time
 
@@ -7,7 +8,7 @@ from PySide6.QtWidgets import QMainWindow, QMessageBox
 
 from lib.git_helpers import (
     get_full_head_sha, get_head_sha, get_current_branch,
-    has_uncommitted_changes,
+    has_uncommitted_changes, _is_git_install,
 )
 from lib.widgets import BrowseDimOverlay
 from lib.app_window.helpers import highlight_button_temporarily
@@ -45,6 +46,7 @@ class InitMixin:
         self.is_dark_theme = False  # refined in load_settings/apply_theme
         self.start_time_full_head = get_full_head_sha(self.repo_path)
         self.start_time_head = get_head_sha(self.repo_path)
+        self.is_running_from_repo = _is_git_install(os.path.dirname(os.path.abspath(__file__)))
         self.cached_current_head_full_sha = self.start_time_full_head
         self.cached_has_uncommitted = False
         self.last_head = None
