@@ -5,6 +5,7 @@ from PySide6.QtWidgets import (
     QLineEdit, QSplitter, QCheckBox, QToolButton, QMenu,
     QWidgetAction, QRadioButton, QGroupBox, QSizePolicy,
     QStatusBar, QListWidget, QListWidgetItem, QTabWidget, QTextEdit, QPushButton,
+    QMessageBox,
 )
 from lib.app_window.commit_list import CommitListWidget
 from lib.app_window.delegates import CommitItemDelegate
@@ -656,6 +657,7 @@ class UIMixin:
 
         self.ctrl_alt_f5_shortcut = QShortcut(QKeySequence("Ctrl+Shift+F5"), self)
         self.ctrl_alt_f5_shortcut.activated.connect(self._handle_restart_if_updated)
+        print("[shortcut] Ctrl+Shift+F5 registered")
 
         # A grey veil over the whole browse window marks it as a read-only viewer.
         self._browse_overlay = None
@@ -674,20 +676,23 @@ class UIMixin:
             get_commit_diff, self.settings, self._sk)
 
     def _handle_restart_if_updated(self):
-        """Hidden shortcut (Ctrl+Alt+F5): check if the tool's repo has new commits
+        """Hidden shortcut (Ctrl+Shift+F5): check if the tool's repo has new commits
         and optionally restart with the latest version."""
+        print("[restart] shortcut triggered")
         if not getattr(self, 'is_running_from_repo', False):
+            print("[restart] not running from repo, skipping")
             return
         from lib.git_helpers import get_head_sha
-        current_head = get_head_sha(self.repo_path)
-        if current_head == self.start_time_head:
+        current_head = get_head_sha(self._tool_repo_path)
+        print(f"[restart] tool_repo={self._tool_repo_path}, start_head={self.start_time_tool_head}, current_head={current_head}")
+        if current_head == self.start_time_tool_head:
             QMessageBox.information(self, "No Update",
                                     "Tool repository is already at the latest version.")
             return
         reply = QMessageBox.question(
             self, "Update Available",
             f"Tool repository has new commits since startup.\n\n"
-            f"Started at: {self.start_time_head}\n"
+            f"Started at: {self.start_time_tool_head}\n"
             f"Current:    {current_head}\n\n"
             "Restart with the latest version?",
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No)

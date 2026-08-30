@@ -46,7 +46,15 @@ class InitMixin:
         self.is_dark_theme = False  # refined in load_settings/apply_theme
         self.start_time_full_head = get_full_head_sha(self.repo_path)
         self.start_time_head = get_head_sha(self.repo_path)
-        self.is_running_from_repo = _is_git_install(os.path.dirname(os.path.abspath(__file__)))
+        # Detect if the tool itself is running from a source repo (not pip-installed)
+        _tool_dir = os.path.dirname(os.path.abspath(__file__))
+        while _tool_dir and _tool_dir != os.path.dirname(_tool_dir):
+            if os.path.isdir(os.path.join(_tool_dir, ".git")) or os.path.isfile(os.path.join(_tool_dir, ".git")):
+                break
+            _tool_dir = os.path.dirname(_tool_dir)
+        self.is_running_from_repo = _is_git_install(_tool_dir) if _tool_dir else False
+        self._tool_repo_path = _tool_dir if self.is_running_from_repo else None
+        self.start_time_tool_head = get_head_sha(self._tool_repo_path) if self._tool_repo_path else None
         self.cached_current_head_full_sha = self.start_time_full_head
         self.cached_has_uncommitted = False
         self.last_head = None
