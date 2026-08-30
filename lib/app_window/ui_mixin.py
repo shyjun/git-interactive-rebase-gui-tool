@@ -654,7 +654,7 @@ class UIMixin:
         self.ctrl_z_shortcut = QShortcut(QKeySequence("Ctrl+Z"), self)
         self.ctrl_z_shortcut.activated.connect(self.handle_undo_shortcut)
 
-        self.ctrl_alt_f5_shortcut = QShortcut(QKeySequence("Ctrl+Alt+F5"), self)
+        self.ctrl_alt_f5_shortcut = QShortcut(QKeySequence("Ctrl+Shift+F5"), self)
         self.ctrl_alt_f5_shortcut.activated.connect(self._handle_restart_if_updated)
 
         # A grey veil over the whole browse window marks it as a read-only viewer.
