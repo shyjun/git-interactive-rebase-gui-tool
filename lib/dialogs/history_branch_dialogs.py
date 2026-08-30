@@ -659,7 +659,8 @@ class DiffFileAtRefDialog(QDialog):
 
     Two Run buttons:
     - Run Difftool: always enabled (uses temp files + configured difftool).
-    - Run Git Difftool Directly: enabled only when source == HEAD or file unchanged.
+    - Configured Diff Tool: enabled only when source == HEAD or file unchanged,
+      and a custom difftool command is configured via External Tools Integration.
     """
 
     def __init__(self, repo_path, filepath, selected_sha, head_sha, parent=None):
@@ -745,7 +746,7 @@ class DiffFileAtRefDialog(QDialog):
         cancel_btn.clicked.connect(self.reject)
         btn_layout.addWidget(cancel_btn)
 
-        self.direct_btn = QPushButton("Run Git Difftool Directly")
+        self.direct_btn = QPushButton("Configured Diff Tool")
         self.direct_btn.setToolTip(self._direct_tooltip())
         self.direct_btn.clicked.connect(self._on_direct)
         btn_layout.addWidget(self.direct_btn)
@@ -771,7 +772,7 @@ class DiffFileAtRefDialog(QDialog):
         )
 
     def _update_direct_enabled(self):
-        """Enable 'Run Git Difftool Directly' only when source is HEAD or file unchanged."""
+        """Enable 'Configured Diff Tool' only when source is HEAD or file unchanged."""
         from lib.git_helpers import (
             is_file_unchanged_between, is_file_working_tree_clean)
 
@@ -935,10 +936,19 @@ class DiffFileAtRefDialog(QDialog):
         self.accept()
 
     def _on_direct(self):
-        """Run git difftool directly (repo file vs target ref)."""
-        if not self._resolve_ref():
+        """Run configured diff tool directly (repo file vs target ref)."""
+        from PySide6.QtCore import QSettings
+        settings = QSettings("git-interactive-rebase-gui-tool", "config")
+        mode = settings.value("difftool/mode", "git")
+        command = settings.value("difftool/command", "")
+        if mode != "custom" or not command.strip():
+            QMessageBox.information(
+                self, "Diff tool not configured",
+                "No custom diff tool is configured.\n\n"
+                "Open Configure > External Tools Integration "
+                "to set up your preferred diff tool.")
             return
-        if not self._check_difftool():
+        if not self._resolve_ref():
             return
         self.use_direct = True
         self.accept()
