@@ -122,12 +122,33 @@ def get_unstaged_file_diff(repo_path, filepath):
                      "Failed to get unstaged file diff"))
 
 
+def _get_git_version(repo_path):
+    """Returns (major, minor, patch) tuple of the git version, or (0,0,0)."""
+    try:
+        result = subprocess.run(
+            ["git", "version"],
+            cwd=repo_path, capture_output=True, text=True,
+            encoding='utf-8', errors='replace')
+        # "git version 2.46.0" or "git version 2.46.0.windows.1"
+        import re
+        m = re.search(r'(\d+)\.(\d+)\.(\d+)', result.stdout)
+        if m:
+            return (int(m.group(1)), int(m.group(2)), int(m.group(3)))
+    except Exception:
+        pass
+    return (0, 0, 0)
+
+
 def get_difftool_name(repo_path):
     """Returns the configured diff.tool name, or None if not set."""
     try:
+        ver = _get_git_version(repo_path)
+        if ver >= (2, 46, 0):
+            cmd = ["git", "config", "get", "diff.tool"]
+        else:
+            cmd = ["git", "config", "--get", "diff.tool"]
         result = subprocess.run(
-            ["git", "config", "--get", "diff.tool"],
-            cwd=repo_path, capture_output=True, text=True,
+            cmd, cwd=repo_path, capture_output=True, text=True,
             encoding='utf-8', errors='replace')
         name = result.stdout.strip()
         return name if name else None
