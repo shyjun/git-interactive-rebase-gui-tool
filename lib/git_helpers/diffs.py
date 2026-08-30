@@ -193,6 +193,7 @@ def run_difftool_temp_files(repo_path, source_sha, source_file, dest_sha, dest_f
             cwd=repo_path, capture_output=True, text=True,
             encoding='utf-8', errors='replace')
         if result.returncode != 0:
+            print(f"[difftool] Failed to extract source: {result.stderr}")
             return False, f"Could not extract source file: {result.stderr}"
         src_data = result.stdout
 
@@ -202,24 +203,27 @@ def run_difftool_temp_files(repo_path, source_sha, source_file, dest_sha, dest_f
             cwd=repo_path, capture_output=True, text=True,
             encoding='utf-8', errors='replace')
         if result.returncode != 0:
+            print(f"[difftool] Failed to extract dest: {result.stderr}")
             return False, f"Could not extract destination file: {result.stderr}"
         dst_data = result.stdout
 
-        # Write to temp files
-        tmp_dir = tempfile.mkdtemp(prefix="git-difftool-")
-        src_path = os.path.join(tmp_dir, os.path.basename(source_file))
-        dst_path = os.path.join(tmp_dir, os.path.basename(dest_file))
+        # Write to temp files (separate dirs to avoid same-basename collision)
+        src_tmp = tempfile.mkdtemp(prefix="git-difftool-src-")
+        dst_tmp = tempfile.mkdtemp(prefix="git-difftool-dst-")
+        src_path = os.path.join(src_tmp, os.path.basename(source_file))
+        dst_path = os.path.join(dst_tmp, os.path.basename(dest_file))
         with open(src_path, 'w', encoding='utf-8') as f:
             f.write(src_data)
         with open(dst_path, 'w', encoding='utf-8') as f:
             f.write(dst_data)
 
         # Run difftool
-        subprocess.Popen(
-            ["git", "difftool", "--no-index", "--", src_path, dst_path],
-            cwd=repo_path)
+        cmd = ["git", "difftool", "--no-index", "--", src_path, dst_path]
+        print(f"[difftool] Running: {' '.join(cmd)}")
+        subprocess.Popen(cmd, cwd=repo_path)
         return True, ""
     except Exception as e:
+        print(f"[difftool] Exception: {e}")
         return False, str(e)
 
 
@@ -248,16 +252,17 @@ def run_configured_difftool(repo_path, source_sha, source_file, dest_sha, dest_f
     from PySide6.QtCore import QSettings
     settings = QSettings("git-interactive-rebase-gui-tool", "config")
     mode = settings.value("difftool/mode", "git")
+    command = settings.value("difftool/command", "")
+    print(f"[configured-difftool] mode={mode}, command={command!r}")
 
-    if mode == "custom":
-        command = settings.value("difftool/command", "")
-        args_template = settings.value("difftool/args", "{file1} {file2}")
-        if command:
-            return _run_custom_difftool(
-                repo_path, command, args_template,
-                source_sha, source_file, dest_sha, dest_file)
+    if mode == "custom" and command:
+        print(f"[configured-difftool] using custom: {command}")
+        return _run_custom_difftool(
+            repo_path, command, settings.value("difftool/args", "{file1} {file2}"),
+            source_sha, source_file, dest_sha, dest_file)
 
     # Fall back to git difftool
+    print("[configured-difftool] falling back to git difftool")
     return run_difftool_temp_files(repo_path, source_sha, source_file, dest_sha, dest_file)
 
 
@@ -286,19 +291,22 @@ def _run_custom_difftool(repo_path, command, args_template,
             return False, f"Could not extract destination file: {result.stderr}"
         dst_data = result.stdout
 
-        # Write to temp files
-        tmp_dir = tempfile.mkdtemp(prefix="git-difftool-")
-        src_path = os.path.join(tmp_dir, os.path.basename(source_file))
-        dst_path = os.path.join(tmp_dir, os.path.basename(dest_file))
+        # Write to temp files (separate dirs to avoid same-basename collision)
+        src_tmp = tempfile.mkdtemp(prefix="git-difftool-src-")
+        dst_tmp = tempfile.mkdtemp(prefix="git-difftool-dst-")
+        src_path = os.path.join(src_tmp, os.path.basename(source_file))
+        dst_path = os.path.join(dst_tmp, os.path.basename(dest_file))
         with open(src_path, 'w', encoding='utf-8') as f:
             f.write(src_data)
         with open(dst_path, 'w', encoding='utf-8') as f:
             f.write(dst_data)
 
         # Build command
+        if not args_template or "{file1}" not in args_template:
+            args_template = "{file1} {file2}"
         args_str = args_template.replace("{file1}", src_path).replace("{file2}", dst_path)
         cmd_parts = shlex.split(command) + shlex.split(args_str)
-
+        print(f"[custom-difftool] Running: {' '.join(cmd_parts)}")
         subprocess.Popen(cmd_parts, cwd=repo_path)
         return True, ""
     except Exception as e:
