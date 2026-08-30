@@ -654,6 +654,9 @@ class UIMixin:
         self.ctrl_z_shortcut = QShortcut(QKeySequence("Ctrl+Z"), self)
         self.ctrl_z_shortcut.activated.connect(self.handle_undo_shortcut)
 
+        self.ctrl_alt_f5_shortcut = QShortcut(QKeySequence("Ctrl+Alt+F5"), self)
+        self.ctrl_alt_f5_shortcut.activated.connect(self._handle_restart_if_updated)
+
         # A grey veil over the whole browse window marks it as a read-only viewer.
         self._browse_overlay = None
         if self.browse_mode:
@@ -669,6 +672,32 @@ class UIMixin:
             self.showing_commits_label, self.sep_merge, self.merge_commits_label,
             MATCH_ROLE, _diff_search_matches, get_commit_files_with_status,
             get_commit_diff, self.settings, self._sk)
+
+    def _handle_restart_if_updated(self):
+        """Hidden shortcut (Ctrl+Alt+F5): check if the tool's repo has new commits
+        and optionally restart with the latest version."""
+        if not getattr(self, 'is_running_from_repo', False):
+            return
+        from lib.git_helpers import get_head_sha
+        current_head = get_head_sha(self.repo_path)
+        if current_head == self.start_time_head:
+            QMessageBox.information(self, "No Update",
+                                    "Tool repository is already at the latest version.")
+            return
+        reply = QMessageBox.question(
+            self, "Update Available",
+            f"Tool repository has new commits since startup.\n\n"
+            f"Started at: {self.start_time_head}\n"
+            f"Current:    {current_head}\n\n"
+            "Restart with the latest version?",
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if reply != QMessageBox.Yes:
+            return
+        import sys
+        from PySide6.QtCore import QProcess
+        from PySide6.QtWidgets import QApplication
+        QProcess.startDetached(sys.executable, sys.argv)
+        QApplication.quit()
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
