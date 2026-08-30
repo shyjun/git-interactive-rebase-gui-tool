@@ -120,3 +120,96 @@ def get_unstaged_file_diff(repo_path, filepath):
     return _pad_diff_separators(
         _git_capture(repo_path, ["git", "diff", "--", filepath],
                      "Failed to get unstaged file diff"))
+
+
+def get_difftool_name(repo_path):
+    """Returns the configured diff.tool name, or None if not set."""
+    try:
+        result = subprocess.run(
+            ["git", "config", "get", "diff.tool"],
+            cwd=repo_path, capture_output=True, text=True,
+            encoding='utf-8', errors='replace')
+        name = result.stdout.strip()
+        return name if name else None
+    except Exception:
+        return None
+
+
+def is_file_unchanged_between(repo_path, filepath, commit_sha, head_sha):
+    """Returns True if *filepath* has not changed between *commit_sha* and *head_sha*."""
+    try:
+        result = subprocess.run(
+            ["git", "diff", "--name-only", commit_sha, head_sha, "--", filepath],
+            cwd=repo_path, capture_output=True, text=True,
+            encoding='utf-8', errors='replace')
+        return not result.stdout.strip()
+    except Exception:
+        return False
+
+
+def is_file_working_tree_clean(repo_path, filepath):
+    """Returns True if *filepath* has no staged or unstaged changes."""
+    try:
+        result = subprocess.run(
+            ["git", "status", "--porcelain", "--", filepath],
+            cwd=repo_path, capture_output=True, text=True,
+            encoding='utf-8', errors='replace')
+        return not result.stdout.strip()
+    except Exception:
+        return False
+
+
+def run_difftool_temp_files(repo_path, source_sha, source_file, dest_sha, dest_file):
+    """Extract both file versions to temp files and open the configured difftool.
+
+    Returns (ok, message) where message is an error description on failure."""
+    import os
+    import tempfile
+    try:
+        # Extract source version
+        result = subprocess.run(
+            ["git", "show", f"{source_sha}:{source_file}"],
+            cwd=repo_path, capture_output=True, text=True,
+            encoding='utf-8', errors='replace')
+        if result.returncode != 0:
+            return False, f"Could not extract source file: {result.stderr}"
+        src_data = result.stdout
+
+        # Extract destination version
+        result = subprocess.run(
+            ["git", "show", f"{dest_sha}:{dest_file}"],
+            cwd=repo_path, capture_output=True, text=True,
+            encoding='utf-8', errors='replace')
+        if result.returncode != 0:
+            return False, f"Could not extract destination file: {result.stderr}"
+        dst_data = result.stdout
+
+        # Write to temp files
+        tmp_dir = tempfile.mkdtemp(prefix="git-difftool-")
+        src_path = os.path.join(tmp_dir, os.path.basename(source_file))
+        dst_path = os.path.join(tmp_dir, os.path.basename(dest_file))
+        with open(src_path, 'w', encoding='utf-8') as f:
+            f.write(src_data)
+        with open(dst_path, 'w', encoding='utf-8') as f:
+            f.write(dst_data)
+
+        # Run difftool
+        subprocess.Popen(
+            ["git", "difftool", "--no-index", "--", src_path, dst_path],
+            cwd=repo_path)
+        return True, ""
+    except Exception as e:
+        return False, str(e)
+
+
+def run_difftool_direct(repo_path, source_sha, source_file, dest_sha, dest_file):
+    """Run git difftool directly between two commits for a single file.
+
+    Returns (ok, message) where message is an error description on failure."""
+    try:
+        subprocess.Popen(
+            ["git", "difftool", source_sha, dest_sha, "--", source_file],
+            cwd=repo_path)
+        return True, ""
+    except Exception as e:
+        return False, str(e)

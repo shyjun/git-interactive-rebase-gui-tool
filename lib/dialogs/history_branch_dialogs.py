@@ -20,6 +20,9 @@ from PySide6.QtWidgets import (
     QTextEdit,
     QMessageBox,
     QApplication,
+    QGroupBox,
+    QRadioButton,
+    QButtonGroup,
 )
 from PySide6.QtCore import Qt
 
@@ -649,28 +652,59 @@ class OpenFileAtRefDialog(QDialog):
 
 class DiffFileAtRefDialog(QDialog):
     """Dialog to diff a file against a different version.
-    UI matches OpenFileAtRefDialog: ref combo on top, editable file
-    path with Browse (resolves files at the selected ref)."""
 
-    def __init__(self, repo_path, filepath, current_sha, parent=None):
+    Two group boxes:
+    - Source file: read-only path, radio buttons for HEAD vs selected-commit version.
+    - Destination file: ref combo + editable file path.
+
+    Two Run buttons:
+    - Run Difftool: always enabled (uses temp files + configured difftool).
+    - Run Git Difftool Directly: enabled only when source == HEAD or file unchanged.
+    """
+
+    def __init__(self, repo_path, filepath, selected_sha, head_sha, parent=None):
         super().__init__(parent)
         self.repo_path = repo_path
         self.filepath = filepath
-        self.current_sha = current_sha
-        self.selected_ref = None
+        self.selected_sha = selected_sha
+        self.head_sha = head_sha
         self.resolved_sha = None
         self.selected_file = None
+        self.use_direct = False
+
         self.setWindowTitle("Diff File against Different Version")
-        self.setMinimumWidth(550)
+        self.setMinimumWidth(600)
         self.setModal(True)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(12)
 
-        ref_label = QLabel("Diff against (Commit / Branch / Tag):")
-        layout.addWidget(ref_label)
+        # --- Source file group ---
+        src_group = QGroupBox("Source file")
+        src_layout = QVBoxLayout(src_group)
 
+        self.src_path_label = QLabel(filepath)
+        self.src_path_label.setStyleSheet("font-weight: bold;")
+        src_layout.addWidget(self.src_path_label)
+
+        self.src_radio_group = QButtonGroup(self)
+        self.src_selected_radio = QRadioButton(f"Version at selected commit ({selected_sha[:8]})")
+        self.src_head_radio = QRadioButton(f"HEAD version ({head_sha[:8]})")
+        self.src_selected_radio.setChecked(True)
+        self.src_radio_group.addButton(self.src_selected_radio, 0)
+        self.src_radio_group.addButton(self.src_head_radio, 1)
+        self.src_selected_radio.toggled.connect(lambda: self._update_direct_enabled())
+        src_layout.addWidget(self.src_selected_radio)
+        src_layout.addWidget(self.src_head_radio)
+        layout.addWidget(src_group)
+
+        # --- Destination file group ---
+        dst_group = QGroupBox("Destination file")
+        dst_layout = QVBoxLayout(dst_group)
+
+        ref_row = QHBoxLayout()
+        ref_row.addWidget(QLabel("Commit / Branch / Tag / SHA:"))
         self.ref_combo = QComboBox()
         self.ref_combo.setEditable(True)
         self.ref_combo.addItems(get_branch_names(self.repo_path))
@@ -678,8 +712,7 @@ class DiffFileAtRefDialog(QDialog):
             import subprocess
             result = subprocess.run(
                 ["git", "tag", "-l"], cwd=self.repo_path,
-                capture_output=True, text=True, encoding='utf-8', errors='replace'
-            )
+                capture_output=True, text=True, encoding='utf-8', errors='replace')
             if result.returncode == 0:
                 tags = [t.strip() for t in result.stdout.strip().split('\n') if t.strip()]
                 if tags:
@@ -689,19 +722,22 @@ class DiffFileAtRefDialog(QDialog):
             pass
         if self.ref_combo.lineEdit():
             self.ref_combo.lineEdit().setPlaceholderText("e.g. HEAD, main, abc1234, v1.0")
-        layout.addWidget(self.ref_combo)
+        ref_row.addWidget(self.ref_combo, 1)
+        dst_layout.addLayout(ref_row)
 
-        file_layout = QHBoxLayout()
-        file_label = QLabel("File path:")
-        file_layout.addWidget(file_label)
+        file_row = QHBoxLayout()
+        file_row.addWidget(QLabel("File path:"))
         self.file_edit = QLineEdit(filepath)
         self.file_edit.setPlaceholderText("Path to the file (e.g. src/main.py)")
-        file_layout.addWidget(self.file_edit, 1)
-        browse_btn = QPushButton("Browse…")
+        file_row.addWidget(self.file_edit, 1)
+        browse_btn = QPushButton("Browse...")
         browse_btn.clicked.connect(self._on_browse)
-        file_layout.addWidget(browse_btn)
-        layout.addLayout(file_layout)
+        file_row.addWidget(browse_btn)
+        dst_layout.addLayout(file_row)
 
+        layout.addWidget(dst_group)
+
+        # --- Buttons ---
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
 
@@ -709,13 +745,65 @@ class DiffFileAtRefDialog(QDialog):
         cancel_btn.clicked.connect(self.reject)
         btn_layout.addWidget(cancel_btn)
 
-        difftool_btn = QPushButton("Run Difftool")
-        difftool_btn.setDefault(True)
-        difftool_btn.clicked.connect(self._on_difftool)
-        btn_layout.addWidget(difftool_btn)
+        self.direct_btn = QPushButton("Run Git Difftool Directly")
+        self.direct_btn.setToolTip(self._direct_tooltip())
+        self.direct_btn.clicked.connect(self._on_direct)
+        btn_layout.addWidget(self.direct_btn)
+
+        self.difftool_btn = QPushButton("Run Difftool")
+        self.difftool_btn.setDefault(True)
+        self.difftool_btn.setToolTip(
+            "Extract the selected file versions temporarily and open them "
+            "using the configured difftool.")
+        self.difftool_btn.clicked.connect(self._on_difftool)
+        btn_layout.addWidget(self.difftool_btn)
         layout.addLayout(btn_layout)
 
+        self._update_direct_enabled()
         self.ref_combo.setFocus()
+
+    def _direct_tooltip(self):
+        if self.direct_btn.isChecked() if hasattr(self.direct_btn, 'isChecked') else False:
+            return ""
+        return (
+            "Direct comparison is unavailable because this file has changed "
+            "after the selected commit, or the working tree has local modifications."
+        )
+
+    def _update_direct_enabled(self):
+        """Enable 'Run Git Difftool Directly' only when source is HEAD or file unchanged."""
+        from lib.git_helpers import (
+            is_file_unchanged_between, is_file_working_tree_clean)
+
+        source_is_head = self.src_head_radio.isChecked()
+        if source_is_head:
+            # Source is HEAD — the repo file IS the source version
+            self.direct_btn.setEnabled(True)
+            self.direct_btn.setToolTip(
+                "Compare the current repository file directly with the "
+                "selected version using Git's configured difftool.")
+            return
+
+        # Source is the selected commit — check if file is unchanged to HEAD
+        # and working tree is clean
+        unchanged = is_file_unchanged_between(
+            self.repo_path, self.filepath, self.selected_sha, self.head_sha)
+        clean = is_file_working_tree_clean(self.repo_path, self.filepath)
+
+        if unchanged and clean:
+            self.direct_btn.setEnabled(True)
+            self.direct_btn.setToolTip(
+                "Compare the current repository file directly with the "
+                "selected version using Git's configured difftool.")
+        else:
+            self.direct_btn.setEnabled(False)
+            reason = []
+            if not unchanged:
+                reason.append("this file has changed after the selected commit")
+            if not clean:
+                reason.append("the working tree has local modifications")
+            self.direct_btn.setToolTip(
+                "Direct comparison is unavailable because " + " and ".join(reason) + ".")
 
     def _on_browse(self):
         ref = self.ref_combo.currentText().strip()
@@ -728,8 +816,7 @@ class DiffFileAtRefDialog(QDialog):
             result = subprocess.run(
                 ["git", "ls-tree", "-r", "--name-only", ref],
                 cwd=self.repo_path, capture_output=True, text=True,
-                encoding='utf-8', errors='replace'
-            )
+                encoding='utf-8', errors='replace')
             if result.returncode != 0:
                 QMessageBox.critical(self, "Invalid Ref",
                                      f"'{ref}' does not resolve to a valid commit.\n\n{result.stderr}")
@@ -746,7 +833,7 @@ class DiffFileAtRefDialog(QDialog):
         pick_layout = QVBoxLayout(pick)
 
         search = QLineEdit()
-        search.setPlaceholderText("Type to filter…")
+        search.setPlaceholderText("Type to filter...")
         pick_layout.addWidget(search)
 
         lst = QListWidget()
@@ -770,80 +857,88 @@ class DiffFileAtRefDialog(QDialog):
         if pick.exec() == _D.Accepted and lst.currentItem():
             self.file_edit.setText(lst.currentItem().text())
 
-    def _on_difftool(self):
+    def _resolve_ref(self):
+        """Resolve the destination ref to a SHA. Returns True on success."""
         ref = self.ref_combo.currentText().strip()
         if not ref:
             QMessageBox.warning(self, "No ref", "Please enter a commit, branch, or tag.")
-            return
+            return False
 
         filepath = self.file_edit.text().strip()
         if not filepath:
             QMessageBox.information(self, "No file", "Please enter or browse for a file.")
-            return
+            return False
 
-        # Check if difftool is configured
+        import subprocess
         try:
-            import subprocess
-            tool_check = subprocess.run(
-                ["git", "config", "diff.tool"],
-                cwd=self.repo_path, capture_output=True, text=True,
-                encoding='utf-8', errors='replace'
-            )
-            if tool_check.returncode != 0 or not tool_check.stdout.strip():
-                reply = QMessageBox.question(
-                    self, "Difftool not configured",
-                    "No difftool is configured (diff.tool is not set).\n\n"
-                    "git difftool will fall back to vimdiff.\n\n"
-                    "Configure one first, e.g.:\n"
-                    "  git config --global diff.tool vimdiff\n"
-                    "  git config --global difftool.prompt false\n\n"
-                    "Continue anyway?",
-                    QMessageBox.Yes | QMessageBox.No, QMessageBox.No
-                )
-                if reply != QMessageBox.Yes:
-                    return
-        except Exception:
-            pass
-
-        try:
-            import subprocess
             result = subprocess.run(
                 ["git", "rev-parse", ref],
                 cwd=self.repo_path, capture_output=True, text=True,
-                encoding='utf-8', errors='replace'
-            )
+                encoding='utf-8', errors='replace')
             if result.returncode != 0:
                 QMessageBox.critical(self, "Invalid Ref",
                                      f"'{ref}' does not resolve.\n\n{result.stderr}")
-                return
+                return False
             self.resolved_sha = result.stdout.strip()
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not resolve ref: {e}")
-            return
+            return False
 
-        if self.resolved_sha == self.current_sha:
+        source_sha = self.head_sha if self.src_head_radio.isChecked() else self.selected_sha
+        if self.resolved_sha == source_sha:
             QMessageBox.information(self, "Same version",
-                                    "Selected ref is the same as the current version.")
-            return
+                                    "Source and destination are the same version.")
+            return False
 
         # Verify file exists at the target ref
         try:
-            import subprocess
             check = subprocess.run(
                 ["git", "ls-tree", self.resolved_sha, "--", filepath],
                 cwd=self.repo_path, capture_output=True, text=True,
-                encoding='utf-8', errors='replace'
-            )
+                encoding='utf-8', errors='replace')
             if check.returncode != 0 or not check.stdout.strip():
                 QMessageBox.critical(
                     self, "File not found",
                     f"'{filepath}' does not exist at {ref} ({self.resolved_sha[:8]}).\n\n"
-                    "Use Browse… to select the correct file at that version."
-                )
-                return
+                    "Use Browse... to select the correct file at that version.")
+                return False
         except Exception:
             pass
 
-        self.selected_ref = ref
         self.selected_file = filepath
+        return True
+
+    def _check_difftool(self):
+        """Check if difftool is configured. Returns True if ok or user confirms."""
+        from lib.git_helpers import get_difftool_name
+        name = get_difftool_name(self.repo_path)
+        if not name:
+            reply = QMessageBox.question(
+                self, "Difftool not configured",
+                "No difftool is configured (diff.tool is not set).\n\n"
+                "git difftool will fall back to vimdiff.\n\n"
+                "Configure one first, e.g.:\n"
+                "  git config --global diff.tool meld\n"
+                "  git config --global difftool.prompt false\n\n"
+                "Continue anyway?",
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            return reply == QMessageBox.Yes
+        return True
+
+    def _on_difftool(self):
+        """Run difftool using temp files (extracted versions)."""
+        if not self._resolve_ref():
+            return
+        if not self._check_difftool():
+            return
+        self.use_direct = False
+        self.accept()
+
+    def _on_direct(self):
+        """Run git difftool directly (repo file vs target ref)."""
+        if not self._resolve_ref():
+            return
+        if not self._check_difftool():
+            return
+        self.use_direct = True
         self.accept()
