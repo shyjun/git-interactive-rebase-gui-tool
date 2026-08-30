@@ -126,7 +126,7 @@ def get_difftool_name(repo_path):
     """Returns the configured diff.tool name, or None if not set."""
     try:
         result = subprocess.run(
-            ["git", "config", "get", "diff.tool"],
+            ["git", "config", "--get", "diff.tool"],
             cwd=repo_path, capture_output=True, text=True,
             encoding='utf-8', errors='replace')
         name = result.stdout.strip()
