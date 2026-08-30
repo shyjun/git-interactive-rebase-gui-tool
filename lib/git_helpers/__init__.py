@@ -59,6 +59,11 @@ from .diffs import (
     get_unstaged_diff,
     get_unstaged_file_stats,
     get_unstaged_file_diff,
+    get_difftool_name,
+    is_file_unchanged_between,
+    is_file_working_tree_clean,
+    run_difftool_temp_files,
+    run_difftool_direct,
 )
 
 from .stash import (

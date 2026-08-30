@@ -418,22 +418,25 @@ class BranchDiffDialog(QDialog):
 
     def handle_diff_file_at_ref(self, filepath, current_sha):
         from lib.dialogs.history_branch_dialogs import DiffFileAtRefDialog
-        dialog = DiffFileAtRefDialog(self.repo_path, filepath, current_sha, parent=self)
+        from lib.git_helpers import run_difftool_temp_files, run_difftool_direct
+        head_sha = _get_head_sha(self.repo_path)
+        dialog = DiffFileAtRefDialog(self.repo_path, filepath, current_sha, head_sha, parent=self)
         if dialog.exec() != QDialog.Accepted:
             return
         ref_sha = dialog.resolved_sha
         target_file = dialog.selected_file
         if not ref_sha or not target_file:
             return
-        print(f"[diff] Running: git difftool {ref_sha[:8]} {current_sha[:8]} -- {target_file}")
-        try:
-            import subprocess
-            subprocess.Popen(
-                ["git", "difftool", ref_sha, current_sha, "--", target_file],
-                cwd=self.repo_path
-            )
-        except Exception as e:
-            QMessageBox.critical(self, "Difftool Failed", f"Could not run difftool: {e}")
+        if dialog.use_direct:
+            source_sha = head_sha if dialog.src_head_radio.isChecked() else current_sha
+            print(f"[diff] Running direct: git difftool {source_sha[:8]} {ref_sha[:8]} -- {target_file}")
+            ok, err = run_difftool_direct(self.repo_path, source_sha, target_file, ref_sha, target_file)
+        else:
+            source_sha = head_sha if dialog.src_head_radio.isChecked() else current_sha
+            print(f"[diff] Running temp: difftool {source_sha[:8]} {ref_sha[:8]} -- {target_file}")
+            ok, err = run_difftool_temp_files(self.repo_path, source_sha, target_file, ref_sha, target_file)
+        if not ok:
+            QMessageBox.critical(self, "Difftool Failed", f"Could not run difftool: {err}")
 
 
 class SingleCommitViewDialog(QDialog):
@@ -723,22 +726,25 @@ class SingleCommitViewDialog(QDialog):
 
     def handle_diff_file_at_ref(self, filepath, current_sha):
         from lib.dialogs.history_branch_dialogs import DiffFileAtRefDialog
-        dialog = DiffFileAtRefDialog(self.repo_path, filepath, current_sha, parent=self)
+        from lib.git_helpers import run_difftool_temp_files, run_difftool_direct
+        head_sha = _get_head_sha(self.repo_path)
+        dialog = DiffFileAtRefDialog(self.repo_path, filepath, current_sha, head_sha, parent=self)
         if dialog.exec() != QDialog.Accepted:
             return
         ref_sha = dialog.resolved_sha
         target_file = dialog.selected_file
         if not ref_sha or not target_file:
             return
-        print(f"[diff] Running: git difftool {ref_sha[:8]} {current_sha[:8]} -- {target_file}")
-        try:
-            import subprocess
-            subprocess.Popen(
-                ["git", "difftool", ref_sha, current_sha, "--", target_file],
-                cwd=self.repo_path
-            )
-        except Exception as e:
-            QMessageBox.critical(self, "Difftool Failed", f"Could not run difftool: {e}")
+        if dialog.use_direct:
+            source_sha = head_sha if dialog.src_head_radio.isChecked() else current_sha
+            print(f"[diff] Running direct: git difftool {source_sha[:8]} {ref_sha[:8]} -- {target_file}")
+            ok, err = run_difftool_direct(self.repo_path, source_sha, target_file, ref_sha, target_file)
+        else:
+            source_sha = head_sha if dialog.src_head_radio.isChecked() else current_sha
+            print(f"[diff] Running temp: difftool {source_sha[:8]} {ref_sha[:8]} -- {target_file}")
+            ok, err = run_difftool_temp_files(self.repo_path, source_sha, target_file, ref_sha, target_file)
+        if not ok:
+            QMessageBox.critical(self, "Difftool Failed", f"Could not run difftool: {err}")
 
 
 class UnstagedDiffDialog(BranchDiffDialog):
