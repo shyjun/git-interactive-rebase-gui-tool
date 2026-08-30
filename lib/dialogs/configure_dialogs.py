@@ -126,6 +126,9 @@ class ConfigureDiffToolDialog(QDialog):
         btn_layout.addWidget(self.save_btn)
         layout.addLayout(btn_layout)
 
+        self.command_edit.textChanged.connect(self._update_ui)
+        self.args_edit.textChanged.connect(self._update_ui)
+
         # Load saved settings
         self._load_settings()
         self._refresh_git_status()
@@ -200,7 +203,7 @@ class ConfigureDiffToolDialog(QDialog):
                 return
             settings.setValue("difftool/mode", "custom")
             settings.setValue("difftool/command", cmd)
-            settings.setValue("difftool/args", self.args_edit.text().strip())
+            settings.setValue("difftool/args", self.args_edit.text().strip() or "{file1} {file2}")
 
         self.accept()
 
