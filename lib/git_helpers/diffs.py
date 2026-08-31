@@ -242,7 +242,7 @@ def run_difftool_direct(repo_path, source_sha, source_file, dest_sha, dest_file,
     from PySide6.QtCore import QSettings
     try:
         settings = QSettings("git-interactive-rebase-gui-tool", "config")
-        mode = settings.value("difftool/mode", "git")
+        mode = settings.value("difftool/mode", "none")
         custom_cmd = settings.value("difftool/command", "") if mode == "custom" else ""
 
         if source_is_head:
@@ -289,7 +289,7 @@ def run_configured_difftool(repo_path, source_sha, source_file, dest_sha, dest_f
     """
     from PySide6.QtCore import QSettings
     settings = QSettings("git-interactive-rebase-gui-tool", "config")
-    mode = settings.value("difftool/mode", "git")
+    mode = settings.value("difftool/mode", "none")
     command = settings.value("difftool/command", "")
     print(f"[configured-difftool] mode={mode}, command={command!r}")
 
