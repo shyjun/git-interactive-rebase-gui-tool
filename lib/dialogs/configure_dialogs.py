@@ -33,7 +33,7 @@ class ConfigureDiffToolDialog(QDialog):
         super().__init__(parent)
         self.repo_path = repo_path
         self.setWindowTitle("Configure Diff Tool")
-        self.setMinimumWidth(520)
+        self.setFixedSize(520, 400)
         self.setModal(True)
 
         layout = QVBoxLayout(self)
@@ -43,75 +43,84 @@ class ConfigureDiffToolDialog(QDialog):
         intro = QLabel("Select how external file comparisons are opened.")
         layout.addWidget(intro)
 
-        # --- Not configured mode ---
+        # --- Radio group ---
+        self.mode_group = QButtonGroup(self)
+
+        # --- Not configured ---
         self.none_radio = QRadioButton("Not configured")
         self.none_radio.setToolTip("No external diff tool. External Difftool button will prompt to configure.")
         self.none_radio.setChecked(True)
+        self.mode_group.addButton(self.none_radio, 0)
         layout.addWidget(self.none_radio)
 
-        # --- Git difftool mode ---
-        git_group = QGroupBox()
-        git_layout = QVBoxLayout(git_group)
+        none_desc = QLabel("External difftool integration is disabled.")
+        none_desc.setStyleSheet("color: gray;")
+        none_desc.setContentsMargins(24, 0, 0, 0)
+        layout.addWidget(none_desc)
 
+        sep1 = QFrame()
+        sep1.setFrameShape(QFrame.HLine)
+        sep1.setFrameShadow(QFrame.Sunken)
+        layout.addWidget(sep1)
+
+        # --- Git difftool ---
         self.git_radio = QRadioButton("Use Git configured difftool")
         self.git_radio.setToolTip("Use the difftool configured in your Git settings (diff.tool).")
-        git_layout.addWidget(self.git_radio)
+        self.mode_group.addButton(self.git_radio, 1)
+        layout.addWidget(self.git_radio)
 
-        info_frame = QFrame()
-        info_frame.setContentsMargins(24, 0, 0, 0)
-        info_layout = QVBoxLayout(info_frame)
-        info_layout.setContentsMargins(0, 4, 0, 4)
-        info_layout.setSpacing(2)
+        git_info = QFrame()
+        git_info.setContentsMargins(24, 0, 0, 0)
+        git_info_layout = QVBoxLayout(git_info)
+        git_info_layout.setContentsMargins(0, 2, 0, 2)
+        git_info_layout.setSpacing(2)
 
         self.git_tool_label = QLabel("Git difftool: (detecting...)")
-        info_layout.addWidget(self.git_tool_label)
+        git_info_layout.addWidget(self.git_tool_label)
 
         self.git_status_label = QLabel("Status: (detecting...)")
-        info_layout.addWidget(self.git_status_label)
+        git_info_layout.addWidget(self.git_status_label)
 
-        git_layout.addWidget(info_frame)
-        layout.addWidget(git_group)
+        layout.addWidget(git_info)
 
-        # --- Custom command mode ---
-        custom_group = QGroupBox()
-        custom_layout = QVBoxLayout(custom_group)
+        sep2 = QFrame()
+        sep2.setFrameShape(QFrame.HLine)
+        sep2.setFrameShadow(QFrame.Sunken)
+        layout.addWidget(sep2)
 
+        # --- Custom command ---
         self.custom_radio = QRadioButton("Use custom command")
         self.custom_radio.setToolTip("Specify a custom diff tool command.")
-        custom_layout.addWidget(self.custom_radio)
+        self.mode_group.addButton(self.custom_radio, 2)
+        layout.addWidget(self.custom_radio)
 
-        cmd_frame = QFrame()
-        cmd_frame.setContentsMargins(24, 0, 0, 0)
-        cmd_layout = QVBoxLayout(cmd_frame)
-        cmd_layout.setContentsMargins(0, 4, 0, 4)
-        cmd_layout.setSpacing(6)
+        custom_frame = QFrame()
+        custom_frame.setContentsMargins(24, 0, 0, 0)
+        custom_layout = QVBoxLayout(custom_frame)
+        custom_layout.setContentsMargins(0, 2, 0, 2)
+        custom_layout.setSpacing(6)
 
         cmd_row = QHBoxLayout()
         cmd_row.addWidget(QLabel("Command:"))
         self.command_edit = QLineEdit()
         self.command_edit.setPlaceholderText("e.g. kdiff3, code, diffmerge")
         cmd_row.addWidget(self.command_edit, 1)
-        cmd_layout.addLayout(cmd_row)
+        custom_layout.addLayout(cmd_row)
 
         args_row = QHBoxLayout()
         args_row.addWidget(QLabel("Arguments:"))
         self.args_edit = QLineEdit()
         self.args_edit.setPlaceholderText("{file1} {file2}")
         args_row.addWidget(self.args_edit, 1)
-        cmd_layout.addLayout(args_row)
+        custom_layout.addLayout(args_row)
 
         example = QLabel("Example: kdiff3 {file1} {file2}")
         example.setStyleSheet("color: gray; font-size: 11px;")
-        cmd_layout.addWidget(example)
+        custom_layout.addWidget(example)
 
-        custom_layout.addWidget(cmd_frame)
-        layout.addWidget(custom_group)
+        layout.addWidget(custom_frame)
 
-        # --- Radio group ---
-        self.mode_group = QButtonGroup(self)
-        self.mode_group.addButton(self.none_radio, 0)
-        self.mode_group.addButton(self.git_radio, 1)
-        self.mode_group.addButton(self.custom_radio, 2)
+        # --- Wire radio toggles ---
         self.none_radio.toggled.connect(self._update_ui)
         self.git_radio.toggled.connect(self._update_ui)
         self.custom_radio.toggled.connect(self._update_ui)
@@ -196,7 +205,6 @@ class ConfigureDiffToolDialog(QDialog):
             self.save_btn.setEnabled(bool(cmd))
             self.save_btn.setToolTip("" if cmd else "Enter a command to enable Save.")
         else:
-            # None mode — always savable
             self.save_btn.setEnabled(True)
             self.save_btn.setToolTip("")
 
@@ -226,14 +234,7 @@ class ConfigureDiffToolDialog(QDialog):
 
     @staticmethod
     def get_difftool_command(repo_path):
-        """Read the saved difftool configuration and return (command_list, is_direct).
-
-        Returns a list suitable for subprocess.Popen (with {file1}/{file2} already
-        replaced) and a boolean indicating whether to use direct repo comparison
-        (True) or temp-file extraction (False).
-
-        If no configuration exists, falls back to git difftool.
-        """
+        """Read the saved difftool configuration and return (command_list, is_direct)."""
         from PySide6.QtCore import QSettings
         settings = QSettings("git-interactive-rebase-gui-tool", "config")
         mode = settings.value("difftool/mode", "none")
@@ -242,7 +243,6 @@ class ConfigureDiffToolDialog(QDialog):
             command = settings.value("difftool/command", "")
             args = settings.value("difftool/args", "{file1} {file2}")
             if command:
-                return command, args, False  # custom always uses temp files
+                return command, args, False
 
-        # Fall back to git difftool
-        return None, None, None  # signals caller to use git difftool
+        return None, None, None
