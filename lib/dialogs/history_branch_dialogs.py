@@ -658,8 +658,8 @@ class DiffFileAtRefDialog(QDialog):
     - Destination file: ref combo + editable file path.
 
     Two Run buttons:
-    - Run Difftool: always enabled (uses temp files + configured difftool).
-    - Configured Diff Tool: enabled only when source == HEAD or file unchanged,
+    - Run Git Difftool: always enabled (uses temp files + git difftool).
+    - External Difftool: enabled only when source == HEAD or file unchanged,
       and a custom difftool command is configured via External Tools Integration.
     """
 
@@ -747,16 +747,16 @@ class DiffFileAtRefDialog(QDialog):
         cancel_btn.clicked.connect(self.reject)
         btn_layout.addWidget(cancel_btn)
 
-        self.direct_btn = QPushButton("Configured Diff Tool")
+        self.direct_btn = QPushButton("External Difftool")
         self.direct_btn.setToolTip(self._direct_tooltip())
         self.direct_btn.clicked.connect(self._on_direct)
         btn_layout.addWidget(self.direct_btn)
 
-        self.difftool_btn = QPushButton("Run Difftool")
+        self.difftool_btn = QPushButton("Run Git Difftool")
         self.difftool_btn.setDefault(True)
         self.difftool_btn.setToolTip(
             "Extract the selected file versions temporarily and open them "
-            "using the configured difftool.")
+            "using git difftool.")
         self.difftool_btn.clicked.connect(self._on_difftool)
         btn_layout.addWidget(self.difftool_btn)
         layout.addLayout(btn_layout)
@@ -773,7 +773,7 @@ class DiffFileAtRefDialog(QDialog):
         )
 
     def _update_direct_enabled(self):
-        """Enable 'Configured Diff Tool' only when source is HEAD or file unchanged."""
+        """Enable 'External Difftool' only when source is HEAD or file unchanged."""
         from lib.git_helpers import (
             is_file_unchanged_between, is_file_working_tree_clean)
 
