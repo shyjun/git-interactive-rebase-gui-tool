@@ -224,7 +224,12 @@ The **Configure** button in the status bar controls which markers, columns, and 
 - **Show Date** → commit dates
 - **Show Diffs** → the right-side diff pane (see [Diff Pane](#11-diff-pane))
 
-The menu also includes **Help** (links to the demo video, README, and contact) and **Check Updates** (compares the running version against the remote).
+The menu also includes:
+
+- **External tools integration** → Configure diff tool (Not configured / Git configured / Custom command)
+- **Help** → links to the demo video, README, and contact
+- **Check for updates** → compares the running version against the remote
+- **Check for updates at startup** → tickable option to auto-check on launch (default: enabled)
 
 ---
 
@@ -941,7 +946,7 @@ A brief **"Copied!"** notification appears to confirm the action.
 
 ![Update the Tool](screenshots/update-available-dialog.webp)
 
-**Description:** When a newer version is available on GitHub, the app tells you about it (via **Configure → Check Updates**). The dialog offers:
+**Description:** When a newer version is available on GitHub, the app tells you about it (via **Configure → Check for updates**). The dialog offers:
 
 - **Update Now** → Update the tool right away. A progress bar runs while the tool updates itself (via `git pull` for a cloned installation, or `pip` upgrade for a pip installation), then reports success or failure and asks you to restart the tool.
 - **Copy to clipboard** → Copy the manual update command to run later.
