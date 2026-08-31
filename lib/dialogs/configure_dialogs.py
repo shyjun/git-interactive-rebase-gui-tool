@@ -23,9 +23,10 @@ from PySide6.QtCore import Qt
 class ConfigureDiffToolDialog(QDialog):
     """Dialog to configure how external file comparisons are opened.
 
-    Two modes:
-    - Use Git configured difftool (reads diff.tool from git config)
-    - Use custom command (user-provided command + arguments)
+    Three modes:
+    - Not configured: no external diff tool (button prompts to configure)
+    - Use Git configured difftool: reads diff.tool from git config
+    - Use custom command: user-provided command + arguments
     """
 
     def __init__(self, repo_path, parent=None):
@@ -41,6 +42,12 @@ class ConfigureDiffToolDialog(QDialog):
 
         intro = QLabel("Select how external file comparisons are opened.")
         layout.addWidget(intro)
+
+        # --- Not configured mode ---
+        self.none_radio = QRadioButton("Not configured")
+        self.none_radio.setToolTip("No external diff tool. External Difftool button will prompt to configure.")
+        self.none_radio.setChecked(True)
+        layout.addWidget(self.none_radio)
 
         # --- Git difftool mode ---
         git_group = QGroupBox()
@@ -82,7 +89,7 @@ class ConfigureDiffToolDialog(QDialog):
         cmd_row = QHBoxLayout()
         cmd_row.addWidget(QLabel("Command:"))
         self.command_edit = QLineEdit()
-        self.command_edit.setPlaceholderText("e.g. meld, code, diffmerge")
+        self.command_edit.setPlaceholderText("e.g. kdiff3, code, diffmerge")
         cmd_row.addWidget(self.command_edit, 1)
         cmd_layout.addLayout(cmd_row)
 
@@ -93,7 +100,7 @@ class ConfigureDiffToolDialog(QDialog):
         args_row.addWidget(self.args_edit, 1)
         cmd_layout.addLayout(args_row)
 
-        example = QLabel("Example: code --diff {file1} {file2}")
+        example = QLabel("Example: kdiff3 {file1} {file2}")
         example.setStyleSheet("color: gray; font-size: 11px;")
         cmd_layout.addWidget(example)
 
@@ -102,8 +109,10 @@ class ConfigureDiffToolDialog(QDialog):
 
         # --- Radio group ---
         self.mode_group = QButtonGroup(self)
-        self.mode_group.addButton(self.git_radio, 0)
-        self.mode_group.addButton(self.custom_radio, 1)
+        self.mode_group.addButton(self.none_radio, 0)
+        self.mode_group.addButton(self.git_radio, 1)
+        self.mode_group.addButton(self.custom_radio, 2)
+        self.none_radio.toggled.connect(self._update_ui)
         self.git_radio.toggled.connect(self._update_ui)
         self.custom_radio.toggled.connect(self._update_ui)
 
@@ -137,7 +146,7 @@ class ConfigureDiffToolDialog(QDialog):
         """Load saved difftool configuration from QSettings."""
         from PySide6.QtCore import QSettings
         settings = QSettings("git-interactive-rebase-gui-tool", "config")
-        mode = settings.value("difftool/mode", "git")
+        mode = settings.value("difftool/mode", "none")
         command = settings.value("difftool/command", "")
         args = settings.value("difftool/args", "{file1} {file2}")
 
@@ -146,8 +155,10 @@ class ConfigureDiffToolDialog(QDialog):
 
         if mode == "custom":
             self.custom_radio.setChecked(True)
-        else:
+        elif mode == "git":
             self.git_radio.setChecked(True)
+        else:
+            self.none_radio.setChecked(True)
 
     def _refresh_git_status(self):
         """Read the Git difftool configuration and update the display."""
@@ -169,7 +180,6 @@ class ConfigureDiffToolDialog(QDialog):
         self.command_edit.setEnabled(is_custom)
         self.args_edit.setEnabled(is_custom)
 
-        # Prevent saving Git mode if no difftool is configured
         if self.git_radio.isChecked():
             from lib.git_helpers import get_difftool_name
             name = get_difftool_name(self.repo_path)
@@ -181,18 +191,25 @@ class ConfigureDiffToolDialog(QDialog):
                     "or switch to custom command.")
             else:
                 self.save_btn.setToolTip("")
-        else:
-            # Custom mode: enabled if command is non-empty
+        elif self.custom_radio.isChecked():
             cmd = self.command_edit.text().strip()
             self.save_btn.setEnabled(bool(cmd))
             self.save_btn.setToolTip("" if cmd else "Enter a command to enable Save.")
+        else:
+            # None mode — always savable
+            self.save_btn.setEnabled(True)
+            self.save_btn.setToolTip("")
 
     def _on_save(self):
         """Save the configuration and close."""
         from PySide6.QtCore import QSettings
         settings = QSettings("git-interactive-rebase-gui-tool", "config")
 
-        if self.git_radio.isChecked():
+        if self.none_radio.isChecked():
+            settings.setValue("difftool/mode", "none")
+            settings.setValue("difftool/command", "")
+            settings.setValue("difftool/args", "")
+        elif self.git_radio.isChecked():
             settings.setValue("difftool/mode", "git")
             settings.setValue("difftool/command", "")
             settings.setValue("difftool/args", "")
@@ -219,7 +236,7 @@ class ConfigureDiffToolDialog(QDialog):
         """
         from PySide6.QtCore import QSettings
         settings = QSettings("git-interactive-rebase-gui-tool", "config")
-        mode = settings.value("difftool/mode", "git")
+        mode = settings.value("difftool/mode", "none")
 
         if mode == "custom":
             command = settings.value("difftool/command", "")

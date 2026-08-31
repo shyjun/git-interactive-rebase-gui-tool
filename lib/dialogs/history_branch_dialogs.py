@@ -937,15 +937,14 @@ class DiffFileAtRefDialog(QDialog):
         self.accept()
 
     def _on_direct(self):
-        """Run configured diff tool directly (repo file vs target ref)."""
+        """Run external diff tool (repo file vs target ref)."""
         from PySide6.QtCore import QSettings
         settings = QSettings("git-interactive-rebase-gui-tool", "config")
-        mode = settings.value("difftool/mode", "git")
-        command = settings.value("difftool/command", "")
-        if mode != "custom" or not command.strip():
+        mode = settings.value("difftool/mode", "none")
+        if mode == "none":
             QMessageBox.information(
                 self, "Diff tool not configured",
-                "No custom diff tool is configured.\n\n"
+                "No external diff tool is configured.\n\n"
                 "Open Configure > External Tools Integration "
                 "to set up your preferred diff tool.")
             return
