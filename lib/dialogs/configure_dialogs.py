@@ -33,21 +33,23 @@ class ConfigureDiffToolDialog(QDialog):
         super().__init__(parent)
         self.repo_path = repo_path
         self.setWindowTitle("External Tools")
-        self.setFixedSize(520, 420)
+        self.setFixedSize(520, 320)
         self.setModal(True)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(12)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(8)
 
         # ── Diff tool group ──
         diff_group = QGroupBox("Diff tool")
+        diff_group.setStyleSheet("QGroupBox { padding-top: 8px; }")
         diff_layout = QVBoxLayout(diff_group)
-        diff_layout.setSpacing(8)
+        diff_layout.setSpacing(2)
+        diff_layout.setContentsMargins(8, 4, 8, 6)
 
         self.mode_group = QButtonGroup(self)
 
-        # Not configured
+        # Not configured — compact
         self.none_radio = QRadioButton("Not configured")
         self.none_radio.setToolTip("External difftool integration is disabled.")
         self.none_radio.setChecked(True)
@@ -59,67 +61,67 @@ class ConfigureDiffToolDialog(QDialog):
         none_desc.setContentsMargins(24, 0, 0, 0)
         diff_layout.addWidget(none_desc)
 
+        diff_layout.addSpacing(2)
+
         sep1 = QFrame()
         sep1.setFrameShape(QFrame.HLine)
         sep1.setFrameShadow(QFrame.Sunken)
         diff_layout.addWidget(sep1)
 
-        # Git difftool
+        diff_layout.addSpacing(2)
+
+        # Git difftool — compact
         self.git_radio = QRadioButton("Use Git configured difftool")
         self.git_radio.setToolTip("Use the difftool configured in your Git settings (diff.tool).")
         self.mode_group.addButton(self.git_radio, 1)
         diff_layout.addWidget(self.git_radio)
 
-        git_info = QFrame()
-        git_info.setContentsMargins(24, 0, 0, 0)
-        git_info_layout = QVBoxLayout(git_info)
-        git_info_layout.setContentsMargins(0, 2, 0, 2)
-        git_info_layout.setSpacing(2)
-
         self.git_tool_label = QLabel("Git difftool: (detecting...)")
-        git_info_layout.addWidget(self.git_tool_label)
+        self.git_tool_label.setContentsMargins(24, 0, 0, 0)
+        diff_layout.addWidget(self.git_tool_label)
 
         self.git_status_label = QLabel("Status: (detecting...)")
-        git_info_layout.addWidget(self.git_status_label)
+        self.git_status_label.setContentsMargins(24, 0, 0, 0)
+        diff_layout.addWidget(self.git_status_label)
 
-        diff_layout.addWidget(git_info)
+        diff_layout.addSpacing(2)
 
         sep2 = QFrame()
         sep2.setFrameShape(QFrame.HLine)
         sep2.setFrameShadow(QFrame.Sunken)
         diff_layout.addWidget(sep2)
 
-        # Custom command
+        diff_layout.addSpacing(2)
+
+        # Custom command — compact
         self.custom_radio = QRadioButton("Use custom command")
         self.custom_radio.setToolTip("Specify a custom diff tool command.")
         self.mode_group.addButton(self.custom_radio, 2)
         diff_layout.addWidget(self.custom_radio)
 
-        custom_frame = QFrame()
-        custom_frame.setContentsMargins(24, 0, 0, 0)
-        custom_layout = QVBoxLayout(custom_frame)
-        custom_layout.setContentsMargins(0, 2, 0, 2)
-        custom_layout.setSpacing(6)
-
         cmd_row = QHBoxLayout()
+        cmd_row.setContentsMargins(24, 0, 0, 0)
         cmd_row.addWidget(QLabel("Command:"))
         self.command_edit = QLineEdit()
         self.command_edit.setPlaceholderText("e.g. kdiff3, code, diffmerge")
         cmd_row.addWidget(self.command_edit, 1)
-        custom_layout.addLayout(cmd_row)
+        diff_layout.addLayout(cmd_row)
+
+        diff_layout.addSpacing(4)
 
         args_row = QHBoxLayout()
+        args_row.setContentsMargins(24, 0, 0, 0)
         args_row.addWidget(QLabel("Arguments:"))
         self.args_edit = QLineEdit()
         self.args_edit.setPlaceholderText("{file1} {file2}")
         args_row.addWidget(self.args_edit, 1)
-        custom_layout.addLayout(args_row)
+        diff_layout.addLayout(args_row)
 
         example = QLabel("Example: kdiff3 {file1} {file2}")
         example.setStyleSheet("color: gray; font-size: 11px;")
-        custom_layout.addWidget(example)
+        example.setContentsMargins(24, 0, 0, 0)
+        diff_layout.addWidget(example)
 
-        diff_layout.addWidget(custom_frame)
         layout.addWidget(diff_group)
 
         # ── Wire radio toggles ──
