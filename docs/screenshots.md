@@ -57,9 +57,9 @@ Visual documentation for the Git Interactive Rebase GUI Tool. Each section showc
 39. [Update the Tool](#39-update-the-tool)
 40. [Tag Commit](#40-tag-commit)
 41. [Blame a file](#41-blame-a-file)
-42. [Keyboard Shortcuts](#42-keyboard-shortcuts)
-43. [Browse Tags](#43-browse-tags)
-44. [External Tools Dialog](#44-external-tools-dialog)
+42. [Browse Tags](#42-browse-tags)
+43. [External Tools Dialog](#43-external-tools-dialog)
+44. [Keyboard Shortcuts](#44-keyboard-shortcuts)
 
 ---
 
@@ -1004,27 +1004,7 @@ The bottom bar also includes **Always On Top**, **Show Author / Date / Subject**
 
 ---
 
-## 42. Keyboard Shortcuts
-Keyboard shortcuts for faster navigation and workflow.
-
-| Shortcut | Action |
-|----------|--------|
-| `/` | Focus the commit search bar |
-| `Esc` | Clear search, close dialogs, exit search mode, or exit multi-select mode |
-| `Ctrl+F` | Focus the diff search bar (available in every diff view) |
-| `Ctrl+Q` | Exit the application |
-| `Ctrl+Z` | Undo the last operation (disabled while editing text) |
-| `F5` | Refresh commit list |
-| `Ctrl+Shift+F5` | Restart with latest code (cloned repos only, when update detected) |
-
-**Notes:**
-
-- `Esc` behaves contextually and may close dialogs, clear filters, exit search, or exit multi-select mode depending on the active state.
-- `Ctrl+F` focuses the diff search bar, which is available in every diff view (see [Diff Search Bar](#9-diff-search-bar)).
-
----
-
-## 43. Browse Tags
+## 42. Browse Tags
 
 **Screenshot:** `screenshots/browse-tags.webp`
 
@@ -1041,7 +1021,7 @@ Right-click a tag to open its commit log or copy details. Double-click a tag to 
 
 ---
 
-## 44. External Tools Dialog
+## 43. External Tools Dialog
 
 **Screenshot:** `screenshots/external-tools-dialog.webp`
 
@@ -1054,3 +1034,23 @@ Right-click a tag to open its commit log or copy details. Double-click a tag to 
 - **Use custom command** — Specify a custom diff tool command and arguments (e.g. `kdiff3 {file1} {file2}`).
 
 Click **Refresh** to re-detect the Git difftool, **Save** to persist the choice, or **Cancel** to dismiss. The preference is stored in QSettings and remembered across sessions.
+
+---
+
+## 44. Keyboard Shortcuts
+Keyboard shortcuts for faster navigation and workflow.
+
+| Shortcut | Action |
+|----------|--------|
+| `/` | Focus the commit search bar |
+| `Esc` | Clear search, close dialogs, exit search mode, or exit multi-select mode |
+| `Ctrl+F` | Focus the diff search bar (available in every diff view) |
+| `Ctrl+Q` | Exit the application |
+| `Ctrl+Z` | Undo the last operation (disabled while editing text) |
+| `F5` | Refresh commit list |
+| `Ctrl+Shift+F5` | Restart with latest code (cloned repos only, when update detected) |
+
+**Notes:**
+
+- `Esc` behaves contextually and may close dialogs, clear filters, exit search, or exit multi-select mode depending on the active state.
+- `Ctrl+F` focuses the diff search bar, which is available in every diff view (see [Diff Search Bar](#9-diff-search-bar)).
