@@ -600,6 +600,11 @@ class UIMixin:
 
         status_layout.addStretch()
 
+        self.update_label = QLabel("")
+        self.update_label.setStyleSheet("color: orange; font-weight: bold;")
+        self.update_label.setVisible(False)
+        status_layout.addWidget(self.update_label)
+
         sep3 = QLabel("|")
         sep3.setStyleSheet("color: gray;")
         status_layout.addWidget(sep3)
@@ -657,7 +662,8 @@ class UIMixin:
 
         self.ctrl_alt_f5_shortcut = QShortcut(QKeySequence("Ctrl+Shift+F5"), self)
         self.ctrl_alt_f5_shortcut.activated.connect(self._handle_restart_if_updated)
-        print("[shortcut] Ctrl+Shift+F5 registered")
+        if getattr(self, 'is_running_from_repo', False):
+            print("[shortcut] Ctrl+Shift+F5 registered")
 
         # A grey veil over the whole browse window marks it as a read-only viewer.
         self._browse_overlay = None
