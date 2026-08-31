@@ -58,6 +58,8 @@ Visual documentation for the Git Interactive Rebase GUI Tool. Each section showc
 40. [Tag Commit](#40-tag-commit)
 41. [Blame a file](#41-blame-a-file)
 42. [Keyboard Shortcuts](#42-keyboard-shortcuts)
+43. [Browse Tags](#43-browse-tags)
+44. [External Tools Dialog](#44-external-tools-dialog)
 
 ---
 
@@ -200,6 +202,7 @@ The **Repo** button in the main window's toolbar groups the repository-wide tool
 - **Browse Log of a Commit** → Open a read-only history window for any commit SHA or ref, prompted with the number of commits to show (see [Browse Log of a Commit](#24-browse-log-of-a-commit))
 - **Browse Reflog** → Open a read-only window of the repository's HEAD reflog (see [Browse Reflog](#25-browse-reflog))
 - **Browse Stashes** → Open a read-only window of the repository's stash list (see [Browse Stashes](#26-browse-stashes))
+- **Browse Tags** → Open a read-only window listing all tags with their commit info (see [Browse Tags](#43-browse-tags))
 - **Open File at Commit…** → Browse and open a file at any commit, branch, or tag with the system default app. Enter a SHA/branch/tag, type or browse for a file, and open that version of the file (see [Open with System Default App](#102-file-wise-diff))
 - **Find Merge-base…** → Compute the merge-base between the current branch and another branch (see [Find Merge-base](#29-find-merge-base))
 
@@ -954,11 +957,23 @@ A brief **"Copied!"** notification appears to confirm the action.
 
 For a cloned installation, the update refuses to run if the local clone has uncommitted changes — commit or stash them and try again.
 
+#### Startup update check
+
+By default the tool automatically checks for updates in the background when it starts. If an update is available, an **Update(\<sha\>) available** label appears in the status bar next to the **Configure** button. Uncheck **Configure → Check for updates at startup** to disable this.
+
+When running from a cloned repository, press **Ctrl+Shift+F5** after updating to restart with the latest code.
+
 ---
 
 ## 40. Tag Commit
 
+**Screenshot:** `screenshots/tag-commit.webp`
+
+![Tag Commit](screenshots/tag-commit.webp)
+
 **Description:** Right-click a commit and select **Tag** to open the tagging dialog. Enter a tag name, optionally tick **Annotate** to create an annotated tag with a message, and click **Create Tag**. The new tag appears in the commit list when **Show Tags** is enabled (see [Configure Menu](#5-configure-menu)). Both lightweight and annotated tags are supported.
+
+Use **Browse Tags** (Repo menu) to see all tags in the repository (see [Browse Tags](#43-browse-tags)).
 
 ---
 
@@ -1000,8 +1015,42 @@ Keyboard shortcuts for faster navigation and workflow.
 | `Ctrl+Q` | Exit the application |
 | `Ctrl+Z` | Undo the last operation (disabled while editing text) |
 | `F5` | Refresh commit list |
+| `Ctrl+Shift+F5` | Restart with latest code (cloned repos only, when update detected) |
 
 **Notes:**
 
 - `Esc` behaves contextually and may close dialogs, clear filters, exit search, or exit multi-select mode depending on the active state.
 - `Ctrl+F` focuses the diff search bar, which is available in every diff view (see [Diff Search Bar](#9-diff-search-bar)).
+
+---
+
+## 43. Browse Tags
+
+**Screenshot:** `screenshots/browse-tags.webp`
+
+![Browse Tags](screenshots/browse-tags.webp)
+
+**Description:** Open **Browse Tags** from the **Repo** menu to view all tags in the repository. The window shows a table with columns:
+
+- **Tag** — Tag name
+- **Commit** — Short SHA of the tagged commit (with coloured dot)
+- **Subject** — Commit message summary
+- **Date** — Commit timestamp
+
+Right-click a tag to open its commit log or copy details. Double-click a tag to view the commit. The window supports search and filtering like other browse windows.
+
+---
+
+## 44. External Tools Dialog
+
+**Screenshot:** `screenshots/external-tools-dialog.webp`
+
+![External Tools Dialog](screenshots/external-tools-dialog.webp)
+
+**Description:** Open **External tools integration** from the **Configure** menu to configure external diff tool integration. The dialog is organized with a **Diff tool** group box containing three modes:
+
+- **Not configured** — External difftool integration is disabled.
+- **Use Git configured difftool** — Uses the difftool configured in your Git settings (`diff.tool`). Shows the detected tool name and status.
+- **Use custom command** — Specify a custom diff tool command and arguments (e.g. `kdiff3 {file1} {file2}`).
+
+Click **Refresh** to re-detect the Git difftool, **Save** to persist the choice, or **Cancel** to dismiss. The preference is stored in QSettings and remembered across sessions.
