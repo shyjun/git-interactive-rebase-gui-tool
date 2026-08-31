@@ -21,53 +21,54 @@ from PySide6.QtCore import Qt
 
 
 class ConfigureDiffToolDialog(QDialog):
-    """Dialog to configure how external file comparisons are opened.
+    """Dialog to configure external tool integrations.
 
-    Three modes:
-    - Not configured: no external diff tool (button prompts to configure)
-    - Use Git configured difftool: reads diff.tool from git config
-    - Use custom command: user-provided command + arguments
+    Currently supports:
+    - Diff tool (Not configured / Git configured / Custom command)
+
+    Future: Mergetool, etc.
     """
 
     def __init__(self, repo_path, parent=None):
         super().__init__(parent)
         self.repo_path = repo_path
-        self.setWindowTitle("Configure Diff Tool")
-        self.setFixedSize(520, 400)
+        self.setWindowTitle("External Tools")
+        self.setFixedSize(520, 420)
         self.setModal(True)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(12)
 
-        intro = QLabel("Select how external file comparisons are opened.")
-        layout.addWidget(intro)
+        # ── Diff tool group ──
+        diff_group = QGroupBox("Diff tool")
+        diff_layout = QVBoxLayout(diff_group)
+        diff_layout.setSpacing(8)
 
-        # --- Radio group ---
         self.mode_group = QButtonGroup(self)
 
-        # --- Not configured ---
+        # Not configured
         self.none_radio = QRadioButton("Not configured")
-        self.none_radio.setToolTip("No external diff tool. External Difftool button will prompt to configure.")
+        self.none_radio.setToolTip("External difftool integration is disabled.")
         self.none_radio.setChecked(True)
         self.mode_group.addButton(self.none_radio, 0)
-        layout.addWidget(self.none_radio)
+        diff_layout.addWidget(self.none_radio)
 
         none_desc = QLabel("External difftool integration is disabled.")
         none_desc.setStyleSheet("color: gray;")
         none_desc.setContentsMargins(24, 0, 0, 0)
-        layout.addWidget(none_desc)
+        diff_layout.addWidget(none_desc)
 
         sep1 = QFrame()
         sep1.setFrameShape(QFrame.HLine)
         sep1.setFrameShadow(QFrame.Sunken)
-        layout.addWidget(sep1)
+        diff_layout.addWidget(sep1)
 
-        # --- Git difftool ---
+        # Git difftool
         self.git_radio = QRadioButton("Use Git configured difftool")
         self.git_radio.setToolTip("Use the difftool configured in your Git settings (diff.tool).")
         self.mode_group.addButton(self.git_radio, 1)
-        layout.addWidget(self.git_radio)
+        diff_layout.addWidget(self.git_radio)
 
         git_info = QFrame()
         git_info.setContentsMargins(24, 0, 0, 0)
@@ -81,18 +82,18 @@ class ConfigureDiffToolDialog(QDialog):
         self.git_status_label = QLabel("Status: (detecting...)")
         git_info_layout.addWidget(self.git_status_label)
 
-        layout.addWidget(git_info)
+        diff_layout.addWidget(git_info)
 
         sep2 = QFrame()
         sep2.setFrameShape(QFrame.HLine)
         sep2.setFrameShadow(QFrame.Sunken)
-        layout.addWidget(sep2)
+        diff_layout.addWidget(sep2)
 
-        # --- Custom command ---
+        # Custom command
         self.custom_radio = QRadioButton("Use custom command")
         self.custom_radio.setToolTip("Specify a custom diff tool command.")
         self.mode_group.addButton(self.custom_radio, 2)
-        layout.addWidget(self.custom_radio)
+        diff_layout.addWidget(self.custom_radio)
 
         custom_frame = QFrame()
         custom_frame.setContentsMargins(24, 0, 0, 0)
@@ -118,14 +119,15 @@ class ConfigureDiffToolDialog(QDialog):
         example.setStyleSheet("color: gray; font-size: 11px;")
         custom_layout.addWidget(example)
 
-        layout.addWidget(custom_frame)
+        diff_layout.addWidget(custom_frame)
+        layout.addWidget(diff_group)
 
-        # --- Wire radio toggles ---
+        # ── Wire radio toggles ──
         self.none_radio.toggled.connect(self._update_ui)
         self.git_radio.toggled.connect(self._update_ui)
         self.custom_radio.toggled.connect(self._update_ui)
 
-        # --- Buttons ---
+        # ── Buttons ──
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
 
