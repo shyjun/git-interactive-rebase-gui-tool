@@ -87,9 +87,19 @@ class MenusMixin:
         self.check_updates_action.setToolTip("Check for a newer version online.")
         self.check_updates_action.triggered.connect(lambda *_: self.handle_check_for_updates())
 
+        from PySide6.QtCore import QSettings
+        _settings = QSettings("git-interactive-rebase-gui-tool", "config")
+        self.auto_check_updates_action = QAction("Check for updates at startup", self)
+        self.auto_check_updates_action.setCheckable(True)
+        self.auto_check_updates_action.setChecked(_settings.value("startup/auto_check_updates", True, type=bool))
+        self.auto_check_updates_action.setToolTip("Automatically check for updates when the tool starts.")
+        self.auto_check_updates_action.toggled.connect(self._on_auto_check_updates_toggled)
+
         menu.addAction(self.external_tools_action)
         menu.addAction(self.help_action)
         menu.addAction(self.check_updates_action)
+        menu.addSeparator()
+        menu.addAction(self.auto_check_updates_action)
 
         return menu
 
@@ -97,6 +107,59 @@ class MenusMixin:
         """Pops up the configure menu under the status-bar Configure button."""
         self.configure_menu.popup(
             self.configure_btn.mapToGlobal(QPoint(0, self.configure_btn.height())))
+
+    def _on_auto_check_updates_toggled(self, checked):
+        """Save the auto-check-for-updates preference."""
+        from PySide6.QtCore import QSettings
+        settings = QSettings("git-interactive-rebase-gui-tool", "config")
+        settings.setValue("startup/auto_check_updates", checked)
+        print(f"[startup_check] auto-check updates {'enabled' if checked else 'disabled'}")
+
+    def _check_updates_on_startup(self):
+        """Background check for updates on startup. Called from init if enabled."""
+        if not getattr(self, 'is_running_from_repo', False):
+            print("[startup_check] not running from repo, skipping")
+            return
+        from PySide6.QtCore import QThread, Signal
+        from lib.git_helpers import GIT_REPO_URL
+
+        class _UpdateCheckWorker(QThread):
+            finished = Signal(str)  # remote sha or empty on failure
+
+            def run(self):
+                try:
+                    import subprocess
+                    url = GIT_REPO_URL.removeprefix("git+")
+                    res = subprocess.run(
+                        ["git", "ls-remote", url, "HEAD"],
+                        capture_output=True, text=True,
+                        encoding='utf-8', errors='replace',
+                        timeout=15)
+                    if res.returncode == 0 and res.stdout.strip():
+                        self.finished.emit(res.stdout.split()[0])
+                    else:
+                        self.finished.emit("")
+                except Exception:
+                    self.finished.emit("")
+
+        def _on_finished(remote_sha):
+            self._startup_check_worker = None  # prevent GC
+            if not remote_sha:
+                print("[startup_check] network error or no response, skipping")
+                return
+            if remote_sha == self.start_time_tool_full_head:
+                print(f"[startup_check] already latest ({remote_sha[:8]})")
+            else:
+                msg = f"Update available: {remote_sha[:8]} (current: {self.start_time_tool_head[:8]})"
+                print(f"[startup_check] {msg}")
+                self.update_label.setText(f"Update({remote_sha[:8]}) available")
+                self.update_label.setToolTip("Go to Configure > Check for updates")
+                self.update_label.setVisible(True)
+
+        print(f"[startup_check] checking remote (local={self.start_time_tool_head[:8]})...")
+        self._startup_check_worker = _UpdateCheckWorker()
+        self._startup_check_worker.finished.connect(_on_finished)
+        self._startup_check_worker.start()
 
     def _configure_external_tools(self):
         """Opens the Configure Diff Tool dialog."""

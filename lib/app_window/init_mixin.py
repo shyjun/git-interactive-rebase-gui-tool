@@ -55,6 +55,7 @@ class InitMixin:
         self.is_running_from_repo = _is_git_install(_tool_dir) if _tool_dir else False
         self._tool_repo_path = _tool_dir if self.is_running_from_repo else None
         self.start_time_tool_head = get_head_sha(self._tool_repo_path) if self._tool_repo_path else None
+        self.start_time_tool_full_head = get_full_head_sha(self._tool_repo_path) if self._tool_repo_path else None
         self.cached_current_head_full_sha = self.start_time_full_head
         self.cached_has_uncommitted = False
         self.last_head = None
@@ -121,6 +122,14 @@ class InitMixin:
 
         if self.viewer_mode and not self.browse_mode:
             QTimer.singleShot(0, self._notify_viewer_mode)
+
+        # Check for updates on startup if enabled
+        from PySide6.QtCore import QSettings as _QS
+        _s = _QS("git-interactive-rebase-gui-tool", "config")
+        if _s.value("startup/auto_check_updates", True, type=bool):
+            QTimer.singleShot(500, self._check_updates_on_startup)
+        else:
+            print("[startup_check] auto-check updates disabled")
 
     def _sk(self, key):
         """Scopes a settings key by window type so main and browse windows keep
