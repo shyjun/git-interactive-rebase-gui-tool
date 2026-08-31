@@ -262,6 +262,16 @@ This project is actively under development, with new features and improvements a
 2. If a newer version is available, click **Update Now** — a progress bar runs while the tool updates itself, then reports success or failure.
 3. Restart the tool to apply the update.
 
+#### Automatic startup check
+
+By default, the tool checks for updates in the background when it starts. If an update is available, an **Update(\<sha\>) available** label appears in the status bar next to the **Configure** button. Click it or go to **Configure → Check for updates** to apply.
+
+To disable this, uncheck **Configure → Check for updates at startup**. The preference is remembered across sessions.
+
+#### Quick restart shortcut
+
+When running from a cloned repository, press **Ctrl+Shift+F5** after updating to restart the tool with the latest code — no manual restart needed.
+
 The update can run while the app is open; only the files on disk are changed, and the running session keeps working on the old version until you restart.
 
 If you'd rather update later, the same dialog offers **Copy to clipboard** with the command to run manually. The app figures out how to update itself depending on how it was installed:
