@@ -83,7 +83,7 @@ class MenusMixin:
         self.help_action.setToolTip("Show usage help.")
         self.help_action.triggered.connect(lambda *_: self._show_help_dialog())
 
-        self.check_updates_action = QAction("Check Updates", self)
+        self.check_updates_action = QAction("Check for updates", self)
         self.check_updates_action.setToolTip("Check for a newer version online.")
         self.check_updates_action.triggered.connect(lambda *_: self.handle_check_for_updates())
 

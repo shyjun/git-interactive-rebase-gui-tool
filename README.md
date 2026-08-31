@@ -258,7 +258,7 @@ This project is actively under development, with new features and improvements a
 
 ### Update from inside the app
 
-1. Click **Configure → Check Updates**.
+1. Click **Configure → Check for updates**.
 2. If a newer version is available, click **Update Now** — a progress bar runs while the tool updates itself, then reports success or failure.
 3. Restart the tool to apply the update.
 
