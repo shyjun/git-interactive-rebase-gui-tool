@@ -237,8 +237,14 @@ def run_difftool_direct(repo_path, source_sha, source_file, dest_sha, dest_file,
 
     Returns (ok, message) where message is an error description on failure."""
     import os
+    import shlex
     import tempfile
+    from PySide6.QtCore import QSettings
     try:
+        settings = QSettings("git-interactive-rebase-gui-tool", "config")
+        mode = settings.value("difftool/mode", "git")
+        custom_cmd = settings.value("difftool/command", "") if mode == "custom" else ""
+
         if source_is_head:
             # Source is the working tree file — extract only dest
             result = subprocess.run(
@@ -252,7 +258,15 @@ def run_difftool_direct(repo_path, source_sha, source_file, dest_sha, dest_file,
             with open(dst_path, 'w', encoding='utf-8') as f:
                 f.write(result.stdout)
             src_path = os.path.join(repo_path, source_file)
-            cmd_parts = ["git", "difftool", "--no-index", "--", src_path, dst_path]
+
+            if custom_cmd:
+                args_template = settings.value("difftool/args", "{file1} {file2}")
+                if not args_template or "{file1}" not in args_template:
+                    args_template = "{file1} {file2}"
+                args_str = args_template.replace("{file1}", src_path).replace("{file2}", dst_path)
+                cmd_parts = shlex.split(custom_cmd) + shlex.split(args_str)
+            else:
+                cmd_parts = ["git", "difftool", "--no-index", "--", src_path, dst_path]
             print(f"[direct] Running: {' '.join(cmd_parts)}")
             subprocess.Popen(cmd_parts, cwd=repo_path)
         else:
