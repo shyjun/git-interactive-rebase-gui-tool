@@ -917,6 +917,29 @@ class DiffFileAtRefDialog(QDialog):
                                     "Source and destination are the same version.")
             return False
 
+        # Check if file content is identical even at different SHAs
+        filepath = self.file_edit.text().strip()
+        try:
+            src_content = subprocess.run(
+                ["git", "show", f"{source_sha}:{filepath}"],
+                cwd=self.repo_path, capture_output=True, text=True,
+                encoding='utf-8', errors='replace')
+            dst_content = subprocess.run(
+                ["git", "show", f"{self.resolved_sha}:{filepath}"],
+                cwd=self.repo_path, capture_output=True, text=True,
+                encoding='utf-8', errors='replace')
+            if src_content.returncode == 0 and dst_content.returncode == 0:
+                if src_content.stdout == dst_content.stdout:
+                    QMessageBox.information(
+                        self, "Files are identical",
+                        f"The file '{filepath}' is identical at both versions.\n\n"
+                        f"  Source:      {source_sha[:8]}\n"
+                        f"  Destination: {self.resolved_sha[:8]}\n\n"
+                        "There is nothing to diff.")
+                    return False
+        except Exception:
+            pass
+
         # Verify file exists at the target ref
         try:
             check = subprocess.run(
