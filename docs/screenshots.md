@@ -269,7 +269,7 @@ Right-click a file in the **File-wise Diff** tab for per-file actions.
 
 - **Open → With System Default App** — opens the file using the system's default application. When the viewer is browsing a different branch or commit, the file is extracted via `git show` to a temp location first.
 - **Blame file** → Opens a read-only blame viewer (see [Blame a file](#41-blame-a-file))
-- **Diff against a different version of this file** → Opens a dialog to diff the file against a different commit, branch, or tag using `git difftool`. The dialog matches the "Open File at Commit" layout: ref combo on top, editable file path with Browse (resolves files at the selected ref, so renamed files are handled). Warns if no difftool is configured, and verifies the file exists at the target ref before running.
+- **Diff against a different version of this file** → Opens a dialog to diff the file against a different commit, branch, or tag using `git difftool`. The dialog matches the "Open File at Commit" layout: ref combo on top, editable file path with Browse (resolves files at the selected ref, so renamed files are handled). Warns if no difftool is configured, verifies the file exists at the target ref before running, and shows a message if the file content is identical at both versions.
 - **Copy filename to clipboard**
 - **Copy fullpath to clipboard** — copies the full repository path of the file
 - **Browse file log** → opens a read-only viewer of that file's history
@@ -361,7 +361,7 @@ Browse a commit's diff as a single combined view.
 
 Browse a commit's changes file by file.
 
-**Description:** Switch to the **File-wise Diff** tab (in the right panel, or in the commit viewer) to list all changed files for the selected commit. Select any file to view its specific diff. This makes it easy to understand what each file contributed to the commit. Renames are shown as one `old => new` row. (Screenshot: same as [File-Operations menu](#7-file-operations-menu).)
+**Description:** Switch to the **File-wise Diff** tab (in the right panel, or in the commit viewer) to list all changed files for the selected commit. Select any file to view its specific diff. This makes it easy to understand what each file contributed to the commit. Renames are shown as one `old => new` row. Deleted files are marked as `filename (Deleted)` and new files as `filename (Added new file)`. (Screenshot: same as [File-Operations menu](#7-file-operations-menu).)
 
 Right-click a file in the file-wise file list for per-file actions — see [File-Operations menu](#7-file-operations-menu) for the full list of available actions.
 
@@ -763,7 +763,7 @@ Open a read-only window of the repository's HEAD reflog.
 
 ![Browse Reflog](screenshots/browse-reflog.webp)
 
-**Description:** Use **Repo → Browse Reflog** to open a read-only window listing the most recent reflog entries (newest first, up to 50 by default). Each row shows the commit SHA, the reflog selector (`HEAD@{0}`, `HEAD@{1}`, …) and the reflog subject. The diff pane is hidden in this window. Actions:
+**Description:** Use **Repo → Browse Reflog** to open a read-only window listing the most recent reflog entries (newest first, up to 50 by default). Each row shows the commit SHA, the reflog selector (`HEAD@{0}`, `HEAD@{1}`, …) and the reflog subject. Added/deleted stats are not shown (reflog entries don't carry that data). The diff pane is hidden in this window. Actions:
 
 - **Copy SHA to clipboard** → Copy the selected entry's commit SHA
 - **Show log** → Open a read-only history window for that entry's commit (asks how many commits to show, default 50)
