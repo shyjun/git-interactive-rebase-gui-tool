@@ -590,6 +590,7 @@ class RescanMixin:
         item = QListWidgetItem("Load 100 more...")
         item.setData(Qt.UserRole + 9, "load_more")
         item.setForeground(Qt.gray)
+        item.setFlags(item.flags() & ~Qt.ItemIsDragEnabled & ~Qt.ItemIsDropEnabled)
         self.list_widget.addItem(item)
 
     def _on_list_item_clicked(self, item):
