@@ -107,7 +107,7 @@ class BrowseBranchDialog(QDialog):
         self.limit_spin.setToolTip("How many most-recent commits to load into the browse window.")
         layout.addWidget(self.limit_spin)
 
-        open_btn = QPushButton("Open Browser")
+        open_btn = QPushButton("Browse Branch Log")
         open_btn.setDefault(True)
         open_btn.setToolTip("Open a read-only viewer of this branch's history.")
         open_btn.clicked.connect(self.accept)
@@ -164,7 +164,7 @@ class BrowseCommitLogDialog(QDialog):
         self.limit_spin.setToolTip("How many most-recent commits to load into the browse window.")
         layout.addWidget(self.limit_spin)
 
-        open_btn = QPushButton("Open Browser")
+        open_btn = QPushButton("Browse Commit Log")
         open_btn.setDefault(True)
         open_btn.setToolTip("Open a read-only viewer of this commit's history.")
         open_btn.clicked.connect(self.accept)
@@ -230,7 +230,7 @@ class BrowseFileLogDialog(QDialog):
         self.limit_spin.setToolTip("How many most-recent commits touching the file to load.")
         layout.addWidget(self.limit_spin)
 
-        open_btn = QPushButton("Open Browser")
+        open_btn = QPushButton("Browse File Log")
         open_btn.setDefault(True)
         open_btn.setToolTip("Open a read-only viewer of this file's history.")
         open_btn.clicked.connect(self.accept)
