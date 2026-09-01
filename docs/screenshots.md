@@ -73,7 +73,7 @@ Just run the tool with **no commit argument** — it automatically detects the b
 
 This is the most useful way to launch: it shows **only your branch's changes**, i.e. everything you've done since the branch split from the base — ideal for reviewing and cleaning up your feature branch before raising a PR.
 
-If detection fails, it falls back to displaying the **200 most recent commits from HEAD**.
+If detection fails, it falls back to displaying the **200 most recent commits from HEAD**. In this case, a **Load 100 more** button appears in the status bar and at the bottom of the commit list — click it to extend the view further back in history, 100 commits at a time, until the root commit is reached.
 
 **Screenshot:** `screenshots/head-commits.webp`
 
