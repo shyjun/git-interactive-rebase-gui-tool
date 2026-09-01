@@ -53,6 +53,21 @@ def _parse_blame_porcelain(stdout):
     if current is not None:
         records.append(current)
 
+    # Second pass: fill in any records that are still missing author/date
+    # (happens when blame porcelain repeats a SHA header without metadata)
+    seen = {}
+    for rec in records:
+        sha = rec["sha"]
+        if rec["author"]:
+            seen[sha] = rec
+        elif sha in seen:
+            ref = seen[sha]
+            rec["author"] = ref["author"]
+            rec["author_time"] = ref["author_time"]
+            rec["author_tz"] = ref["author_tz"]
+            rec["summary"] = ref["summary"]
+            rec["filename"] = ref["filename"]
+
     for rec in records:
         try:
             dt = datetime.fromtimestamp(rec["author_time"])
