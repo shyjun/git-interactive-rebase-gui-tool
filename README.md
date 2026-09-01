@@ -247,8 +247,8 @@ python3 git_interactive_rebase.py --branch <branch-name>
 Opens the specified branch's commit history in a read-only viewer window. History-modifying operations (rebase, squash, drop, etc.) are disabled and cannot be exited. Useful for reviewing a branch's commits before cherry-picking or comparing.
 
 If no start commit is given, the tool automatically detects your branch base
-and shows the commits since that point; otherwise it falls back to a recent
-history window.
+and shows the commits since that point. If detection fails, it falls back to
+the 200 most recent commits with a **Load 100 more** option to extend further.
 
 ---
 
