@@ -557,6 +557,8 @@ class RescanMixin:
         if new_base == self.commit_sha or new_base == root:
             # Reached the root — no more to load
             print("[load_more] Reached root commit, no more history")
+            self._showing_fallback = False
+            self._update_load_more_item()
             return
         self.commit_sha = new_base
         print(f"[load_more] Loading more: offset={self._load_more_offset}, base={new_base[:8]}")
@@ -573,12 +575,17 @@ class RescanMixin:
 
         # Only show if in fallback mode (no base detected or range > 200)
         if not getattr(self, '_showing_fallback', False):
+            self.load_more_btn.setVisible(False)
             return
 
         from lib.git_helpers import get_root_commit
         root = get_root_commit(self.repo_path)
-        if self.commit_sha == root:
-            return  # already at root
+        at_root = self.commit_sha == root
+
+        self.load_more_btn.setVisible(not at_root)
+
+        if at_root:
+            return
 
         item = QListWidgetItem("Load 100 more...")
         item.setData(Qt.UserRole + 9, "load_more")

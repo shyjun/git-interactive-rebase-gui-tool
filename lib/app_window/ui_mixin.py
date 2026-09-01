@@ -628,6 +628,15 @@ class UIMixin:
         self.showing_commits_label.setStyleSheet("font-weight: bold;")
         status_layout.addWidget(self.showing_commits_label)
 
+        self.load_more_btn = QPushButton("Load 100 more")
+        self.load_more_btn.setVisible(False)
+        self.load_more_btn.setCursor(Qt.PointingHandCursor)
+        self.load_more_btn.setStyleSheet(
+            "QPushButton { color: #0055cc; border: none; font-weight: bold; padding: 0; }"
+            "QPushButton:hover { text-decoration: underline; }")
+        self.load_more_btn.clicked.connect(self.load_more)
+        status_layout.addWidget(self.load_more_btn)
+
         self.sep_merge = QLabel("|")
         self.sep_merge.setStyleSheet("color: gray;")
         self.sep_merge.setVisible(False)
