@@ -289,6 +289,9 @@ class CommitFilterController(QObject):
         for i in range(total):
             item = self._list_widget.item(i)
             if not item.isHidden():
+                # Skip non-commit items like "Load 100 more..."
+                if item.data(Qt.UserRole + 9) == "load_more":
+                    continue
                 showing += 1
                 if item.data(Qt.UserRole + 5):
                     merge_showing += 1
