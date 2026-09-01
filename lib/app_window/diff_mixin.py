@@ -43,6 +43,10 @@ class DiffMixin:
                 self.filewise_diff_view.clear()
             return
 
+        # Skip if the "Load 100 more" item is selected
+        if item.data(Qt.UserRole + 9) == "load_more":
+            return
+
         sha = item.text().split()[0]
 
         # Check cache

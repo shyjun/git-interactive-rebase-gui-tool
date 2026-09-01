@@ -262,6 +262,7 @@ class UIMixin:
         elif not self.browse_mode:
             self.list_widget.itemDoubleClicked.connect(self.view_commit)
         self.list_widget.itemSelectionChanged.connect(self.on_selection_changed)
+        self.list_widget.itemClicked.connect(self._on_list_item_clicked)
 
         self.diff_tab_widget.currentChanged.connect(self.on_diff_tab_changed)
 
