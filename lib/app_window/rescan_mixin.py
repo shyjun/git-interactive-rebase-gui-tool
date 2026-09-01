@@ -337,6 +337,9 @@ class RescanMixin:
             new_row = max(0, min(old_row if old_row >= 0 else 0, self.list_widget.count() - 1))
             self.list_widget.setCurrentRow(new_row)
 
+        # Add "Load 100 more" item at the end if in fallback mode
+        self._update_load_more_item()
+
         # If the list was rebuilt while multi-select mode is active, re-apply the
         # checkable flags so the UI stays consistent (tick boxes visible, etc.).
         if self.multi_select_mode:
@@ -541,6 +544,7 @@ class RescanMixin:
             return
         self.commit_sha = base_sha
         self.base_branch = branch_name
+        self._showing_fallback = False
         print(f"[detect_base] Reloading history with base: {base_sha[:8]} (branch={branch_name})")
         self.load_history()
 
@@ -557,6 +561,34 @@ class RescanMixin:
         self.commit_sha = new_base
         print(f"[load_more] Loading more: offset={self._load_more_offset}, base={new_base[:8]}")
         self.load_history()
+
+    def _update_load_more_item(self):
+        """Add or remove the 'Load 100 more' item at the end of the commit list."""
+        # Remove existing load-more item if any
+        for i in range(self.list_widget.count()):
+            item = self.list_widget.item(i)
+            if item and item.data(Qt.UserRole + 9) == "load_more":
+                self.list_widget.takeItem(i)
+                break
+
+        # Only show if in fallback mode (no base detected or range > 200)
+        if not getattr(self, '_showing_fallback', False):
+            return
+
+        from lib.git_helpers import get_root_commit
+        root = get_root_commit(self.repo_path)
+        if self.commit_sha == root:
+            return  # already at root
+
+        item = QListWidgetItem("Load 100 more...")
+        item.setData(Qt.UserRole + 9, "load_more")
+        item.setForeground(Qt.gray)
+        self.list_widget.addItem(item)
+
+    def _on_list_item_clicked(self, item):
+        """Handle click on list items — triggers load_more for the special item."""
+        if item and item.data(Qt.UserRole + 9) == "load_more":
+            self.load_more()
 
     def _count_total_commits_async(self):
         """Count total commits in repo in background thread to avoid blocking startup."""

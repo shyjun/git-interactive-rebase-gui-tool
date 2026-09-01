@@ -28,6 +28,7 @@ class InitMixin:
         self.base_branch = base_branch  # set only when auto-detected; None when SHA provided manually
         self._auto_detect_base = auto_detect_base
         self._load_more_offset = 0  # extra commits loaded beyond initial 200
+        self._showing_fallback = auto_detect_base  # True when showing 200 fallback
         self.viewer_mode = viewer_mode
         self.browse_branch = browse_branch
         self.browse_file = browse_file
