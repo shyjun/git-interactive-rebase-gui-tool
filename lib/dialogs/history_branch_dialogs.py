@@ -690,15 +690,40 @@ class DiffFileAtRefDialog(QDialog):
         src_layout.addWidget(self.src_path_label)
 
         self.src_radio_group = QButtonGroup(self)
-        self.src_selected_radio = QRadioButton(f"Version at selected commit ({selected_sha[:8]})")
-        self.src_head_radio = QRadioButton(f"HEAD version ({head_sha[:8]})")
-        self.src_selected_radio.setChecked(True)
-        self.src_radio_group.addButton(self.src_selected_radio, 0)
-        self.src_radio_group.addButton(self.src_head_radio, 1)
-        self.src_selected_radio.toggled.connect(lambda: self._update_direct_enabled())
-        src_layout.addWidget(self.src_selected_radio)
+        # Check if file actually differs between selected commit and HEAD
+        file_changed = True
         if selected_sha != head_sha:
+            try:
+                import subprocess
+                r = subprocess.run(
+                    ["git", "diff", "--name-only", selected_sha, head_sha, "--", filepath],
+                    cwd=self.repo_path, capture_output=True, text=True,
+                    encoding='utf-8', errors='replace')
+                file_changed = bool(r.stdout.strip())
+            except Exception:
+                pass
+        if file_changed and selected_sha != head_sha:
+            self.src_selected_radio = QRadioButton(f"Version at selected commit ({selected_sha[:8]})")
+            self.src_head_radio = QRadioButton(f"HEAD version ({head_sha[:8]})")
+            self.src_selected_radio.setChecked(True)
+            self.src_radio_group.addButton(self.src_selected_radio, 0)
+            self.src_radio_group.addButton(self.src_head_radio, 1)
+            self.src_selected_radio.toggled.connect(lambda: self._update_direct_enabled())
+            src_layout.addWidget(self.src_selected_radio)
             src_layout.addWidget(self.src_head_radio)
+        else:
+            # File is same as HEAD — source is the repo file, no radio needed
+            same_label = QLabel(f"File unchanged since {selected_sha[:8]} — identical to HEAD, using repo file")
+            same_label.setStyleSheet("color: gray;")
+            src_layout.addWidget(same_label)
+            # Fake the HEAD radio as checked for downstream logic
+            self.src_selected_radio = QRadioButton("Version at selected commit")
+            self.src_head_radio = QRadioButton("HEAD version")
+            self.src_head_radio.setChecked(True)
+            self.src_radio_group.addButton(self.src_selected_radio, 0)
+            self.src_radio_group.addButton(self.src_head_radio, 1)
+            self.src_selected_radio.setVisible(False)
+            self.src_head_radio.setVisible(False)
         layout.addWidget(src_group)
 
         # --- Destination file group ---
