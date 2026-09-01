@@ -142,7 +142,11 @@ def get_unstaged_files(repo_path, ignore_submodules=False):
             # But porcelain v1 is a bit cryptic. Simplified check:
             parts = line.strip().split(maxsplit=1)
             if len(parts) == 2:
-                files.append(parts[1])
+                filepath = parts[1]
+                # git status --porcelain quotes paths with special chars
+                if filepath.startswith('"') and filepath.endswith('"'):
+                    filepath = filepath[1:-1]
+                files.append(filepath)
         return files
     except Exception as exc:
         print(f"[git_helpers] get_unstaged_files: git status failed: {exc}")
