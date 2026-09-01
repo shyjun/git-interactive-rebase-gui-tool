@@ -305,13 +305,15 @@ class RescanMixin:
 
     def _populate_list_widget(self, history, branch_map, tag_map, old_row):
         """Builds QListWidgetItems from fetched history (main thread only)."""
+        no_stats = self.browse_reflog or self.browse_stash or self.browse_tags
         for entry in history:
             if isinstance(entry, dict):
                 line = entry["raw_text"]
                 sha = entry["sha"]
                 item = QListWidgetItem(line)
                 item.setData(Qt.UserRole + 2, entry.get("date", ""))
-                item.setData(Qt.UserRole + 3, (entry.get("added", 0), entry.get("deleted", 0)))
+                if not no_stats:
+                    item.setData(Qt.UserRole + 3, (entry.get("added", 0), entry.get("deleted", 0)))
                 item.setData(Qt.UserRole + 4, entry.get("author", ""))
                 item.setData(Qt.UserRole + 6, entry.get("message", ""))
                 parents = entry.get("parents", "")
