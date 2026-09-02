@@ -1,6 +1,6 @@
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QAction
-from PySide6.QtWidgets import QApplication, QListWidgetItem, QMessageBox, QMenu
+from PySide6.QtWidgets import QApplication, QListWidgetItem, QMessageBox, QMenu, QTreeWidgetItem
 import os
 from lib.git_helpers import (
     get_commit_metadata_and_message, get_commit_diff,
