@@ -5,7 +5,7 @@ from PySide6.QtWidgets import (
     QLineEdit, QSplitter, QCheckBox, QToolButton, QMenu,
     QWidgetAction, QRadioButton, QGroupBox, QSizePolicy,
     QStatusBar, QListWidget, QListWidgetItem, QTabWidget, QTextEdit, QPushButton,
-    QMessageBox,
+    QMessageBox, QTreeWidget, QTreeWidgetItem,
 )
 from lib.app_window.commit_list import CommitListWidget
 from lib.app_window.delegates import CommitItemDelegate
@@ -225,6 +225,48 @@ class UIMixin:
         self.filewise_widget = filewise_widget
         if not self.browse_file:
             self.diff_tab_widget.addTab(filewise_widget, "File-wise Diff")
+
+        # Page 2: Tree-wise Diff
+        treewise_widget = QWidget()
+        treewise_layout = QVBoxLayout(treewise_widget)
+        treewise_layout.setContentsMargins(0, 0, 0, 0)
+
+        self.treewise_splitter = QSplitter(Qt.Vertical)
+
+        self.treewise_tree = QTreeWidget()
+        self.treewise_tree.setHeaderHidden(True)
+        self.treewise_tree.setMinimumHeight(60)
+        self.treewise_tree.setAnimated(True)
+        self.treewise_tree.itemClicked.connect(self.on_treewise_item_clicked)
+        self.treewise_tree.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.treewise_tree.customContextMenuRequested.connect(self.show_treewise_context_menu)
+
+        self.treewise_diff_view = DiffView()
+        self.treewise_diff_view.setReadOnly(True)
+        self.treewise_diff_view.setMinimumHeight(100)
+        self.treewise_diff_view.setPlaceholderText("Select a file or folder above to view its diff...")
+
+        self.treewise_highlighter = DiffHighlighter(self.treewise_diff_view.document())
+
+        treewise_right_widget = QWidget()
+        treewise_right_layout = QVBoxLayout(treewise_right_widget)
+        treewise_right_layout.setContentsMargins(0, 0, 0, 0)
+        treewise_right_layout.setSpacing(0)
+
+        self.treewise_diff_search = DiffSearchBar(target_view=self.treewise_diff_view, parent=treewise_right_widget)
+
+        treewise_right_layout.addWidget(self.treewise_diff_search)
+        treewise_right_layout.addWidget(self.treewise_diff_view)
+
+        self.treewise_splitter.addWidget(self.treewise_tree)
+        self.treewise_splitter.addWidget(treewise_right_widget)
+        self.treewise_splitter.setCollapsible(0, False)
+        self.treewise_splitter.setCollapsible(1, False)
+        self.treewise_splitter.setSizes([100, 300])
+
+        treewise_layout.addWidget(self.treewise_splitter)
+        self.treewise_widget = treewise_widget
+        self.diff_tab_widget.addTab(treewise_widget, "Tree-wise Diff")
 
         self.right_splitter.addWidget(self.diff_tab_widget)
 
