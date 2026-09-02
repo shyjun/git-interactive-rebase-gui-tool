@@ -18,6 +18,9 @@ Visual documentation for the Git Interactive Rebase GUI Tool. Each section showc
 8. [Search & Filter](#8-search--filter)
 9. [Diff Search Bar](#9-diff-search-bar)
 10. [Diff Viewer](#10-diff-viewer)
+    - [10.1 Plain Diff](#101-plain-diff)
+    - [10.2 File-wise Diff](#102-file-wise-diff)
+    - [10.3 Tree-wise Diff](#103-tree-wise-diff)
 11. [Diff Pane](#11-diff-pane)
 12. [Rephrase Commit](#12-rephrase-commit)
 13. [Drop Commit](#13-drop-commit)
@@ -322,7 +325,7 @@ Quickly search for text inside any displayed diff.
 
 ![Diff Search Bar](screenshots/diff-search.webp)
 
-**Description:** The diff search bar is a shared toolbar available in **every** diff view — the main window's **Plain Diff** / **File-wise Diff** tabs, the **View a Commit** viewer, **PR Diff / Unstaged Diff**, the **Split / Drop / Confirm** dialogs, and the **Commit Selectively** preview. It is visible by default; press `Ctrl+F` to focus it.
+**Description:** The diff search bar is a shared toolbar available in **every** diff view — the main window's **Plain Diff** / **File-wise Diff** / **Tree-wise Diff** tabs, the **View a Commit** viewer, **PR Diff / Unstaged Diff**, the **Split / Drop / Confirm** dialogs, and the **Commit Selectively** preview. It is visible by default; press `Ctrl+F` to focus it.
 
 Search supports:
 
@@ -338,10 +341,11 @@ Press `Esc` to clear the search.
 
 ## 10. Diff Viewer
 
-The commit diff can be viewed in two modes (tabs):
+The commit diff can be viewed in three modes (tabs):
 
 - **Plain Diff** → the full commit diff in one scrollable view (see [10.1](#101-plain-diff))
 - **File-wise Diff** → the commit's changes listed file by file (see [10.2](#102-file-wise-diff))
+- **Tree-wise Diff** → the commit's changes in a folder/file tree with stats (see [10.3](#103-tree-wise-diff))
 
 ---
 
@@ -367,11 +371,23 @@ Right-click a file in the file-wise file list for per-file actions — see [File
 
 ---
 
+### 10.3 Tree-wise Diff
+
+Browse a commit's changes as a folder/file tree with per-file stats.
+
+**Description:** Switch to the **Tree-wise Diff** tab to view the commit's changes organized as a hierarchical folder tree. Each folder shows a combined `+N/-M` stat count, and each file shows its own `+N/-M` stats. Click a folder to expand/collapse it. Click a file to view its diff in the panel below. Click a folder to view a concatenated diff of all files inside. Right-click a file for the same actions as the File-wise Diff tab.
+
+The tree supports zoom and theme colors — font size and colors follow the Plain Diff view settings. A search bar at the top filters files by name. Press **Esc** to clear the filter.
+
+This tab is available in the main window, the Single Commit View dialog, and the Branch Diff dialog.
+
+---
+
 ## 11. Diff Pane
 
 A diff viewer is docked at the right side of the main window.
 
-**Description:** A diff viewer is docked towards the main window's right-side pane. Click any commit to view its diff there — added lines in green, removed lines in red, with line numbers. The pane offers two modes, **Plain Diff** and **File-wise Diff** (see [10](#10-diff-viewer)).
+**Description:** A diff viewer is docked towards the main window's right-side pane. Click any commit to view its diff there — added lines in green, removed lines in red, with line numbers. The pane offers three modes: **Plain Diff**, **File-wise Diff**, and **Tree-wise Diff** (see [10](#10-diff-viewer)).
 
 - **Configure → Show/Hide → Show Diffs** toggles the right-side diff pane; the choice is remembered across sessions.
 
