@@ -481,7 +481,8 @@ class BranchDiffDialog(QDialog):
             return
         try:
             if item_data["type"] == "file":
-                filepath = item_data.get("filepath", "")
+                entry = item_data.get("entry")
+                filepath = entry[2] if entry and entry[0] == 'R' else (entry[1] if entry else "")
                 diff = get_file_diff_between(self.repo_path, self.start_sha, self.end_sha, filepath)
                 self.treewise_diff_view.setPlainText(diff)
             else:
