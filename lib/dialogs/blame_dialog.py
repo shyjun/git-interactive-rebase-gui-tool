@@ -395,9 +395,12 @@ class BlameDialog(QDialog):
         blame_action = QAction("Blame before this", self)
         blame_action.setToolTip("Blame the file at the parent of this commit (the version just before).")
         diff_ref_action = QAction("Diff against a different version of this file", self)
+        browse_log_action = QAction("Browse file log", self)
+        browse_log_action.setToolTip("Open a read-only viewer of this file's history.")
         menu.addAction(copy_sha_action)
         menu.addAction(blame_action)
         menu.addAction(diff_ref_action)
+        menu.addAction(browse_log_action)
 
         action = menu.exec(self.table.mapToGlobal(pos))
 
@@ -409,6 +412,8 @@ class BlameDialog(QDialog):
             self._open_blame_before(sha)
         elif action == diff_ref_action:
             self._open_diff_at_ref(orig_filename, sha)
+        elif action == browse_log_action:
+            self._open_file_log(orig_filename)
 
     def _open_view_commit(self, sha):
         import subprocess
@@ -521,6 +526,11 @@ class BlameDialog(QDialog):
             ok, err = run_configured_difftool(self.repo_path, source_sha, target_file, ref_sha, target_file)
         if not ok:
             QMessageBox.critical(self, "Difftool Failed", f"Could not run difftool: {err}")
+
+    def _open_file_log(self, filepath):
+        main_win = _find_main_window(self)
+        if main_win and hasattr(main_win, 'open_file_log_for'):
+            main_win.open_file_log_for(filepath)
 
     # ------------------------------------------------------------------
     # Data
