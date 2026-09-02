@@ -97,6 +97,7 @@ from lib.widgets import (
     DiffView,
     FILE_ENTRY_ROLE,
     StatsItemDelegate,
+    TreeStatsDelegate,
 )
 from .hunk_file_dialogs import open_blame_window
 from lib.app_window.helpers import add_open_with_system_default_action, is_editable_branch, _get_head_sha
@@ -341,10 +342,16 @@ class BranchDiffDialog(QDialog):
         self.treewise_splitter = QSplitter(Qt.Vertical)
 
         self.treewise_tree = QTreeWidget()
-        self.treewise_tree.setHeaderHidden(True)
+        self.treewise_tree.setHeaderLabels(["Name", "Stats"])
+        self.treewise_tree.setColumnCount(2)
+        self.treewise_tree.header().setDefaultAlignment(Qt.AlignRight)
+        self.treewise_tree.header().setStretchLastSection(False)
+        self.treewise_tree.header().setSectionResizeMode(0, QHeaderView.Stretch)
+        self.treewise_tree.header().setSectionResizeMode(1, QHeaderView.ResizeToContents)
         self.treewise_tree.setMinimumHeight(60)
         self.treewise_tree.setFont(QFont("Courier New", font_size))
         self.treewise_tree.setAnimated(True)
+        self.treewise_tree.setItemDelegateForColumn(1, TreeStatsDelegate())
         self.treewise_tree.itemClicked.connect(self.on_treewise_item_clicked)
         self.treewise_tree.setContextMenuPolicy(Qt.CustomContextMenu)
         self.treewise_tree.customContextMenuRequested.connect(self.show_treewise_context_menu)
@@ -729,10 +736,16 @@ class SingleCommitViewDialog(QDialog):
         self.treewise_splitter = QSplitter(Qt.Vertical)
 
         self.treewise_tree = QTreeWidget()
-        self.treewise_tree.setHeaderHidden(True)
+        self.treewise_tree.setHeaderLabels(["Name", "Stats"])
+        self.treewise_tree.setColumnCount(2)
+        self.treewise_tree.header().setDefaultAlignment(Qt.AlignRight)
+        self.treewise_tree.header().setStretchLastSection(False)
+        self.treewise_tree.header().setSectionResizeMode(0, QHeaderView.Stretch)
+        self.treewise_tree.header().setSectionResizeMode(1, QHeaderView.ResizeToContents)
         self.treewise_tree.setMinimumHeight(60)
         self.treewise_tree.setFont(QFont("Courier New", font_size))
         self.treewise_tree.setAnimated(True)
+        self.treewise_tree.setItemDelegateForColumn(1, TreeStatsDelegate())
         self.treewise_tree.itemClicked.connect(self.on_treewise_item_clicked)
         self.treewise_tree.setContextMenuPolicy(Qt.CustomContextMenu)
         self.treewise_tree.customContextMenuRequested.connect(self.show_treewise_context_menu)
@@ -862,14 +875,14 @@ class SingleCommitViewDialog(QDialog):
         for name, node in folders + files:
             item = QTreeWidgetItem()
             if node["children"]:
-                display = f"\U0001f4c1 {name}"
-                if node["added"] or node["deleted"]:
-                    display += f"  (+{node['added']} / -{node['deleted']})"
-                item.setText(0, display)
+                item.setText(0, f"\U0001f4c1 {name}")
                 item.setData(0, Qt.UserRole + 10, {"type": "folder", "node": node})
                 font = item.font(0)
                 font.setBold(True)
                 item.setFont(0, font)
+                if node["added"] or node["deleted"]:
+                    item.setText(1, f"+{node['added']} / -{node['deleted']}")
+                    item.setTextAlignment(1, Qt.AlignRight | Qt.AlignVCenter)
                 if parent_item:
                     parent_item.addChild(item)
                 else:
@@ -886,10 +899,11 @@ class SingleCommitViewDialog(QDialog):
                     display = f"{name} (Added new file)"
                 else:
                     display = name
-                if node["added"] or node["deleted"]:
-                    display += f"  (+{node['added']} / -{node['deleted']})"
                 item.setText(0, display)
                 item.setData(0, Qt.UserRole + 10, {"type": "file", "entry": entry})
+                if node["added"] or node["deleted"]:
+                    item.setText(1, f"+{node['added']} / -{node['deleted']}")
+                    item.setTextAlignment(1, Qt.AlignRight | Qt.AlignVCenter)
                 if parent_item:
                     parent_item.addChild(item)
                 else:

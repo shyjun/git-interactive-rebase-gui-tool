@@ -502,3 +502,58 @@ class StatsItemDelegate(QStyledItemDelegate):
     def sizeHint(self, option, index):
         hint = super().sizeHint(option, index)
         return QSize(hint.width(), max(hint.height(), 28))
+
+
+class TreeStatsDelegate(QStyledItemDelegate):
+    """Custom delegate for tree widget stats column (column 1) with colored +N/-M."""
+    def __init__(self, added_color="#22863a", removed_color="#cb2431", parent=None):
+        super().__init__(parent)
+        self.added_color = QColor(added_color)
+        self.removed_color = QColor(removed_color)
+
+    def paint(self, painter, option, index):
+        from PySide6.QtWidgets import QStyleOptionViewItem, QApplication
+        from PySide6.QtWidgets import QStyle as _QStyle
+
+        opt = QStyleOptionViewItem(option)
+        self.initStyleOption(opt, index)
+
+        style = opt.widget.style() if opt.widget else QApplication.style()
+        opt.text = ""
+        style.drawControl(_QStyle.ControlElement.CE_ItemViewItem, opt, painter, opt.widget)
+        text_rect = style.subElementRect(_QStyle.SubElement.SE_ItemViewItemText, opt, opt.widget)
+
+        painter.save()
+        painter.setFont(opt.font)
+
+        is_selected = bool(option.state & QStyle.State_Selected)
+        rect = text_rect.adjusted(0, 0, -4, 0) if not text_rect.isNull() else option.rect.adjusted(6, 0, -6, 0)
+        fm = QFontMetrics(opt.font)
+
+        stats_text = index.data(Qt.DisplayRole) or ""
+        if stats_text and "/" in stats_text:
+            parts = stats_text.split("/")
+            added_str = parts[0].strip()
+            deleted_str = parts[1].strip() if len(parts) > 1 else ""
+            added_w = fm.horizontalAdvance(added_str)
+            deleted_w = fm.horizontalAdvance(deleted_str)
+            gap = fm.horizontalAdvance(" ")
+            total_w = added_w + deleted_w + gap
+
+            # Draw +N (green / white-on-select) right-aligned
+            painter.setPen(QColor("white") if is_selected else self.added_color)
+            painter.drawText(
+                QRect(rect.right() - total_w, rect.top(), added_w, rect.height()),
+                Qt.AlignLeft | Qt.AlignVCenter, added_str)
+
+            # Draw -M (red / white-on-select)
+            painter.setPen(QColor("white") if is_selected else self.removed_color)
+            painter.drawText(
+                QRect(rect.right() - deleted_w, rect.top(), deleted_w, rect.height()),
+                Qt.AlignLeft | Qt.AlignVCenter, deleted_str)
+
+        painter.restore()
+
+    def sizeHint(self, option, index):
+        hint = super().sizeHint(option, index)
+        return QSize(hint.width(), max(hint.height(), 28))
