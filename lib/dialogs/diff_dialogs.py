@@ -877,9 +877,6 @@ class SingleCommitViewDialog(QDialog):
             if node["children"]:
                 item.setText(0, f"\U0001f4c1 {name}")
                 item.setData(0, Qt.UserRole + 10, {"type": "folder", "node": node})
-                font = item.font(0)
-                font.setBold(True)
-                item.setFont(0, font)
                 if node["added"] or node["deleted"]:
                     item.setText(1, f"+{node['added']} / -{node['deleted']}")
                     item.setTextAlignment(1, Qt.AlignRight | Qt.AlignVCenter)
