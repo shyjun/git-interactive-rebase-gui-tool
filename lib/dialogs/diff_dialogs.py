@@ -519,11 +519,26 @@ class BranchDiffDialog(QDialog):
         if not filepath:
             return
         menu = QMenu(self)
+        head = _get_head_sha(self.repo_path)
         add_open_with_system_default_action(menu, filepath, self, sha=self.end_sha,
-            is_head=False)
+            is_head=self.end_sha == head or head.startswith(self.end_sha))
+        blame_action = QAction("Blame file", self)
+        blame_action.triggered.connect(lambda checked=False, text=filepath: open_blame_window(self, text, branch=self.end_sha))
+        menu.addAction(blame_action)
+
+        diff_ref_action = QAction("Diff against a different version of this file", self)
+        diff_ref_action.triggered.connect(lambda checked=False, text=filepath: self.handle_diff_file_at_ref(text, self.end_sha))
+        menu.addAction(diff_ref_action)
+
         copy_action = QAction("Copy filename to clipboard", self)
         copy_action.triggered.connect(lambda checked=False, text=filepath: QApplication.clipboard().setText(text))
         menu.addAction(copy_action)
+
+        menu.addSeparator()
+        browse_action = QAction("Browse file log", self)
+        browse_action.setToolTip("Open a read-only viewer of this file's history.")
+        browse_action.triggered.connect(lambda checked=False, text=filepath: self.browse_file_log(text))
+        menu.addAction(browse_action)
         menu.exec(self.treewise_tree.mapToGlobal(pos))
 
     def on_filewise_file_selected(self, filepath):
@@ -946,7 +961,7 @@ class SingleCommitViewDialog(QDialog):
                         pass
 
     def show_treewise_context_menu(self, pos):
-        """Context menu for tree-wise file items — reuses the file-wise context menu logic."""
+        """Context menu for tree-wise file items — mirrors the file-wise context menu."""
         item = self.treewise_tree.itemAt(pos)
         if not item:
             return
@@ -971,9 +986,36 @@ class SingleCommitViewDialog(QDialog):
         menu.addAction(diff_ref_action)
 
         copy_action = QAction("Copy filename to clipboard", self)
-        copy_action.triggered.connect(lambda checked=False, text=target_path: QApplication.clipboard().setText(target_path))
+        copy_action.triggered.connect(lambda checked=False, text=target_path: self.copy_filename_to_clipboard(target_path))
         menu.addAction(copy_action)
 
+        if self.editable and is_editable_branch(self):
+            is_only_file = self.filewise_file_list.count() <= 1
+
+            move_action = QAction("Move file changes out of this commit", self)
+            move_action.triggered.connect(lambda checked=False, text=target_path: self.move_file_out(text))
+            move_action.setEnabled(not is_only_file)
+            menu.addAction(move_action)
+
+            drop_action = QAction("Drop file changes from this commit", self)
+            drop_action.triggered.connect(lambda checked=False, text=target_path: self.drop_file(text))
+            drop_action.setEnabled(not is_only_file)
+            menu.addAction(drop_action)
+
+            remove_onwards_action = QAction("Remove file from this commit onwards", self)
+            remove_onwards_action.triggered.connect(lambda checked=False, text=target_path: self.remove_file_onwards(text))
+            menu.addAction(remove_onwards_action)
+
+            menu.addSeparator()
+            refine_action = QAction("Refine/Edit changes in selected file", self)
+            refine_action.triggered.connect(lambda checked=False, text=target_path: self.refine_file(text))
+            menu.addAction(refine_action)
+
+        menu.addSeparator()
+        browse_log_action = QAction("Browse file log", self)
+        browse_log_action.setToolTip("Open a read-only viewer of this file's history.")
+        browse_log_action.triggered.connect(lambda checked=False, text=target_path: self.browse_file_log(text))
+        menu.addAction(browse_log_action)
         menu.exec(self.treewise_tree.mapToGlobal(pos))
 
     def show_filewise_context_menu(self, pos):
