@@ -280,6 +280,11 @@ class DiffMixin:
         for i in range(self.treewise_tree.topLevelItemCount()):
             self.treewise_tree.topLevelItem(i).setExpanded(True)
 
+    def _set_stats_column(self, item, added, deleted, added_color, removed_color):
+        """Set colored stats text in column 1 of a tree widget item."""
+        item.setText(1, f"+{added} / -{deleted}")
+        item.setTextAlignment(1, Qt.AlignRight | Qt.AlignVCenter)
+
     def _add_tree_children(self, parent_item, children_dict):
         """Recursively add folder/file nodes to the QTreeWidget."""
         # Sort: folders first, then files, alphabetically within each group
@@ -288,19 +293,21 @@ class DiffMixin:
         files = sorted(((k, v) for k, v in children_dict.items() if not v["children"]),
                        key=lambda x: x[0].lower())
 
+        added_color = self.current_theme_colors.get("added", "#22863a") if hasattr(self, 'current_theme_colors') else "#22863a"
+        removed_color = self.current_theme_colors.get("removed", "#cb2431") if hasattr(self, 'current_theme_colors') else "#cb2431"
+
         for name, node in folders + files:
             item = QTreeWidgetItem()
 
             if node["children"]:
                 # Folder node
-                display = f"\U0001f4c1 {name}"
-                if node["added"] or node["deleted"]:
-                    display += f"  (+{node['added']} / -{node['deleted']})"
-                item.setText(0, display)
+                item.setText(0, f"\U0001f4c1 {name}")
                 item.setData(0, Qt.UserRole + 10, {"type": "folder", "node": node})
                 font = item.font(0)
                 font.setBold(True)
                 item.setFont(0, font)
+                if node["added"] or node["deleted"]:
+                    self._set_stats_column(item, node['added'], node['deleted'], added_color, removed_color)
                 if parent_item:
                     parent_item.addChild(item)
                 else:
@@ -318,10 +325,10 @@ class DiffMixin:
                     display = f"{name} (Added new file)"
                 else:
                     display = name
-                if node["added"] or node["deleted"]:
-                    display += f"  (+{node['added']} / -{node['deleted']})"
                 item.setText(0, display)
                 item.setData(0, Qt.UserRole + 10, {"type": "file", "entry": entry})
+                if node["added"] or node["deleted"]:
+                    self._set_stats_column(item, node['added'], node['deleted'], added_color, removed_color)
                 if parent_item:
                     parent_item.addChild(item)
                 else:

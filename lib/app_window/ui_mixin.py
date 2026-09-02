@@ -5,13 +5,13 @@ from PySide6.QtWidgets import (
     QLineEdit, QSplitter, QCheckBox, QToolButton, QMenu,
     QWidgetAction, QRadioButton, QGroupBox, QSizePolicy,
     QStatusBar, QListWidget, QListWidgetItem, QTabWidget, QTextEdit, QPushButton,
-    QMessageBox, QTreeWidget, QTreeWidgetItem,
+    QMessageBox, QTreeWidget, QTreeWidgetItem, QHeaderView,
 )
 from lib.app_window.commit_list import CommitListWidget
 from lib.app_window.delegates import CommitItemDelegate
 from lib.app_window.helpers import MATCH_ROLE, _diff_search_matches
 from lib.widgets import (
-    DiffView, DiffSearchBar, DiffHighlighter, StatsItemDelegate,
+    DiffView, DiffSearchBar, DiffHighlighter, StatsItemDelegate, TreeStatsDelegate,
     FILE_ENTRY_ROLE, BrowseDimOverlay,
 )
 from lib.git_helpers import (
@@ -234,9 +234,15 @@ class UIMixin:
         self.treewise_splitter = QSplitter(Qt.Vertical)
 
         self.treewise_tree = QTreeWidget()
-        self.treewise_tree.setHeaderHidden(True)
+        self.treewise_tree.setHeaderLabels(["Name", "Stats"])
+        self.treewise_tree.setColumnCount(2)
+        self.treewise_tree.header().setDefaultAlignment(Qt.AlignRight)
+        self.treewise_tree.header().setStretchLastSection(False)
+        self.treewise_tree.header().setSectionResizeMode(0, QHeaderView.Stretch)
+        self.treewise_tree.header().setSectionResizeMode(1, QHeaderView.ResizeToContents)
         self.treewise_tree.setMinimumHeight(60)
         self.treewise_tree.setAnimated(True)
+        self.treewise_tree.setItemDelegateForColumn(1, TreeStatsDelegate())
         self.treewise_tree.itemClicked.connect(self.on_treewise_item_clicked)
         self.treewise_tree.setContextMenuPolicy(Qt.CustomContextMenu)
         self.treewise_tree.customContextMenuRequested.connect(self.show_treewise_context_menu)
