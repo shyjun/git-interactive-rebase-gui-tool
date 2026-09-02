@@ -416,6 +416,22 @@ class DiffMixin:
         menu.addAction(copy_fullpath_action)
 
         if not self.browse_mode and not self.viewer_mode:
+            is_only_file = self.filewise_file_list.count() <= 1
+
+            move_action = QAction("Move file changes out of this commit", self)
+            move_action.triggered.connect(lambda checked=False, text=target_path: self.handle_context_move_file_out(text))
+            move_action.setEnabled(not is_only_file)
+            menu.addAction(move_action)
+
+            drop_action = QAction("Drop file changes from this commit", self)
+            drop_action.triggered.connect(lambda checked=False, text=target_path: self.handle_context_drop_file(text))
+            drop_action.setEnabled(not is_only_file)
+            menu.addAction(drop_action)
+
+            remove_onwards_action = QAction("Remove file from this commit onwards", self)
+            remove_onwards_action.triggered.connect(lambda checked=False, text=target_path: self.handle_context_remove_file_onwards(text))
+            menu.addAction(remove_onwards_action)
+
             menu.addSeparator()
             refine_action = QAction("Refine/Edit changes in selected file", self)
             refine_action.triggered.connect(lambda checked=False, text=target_path: self.handle_context_refine_changes(text))
@@ -423,6 +439,7 @@ class DiffMixin:
 
         menu.addSeparator()
         browse_log_action = QAction("Browse file log", self)
+        browse_log_action.setToolTip("Open a read-only viewer of this file's history.")
         browse_log_action.triggered.connect(lambda checked=False, text=target_path: self.open_file_log_for(text))
         menu.addAction(browse_log_action)
 
