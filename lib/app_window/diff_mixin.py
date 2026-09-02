@@ -5,7 +5,7 @@ import os
 from lib.git_helpers import (
     get_commit_metadata_and_message, get_commit_diff,
     get_file_diff_only_in_commit, get_commit_files_with_status,
-    get_commit_file_stats, get_rename_diff_in_commit,
+    get_commit_file_stats, get_rename_diff_in_commit, build_file_tree,
 )
 from lib.widgets import FILE_ENTRY_ROLE
 from lib.dialogs import open_blame_window
@@ -20,6 +20,8 @@ class DiffMixin:
             self.plain_diff_search.show_and_focus()
         elif self.diff_tab_widget.currentIndex() == 1:
             self.filewise_diff_search.show_and_focus()
+        elif self.diff_tab_widget.currentIndex() == 2:
+            self.treewise_diff_search.show_and_focus()
 
     def on_selection_changed(self):
         """Triggered when list selection changes. Debounces the update."""
@@ -85,43 +87,48 @@ class DiffMixin:
                     self.plain_diff_search._perform_search()
             else:
                 self.side_diff_view.clear()
-                if 'files' not in cache_entry:
-                    cache_entry['files'] = get_commit_files_with_status(self.repo_path, sha, stash=self.browse_stash)
-                    self.commit_cache[sha] = cache_entry
 
-                file_entries = cache_entry['files']
-                # Fetch per-file stats (cached separately)
-                if 'file_stats' not in cache_entry:
-                    try:
-                        cache_entry['file_stats'] = get_commit_file_stats(self.repo_path, sha)
-                    except:
-                        cache_entry['file_stats'] = {}
-                    self.commit_cache[sha] = cache_entry
-                file_stats = cache_entry.get('file_stats', {})
+            # Always populate file-wise and tree-wise tabs
+            if 'files' not in cache_entry:
+                cache_entry['files'] = get_commit_files_with_status(self.repo_path, sha, stash=self.browse_stash)
+                self.commit_cache[sha] = cache_entry
 
-                # Temporarily block signals to avoid triggering on_filewise_file_selected prematurely
-                self.filewise_file_list.blockSignals(True)
-                self.filewise_file_list.clear()
-                for entry in file_entries:
-                    status, path1, path2 = entry
-                    if status == 'R':
-                        display = f"{path1} => {path2}"
-                    elif status == 'D':
-                        display = f"{path1} (Deleted)"
-                    elif status == 'A':
-                        display = f"{path1} (Added new file)"
-                    else:
-                        display = path1
-                    item = QListWidgetItem(display)
-                    item.setData(Qt.UserRole, file_stats.get(path1))
-                    item.setData(FILE_ENTRY_ROLE, entry)
-                    self.filewise_file_list.addItem(item)
-                self.filewise_file_list.blockSignals(False)
+            file_entries = cache_entry['files']
+            # Fetch per-file stats (cached separately)
+            if 'file_stats' not in cache_entry:
+                try:
+                    cache_entry['file_stats'] = get_commit_file_stats(self.repo_path, sha)
+                except:
+                    cache_entry['file_stats'] = {}
+                self.commit_cache[sha] = cache_entry
+            file_stats = cache_entry.get('file_stats', {})
 
-                if file_entries:
-                    self.filewise_file_list.setCurrentRow(0)
+            # Temporarily block signals to avoid triggering on_filewise_file_selected prematurely
+            self.filewise_file_list.blockSignals(True)
+            self.filewise_file_list.clear()
+            for entry in file_entries:
+                status, path1, path2 = entry
+                if status == 'R':
+                    display = f"{path1} => {path2}"
+                elif status == 'D':
+                    display = f"{path1} (Deleted)"
+                elif status == 'A':
+                    display = f"{path1} (Added new file)"
                 else:
-                    self.filewise_diff_view.clear()
+                    display = path1
+                item = QListWidgetItem(display)
+                item.setData(Qt.UserRole, file_stats.get(path1))
+                item.setData(FILE_ENTRY_ROLE, entry)
+                self.filewise_file_list.addItem(item)
+            self.filewise_file_list.blockSignals(False)
+
+            # Also populate the tree-wise tab
+            self._populate_treewise_tree(file_entries, file_stats)
+
+            if file_entries:
+                self.filewise_file_list.setCurrentRow(0)
+            else:
+                self.filewise_diff_view.clear()
         except Exception as e:
             self.side_diff_view.setPlainText(f"Error loading diff: {e}")
             if hasattr(self, 'side_commit_msg'):
@@ -256,6 +263,167 @@ class DiffMixin:
         except Exception as e:
             self.filewise_diff_view.setPlainText(f"Error loading diff: {e}")
 
+    def _populate_treewise_tree(self, file_entries, file_stats):
+        """Build and display the tree-wise file tree from commit file entries."""
+        self.treewise_tree.blockSignals(True)
+        self.treewise_tree.clear()
+
+        if not file_entries:
+            self.treewise_tree.blockSignals(False)
+            return
+
+        tree = build_file_tree(file_entries, file_stats)
+        self._add_tree_children(None, tree["children"])
+        self.treewise_tree.blockSignals(False)
+
+        # Expand top-level items
+        for i in range(self.treewise_tree.topLevelItemCount()):
+            self.treewise_tree.topLevelItem(i).setExpanded(True)
+
+    def _add_tree_children(self, parent_item, children_dict):
+        """Recursively add folder/file nodes to the QTreeWidget."""
+        # Sort: folders first, then files, alphabetically within each group
+        folders = sorted(((k, v) for k, v in children_dict.items() if v["children"]),
+                         key=lambda x: x[0].lower())
+        files = sorted(((k, v) for k, v in children_dict.items() if not v["children"]),
+                       key=lambda x: x[0].lower())
+
+        for name, node in folders + files:
+            item = QTreeWidgetItem()
+
+            if node["children"]:
+                # Folder node
+                display = f"\U0001f4c1 {name}"
+                if node["added"] or node["deleted"]:
+                    display += f"  (+{node['added']} / -{node['deleted']})"
+                item.setText(0, display)
+                item.setData(0, Qt.UserRole + 10, {"type": "folder", "node": node})
+                font = item.font(0)
+                font.setBold(True)
+                item.setFont(0, font)
+                if parent_item:
+                    parent_item.addChild(item)
+                else:
+                    self.treewise_tree.addTopLevelItem(item)
+                self._add_tree_children(item, node["children"])
+            else:
+                # File node
+                entry = node["entries"][0] if node["entries"] else None
+                status = entry[0] if entry else ''
+                if status == 'R':
+                    display = f"{entry[1]} => {entry[2]}"
+                elif status == 'D':
+                    display = f"{name} (Deleted)"
+                elif status == 'A':
+                    display = f"{name} (Added new file)"
+                else:
+                    display = name
+                if node["added"] or node["deleted"]:
+                    display += f"  (+{node['added']} / -{node['deleted']})"
+                item.setText(0, display)
+                item.setData(0, Qt.UserRole + 10, {"type": "file", "entry": entry})
+                if parent_item:
+                    parent_item.addChild(item)
+                else:
+                    self.treewise_tree.addTopLevelItem(item)
+
+    def on_treewise_item_clicked(self, item, column):
+        """Handle click on tree-wise item: show file diff or concatenated folder diff."""
+        item_data = item.data(0, Qt.UserRole + 10)
+        if not item_data:
+            return
+        list_item = self.list_widget.currentItem()
+        if not list_item:
+            return
+        sha = list_item.text().split()[0]
+
+        try:
+            if item_data["type"] == "file":
+                entry = item_data["entry"]
+                if entry and entry[0] == 'R':
+                    diff = get_rename_diff_in_commit(self.repo_path, sha, entry[1], entry[2])
+                elif entry:
+                    diff = get_file_diff_only_in_commit(self.repo_path, sha, entry[1])
+                else:
+                    diff = ""
+                self.treewise_diff_view.setPlainText(diff)
+            else:
+                # Folder: concatenate diffs of all leaf files
+                diffs = []
+                self._collect_folder_diffs(item_data["node"], sha, diffs)
+                self.treewise_diff_view.setPlainText("\n".join(diffs))
+            self.treewise_diff_view.set_separator_color(self.current_theme_colors.get("separator", "#444444"))
+            self.treewise_diff_search._perform_search()
+        except Exception as e:
+            self.treewise_diff_view.setPlainText(f"Error loading diff: {e}")
+
+    def _collect_folder_diffs(self, node, sha, diffs):
+        """Recursively collect diffs for all leaf files under a folder node."""
+        for child in node["children"].values():
+            if child["children"]:
+                self._collect_folder_diffs(child, sha, diffs)
+            else:
+                for entry in child["entries"]:
+                    try:
+                        if entry[0] == 'R':
+                            diffs.append(get_rename_diff_in_commit(self.repo_path, sha, entry[1], entry[2]))
+                        else:
+                            diffs.append(get_file_diff_only_in_commit(self.repo_path, sha, entry[1]))
+                    except Exception:
+                        pass
+
+    def show_treewise_context_menu(self, pos):
+        """Context menu for tree-wise file items — reuses the file-wise context menu."""
+        item = self.treewise_tree.itemAt(pos)
+        if not item:
+            return
+        item_data = item.data(0, Qt.UserRole + 10)
+        if not item_data or item_data["type"] != "file":
+            return
+        entry = item_data.get("entry")
+        target_path = entry[2] if entry and entry[0] == 'R' else (entry[1] if entry else "")
+        if not target_path:
+            return
+
+        list_item = self.list_widget.currentItem()
+        if not list_item:
+            return
+        commit_sha = list_item.text().split()[0]
+
+        menu = QMenu(self)
+        head_sha = self.get_head_sha()
+        is_head = bool(commit_sha) and (commit_sha == head_sha or head_sha.startswith(commit_sha))
+        add_open_with_system_default_action(menu, target_path, self, sha=commit_sha, is_head=is_head)
+        blame_action = QAction("Blame file", self)
+        blame_action.triggered.connect(lambda checked=False, text=target_path: open_blame_window(self, text, branch=commit_sha))
+        menu.addAction(blame_action)
+
+        if commit_sha:
+            diff_ref_action = QAction("Diff against a different version of this file", self)
+            diff_ref_action.triggered.connect(lambda checked=False, text=target_path, sha=commit_sha: self.handle_diff_file_at_ref(text, sha))
+            menu.addAction(diff_ref_action)
+
+        copy_action = QAction("Copy filename to clipboard", self)
+        copy_action.triggered.connect(lambda checked=False, text=target_path: self.copy_filename_to_clipboard(text))
+        menu.addAction(copy_action)
+
+        copy_fullpath_action = QAction("Copy fullpath to clipboard", self)
+        copy_fullpath_action.triggered.connect(lambda checked=False, text=target_path: self.copy_fullpath_to_clipboard(text))
+        menu.addAction(copy_fullpath_action)
+
+        if not self.browse_mode and not self.viewer_mode:
+            menu.addSeparator()
+            refine_action = QAction("Refine/Edit changes in selected file", self)
+            refine_action.triggered.connect(lambda checked=False, text=target_path: self.handle_context_refine_changes(text))
+            menu.addAction(refine_action)
+
+        menu.addSeparator()
+        browse_log_action = QAction("Browse file log", self)
+        browse_log_action.triggered.connect(lambda checked=False, text=target_path: self.open_file_log_for(text))
+        menu.addAction(browse_log_action)
+
+        menu.exec(self.treewise_tree.mapToGlobal(pos))
+
     def handle_slash_shortcut(self):
         """Focus search bar when / is pressed."""
         if not self.search_edit.hasFocus():
@@ -277,6 +445,11 @@ class DiffMixin:
         # 2. Try to clear filewise diff search if active and has content/focus
         if self.diff_tab_widget.currentIndex() == 1 and hasattr(self, 'filewise_diff_search') and (self.filewise_diff_search.search_input.text() or self.filewise_diff_search.search_input.hasFocus()):
             self.filewise_diff_search.escape_pressed()
+            return
+
+        # 2b. Try to clear treewise diff search if active and has content/focus
+        if self.diff_tab_widget.currentIndex() == 2 and hasattr(self, 'treewise_diff_search') and (self.treewise_diff_search.search_input.text() or self.treewise_diff_search.search_input.hasFocus()):
+            self.treewise_diff_search.escape_pressed()
             return
 
         # 3. Fallback to commit history search filter

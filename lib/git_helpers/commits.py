@@ -152,3 +152,46 @@ def get_file_diff_only_in_commit(repo_path, commit_sha, filepath):
     return _pad_diff_separators(
         _git_capture(repo_path, ["git", "show", "--format=", commit_sha, "--", filepath],
                      "Failed to get file diff"))
+
+
+def build_file_tree(files, file_stats):
+    """Build a nested tree dict from flat file entries for the tree-wise diff tab.
+
+    Args:
+        files: list of (status, path1, path2) tuples from get_commit_files_with_status.
+        file_stats: dict mapping filepath -> (added, deleted) from get_commit_file_stats.
+
+    Returns a dict where each key is a name (folder or file basename) and each value is:
+        {"children": {}, "added": int, "deleted": int, "entries": []}
+    Folder nodes have children; leaf file nodes have entries.
+    """
+    root = {"children": {}, "added": 0, "deleted": 0, "entries": []}
+
+    for entry in files:
+        status, path1, path2 = entry
+        # For renames, use the new path for tree placement
+        display_path = path2 if status == 'R' and path2 else path1
+        parts = display_path.split('/')
+        added, deleted = file_stats.get(path1, (0, 0))
+
+        node = root
+        for part in parts[:-1]:
+            if part not in node["children"]:
+                node["children"][part] = {"children": {}, "added": 0, "deleted": 0, "entries": []}
+            node["children"][part]["added"] += added
+            node["children"][part]["deleted"] += deleted
+            node = node["children"][part]
+
+        # Leaf file node
+        basename = parts[-1]
+        if basename not in node["children"]:
+            node["children"][basename] = {"children": {}, "added": 0, "deleted": 0, "entries": []}
+        node["children"][basename]["added"] += added
+        node["children"][basename]["deleted"] += deleted
+        node["children"][basename]["entries"].append(entry)
+
+        # Also add stats to root
+        root["added"] += added
+        root["deleted"] += deleted
+
+    return root

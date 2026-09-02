@@ -32,6 +32,8 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QToolButton,
     QTabWidget,
+    QTreeWidget,
+    QTreeWidgetItem,
     QSpinBox,
     QComboBox,
     QFileDialog,
@@ -85,6 +87,7 @@ from lib.git_helpers import (
     get_rename_diff_in_commit,
     get_commit_diff,
     get_commit_files_with_status,
+    build_file_tree,
 )
 from lib.utils import get_theme_colors
 from lib.widgets import (
@@ -329,6 +332,50 @@ class BranchDiffDialog(QDialog):
 
         self.tab_widget.addTab(filewise_widget, "Filewise Diff")
 
+        # Tab 2: Tree-wise Diff
+        treewise_widget = QWidget()
+        treewise_layout = QVBoxLayout(treewise_widget)
+        treewise_layout.setContentsMargins(0, 0, 0, 0)
+        treewise_layout.setSpacing(0)
+
+        self.treewise_splitter = QSplitter(Qt.Vertical)
+
+        self.treewise_tree = QTreeWidget()
+        self.treewise_tree.setHeaderHidden(True)
+        self.treewise_tree.setMinimumHeight(60)
+        self.treewise_tree.setFont(QFont("Courier New", font_size))
+        self.treewise_tree.setAnimated(True)
+        self.treewise_tree.itemClicked.connect(self.on_treewise_item_clicked)
+        self.treewise_tree.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.treewise_tree.customContextMenuRequested.connect(self.show_treewise_context_menu)
+        self.treewise_splitter.addWidget(self.treewise_tree)
+
+        treewise_right_widget = QWidget()
+        treewise_right_layout = QVBoxLayout(treewise_right_widget)
+        treewise_right_layout.setContentsMargins(0, 0, 0, 0)
+        treewise_right_layout.setSpacing(0)
+
+        self.treewise_diff_view = DiffView()
+        self.treewise_diff_view.setReadOnly(True)
+        self.treewise_diff_view.setMinimumHeight(100)
+        self.treewise_diff_view.setFont(QFont("Courier New", font_size))
+        self.treewise_diff_view.setPlaceholderText("Select a file or folder above to view its diff...")
+        self.treewise_highlighter = DiffHighlighter(
+            self.treewise_diff_view.document(),
+            added_color=colors["added"],
+            removed_color=colors["removed"],
+            header_color=colors["header"]
+        )
+        self.treewise_diff_search = DiffSearchBar(target_view=self.treewise_diff_view, parent=treewise_right_widget)
+        treewise_right_layout.addWidget(self.treewise_diff_search)
+        treewise_right_layout.addWidget(self.treewise_diff_view)
+
+        self.treewise_splitter.addWidget(treewise_right_widget)
+        self.treewise_splitter.setSizes([150, 350])
+        treewise_layout.addWidget(self.treewise_splitter)
+
+        self.tab_widget.addTab(treewise_widget, "Tree-wise Diff")
+
         layout.addWidget(self.tab_widget)
 
         # Populate the file list (block signals to avoid premature load)
@@ -344,6 +391,9 @@ class BranchDiffDialog(QDialog):
         # Context menu for the file list
         self.filewise_file_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.filewise_file_list.customContextMenuRequested.connect(self.show_filewise_context_menu)
+
+        # Populate tree-wise tab (BranchDiffDialog uses plain file strings, not status tuples)
+        self._populate_treewise_from_files(files, file_stats)
 
         # Ctrl+F focuses the search bar of the active tab
         self.ctrl_f_shortcut = QShortcut(QKeySequence("Ctrl+F"), self)
@@ -361,10 +411,113 @@ class BranchDiffDialog(QDialog):
         layout.addLayout(btn_layout)
 
     def _focus_active_search(self):
-        if self.tab_widget.currentIndex() == 0:
+        idx = self.tab_widget.currentIndex()
+        if idx == 0:
             self.plain_diff_search.show_and_focus()
-        else:
+        elif idx == 1:
             self.filewise_diff_search.show_and_focus()
+        elif idx == 2:
+            self.treewise_diff_search.show_and_focus()
+
+    def _populate_treewise_from_files(self, files, file_stats):
+        """Build tree from plain file list (BranchDiffDialog uses file strings, not status tuples)."""
+        self.treewise_tree.blockSignals(True)
+        self.treewise_tree.clear()
+        if not files:
+            self.treewise_tree.blockSignals(False)
+            return
+        entries = [('M', f, '') for f in files]
+        tree = build_file_tree(entries, file_stats)
+        self._add_tree_children(None, tree["children"])
+        self.treewise_tree.blockSignals(False)
+        for i in range(self.treewise_tree.topLevelItemCount()):
+            self.treewise_tree.topLevelItem(i).setExpanded(True)
+
+    def _add_tree_children(self, parent_item, children_dict):
+        """Recursively add folder/file nodes to the QTreeWidget."""
+        folders = sorted(((k, v) for k, v in children_dict.items() if v["children"]),
+                         key=lambda x: x[0].lower())
+        files = sorted(((k, v) for k, v in children_dict.items() if not v["children"]),
+                       key=lambda x: x[0].lower())
+        for name, node in folders + files:
+            item = QTreeWidgetItem()
+            if node["children"]:
+                display = f"\U0001f4c1 {name}"
+                if node["added"] or node["deleted"]:
+                    display += f"  (+{node['added']} / -{node['deleted']})"
+                item.setText(0, display)
+                item.setData(0, Qt.UserRole + 10, {"type": "folder", "node": node})
+                font = item.font(0)
+                font.setBold(True)
+                item.setFont(0, font)
+                if parent_item:
+                    parent_item.addChild(item)
+                else:
+                    self.treewise_tree.addTopLevelItem(item)
+                self._add_tree_children(item, node["children"])
+            else:
+                entry = node["entries"][0] if node["entries"] else None
+                display = name
+                if node["added"] or node["deleted"]:
+                    display += f"  (+{node['added']} / -{node['deleted']})"
+                item.setText(0, display)
+                item.setData(0, Qt.UserRole + 10, {"type": "file", "entry": entry, "filepath": name})
+                if parent_item:
+                    parent_item.addChild(item)
+                else:
+                    self.treewise_tree.addTopLevelItem(item)
+
+    def on_treewise_item_clicked(self, item, column):
+        """Handle click on tree-wise item."""
+        item_data = item.data(0, Qt.UserRole + 10)
+        if not item_data:
+            return
+        try:
+            if item_data["type"] == "file":
+                filepath = item_data.get("filepath", "")
+                diff = get_file_diff_between(self.repo_path, self.start_sha, self.end_sha, filepath)
+                self.treewise_diff_view.setPlainText(diff)
+            else:
+                diffs = []
+                self._collect_folder_diffs(item_data["node"], diffs)
+                self.treewise_diff_view.setPlainText("\n".join(diffs))
+            self.treewise_diff_view.set_separator_color(self.colors.get("separator", "#444444"))
+            self.treewise_diff_search._perform_search()
+        except Exception as e:
+            self.treewise_diff_view.setPlainText(f"Error loading diff: {e}")
+
+    def _collect_folder_diffs(self, node, diffs):
+        """Recursively collect diffs for all leaf files under a folder node."""
+        for child in node["children"].values():
+            if child["children"]:
+                self._collect_folder_diffs(child, diffs)
+            else:
+                for entry in child["entries"]:
+                    try:
+                        filepath = entry[2] if entry[0] == 'R' and entry[2] else entry[1]
+                        diff = get_file_diff_between(self.repo_path, self.start_sha, self.end_sha, filepath)
+                        diffs.append(diff)
+                    except Exception:
+                        pass
+
+    def show_treewise_context_menu(self, pos):
+        """Context menu for tree-wise file items in BranchDiffDialog."""
+        item = self.treewise_tree.itemAt(pos)
+        if not item:
+            return
+        item_data = item.data(0, Qt.UserRole + 10)
+        if not item_data or item_data["type"] != "file":
+            return
+        filepath = item_data.get("filepath", "")
+        if not filepath:
+            return
+        menu = QMenu(self)
+        add_open_with_system_default_action(menu, filepath, self, sha=self.end_sha,
+            is_head=False)
+        copy_action = QAction("Copy filename to clipboard", self)
+        copy_action.triggered.connect(lambda checked=False, text=filepath: QApplication.clipboard().setText(text))
+        menu.addAction(copy_action)
+        menu.exec(self.treewise_tree.mapToGlobal(pos))
 
     def on_filewise_file_selected(self, filepath):
         if not filepath:
@@ -567,6 +720,50 @@ class SingleCommitViewDialog(QDialog):
 
         self.tab_widget.addTab(filewise_widget, "Filewise Diff")
 
+        # Tab 2: Tree-wise Diff
+        treewise_widget = QWidget()
+        treewise_layout = QVBoxLayout(treewise_widget)
+        treewise_layout.setContentsMargins(0, 0, 0, 0)
+        treewise_layout.setSpacing(0)
+
+        self.treewise_splitter = QSplitter(Qt.Vertical)
+
+        self.treewise_tree = QTreeWidget()
+        self.treewise_tree.setHeaderHidden(True)
+        self.treewise_tree.setMinimumHeight(60)
+        self.treewise_tree.setFont(QFont("Courier New", font_size))
+        self.treewise_tree.setAnimated(True)
+        self.treewise_tree.itemClicked.connect(self.on_treewise_item_clicked)
+        self.treewise_tree.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.treewise_tree.customContextMenuRequested.connect(self.show_treewise_context_menu)
+        self.treewise_splitter.addWidget(self.treewise_tree)
+
+        treewise_right_widget = QWidget()
+        treewise_right_layout = QVBoxLayout(treewise_right_widget)
+        treewise_right_layout.setContentsMargins(0, 0, 0, 0)
+        treewise_right_layout.setSpacing(0)
+
+        self.treewise_diff_view = DiffView()
+        self.treewise_diff_view.setReadOnly(True)
+        self.treewise_diff_view.setMinimumHeight(100)
+        self.treewise_diff_view.setFont(QFont("Courier New", font_size))
+        self.treewise_diff_view.setPlaceholderText("Select a file or folder above to view its diff...")
+        self.treewise_highlighter = DiffHighlighter(
+            self.treewise_diff_view.document(),
+            added_color=colors["added"],
+            removed_color=colors["removed"],
+            header_color=colors["header"]
+        )
+        self.treewise_diff_search = DiffSearchBar(target_view=self.treewise_diff_view, parent=treewise_right_widget)
+        treewise_right_layout.addWidget(self.treewise_diff_search)
+        treewise_right_layout.addWidget(self.treewise_diff_view)
+
+        self.treewise_splitter.addWidget(treewise_right_widget)
+        self.treewise_splitter.setSizes([150, 350])
+        treewise_layout.addWidget(self.treewise_splitter)
+
+        self.tab_widget.addTab(treewise_widget, "Tree-wise Diff")
+
         self.main_splitter.addWidget(self.tab_widget)
         self.main_splitter.setSizes([150, 450])
         layout.addWidget(self.main_splitter)
@@ -597,6 +794,9 @@ class SingleCommitViewDialog(QDialog):
         if self._files:
             self.filewise_file_list.setCurrentRow(0)
 
+        # Populate tree-wise tab
+        self._populate_treewise_tree(self._files, self._file_stats)
+
         # Ctrl+F focuses the search bar of the active tab
         self.ctrl_f_shortcut = QShortcut(QKeySequence("Ctrl+F"), self)
         self.ctrl_f_shortcut.activated.connect(self._focus_active_search)
@@ -613,10 +813,13 @@ class SingleCommitViewDialog(QDialog):
         layout.addLayout(btn_layout)
 
     def _focus_active_search(self):
-        if self.tab_widget.currentIndex() == 0:
+        idx = self.tab_widget.currentIndex()
+        if idx == 0:
             self.plain_diff_search.show_and_focus()
-        else:
+        elif idx == 1:
             self.filewise_diff_search.show_and_focus()
+        elif idx == 2:
+            self.treewise_diff_search.show_and_focus()
 
     def on_filewise_file_selected(self, filepath):
         if not filepath:
@@ -636,6 +839,131 @@ class SingleCommitViewDialog(QDialog):
             self.filewise_diff_search._perform_search()
         except Exception as e:
             self.filewise_diff_view.setPlainText(f"Error loading diff: {e}")
+
+    def _populate_treewise_tree(self, file_entries, file_stats):
+        """Build and display the tree-wise file tree from commit file entries."""
+        self.treewise_tree.blockSignals(True)
+        self.treewise_tree.clear()
+        if not file_entries:
+            self.treewise_tree.blockSignals(False)
+            return
+        tree = build_file_tree(file_entries, file_stats)
+        self._add_tree_children(None, tree["children"])
+        self.treewise_tree.blockSignals(False)
+        for i in range(self.treewise_tree.topLevelItemCount()):
+            self.treewise_tree.topLevelItem(i).setExpanded(True)
+
+    def _add_tree_children(self, parent_item, children_dict):
+        """Recursively add folder/file nodes to the QTreeWidget."""
+        folders = sorted(((k, v) for k, v in children_dict.items() if v["children"]),
+                         key=lambda x: x[0].lower())
+        files = sorted(((k, v) for k, v in children_dict.items() if not v["children"]),
+                       key=lambda x: x[0].lower())
+        for name, node in folders + files:
+            item = QTreeWidgetItem()
+            if node["children"]:
+                display = f"\U0001f4c1 {name}"
+                if node["added"] or node["deleted"]:
+                    display += f"  (+{node['added']} / -{node['deleted']})"
+                item.setText(0, display)
+                item.setData(0, Qt.UserRole + 10, {"type": "folder", "node": node})
+                font = item.font(0)
+                font.setBold(True)
+                item.setFont(0, font)
+                if parent_item:
+                    parent_item.addChild(item)
+                else:
+                    self.treewise_tree.addTopLevelItem(item)
+                self._add_tree_children(item, node["children"])
+            else:
+                entry = node["entries"][0] if node["entries"] else None
+                status = entry[0] if entry else ''
+                if status == 'R':
+                    display = f"{entry[1]} => {entry[2]}"
+                elif status == 'D':
+                    display = f"{name} (Deleted)"
+                elif status == 'A':
+                    display = f"{name} (Added new file)"
+                else:
+                    display = name
+                if node["added"] or node["deleted"]:
+                    display += f"  (+{node['added']} / -{node['deleted']})"
+                item.setText(0, display)
+                item.setData(0, Qt.UserRole + 10, {"type": "file", "entry": entry})
+                if parent_item:
+                    parent_item.addChild(item)
+                else:
+                    self.treewise_tree.addTopLevelItem(item)
+
+    def on_treewise_item_clicked(self, item, column):
+        """Handle click on tree-wise item."""
+        item_data = item.data(0, Qt.UserRole + 10)
+        if not item_data:
+            return
+        try:
+            if item_data["type"] == "file":
+                entry = item_data["entry"]
+                if entry and entry[0] == 'R':
+                    diff = get_rename_diff_in_commit(self.repo_path, self.sha, entry[1], entry[2])
+                elif entry:
+                    diff = get_file_diff_only_in_commit(self.repo_path, self.sha, entry[1])
+                else:
+                    diff = ""
+                self.treewise_diff_view.setPlainText(diff)
+            else:
+                diffs = []
+                self._collect_folder_diffs(item_data["node"], diffs)
+                self.treewise_diff_view.setPlainText("\n".join(diffs))
+            self.treewise_diff_view.set_separator_color(self.colors.get("separator", "#444444"))
+            self.treewise_diff_search._perform_search()
+        except Exception as e:
+            self.treewise_diff_view.setPlainText(f"Error loading diff: {e}")
+
+    def _collect_folder_diffs(self, node, diffs):
+        """Recursively collect diffs for all leaf files under a folder node."""
+        for child in node["children"].values():
+            if child["children"]:
+                self._collect_folder_diffs(child, diffs)
+            else:
+                for entry in child["entries"]:
+                    try:
+                        if entry[0] == 'R':
+                            diffs.append(get_rename_diff_in_commit(self.repo_path, self.sha, entry[1], entry[2]))
+                        else:
+                            diffs.append(get_file_diff_only_in_commit(self.repo_path, self.sha, entry[1]))
+                    except Exception:
+                        pass
+
+    def show_treewise_context_menu(self, pos):
+        """Context menu for tree-wise file items — reuses the file-wise context menu logic."""
+        item = self.treewise_tree.itemAt(pos)
+        if not item:
+            return
+        item_data = item.data(0, Qt.UserRole + 10)
+        if not item_data or item_data["type"] != "file":
+            return
+        entry = item_data.get("entry")
+        target_path = entry[2] if entry and entry[0] == 'R' else (entry[1] if entry else "")
+        if not target_path:
+            return
+
+        menu = QMenu(self)
+        head = _get_head_sha(self.repo_path)
+        add_open_with_system_default_action(menu, target_path, self, sha=self.sha,
+            is_head=self.sha == head or head.startswith(self.sha))
+        blame_action = QAction("Blame file", self)
+        blame_action.triggered.connect(lambda checked=False, text=target_path: open_blame_window(self, text, branch=self.sha))
+        menu.addAction(blame_action)
+
+        diff_ref_action = QAction("Diff against a different version of this file", self)
+        diff_ref_action.triggered.connect(lambda checked=False, text=target_path: self.handle_diff_file_at_ref(text, self.sha))
+        menu.addAction(diff_ref_action)
+
+        copy_action = QAction("Copy filename to clipboard", self)
+        copy_action.triggered.connect(lambda checked=False, text=target_path: QApplication.clipboard().setText(target_path))
+        menu.addAction(copy_action)
+
+        menu.exec(self.treewise_tree.mapToGlobal(pos))
 
     def show_filewise_context_menu(self, pos):
         """Context menu for the file list. If the viewed commit is known to be in
