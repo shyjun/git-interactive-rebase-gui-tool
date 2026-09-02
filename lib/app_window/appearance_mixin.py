@@ -59,6 +59,16 @@ class AppearanceMixin:
                 header_color=self.current_theme_colors["header"]
             )
 
+        if hasattr(self, 'treewise_diff_view'):
+            if hasattr(self, 'treewise_highlighter') and self.treewise_highlighter is not None:
+                self.treewise_highlighter.setDocument(None)
+            self.treewise_highlighter = DiffHighlighter(
+                self.treewise_diff_view.document(),
+                added_color=self.current_theme_colors["added"],
+                removed_color=self.current_theme_colors["removed"],
+                header_color=self.current_theme_colors["header"]
+            )
+
         self.update_font()
 
         if getattr(self, '_browse_overlay', None) is not None:
@@ -76,6 +86,10 @@ class AppearanceMixin:
             self.filewise_diff_view.setFont(font)
         if hasattr(self, 'filewise_file_list'):
             self.filewise_file_list.setFont(font)
+        if hasattr(self, 'treewise_diff_view'):
+            self.treewise_diff_view.setFont(font)
+        if hasattr(self, 'treewise_tree'):
+            self.treewise_tree.setFont(font)
         # Save persistence (font size is app-wide, not window-scoped)
         self.settings.setValue("font_size", self.current_font_size)
         # Update status bar zoom label
