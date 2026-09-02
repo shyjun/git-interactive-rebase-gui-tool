@@ -103,6 +103,16 @@ from .hunk_file_dialogs import open_blame_window
 from lib.app_window.helpers import add_open_with_system_default_action, is_editable_branch, _get_head_sha
 
 
+def _find_main_window(widget):
+    """Walk up the widget tree to find the main QMainWindow."""
+    w = widget
+    while w:
+        if isinstance(w, QMainWindow):
+            return w
+        w = w.parent()
+    return None
+
+
 class DiffViewerDialog(QDialog):
     """Base dialog for viewing diffs with centered buttons."""
     def __init__(self, title, sha, diff_text, font_size=10, parent=None):
@@ -584,7 +594,7 @@ class BranchDiffDialog(QDialog):
         menu.exec(self.filewise_file_list.mapToGlobal(pos))
 
     def browse_file_log(self, filepath):
-        main_win = self.parent() if isinstance(self.parent(), QMainWindow) else None
+        main_win = _find_main_window(self)
         if main_win and hasattr(main_win, 'open_file_log_for'):
             main_win.open_file_log_for(filepath)
 
@@ -1099,7 +1109,7 @@ class SingleCommitViewDialog(QDialog):
             QTimer.singleShot(0, lambda: main_win.perform_refine_changes(self.sha, filepath))
 
     def browse_file_log(self, filepath):
-        main_win = self.parent() if isinstance(self.parent(), QMainWindow) else None
+        main_win = _find_main_window(self)
         if main_win and hasattr(main_win, 'open_file_log_for'):
             main_win.open_file_log_for(filepath)
 
@@ -1344,7 +1354,7 @@ class FileWiseViewDialog(QDialog):
         menu.exec(self.file_list.mapToGlobal(pos))
 
     def browse_file_log(self, filepath):
-        main_win = self.parent() if isinstance(self.parent(), QMainWindow) else None
+        main_win = _find_main_window(self)
         if main_win and hasattr(main_win, 'open_file_log_for'):
             main_win.open_file_log_for(filepath)
 
