@@ -303,9 +303,6 @@ class DiffMixin:
                 # Folder node
                 item.setText(0, f"\U0001f4c1 {name}")
                 item.setData(0, Qt.UserRole + 10, {"type": "folder", "node": node})
-                font = item.font(0)
-                font.setBold(True)
-                item.setFont(0, font)
                 if node["added"] or node["deleted"]:
                     self._set_stats_column(item, node['added'], node['deleted'], added_color, removed_color)
                 if parent_item:
