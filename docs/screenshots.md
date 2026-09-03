@@ -78,9 +78,9 @@ This is the most useful way to launch: it shows **only your branch's changes**, 
 
 If detection fails, it falls back to displaying the **200 most recent commits from HEAD**. In this case, a **Load 100 more** button appears in the status bar and at the bottom of the commit list — click it to extend the view further back in history, 100 commits at a time, until the root commit is reached.
 
-**Screenshot:** `screenshots/head-commits.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/head-commits.webp`
 
-![Launch Options](screenshots/head-commits.webp)
+![Launch Options](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/head-commits.webp)
 
 **Description:** The screenshot above shows the application launched using `python3 git_interactive_rebase.py HEAD~N` (where `N` is the number of commits to show).
 
@@ -141,9 +141,9 @@ python3 git_interactive_rebase.py --version
 
 The main window displays your commit history in an interactive list with action controls.
 
-**Screenshot:** `screenshots/main-interface.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/main-interface.webp`
 
-![Main Interface](screenshots/main-interface.webp)
+![Main Interface](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/main-interface.webp)
 
 **Description:** The main window shows the commit list with SHA, message, and branch indicators. The details panel displays commit metadata (SHA, author, date, changed files). A **diff pane** is docked on the right side (marked in the screenshot above) — click any commit to view its diff there (added lines in green, removed lines in red, with line numbers), in either **Plain Diff** or **File-wise Diff** mode (see [10](#10-diff-viewer) and [11](#11-diff-pane)). The top toolbar includes search, the **Search Options** dropdown (Match Case / Whole Word / Display Only Matching), theme toggle, zoom controls, a **Repo** menu (View PR Diff, View a Commit, Cherry-pick 1 Commit, Browse Branch, Browse File Log, Browse Log of a Commit, Browse Reflog, Browse Stashes, Find Merge-base), and reset options.
 
@@ -166,9 +166,9 @@ The status bar also shows the commit count. Right-click any commit to access the
 
 Access all commit actions via right-click menu.
 
-**Screenshot:** `screenshots/context-menu.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/context-menu.webp`
 
-![Context Menu](screenshots/context-menu.webp)
+![Context Menu](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/context-menu.webp)
 
 **Description:** Right-click any commit to see the context menu with all available actions:
 
@@ -202,9 +202,9 @@ In the file-wise diff viewer and blame viewer, right-clicking a file also shows:
 
 The **Repo** button in the main window's toolbar groups the repository-wide tools in one menu.
 
-**Screenshot:** `screenshots/repo-menu.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/repo-menu.webp`
 
-![Repo Menu](screenshots/repo-menu.webp)
+![Repo Menu](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/repo-menu.webp)
 
 **Description:** Click **Repo** in the toolbar to open the menu. It offers:
 
@@ -226,9 +226,9 @@ The **Repo** button in the main window's toolbar groups the repository-wide tool
 
 The **Configure** button in the status bar controls which markers, columns, and panels are visible.
 
-**Screenshot:** `screenshots/configure-menu.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/configure-menu.webp`
 
-![Configure Menu](screenshots/configure-menu.webp)
+![Configure Menu](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/configure-menu.webp)
 
 **Description:** Click **Configure** in the status bar to open the menu. The **Show/Hide** submenu lets you toggle each item; the choices are remembered across sessions:
 
@@ -254,9 +254,9 @@ The menu also includes:
 
 The **Perform action on selected commits** menu lists the actions that can be applied to the commits checked in multi-select mode.
 
-**Screenshot:** `screenshots/multi-select-menu.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/multi-select-menu.webp`
 
-![Multi-Select Menu](screenshots/multi-select-menu.webp)
+![Multi-Select Menu](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/multi-select-menu.webp)
 
 **Description:** Enter multi-select mode with **Select multiple commits**, then open the **Perform action on selected commits** menu (next to the selection button). Each commit gets a tick box, and the menu offers the following actions based on how many commits are checked:
 
@@ -273,9 +273,9 @@ The actions are described in detail in [Multi-Select Actions](#15-multi-select-a
 
 Right-click a file in the **File-wise Diff** tab for per-file actions.
 
-**Screenshot:** `screenshots/file-wise-diff-viewer.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/file-wise-diff-viewer.webp`
 
-![File-Operations menu](screenshots/file-wise-diff-viewer.webp)
+![File-Operations menu](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/file-wise-diff-viewer.webp)
 
 **Description:** Right-click any file in the file-wise file list to open the context menu. The available actions depend on how the viewer was opened.
 
@@ -303,9 +303,9 @@ When the viewer was opened by SHA via **Repo → View a Commit…**, the commit 
 
 Quickly locate commits using live search and advanced filtering options.
 
-**Screenshot:** `screenshots/search-filter.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/search-filter.webp`
 
-![Search & Filter](screenshots/search-filter.webp)
+![Search & Filter](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/search-filter.webp)
 
 **Description:** Click the search bar or press `/` to focus it. Type to filter commits live. Matching commits are shown instantly as you type.
 
@@ -332,9 +332,9 @@ Press `Esc` to clear the search and return to the full commit history.
 
 Quickly search for text inside any displayed diff.
 
-**Screenshot:** `screenshots/diff-search.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/diff-search.webp`
 
-![Diff Search Bar](screenshots/diff-search.webp)
+![Diff Search Bar](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/diff-search.webp)
 
 **Description:** The diff search bar is a shared toolbar available in **every** diff view — the main window's **Plain Diff** / **File-wise Diff** / **Tree-wise Diff** tabs, the **View a Commit** viewer, **PR Diff / Unstaged Diff**, the **Split / Drop / Confirm** dialogs, and the **Commit Selectively** preview. It is visible by default; press `Ctrl+F` to focus it.
 
@@ -364,9 +364,9 @@ The commit diff can be viewed in three modes (tabs):
 
 Browse a commit's diff as a single combined view.
 
-**Screenshot:** `screenshots/plain-diff.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/plain-diff.webp`
 
-![Plain Diff](screenshots/plain-diff.webp)
+![Plain Diff](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/plain-diff.webp)
 
 **Description:** The **Plain Diff** tab shows the full commit diff in one scrollable, syntax-highlighted view with line numbers — useful for reviewing the complete change set at a glance.
 
@@ -407,9 +407,9 @@ A diff viewer is docked at the right side of the main window.
 ## 12. Rephrase Commit
 Update the commit message without changing the commit contents.
 
-**Screenshot:** `screenshots/rephrase-commit.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/rephrase-commit.webp`
 
-![Rephrase Commit](screenshots/rephrase-commit.webp)
+![Rephrase Commit](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/rephrase-commit.webp)
 
 **Description:** Right-click a commit and select "Rephrase" to open the rephrase dialog. Edit the commit message and click "Confirm" to apply the new message.
 
@@ -418,9 +418,9 @@ Update the commit message without changing the commit contents.
 ## 13. Drop Commit
 Remove a commit entirely from the history.
 
-**Screenshot:** `screenshots/drop-commit.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/drop-commit.webp`
 
-![Drop Commit](screenshots/drop-commit.webp)
+![Drop Commit](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/drop-commit.webp)
 
 **Description:** Right-click a commit and select "Drop" to see a confirmation dialog. Confirm to remove the commit from the history. This action is irreversible without resetting.
 
@@ -429,9 +429,9 @@ Remove a commit entirely from the history.
 ## 14. Reorder Commits
 Change commit order to organize history before rebasing.
 
-**Screenshot:** `screenshots/drag-reorder.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/drag-reorder.webp`
 
-![Reorder Commits](screenshots/drag-reorder.webp)
+![Reorder Commits](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/drag-reorder.webp)
 
 **Description:** Reorder commits using either drag-and-drop or quick move actions from the context menu.
 
@@ -474,13 +474,13 @@ Combine multiple commits into one.
 
 Squash a commit with its immediate neighbor (above or below).
 
-**Screenshot:** `screenshots/squash-context-menu.webp` (context menu)
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/squash-context-menu.webp` (context menu)
 
-![Squash Context Menu](screenshots/squash-context-menu.webp)
+![Squash Context Menu](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/squash-context-menu.webp)
 
-**Screenshot:** `screenshots/squash-dialogue.webp` (dialog)
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/squash-dialogue.webp` (dialog)
 
-![Squash Dialog](screenshots/squash-dialogue.webp)
+![Squash Dialog](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/squash-dialogue.webp)
 
 **Description:** Right-click a commit and select "Squash with above" or "Squash with below" to open the squash dialog. You can either select a commit message from one of the commits being squashed, or enter your own custom commit message. Click "Confirm" to apply.
 
@@ -488,9 +488,9 @@ Squash a commit with its immediate neighbor (above or below).
 
 Squash multiple adjacent commits at once.
 
-**Screenshot:** `screenshots/multi-squash.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/multi-squash.webp`
 
-![Multi Squash](screenshots/multi-squash.webp)
+![Multi Squash](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/multi-squash.webp)
 
 **Description:** In multi-select mode (see [Multi-Select Actions](#15-multi-select-actions)), select multiple adjacent commits by clicking on them, then choose **Squash selected commits** from the **Perform action on selected commits** menu (or use the context menu) to open the squash dialog. Edit the combined commit message in the dialog and click "Confirm" to apply.
 
@@ -499,37 +499,37 @@ Squash multiple adjacent commits at once.
 ## 17. Split Dialog
 Break a commit into multiple smaller commits by file or change.
 
-**Screenshot:** `screenshots/split-context-menu.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/split-context-menu.webp`
 
-![Split Context Menu](screenshots/split-context-menu.webp)
+![Split Context Menu](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/split-context-menu.webp)
 
 ### Option 1: Move single file changes out of a commit
 
 Move changes of a specific file to a separate commit (only for commits with multiple file changes).
 
-**Screenshot:** `screenshots/split-move-single-file-1.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/split-move-single-file-1.webp`
 
-![Split Move Single File 1](screenshots/split-move-single-file-1.webp)
+![Split Move Single File 1](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/split-move-single-file-1.webp)
 
-**Screenshot:** `screenshots/split-move-single-file-2.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/split-move-single-file-2.webp`
 
-![Split Move Single File 2](screenshots/split-move-single-file-2.webp)
+![Split Move Single File 2](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/split-move-single-file-2.webp)
 
 ### Option 2: Split each file changes to separate commits
 
 Available only in commits with multiple file changes. Creates one commit per changed file.
 
-**Screenshot:** `screenshots/split-each-to-separate.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/split-each-to-separate.webp`
 
-![Split Each to Separate](screenshots/split-each-to-separate.webp)
+![Split Each to Separate](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/split-each-to-separate.webp)
 
 ### Option 3: Split all changes in one file to separate commits
 
 Breaks all changes in a single file into individual commits per file change. Available only in commits with single file changes.
 
-**Screenshot:** `screenshots/split-all-to-separate.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/split-all-to-separate.webp`
 
-![Split All to Separate](screenshots/split-all-to-separate.webp)
+![Split All to Separate](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/split-all-to-separate.webp)
 
 ---
 
@@ -538,9 +538,9 @@ Selectively refine changes/hunks inside a file within a commit.
 
 This is useful when a file accidentally contains mixed changes such as feature work, debug code, documentation updates, or unrelated edits.
 
-**Screenshot:** `screenshots/refine-changes-in-file.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/refine-changes-in-file.webp`
 
-![Refine Changes in File](screenshots/refine-changes-in-file.webp)
+![Refine Changes in File](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/refine-changes-in-file.webp)
 
 **Description:** Select one or more hunks using the checkboxes. Use **Select All / Deselect All** to quickly adjust selection. Depending on the action chosen, selected or unselected hunks are retained, removed, or moved.
 
@@ -589,9 +589,9 @@ Useful when a change accidentally landed in the wrong commit. Move it out, reord
 
 Edit a selected hunk using a lightweight patch editor.
 
-**Screenshot:** `screenshots/edit-hunk.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/edit-hunk.webp`
 
-![Edit Hunk](screenshots/edit-hunk.webp)
+![Edit Hunk](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/edit-hunk.webp)
 
 **Description:** Right-click a hunk and choose **"Edit Hunk"** to manually modify the patch content before applying changes.
 
@@ -618,9 +618,9 @@ When unstaged changes are detected, the tool pauses and provides multiple safe o
 
 ### At Startup
 
-**Screenshot:** `screenshots/unstaged-changes-warning.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/unstaged-changes-warning.webp`
 
-![Unstaged Changes Handling](screenshots/unstaged-changes-warning.webp)
+![Unstaged Changes Handling](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/unstaged-changes-warning.webp)
 
 **Description:** If unstaged or uncommitted changes are detected during launch, the tool shows a warning dialog and provides multiple ways to safely proceed.
 
@@ -639,9 +639,9 @@ Available options include:
 
 ### During a Session: Rescan Repository
 
-**Screenshot:** `screenshots/rescan-repository.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/rescan-repository.webp`
 
-![Rescan Repository for Changes](screenshots/rescan-repository.webp)
+![Rescan Repository for Changes](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/rescan-repository.webp)
 
 **Description:** The application can remain open while you continue working in your editor or terminal. If new unstaged or uncommitted changes are introduced outside the tool, use **Rescan Repository** to re-evaluate the repository state.
 
@@ -664,9 +664,9 @@ This makes it easy to keep the application open throughout a development session
 
 Pick exactly which **files** — or even individual **hunks** — to commit, leaving the rest untouched for later. Ideal when your working tree holds a *mix* of unrelated changes.
 
-**Screenshot:** `screenshots/commit-selectively.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/commit-selectively.webp`
 
-![Commit Selectively](screenshots/commit-selectively.webp)
+![Commit Selectively](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/commit-selectively.webp)
 
 **Description:** Open **Commit Selectively** from the unstaged-changes dialog (at startup or via **Rescan Repository**). A dialog lists every modified file with a checkbox and its `+N -M` stats; the bottom pane shows the **combined diff** of the checked files (with a separator before each file). Use **Select All / Deselect All** and the live counter to adjust quickly. Then choose:
 
@@ -680,9 +680,9 @@ Unchecked files stay completely untouched, and cancelling at any point leaves th
 
 Stage *parts* of a file — perfect when one file contains mixed edits (feature code + debug prints, real change + formatting churn).
 
-**Screenshot:** `screenshots/git-add-p-hunks.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/git-add-p-hunks.webp`
 
-![Git Add -p Hunk Selection](screenshots/git-add-p-hunks.webp)
+![Git Add -p Hunk Selection](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/git-add-p-hunks.webp)
 
 **Description:** Click the orange **git add -p** button. Every hunk of the checked files is listed, **grouped under a per-file header**, each with its own checkbox showing the `Change N` label, diff header, line count, and syntax-coloured body. Then finish with:
 
@@ -702,9 +702,9 @@ Cancelling at any point stages nothing, and a failed staging/commit resets the i
 ## 20. Reset Options
 Fail-safe options to reset your branch to a safe state.
 
-**Screenshot:** `screenshots/reset-options.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/reset-options.webp`
 
-![Reset Options](screenshots/reset-options.webp)
+![Reset Options](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/reset-options.webp)
 
 **Description:** Use the "Reset" menu to access fail-safe options:
 
@@ -719,9 +719,9 @@ Right-click a commit and select **"Reset HEAD to here (keep changes unstaged)"**
 ## 21. Rebase Options
 Rebase your commits onto a different branch.
 
-**Screenshot:** `screenshots/rebase-options.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/rebase-options.webp`
 
-![Rebase Options](screenshots/rebase-options.webp)
+![Rebase Options](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/rebase-options.webp)
 
 **Description:** Click "Rebase" to open the rebase dialog. Choose to rebase onto:
 
@@ -738,9 +738,9 @@ The Rebase button can be hidden or shown via **Configure → Show/Hide → Show 
 ## 22. Browse Branch
 Open any other branch's history in a separate read-only window.
 
-**Screenshot:** `screenshots/browse-branch.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/browse-branch.webp`
 
-![Browse Branch](screenshots/browse-branch.webp)
+![Browse Branch](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/browse-branch.webp)
 
 **Description:** Use **Repo → Browse Branch** and choose a branch (and how many commits to show). The branch history opens in a non-modal, read-only window — styled with a dimmed grey "viewer" overlay so you always know it is read-only and distinct from the main window. You can:
 
@@ -764,9 +764,9 @@ Click **Select commits** to enter checkbox selection mode, then tick the commits
 ## 23. Browse File Log
 View the complete history of a single file.
 
-**Screenshot:** `screenshots/browse-file-log.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/browse-file-log.webp`
 
-![Browse File Log](screenshots/browse-file-log.webp)
+![Browse File Log](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/browse-file-log.webp)
 
 **Description:** Use **Repo → Browse File Log**, or right-click a file in the file-wise diff viewer and choose **Browse file log**. A read-only window opens showing the history of that file (following renames via `git log --follow`), with the diff pane scoped to that file. Like Browse Branch, it uses a dimmed grey "viewer" overlay to distinguish it from the main window. Copy SHA / message to the clipboard directly from this window.
 
@@ -775,9 +775,9 @@ View the complete history of a single file.
 ## 24. Browse Log of a Commit
 Open a read-only history window for any commit.
 
-**Screenshot:** `screenshots/browse-commit-log.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/browse-commit-log.webp`
 
-![Browse Log of a Commit](screenshots/browse-commit-log.webp)
+![Browse Log of a Commit](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/browse-commit-log.webp)
 
 **Description:** Use **Repo → Browse Log of a Commit**, enter a commit SHA (or ref like `HEAD` or a branch name), and choose how many of the most recent commits to show. The commit is validated before opening, and its history opens in a read-only window (same style as Browse Branch / Browse File Log). Copy SHA / message to the clipboard directly from this window.
 
@@ -786,9 +786,9 @@ Open a read-only history window for any commit.
 ## 25. Browse Reflog
 Open a read-only window of the repository's HEAD reflog.
 
-**Screenshot:** `screenshots/browse-reflog.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/browse-reflog.webp`
 
-![Browse Reflog](screenshots/browse-reflog.webp)
+![Browse Reflog](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/browse-reflog.webp)
 
 **Description:** Use **Repo → Browse Reflog** to open a read-only window listing the most recent reflog entries (newest first, up to 50 by default). Each row shows the commit SHA, the reflog selector (`HEAD@{0}`, `HEAD@{1}`, …) and the reflog subject. Added/deleted stats are not shown (reflog entries don't carry that data). The diff pane is hidden in this window. Actions:
 
@@ -803,9 +803,9 @@ Right-click an entry for **Show log** / **Copy SHA to clipboard**.
 ## 26. Browse Stashes
 Open a read-only window of the repository's stash list.
 
-**Screenshot:** `screenshots/browse-stash.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/browse-stash.webp`
 
-![Browse Stashes](screenshots/browse-stash.webp)
+![Browse Stashes](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/browse-stash.webp)
 
 **Description:** Use **Repo → Browse Stashes** to open a read-only window listing the repository's stashes (newest first). Each row shows the stash SHA, the selector (`stash@{0}`, `stash@{1}`, …) and the stash subject. Unlike the reflog browser, the **diff pane is always visible** here, with both **Plain Diff** and **File-wise Diff** tabs (stashes are diffed against their base commit). The list refreshes automatically after any stash operation.
 
@@ -823,9 +823,9 @@ If an apply fails, the stash is **never dropped** and you are told so explicitly
 ## 27. PR Diff / PR Preview
 Preview the combined diff of your current branch against its merge-base.
 
-**Screenshot:** `screenshots/pr-diff.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/pr-diff.webp`
 
-![PR Diff / PR Preview](screenshots/pr-diff.webp)
+![PR Diff / PR Preview](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/pr-diff.webp)
 
 **Description:** Use **Repo → View PR Diff** to open a read-only **PR Preview** showing the combined branch diff versus its merge-base — the same view a reviewer would see in a pull request.
 
@@ -836,9 +836,9 @@ When the tool is launched **without** a commit argument, it auto-detects your br
 ## 28. Consolidated Diff
 Diff any range of history in one combined view.
 
-**Screenshot:** `screenshots/consolidated-diff.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/consolidated-diff.webp`
 
-![Consolidated Diff](screenshots/consolidated-diff.webp)
+![Consolidated Diff](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/consolidated-diff.webp)
 
 **Description:** Use the **Consolidated Diff** context submenu on any commit:
 
@@ -855,9 +855,9 @@ The result opens in a read-only combined view. You can also set the start commit
 ## 29. Find Merge-base
 Compute the merge-base between your current branch and any other branch.
 
-**Screenshot:** `screenshots/find-merge-base.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/find-merge-base.webp`
 
-![Find Merge-base](screenshots/find-merge-base.webp)
+![Find Merge-base](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/find-merge-base.webp)
 
 **Description:** Use **Repo → Find Merge-base…**, pick another branch, and the tool shows the merge-base commit. Copy the SHA to the clipboard with one click.
 
@@ -903,9 +903,9 @@ Save any commit as a patch file from the context menu.
 ## 33. Viewer Mode
 Run the tool as a read-only browser.
 
-**Screenshot:** `screenshots/viewer-mode.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/viewer-mode.webp`
 
-![Viewer Mode](screenshots/viewer-mode.webp)
+![Viewer Mode](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/viewer-mode.webp)
 
 **Description:** Launch with `--viewer-mode` to disable all history-modifying operations (rebase, squash, rephrase, split, cherry-pick, reset, etc.). The tool highlights the **Exit Viewer Mode** button and shows a notice when entering Viewer Mode; press it to re-enable editing operations without restarting. Viewer windows (Browse Branch, Browse File Log, Browse Log of a Commit, Browse Reflog, Browse Stashes, PR Preview) open in Viewer Mode automatically.
 
@@ -916,9 +916,9 @@ Toggle between light and dark themes for comfortable viewing.
 
 > **Note:** Most screenshots in this documentation use the **light theme (default)**.
 
-**Screenshot:** `screenshots/dark-theme.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/dark-theme.webp`
 
-![Dark Theme](screenshots/dark-theme.webp)
+![Dark Theme](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/dark-theme.webp)
 
 **Description:** Switch between light and dark themes to suit your preference. The light theme (default) provides a clean, high-contrast interface for daytime use, while the dark theme features a VS Code-inspired charcoal palette that is easy on the eyes during extended sessions. Click the theme toggle (sun/moon icon) to switch. Theme preference is automatically saved across sessions.
 
@@ -934,9 +934,9 @@ Adjust the font size for better readability.
 ## 36. Mark / Unmark Commit
 Mark commits for easy identification.
 
-**Screenshot:** `screenshots/mark-commits.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/mark-commits.webp`
 
-![Mark / Unmark Commit](screenshots/mark-commits.webp)
+![Mark / Unmark Commit](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/mark-commits.webp)
 
 **Description:** Right-click any commit and select "Mark / Unmark commit" to toggle a mark. Marked commits display with a distinct background color for easy identification. This helps you keep track of important commits like releases, milestones, or commits that need further attention. Right-click again to unmark.
 
@@ -956,9 +956,9 @@ Display local and remote branch names alongside commits.
 ## 38. Copy to Clipboard
 Quickly copy commit details for sharing, debugging, or reference.
 
-**Screenshot:** `screenshots/copy-commit-details.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/copy-commit-details.webp`
 
-![Copy to Clipboard](screenshots/copy-commit-details.webp)
+![Copy to Clipboard](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/copy-commit-details.webp)
 
 **Description:** Right-click any commit and select one of the following options:
 
@@ -972,9 +972,9 @@ A brief **"Copied!"** notification appears to confirm the action.
 
 ## 39. Update the Tool
 
-**Screenshot:** `screenshots/update-available-dialog.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/update-available-dialog.webp`
 
-![Update the Tool](screenshots/update-available-dialog.webp)
+![Update the Tool](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/update-available-dialog.webp)
 
 **Description:** When a newer version is available on GitHub, the app tells you about it (via **Configure → Check for updates**). The dialog offers:
 
@@ -994,9 +994,9 @@ When running from a cloned repository, press **Ctrl+Shift+F5** after updating to
 
 ## 40. Tag Commit
 
-**Screenshot:** `screenshots/tag-commit.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/tag-commit.webp`
 
-![Tag Commit](screenshots/tag-commit.webp)
+![Tag Commit](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/tag-commit.webp)
 
 **Description:** Right-click a commit and select **Tag** to open the tagging dialog. Enter a tag name, optionally tick **Annotate** to create an annotated tag with a message, and click **Create Tag**. The new tag appears in the commit list when **Show Tags** is enabled (see [Configure Menu](#5-configure-menu)). Both lightweight and annotated tags are supported.
 
@@ -1008,9 +1008,9 @@ Use **Browse Tags** (Repo menu) to see all tags in the repository (see [Browse T
 
 Open a per-line blame viewer for any file in a commit, with search, filtering, and commit inspection.
 
-**Screenshot:** `screenshots/blame-a-file.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/blame-a-file.webp`
 
-![Blame a file](screenshots/blame-a-file.webp)
+![Blame a file](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/blame-a-file.webp)
 
 **Description:** Right-click a file in the **File-wise Diff** tab (or any file list context menu) and select **Blame file** to open a read-only blame viewer styled with a dimmed grey overlay (matching the other browse windows). The viewer shows a table with columns:
 
@@ -1033,9 +1033,9 @@ The bottom bar also includes **Always On Top**, **Show Author / Date / Subject**
 
 ## 42. Browse Tags
 
-**Screenshot:** `screenshots/browse-tags.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/browse-tags.webp`
 
-![Browse Tags](screenshots/browse-tags.webp)
+![Browse Tags](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/browse-tags.webp)
 
 **Description:** Open **Browse Tags** from the **Repo** menu to view all tags in the repository. The window shows a table with columns:
 
@@ -1050,9 +1050,9 @@ Right-click a tag to open its commit log or copy details. Double-click a tag to 
 
 ## 43. External Tools Dialog
 
-**Screenshot:** `screenshots/external-tools-dialog.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/external-tools-dialog.webp`
 
-![External Tools Dialog](screenshots/external-tools-dialog.webp)
+![External Tools Dialog](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/external-tools-dialog.webp)
 
 **Description:** Open **External tools integration** from the **Configure** menu to configure external diff tool integration. The dialog is organized with a **Diff tool** group box containing three modes:
 
