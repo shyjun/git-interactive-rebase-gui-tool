@@ -361,7 +361,7 @@ def main():
         viewer_mode=args.viewer_mode or bool(browse_branch or browse_file or browse_tag_name),
         browse_branch=browse_branch or browse_tag_name,
         browse_file=browse_file,
-        browse_file_ref=browse_tag_name if browse_tag_name else None,
+        browse_file_ref=(browse_tag_name or browse_branch) if browse_file else None,
         browse_tag=bool(browse_tag_name),
         cli_mode=bool(browse_branch or browse_tag_name),
         auto_detect_base=detect_base,
