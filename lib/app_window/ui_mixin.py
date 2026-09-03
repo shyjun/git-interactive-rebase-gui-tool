@@ -272,7 +272,8 @@ class UIMixin:
 
         treewise_layout.addWidget(self.treewise_splitter)
         self.treewise_widget = treewise_widget
-        self.diff_tab_widget.addTab(treewise_widget, "Tree-wise Diff")
+        if not self.browse_file:
+            self.diff_tab_widget.addTab(treewise_widget, "Tree-wise Diff")
 
         self.right_splitter.addWidget(self.diff_tab_widget)
 
