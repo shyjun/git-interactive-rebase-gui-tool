@@ -677,7 +677,46 @@ class StageFilesDialog(QDialog):
                 if list_item.text() == filepath:
                     list_item.setCheckState(Qt.Checked if checked else Qt.Unchecked)
                     break
+            # Update parent folder check state
+            parent = item.parent()
+            if parent:
+                self._update_folder_check_state(parent)
         self._update_counter()
+
+    def _update_folder_check_state(self, folder_item):
+        """Update folder checkbox based on children check states."""
+        if folder_item.childCount() == 0:
+            return
+        all_checked = True
+        has_checked = False
+        for i in range(folder_item.childCount()):
+            child = folder_item.child(i)
+            child_data = child.data(0, Qt.UserRole + 10)
+            if child_data and child_data["type"] == "folder":
+                # Recursively update sub-folder first
+                self._update_folder_check_state(child)
+                if child.checkState(0) == Qt.Checked:
+                    has_checked = True
+                else:
+                    all_checked = False
+            else:
+                if child.checkState(0) == Qt.Checked:
+                    has_checked = True
+                else:
+                    all_checked = False
+        # Update this folder's state
+        self.treewise_tree.blockSignals(True)
+        if all_checked:
+            folder_item.setCheckState(0, Qt.Checked)
+        elif has_checked:
+            folder_item.setCheckState(0, Qt.PartiallyChecked)
+        else:
+            folder_item.setCheckState(0, Qt.Unchecked)
+        self.treewise_tree.blockSignals(False)
+        # Update parent of this folder
+        parent = folder_item.parent()
+        if parent:
+            self._update_folder_check_state(parent)
 
     def _set_tree_children_checked(self, item, checked):
         """Recursively set check state for all children."""
