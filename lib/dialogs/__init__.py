@@ -53,7 +53,7 @@ from .hunk_file_dialogs import (
     UnstagedChangesDialog,
 )
 
-from .unstaged_dialogs import StageFilesDialog
+from .unstaged_dialogs import StageFilesDialog, StagedChangesDialog
 
 from .configure_dialogs import (
     ConfigureDiffToolDialog,
