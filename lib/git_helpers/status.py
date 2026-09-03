@@ -27,6 +27,18 @@ def unstage_all(repo_path):
         return False
 
 
+def discard_staged(repo_path):
+    """Discard all staged changes (git checkout -- .). Returns True on success."""
+    try:
+        subprocess.run(["git", "checkout", "--", "."], cwd=repo_path,
+                       check=True, capture_output=True)
+        return True
+    except subprocess.CalledProcessError as exc:
+        err = exc.stderr.decode('utf-8') if exc.stderr else str(exc)
+        print(f"[git_helpers] discard_staged: git checkout -- . failed: {err}")
+        return False
+
+
 def has_uncommitted_changes(repo_path):
     """Returns True if there are uncommitted changes in the repository."""
     try:
