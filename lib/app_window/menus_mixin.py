@@ -193,6 +193,15 @@ class MenusMixin:
         stage_files_action.setToolTip("Select unstaged files to stage (git add).")
         stage_files_action.triggered.connect(lambda *_: self.handle_stage_files())
 
+        # Handle Staged Changes submenu
+        staged_changes_menu = menu.addMenu("Handle Staged Changes")
+        staged_changes_menu.setToolTip("Actions for staged changes.")
+
+        commit_staged_action = QAction("Commit Staged Changes…", self)
+        commit_staged_action.setToolTip("Commit all currently staged changes.")
+        commit_staged_action.triggered.connect(lambda *_: self.handle_commit_staged())
+        staged_changes_menu.addAction(commit_staged_action)
+
         browse_action = QAction("Browse Branch", self)
         browse_action.setToolTip("Open a read-only viewer of another branch's full history.")
         browse_action.triggered.connect(lambda *_: self.handle_browse_branch())
