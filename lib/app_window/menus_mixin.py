@@ -202,6 +202,11 @@ class MenusMixin:
         commit_staged_action.triggered.connect(lambda *_: self.handle_commit_staged())
         staged_changes_menu.addAction(commit_staged_action)
 
+        unstage_all_action = QAction("Unstage All", self)
+        unstage_all_action.setToolTip("Unstage all staged changes (git reset HEAD).")
+        unstage_all_action.triggered.connect(lambda *_: self.handle_unstage_all())
+        staged_changes_menu.addAction(unstage_all_action)
+
         browse_action = QAction("Browse Branch", self)
         browse_action.setToolTip("Open a read-only viewer of another branch's full history.")
         browse_action.triggered.connect(lambda *_: self.handle_browse_branch())

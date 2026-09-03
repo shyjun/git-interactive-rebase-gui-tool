@@ -394,6 +394,27 @@ class StashMixin:
         else:
             QMessageBox.critical(self, "Commit Failed", "Failed to commit staged changes.")
 
+    def handle_unstage_all(self):
+        """Unstage all staged changes (git reset HEAD)."""
+        from lib.git_helpers.status import get_staged_files
+        staged = get_staged_files(self.repo_path)
+        if not staged:
+            QMessageBox.information(self, "No Staged Changes", "There are no staged changes to unstage.")
+            return
+        reply = QMessageBox.question(
+            self, "Unstage All",
+            f"Unstage all {len(staged)} staged file(s)?",
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No
+        )
+        if reply != QMessageBox.Yes:
+            return
+        from lib.git_helpers.status import unstage_all
+        if unstage_all(self.repo_path):
+            self.load_history()
+            QMessageBox.information(self, "Unstaged", f"Unstaged {len(staged)} file(s).")
+        else:
+            QMessageBox.critical(self, "Unstage Failed", "Failed to unstage changes.")
+
     def handle_stage_files(self):
         """Open a dialog to select unstaged/untracked files to stage (git add)."""
         unstaged_files = get_unstaged_files(self.repo_path, ignore_submodules=True)
