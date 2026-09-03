@@ -89,6 +89,7 @@ from .stash import (
 from .status import (
     get_staged_files,
     unstage_all,
+    unstage_files,
     discard_staged,
     has_uncommitted_changes,
     cherry_pick_in_progress,
