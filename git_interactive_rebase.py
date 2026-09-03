@@ -455,4 +455,20 @@ def main():
     sys.exit(exit_code)
 
 if __name__ == "__main__":
+    import platform
+    # Auto-background: detach from terminal so it returns immediately.
+    # Skip for --update/--version (need terminal output) and when already backgrounded.
+    if platform.system() != "Windows" and "--update" not in sys.argv and "--version" not in sys.argv:
+        if sys.stdout and sys.stdout.isatty():
+            pid = os.fork()
+            if pid > 0:
+                # Parent exits immediately — terminal is free.
+                print(f"Tool started in background (PID {pid})")
+                sys.exit(0)
+            # Child continues: new session, close stdin
+            os.setsid()
+            try:
+                sys.stdin = open(os.devnull, "r")
+            except Exception:
+                pass
     main()
