@@ -463,17 +463,29 @@ if __name__ == "__main__":
     import platform
     # Auto-background: detach from terminal so it returns immediately.
     # Skip for --update/--version (need terminal output) and when already backgrounded.
-    if platform.system() != "Windows" and "--update" not in sys.argv and "--version" not in sys.argv:
+    if "--update" not in sys.argv and "--version" not in sys.argv:
         if sys.stdout and sys.stdout.isatty():
-            pid = os.fork()
-            if pid > 0:
-                # Parent exits immediately — terminal is free.
-                print(f"Tool started in background (PID {pid})")
+            if platform.system() == "Windows":
+                import subprocess
+                # Re-launch detached on Windows (no os.fork)
+                flags = subprocess.CREATE_NO_WINDOW | subprocess.DETACHED_PROCESS
+                proc = subprocess.Popen(
+                    [sys.executable] + sys.argv,
+                    creationflags=flags,
+                    stdout=open(os.devnull, "w"),
+                    stderr=subprocess.STDOUT,
+                    stdin=open(os.devnull, "r"),
+                )
+                print(f"Tool started in background (PID {proc.pid})")
                 sys.exit(0)
-            # Child continues: new session, close stdin
-            os.setsid()
-            try:
-                sys.stdin = open(os.devnull, "r")
-            except Exception:
-                pass
+            else:
+                pid = os.fork()
+                if pid > 0:
+                    print(f"Tool started in background (PID {pid})")
+                    sys.exit(0)
+                os.setsid()
+                try:
+                    sys.stdin = open(os.devnull, "r")
+                except Exception:
+                    pass
     main()
