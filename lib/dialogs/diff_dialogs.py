@@ -445,12 +445,14 @@ class BranchDiffDialog(QDialog):
             return
         entries = [('M', f, '') for f in files]
         tree = build_file_tree(entries, file_stats)
-        self._add_tree_children(None, tree["children"])
+        added_color = self.colors.get("added", "#22863a")
+        removed_color = self.colors.get("removed", "#cb2431")
+        self._add_tree_children(None, tree["children"], added_color, removed_color)
         self.treewise_tree.blockSignals(False)
         for i in range(self.treewise_tree.topLevelItemCount()):
             self.treewise_tree.topLevelItem(i).setExpanded(True)
 
-    def _add_tree_children(self, parent_item, children_dict):
+    def _add_tree_children(self, parent_item, children_dict, added_color="#22863a", removed_color="#cb2431"):
         """Recursively add folder/file nodes to the QTreeWidget."""
         folders = sorted(((k, v) for k, v in children_dict.items() if v["children"]),
                          key=lambda x: x[0].lower())
@@ -459,26 +461,24 @@ class BranchDiffDialog(QDialog):
         for name, node in folders + files:
             item = QTreeWidgetItem()
             if node["children"]:
-                display = f"\U0001f4c1 {name}"
-                if node["added"] or node["deleted"]:
-                    display += f"  (+{node['added']} / -{node['deleted']})"
-                item.setText(0, display)
+                item.setText(0, f"\U0001f4c1 {name}")
                 item.setData(0, Qt.UserRole + 10, {"type": "folder", "node": node})
-                font = item.font(0)
-                font.setBold(True)
-                item.setFont(0, font)
+                if node["added"] or node["deleted"]:
+                    item.setText(1, f"+{node['added']} / -{node['deleted']}")
+                    item.setTextAlignment(1, Qt.AlignRight | Qt.AlignVCenter)
                 if parent_item:
                     parent_item.addChild(item)
                 else:
                     self.treewise_tree.addTopLevelItem(item)
-                self._add_tree_children(item, node["children"])
+                self._add_tree_children(item, node["children"], added_color, removed_color)
             else:
                 entry = node["entries"][0] if node["entries"] else None
-                display = name
+                filepath = entry[1] if entry else name
+                item.setText(0, name)
+                item.setData(0, Qt.UserRole + 10, {"type": "file", "entry": entry, "filepath": filepath})
                 if node["added"] or node["deleted"]:
-                    display += f"  (+{node['added']} / -{node['deleted']})"
-                item.setText(0, display)
-                item.setData(0, Qt.UserRole + 10, {"type": "file", "entry": entry, "filepath": name})
+                    item.setText(1, f"+{node['added']} / -{node['deleted']}")
+                    item.setTextAlignment(1, Qt.AlignRight | Qt.AlignVCenter)
                 if parent_item:
                     parent_item.addChild(item)
                 else:
@@ -1173,6 +1173,41 @@ class UnstagedDiffDialog(BranchDiffDialog):
             self.filewise_diff_search._perform_search()
         except Exception as e:
             self.filewise_diff_view.setPlainText(f"Error loading diff: {e}")
+
+    def on_treewise_item_clicked(self, item, column):
+        """Handle click on tree-wise item for unstaged changes."""
+        item_data = item.data(0, Qt.UserRole + 10)
+        if not item_data:
+            return
+        try:
+            if item_data["type"] == "file":
+                filepath = item_data.get("filepath", "")
+                if filepath:
+                    diff = get_unstaged_file_diff(self.repo_path, filepath)
+                    self.treewise_diff_view.setPlainText(diff)
+            else:
+                diffs = []
+                self._collect_folder_diffs_unstaged(item_data["node"], diffs)
+                self.treewise_diff_view.setPlainText("\n".join(diffs))
+            self.treewise_diff_view.set_separator_color(self.colors.get("separator", "#444444"))
+            self.treewise_diff_search._perform_search()
+        except Exception as e:
+            self.treewise_diff_view.setPlainText(f"Error loading diff: {e}")
+
+    def _collect_folder_diffs_unstaged(self, node, diffs):
+        """Recursively collect unstaged diffs for all leaf files under a folder node."""
+        for child in node["children"].values():
+            if child["children"]:
+                self._collect_folder_diffs_unstaged(child, diffs)
+            else:
+                for entry in child["entries"]:
+                    try:
+                        filepath = entry[1] if entry else ""
+                        if filepath:
+                            diff = get_unstaged_file_diff(self.repo_path, filepath)
+                            diffs.append(diff)
+                    except Exception:
+                        pass
 
 
 class FileWiseViewDialog(QDialog):
