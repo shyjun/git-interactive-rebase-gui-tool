@@ -493,11 +493,15 @@ class StashMixin:
         if not staged:
             QMessageBox.information(self, "No Staged Changes", "There are no staged changes to amend.")
             return
+        from lib.git_helpers import get_head_sha, get_full_commit_message
+        head_sha = get_head_sha(self.repo_path)
+        default_msg = get_full_commit_message(self.repo_path, head_sha) if head_sha else ""
         from lib.dialogs.commit_message_dialogs import NewCommitMessageDialog
         dlg = NewCommitMessageDialog(
             "Amend Last Commit",
             f"Amending {len(staged)} staged file(s) into the last commit.\n"
-            "Leave the message unchanged to keep the original commit message.",
+            "Edit the message below or keep it unchanged to preserve the original.",
+            default_message=default_msg,
             font_size=self.current_font_size,
             parent=self,
         )
