@@ -367,7 +367,7 @@ class StashMixin:
         )
 
     def handle_staged_changes(self):
-        """Open dialog to handle staged changes."""
+        """Open dialog to handle staged changes. Dialog stays open until Close."""
         from lib.git_helpers.status import get_staged_files
         staged = get_staged_files(self.repo_path)
         if not staged:
@@ -375,21 +375,39 @@ class StashMixin:
             return
         from lib.dialogs import StagedChangesDialog
         dlg = StagedChangesDialog(
-            self.repo_path, staged, parent=self, font_size=self.current_font_size
+            self.repo_path, parent=self, font_size=self.current_font_size
         )
-        result = dlg.exec()
-        if result == StagedChangesDialog.CommitResult:
-            self.handle_commit_staged(staged)
-        elif result == StagedChangesDialog.UnstageAllResult:
-            self.handle_unstage_all(staged)
-        elif result == StagedChangesDialog.ViewDiffResult:
-            self.handle_view_staged_diff(staged)
-        elif result == StagedChangesDialog.DiscardResult:
-            self.handle_discard_staged(staged)
-        elif result == StagedChangesDialog.AmendResult:
-            self.handle_amend_staged(staged)
-        elif result == StagedChangesDialog.StashResult:
-            self.handle_stash_staged()
+        dlg.commit_btn.clicked.connect(lambda: self._staged_action_commit(dlg))
+        dlg.unstage_all_btn.clicked.connect(lambda: self._staged_action_unstage(dlg))
+        dlg.view_diff_btn.clicked.connect(lambda: self._staged_action_view_diff(dlg))
+        dlg.discard_btn.clicked.connect(lambda: self._staged_action_discard(dlg))
+        dlg.amend_btn.clicked.connect(lambda: self._staged_action_amend(dlg))
+        dlg.stash_btn.clicked.connect(lambda: self._staged_action_stash(dlg))
+        dlg.exec()
+        self.load_history()
+
+    def _staged_action_commit(self, dlg):
+        self.handle_commit_staged(dlg.staged_files)
+        dlg._refresh_staged_files()
+
+    def _staged_action_unstage(self, dlg):
+        self.handle_unstage_all(dlg.staged_files)
+        dlg._refresh_staged_files()
+
+    def _staged_action_view_diff(self, dlg):
+        self.handle_view_staged_diff(dlg.staged_files)
+
+    def _staged_action_discard(self, dlg):
+        self.handle_discard_staged(dlg.staged_files)
+        dlg._refresh_staged_files()
+
+    def _staged_action_amend(self, dlg):
+        self.handle_amend_staged(dlg.staged_files)
+        dlg._refresh_staged_files()
+
+    def _staged_action_stash(self, dlg):
+        self.handle_stash_staged()
+        dlg._refresh_staged_files()
 
     def handle_commit_staged(self, staged=None):
         """Commit all currently staged changes."""

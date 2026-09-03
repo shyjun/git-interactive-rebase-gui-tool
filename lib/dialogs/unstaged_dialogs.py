@@ -760,18 +760,11 @@ class StageFilesDialog(QDialog):
 
 
 class StagedChangesDialog(QDialog):
-    """Dialog for handling staged changes with various options."""
-    CommitResult = 1
-    UnstageAllResult = 2
-    ViewDiffResult = 3
-    DiscardResult = 4
-    AmendResult = 5
-    StashResult = 6
+    """Dialog for handling staged changes with various options. Stays open until Close."""
 
-    def __init__(self, repo_path, staged_files, parent=None, font_size=None):
+    def __init__(self, repo_path, parent=None, font_size=None):
         super().__init__(parent)
         self.repo_path = repo_path
-        self.staged_files = staged_files
         if font_size is None:
             font_size = int(QSettings("shyjun", "GitInteractiveRebase").value("font_size", 10))
         self.font_size = font_size
@@ -783,14 +776,10 @@ class StagedChangesDialog(QDialog):
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(20)
 
-        message = (
-            f"<b>You have {len(staged_files)} staged file(s).</b><br><br>"
-            "Choose an action to perform on the staged changes."
-        )
-        self.label = QLabel(message)
-        self.label.setWordWrap(True)
-        self.label.setStyleSheet("font-size: 13px; font-weight: normal;")
-        layout.addWidget(self.label)
+        self.header_label = QLabel()
+        self.header_label.setWordWrap(True)
+        self.header_label.setStyleSheet("font-size: 13px; font-weight: normal;")
+        layout.addWidget(self.header_label)
 
         btn_layout = QVBoxLayout()
         btn_layout.setSpacing(10)
@@ -820,13 +809,7 @@ class StagedChangesDialog(QDialog):
                     self.discard_btn, self.amend_btn, self.stash_btn, self.close_btn]:
             btn.setMinimumHeight(35)
 
-        self.commit_btn.clicked.connect(lambda: self.done(self.CommitResult))
-        self.unstage_all_btn.clicked.connect(lambda: self.done(self.UnstageAllResult))
-        self.view_diff_btn.clicked.connect(lambda: self.done(self.ViewDiffResult))
-        self.discard_btn.clicked.connect(lambda: self.done(self.DiscardResult))
-        self.amend_btn.clicked.connect(lambda: self.done(self.AmendResult))
-        self.stash_btn.clicked.connect(lambda: self.done(self.StashResult))
-        self.close_btn.clicked.connect(self.reject)
+        self.close_btn.clicked.connect(self.accept)
 
         btn_layout.addWidget(self.commit_btn)
         btn_layout.addWidget(self.unstage_all_btn)
@@ -837,3 +820,22 @@ class StagedChangesDialog(QDialog):
         btn_layout.addWidget(self.close_btn)
 
         layout.addLayout(btn_layout)
+
+        self._refresh_staged_files()
+
+    def _refresh_staged_files(self):
+        """Refresh the staged files list and update header."""
+        from lib.git_helpers.status import get_staged_files
+        self.staged_files = get_staged_files(self.repo_path)
+        n = len(self.staged_files)
+        self.header_label.setText(
+            f"<b>You have {n} staged file(s).</b><br><br>"
+            "Choose an action to perform on the staged changes."
+        )
+        has_files = n > 0
+        self.commit_btn.setEnabled(has_files)
+        self.unstage_all_btn.setEnabled(has_files)
+        self.view_diff_btn.setEnabled(has_files)
+        self.discard_btn.setEnabled(has_files)
+        self.amend_btn.setEnabled(has_files)
+        self.stash_btn.setEnabled(has_files)
