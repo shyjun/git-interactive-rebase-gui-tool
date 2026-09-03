@@ -212,6 +212,11 @@ class MenusMixin:
         view_staged_diff_action.triggered.connect(lambda *_: self.handle_view_staged_diff())
         staged_changes_menu.addAction(view_staged_diff_action)
 
+        discard_staged_action = QAction("Discard Staged Changes", self)
+        discard_staged_action.setToolTip("Discard all staged changes (destructive!).")
+        discard_staged_action.triggered.connect(lambda *_: self.handle_discard_staged())
+        staged_changes_menu.addAction(discard_staged_action)
+
         browse_action = QAction("Browse Branch", self)
         browse_action.setToolTip("Open a read-only viewer of another branch's full history.")
         browse_action.triggered.connect(lambda *_: self.handle_browse_branch())

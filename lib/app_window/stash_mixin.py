@@ -434,6 +434,28 @@ class StashMixin:
         )
         dlg.exec()
 
+    def handle_discard_staged(self):
+        """Discard all staged changes (destructive!)."""
+        from lib.git_helpers.status import get_staged_files
+        staged = get_staged_files(self.repo_path)
+        if not staged:
+            QMessageBox.information(self, "No Staged Changes", "There are no staged changes to discard.")
+            return
+        reply = QMessageBox.warning(
+            self, "Discard Staged Changes",
+            f"This will permanently discard all staged changes ({len(staged)} file(s)).\n\n"
+            "This action cannot be undone. Continue?",
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No
+        )
+        if reply != QMessageBox.Yes:
+            return
+        from lib.git_helpers.status import discard_staged
+        if discard_staged(self.repo_path):
+            self.load_history()
+            QMessageBox.information(self, "Discarded", f"Discarded {len(staged)} staged file(s).")
+        else:
+            QMessageBox.critical(self, "Discard Failed", "Failed to discard staged changes.")
+
     def handle_stage_files(self):
         """Open a dialog to select unstaged/untracked files to stage (git add)."""
         unstaged_files = get_unstaged_files(self.repo_path, ignore_submodules=True)
