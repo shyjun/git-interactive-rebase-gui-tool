@@ -483,6 +483,19 @@ class StashMixin:
         else:
             QMessageBox.critical(self, "Amend Failed", "Failed to amend last commit.")
 
+    def handle_stash_staged(self):
+        """Stash all changes (staged and unstaged)."""
+        from lib.git_helpers import stash_changes, STASH_NOTHING_STASHED
+        stash_sha, err = stash_changes(self.repo_path, message=None)
+        if stash_sha is None:
+            QMessageBox.critical(self, "Stash Failed", f"Failed to stash changes:\n{err}")
+            return
+        if stash_sha == STASH_NOTHING_STASHED:
+            QMessageBox.information(self, "Nothing to Stash", "No changes to stash.")
+            return
+        self.load_history()
+        QMessageBox.information(self, "Changes Stashed", f"Changes stashed as {stash_sha[:8]}.")
+
     def handle_stage_files(self):
         """Open a dialog to select unstaged/untracked files to stage (git add)."""
         unstaged_files = get_unstaged_files(self.repo_path, ignore_submodules=True)
