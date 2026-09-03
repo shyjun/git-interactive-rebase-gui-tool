@@ -361,7 +361,7 @@ def main():
     if has_staged:
         ack_messages.append(("info", "Staged Changes",
                              "You have staged changes in the repository.\n\n"
-                             "Consider committing or unstaging them before rebasing."))
+                             "Use Repo → Handle Staged Changes to commit, unstage, or discard them."))
 
     window = GitInteractiveRebaseApp(
         repo_path, commit_sha, app_start_time,
@@ -379,6 +379,11 @@ def main():
         window.app_managed_stash_sha = created_stash_sha
         window._update_stash_btn_visibility()
         window._flash_pop_stash_btn()
+
+    # Highlight repo button when staged changes exist
+    if has_staged:
+        from lib.app_window.helpers import highlight_button_temporarily
+        QTimer.singleShot(500, lambda: highlight_button_temporarily(window.repo_btn, blinks=5))
 
     # Deferred 'Commit Selectively' chosen at startup - run once the window is up.
     if deferred_selective_commit:
