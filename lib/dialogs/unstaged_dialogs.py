@@ -46,6 +46,7 @@ from lib.git_helpers import (
     get_full_head_sha,
     classify_tracked_changes,
     get_unstaged_file_diff,
+    get_staged_file_diff,
     build_file_tree,
 )
 from lib.widgets import (
@@ -482,6 +483,350 @@ class CommitSelectivelyDialog(QDialog):
                 if self.file_list.item(i).checkState() == Qt.Checked]
 
 
+class CommitStagedSelectivelyDialog(QDialog):
+    """Dialog to pick which staged files to commit. Shows file list with checkboxes
+    and a diff preview pane. Buttons: Commit Selected, Amend Selected, Unstage Selected."""
+    CommitSelectedResult = 1
+    AmendSelectedResult = 2
+    UnstageSelectedResult = 3
+
+    def __init__(self, repo_path, files, file_stats, font_size=10, parent=None, colors=None):
+        super().__init__(parent)
+        self.repo_path = repo_path
+        self.files = list(files)
+        self.file_stats = file_stats or {}
+        self.font_size = font_size
+
+        if colors is None:
+            main_win = parent if isinstance(parent, QMainWindow) else None
+            if main_win and hasattr(main_win, 'current_theme_colors'):
+                colors = main_win.current_theme_colors
+            else:
+                colors = {"added": "#a6e22e", "removed": "#f92672", "header": "#66d9ef", "separator": "#444444"}
+        self.colors = colors
+
+        self.setWindowTitle("Commit Staged Changes Selectively")
+        self.setMinimumSize(860, 620)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(8)
+
+        branch = get_current_branch(repo_path) or "HEAD"
+        header = QLabel(
+            f"Staged Changes: <b>{branch}</b> - {len(self.files)} file{'s' if len(self.files) != 1 else ''}<br>"
+            "Select the files to commit. The bottom pane shows the combined diff "
+            "of the selected (checked) files."
+        )
+        header.setTextFormat(Qt.RichText)
+        header.setWordWrap(True)
+        layout.addWidget(header)
+
+        top_row = QHBoxLayout()
+        top_row.setSpacing(6)
+        select_all_btn = QPushButton("Select All")
+        deselect_all_btn = QPushButton("Deselect All")
+        select_all_btn.setFixedWidth(110)
+        deselect_all_btn.setFixedWidth(110)
+        select_all_btn.setToolTip("Check all files.")
+        deselect_all_btn.setToolTip("Uncheck all files.")
+        select_all_btn.clicked.connect(lambda: self._set_all(True))
+        deselect_all_btn.clicked.connect(lambda: self._set_all(False))
+        top_row.addWidget(select_all_btn)
+        top_row.addWidget(deselect_all_btn)
+        top_row.addStretch()
+        self.counter_label = QLabel()
+        top_row.addWidget(self.counter_label)
+        layout.addLayout(top_row)
+
+        # Tab widget for File List and Tree View
+        self.tab_widget = QTabWidget()
+
+        # Tab 0: File List
+        file_list_widget = QWidget()
+        file_list_layout = QVBoxLayout(file_list_widget)
+        file_list_layout.setContentsMargins(0, 0, 0, 0)
+
+        self.file_list = QListWidget()
+        self.file_list.setFont(QFont("Courier New", font_size))
+        for f in self.files:
+            item = QListWidgetItem(f)
+            item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsUserCheckable)
+            item.setCheckState(Qt.Checked)
+            item.setData(Qt.UserRole, self.file_stats.get(f))
+            self.file_list.addItem(item)
+        self.stats_delegate = StatsItemDelegate(
+            added_color=colors.get("added", "#22863a"),
+            removed_color=colors.get("removed", "#cb2431"),
+            parent=self.file_list
+        )
+        self.file_list.setItemDelegate(self.stats_delegate)
+        self.file_list.itemChanged.connect(self._update_counter)
+        self.file_list.itemChanged.connect(self._refresh_diff)
+        file_list_layout.addWidget(self.file_list)
+        self.tab_widget.addTab(file_list_widget, "File List")
+
+        # Tab 1: Tree View
+        tree_widget = QWidget()
+        tree_layout = QVBoxLayout(tree_widget)
+        tree_layout.setContentsMargins(0, 0, 0, 0)
+
+        self.treewise_tree = QTreeWidget()
+        self.treewise_tree.setHeaderLabels(["Name", "Stats"])
+        self.treewise_tree.setColumnCount(2)
+        self.treewise_tree.header().setDefaultAlignment(Qt.AlignRight)
+        self.treewise_tree.header().setStretchLastSection(False)
+        self.treewise_tree.header().setSectionResizeMode(0, QHeaderView.Stretch)
+        self.treewise_tree.header().setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        self.treewise_tree.setFont(QFont("Courier New", font_size))
+        self.treewise_tree.setAnimated(True)
+        self.treewise_tree.setItemDelegateForColumn(1, TreeStatsDelegate())
+        self.treewise_tree.itemChanged.connect(self._on_tree_item_changed)
+        tree_layout.addWidget(self.treewise_tree)
+
+        # Populate tree
+        self._populate_tree()
+
+        self.tab_widget.addTab(tree_widget, "Tree View")
+        layout.addWidget(self.tab_widget)
+
+        # Diff preview
+        self.diff_view = DiffView()
+        self.diff_view.setReadOnly(True)
+        self.diff_view.setFont(QFont("Courier New", font_size))
+        self.diff_view.setPlaceholderText("No files selected. Check files to preview their combined diff...")
+        self.highlighter = DiffHighlighter(
+            self.diff_view.document(),
+            added_color=colors["added"],
+            removed_color=colors["removed"],
+            header_color=colors["header"]
+        )
+        self.search_bar = DiffSearchBar(target_view=self.diff_view, parent=self)
+        self.ctrl_f_shortcut = QShortcut(QKeySequence("Ctrl+F"), self)
+        self.ctrl_f_shortcut.activated.connect(self.search_bar.show_and_focus)
+
+        # Splitter
+        self.main_splitter = QSplitter(Qt.Vertical)
+        self.main_splitter.setChildrenCollapsible(False)
+        self.main_splitter.addWidget(self.tab_widget)
+        diff_pane = QWidget()
+        diff_pane_layout = QVBoxLayout(diff_pane)
+        diff_pane_layout.setContentsMargins(0, 0, 0, 0)
+        diff_pane_layout.setSpacing(4)
+        diff_pane_layout.addWidget(self.search_bar)
+        diff_pane_layout.addWidget(self.diff_view)
+        self.main_splitter.addWidget(diff_pane)
+        self.main_splitter.setStretchFactor(0, 1)
+        self.main_splitter.setStretchFactor(1, 2)
+        self.main_splitter.setSizes([260, 400])
+        layout.addWidget(self.main_splitter)
+
+        # Bottom actions
+        bot_row = QHBoxLayout()
+        bot_row.setSpacing(10)
+
+        self.amend_btn = QPushButton("Amend HEAD with Selected")
+        self.amend_btn.setToolTip("Amend the checked staged files into the HEAD commit.")
+        self.amend_btn.setStyleSheet(
+            "QPushButton { color: #8e44ad; border: 2px solid #8e44ad; padding: 10px 18px; "
+            "border-radius: 6px; font-weight: bold; } "
+            "QPushButton:hover { background-color: #f6eefb; }"
+        )
+
+        self.commit_btn = QPushButton("Commit Selected Files")
+        self.commit_btn.setDefault(True)
+        self.commit_btn.setToolTip("Commit only the checked staged files.")
+        self.commit_btn.setStyleSheet(
+            "QPushButton { color: #0055cc; border: 2px solid #0055cc; padding: 10px 18px; "
+            "border-radius: 6px; font-weight: bold; } "
+            "QPushButton:hover { background-color: #eef4ff; }"
+        )
+
+        self.unstage_btn = QPushButton("Unstage Selected")
+        self.unstage_btn.setToolTip("Unstage only the checked files (git reset HEAD -- <files>).")
+        self.unstage_btn.setStyleSheet(
+            "QPushButton { color: #e67e22; border: 2px solid #e67e22; padding: 10px 18px; "
+            "border-radius: 6px; font-weight: bold; } "
+            "QPushButton:hover { background-color: #fff9f0; }"
+        )
+
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.setToolTip("Close without committing anything.")
+        cancel_btn.setStyleSheet(
+            "QPushButton { color: #555; border: 2px solid #555; padding: 10px 18px; "
+            "border-radius: 6px; font-weight: bold; } "
+            "QPushButton:hover { background-color: #f5f5f5; }"
+        )
+
+        self.amend_btn.clicked.connect(lambda: self.done(self.AmendSelectedResult))
+        self.commit_btn.clicked.connect(lambda: self.done(self.CommitSelectedResult))
+        self.unstage_btn.clicked.connect(lambda: self.done(self.UnstageSelectedResult))
+        cancel_btn.clicked.connect(self.reject)
+
+        bot_row.addStretch()
+        bot_row.addWidget(self.amend_btn)
+        bot_row.addWidget(self.commit_btn)
+        bot_row.addWidget(self.unstage_btn)
+        bot_row.addWidget(cancel_btn)
+        layout.addLayout(bot_row)
+
+        self._update_counter()
+        self._refresh_diff()
+
+    def _refresh_diff(self, _=None):
+        """Show the combined diff of the currently checked files."""
+        checked = self.checked_files()
+        self.amend_btn.setEnabled(bool(checked))
+        self.commit_btn.setEnabled(bool(checked))
+        self.unstage_btn.setEnabled(bool(checked))
+        if not checked:
+            self.diff_view.clear()
+            return
+        try:
+            parts = []
+            for f in checked:
+                d = get_staged_file_diff(self.repo_path, f).rstrip("\n")
+                if d:
+                    parts.append(d)
+            text = "\n\n".join(parts) + ("\n" if parts else "")
+            self.diff_view.setPlainText(text)
+            self.diff_view.set_separator_color(self.colors.get("separator", "#444444"))
+            self.search_bar._perform_search()
+        except Exception as e:
+            self.diff_view.setPlainText(f"Error loading diff: {e}")
+
+    def _set_all(self, state):
+        for i in range(self.file_list.count()):
+            self.file_list.item(i).setCheckState(Qt.Checked if state else Qt.Unchecked)
+        for i in range(self.treewise_tree.topLevelItemCount()):
+            item = self.treewise_tree.topLevelItem(i)
+            item.setCheckState(0, Qt.Checked if state else Qt.Unchecked)
+            self._set_tree_children_checked(item, state)
+
+    def _update_counter(self, _=None):
+        total = self.file_list.count()
+        sel = len(self.checked_files())
+        self.counter_label.setText(f"<b>Selected:</b> {sel}&nbsp;&nbsp;<b>Total:</b> {total}")
+        self.counter_label.setTextFormat(Qt.RichText)
+
+    def checked_files(self):
+        return [self.file_list.item(i).text()
+                for i in range(self.file_list.count())
+                if self.file_list.item(i).checkState() == Qt.Checked]
+
+    def _populate_tree(self):
+        """Build tree from staged file list."""
+        if not self.files:
+            return
+        entries = [('M', f, '') for f in self.files]
+        tree = build_file_tree(entries, self.file_stats)
+        added_color = self.colors.get("added", "#22863a")
+        removed_color = self.colors.get("removed", "#cb2431")
+        self._add_tree_children(None, tree["children"], added_color, removed_color)
+        for i in range(self.treewise_tree.topLevelItemCount()):
+            self.treewise_tree.topLevelItem(i).setExpanded(True)
+
+    def _add_tree_children(self, parent_item, children_dict, added_color, removed_color):
+        """Recursively add folder/file nodes to the QTreeWidget."""
+        folders = sorted(((k, v) for k, v in children_dict.items() if v["children"]),
+                         key=lambda x: x[0].lower())
+        files = sorted(((k, v) for k, v in children_dict.items() if not v["children"]),
+                       key=lambda x: x[0].lower())
+        for name, node in folders + files:
+            item = QTreeWidgetItem()
+            if node["children"]:
+                item.setText(0, f"\U0001f4c1 {name}")
+                item.setData(0, Qt.UserRole + 10, {"type": "folder", "node": node})
+                if node["added"] or node["deleted"]:
+                    item.setText(1, f"+{node['added']} / -{node['deleted']}")
+                    item.setTextAlignment(1, Qt.AlignRight | Qt.AlignVCenter)
+                item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+                item.setCheckState(0, Qt.Checked)
+                if parent_item:
+                    parent_item.addChild(item)
+                else:
+                    self.treewise_tree.addTopLevelItem(item)
+                self._add_tree_children(item, node["children"], added_color, removed_color)
+            else:
+                entry = node["entries"][0] if node["entries"] else None
+                filepath = entry[1] if entry else name
+                item.setText(0, name)
+                item.setData(0, Qt.UserRole + 10, {"type": "file", "filepath": filepath})
+                if node["added"] or node["deleted"]:
+                    item.setText(1, f"+{node['added']} / -{node['deleted']}")
+                    item.setTextAlignment(1, Qt.AlignRight | Qt.AlignVCenter)
+                item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+                item.setCheckState(0, Qt.Checked)
+                if parent_item:
+                    parent_item.addChild(item)
+                else:
+                    self.treewise_tree.addTopLevelItem(item)
+
+    def _on_tree_item_changed(self, item, column):
+        """Handle checkbox change in tree: sync with file list."""
+        item_data = item.data(0, Qt.UserRole + 10)
+        if not item_data:
+            return
+        checked = item.checkState(0) == Qt.Checked
+        if item_data["type"] == "folder":
+            self._set_tree_children_checked(item, checked)
+        else:
+            filepath = item_data.get("filepath", "")
+            for i in range(self.file_list.count()):
+                list_item = self.file_list.item(i)
+                if list_item.text() == filepath:
+                    self.file_list.blockSignals(True)
+                    list_item.setCheckState(Qt.Checked if checked else Qt.Unchecked)
+                    self.file_list.blockSignals(False)
+                    break
+            parent = item.parent()
+            if parent:
+                self._update_folder_check_state(parent)
+        self._update_counter()
+        self._refresh_diff()
+
+    def _set_tree_children_checked(self, item, checked):
+        """Recursively set check state for all children."""
+        for i in range(item.childCount()):
+            child = item.child(i)
+            child.setCheckState(0, Qt.Checked if checked else Qt.Unchecked)
+            child_data = child.data(0, Qt.UserRole + 10)
+            if child_data and child_data["type"] == "folder":
+                self._set_tree_children_checked(child, checked)
+
+    def _update_folder_check_state(self, folder_item):
+        """Update folder checkbox based on children check states."""
+        if folder_item.childCount() == 0:
+            return
+        all_checked = True
+        has_checked = False
+        for i in range(folder_item.childCount()):
+            child = folder_item.child(i)
+            child_data = child.data(0, Qt.UserRole + 10)
+            if child_data and child_data["type"] == "folder":
+                self._update_folder_check_state(child)
+                if child.checkState(0) == Qt.Checked:
+                    has_checked = True
+                else:
+                    all_checked = False
+            else:
+                if child.checkState(0) == Qt.Checked:
+                    has_checked = True
+                else:
+                    all_checked = False
+        self.treewise_tree.blockSignals(True)
+        if all_checked:
+            folder_item.setCheckState(0, Qt.Checked)
+        elif has_checked:
+            folder_item.setCheckState(0, Qt.PartiallyChecked)
+        else:
+            folder_item.setCheckState(0, Qt.Unchecked)
+        self.treewise_tree.blockSignals(False)
+        parent = folder_item.parent()
+        if parent:
+            self._update_folder_check_state(parent)
+
+
 class StageFilesDialog(QDialog):
     """Dialog to select unstaged files to stage (git add)."""
 
@@ -784,8 +1129,8 @@ class StagedChangesDialog(QDialog):
         btn_layout = QVBoxLayout()
         btn_layout.setSpacing(10)
 
-        self.commit_btn = QPushButton("Commit Staged Changes…")
-        self.commit_btn.setToolTip("Commit all currently staged changes.")
+        self.commit_btn = QPushButton("Commit / Unstage Staged Changes Selectively")
+        self.commit_btn.setToolTip("Choose which staged files to commit, amend, or unstage.")
 
         self.unstage_all_btn = QPushButton("Unstage All")
         self.unstage_all_btn.setToolTip("Unstage all staged changes (git reset HEAD).")

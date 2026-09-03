@@ -387,8 +387,76 @@ class StashMixin:
         self.load_history()
 
     def _staged_action_commit(self, dlg):
-        self.handle_commit_staged(dlg.staged_files)
+        self.handle_commit_staged_selectively(dlg.staged_files)
         dlg._refresh_staged_files()
+
+    def handle_commit_staged_selectively(self, staged=None):
+        """Open dialog to commit staged files selectively."""
+        from lib.git_helpers.status import get_staged_files, unstage_files
+        from lib.git_helpers import get_staged_file_stats
+        if staged is None:
+            staged = get_staged_files(self.repo_path)
+        if not staged:
+            QMessageBox.information(self, "No Staged Changes", "There are no staged changes to commit.")
+            return
+        file_stats = get_staged_file_stats(self.repo_path)
+        from lib.dialogs.unstaged_dialogs import CommitStagedSelectivelyDialog
+        dialog = CommitStagedSelectivelyDialog(
+            self.repo_path, staged, file_stats, self.current_font_size, self
+        )
+        result = dialog.exec()
+        if result not in (CommitStagedSelectivelyDialog.CommitSelectedResult,
+                          CommitStagedSelectivelyDialog.AmendSelectedResult,
+                          CommitStagedSelectivelyDialog.UnstageSelectedResult):
+            return
+        checked = dialog.checked_files()
+        if not checked:
+            QMessageBox.information(self, "No Files Selected", "No files were selected.")
+            return
+
+        if result == CommitStagedSelectivelyDialog.UnstageSelectedResult:
+            if unstage_files(self.repo_path, checked):
+                self.load_history()
+                QMessageBox.information(self, "Unstaged", f"Unstaged {len(checked)} file(s).")
+            else:
+                QMessageBox.critical(self, "Unstage Failed", "Failed to unstage files.")
+            return
+
+        from lib.dialogs.commit_message_dialogs import NewCommitMessageDialog
+        if result == CommitStagedSelectivelyDialog.AmendSelectedResult:
+            from lib.git_helpers import get_head_sha, get_full_commit_message
+            head_sha = get_head_sha(self.repo_path)
+            default_msg = get_full_commit_message(self.repo_path, head_sha) if head_sha else ""
+            msg_dlg = NewCommitMessageDialog(
+                "Amend HEAD with Selected",
+                f"Amending {len(checked)} staged file(s) into HEAD commit.",
+                default_message=default_msg,
+                font_size=self.current_font_size, parent=self,
+            )
+        else:
+            default_msg = "Changes in " + ", ".join(checked[:3]) + ("..." if len(checked) > 3 else "")
+            msg_dlg = NewCommitMessageDialog(
+                "Commit Selected Files",
+                f"Committing {len(checked)} staged file(s):",
+                default_msg, self.current_font_size, self,
+            )
+        if msg_dlg.exec() != QDialog.Accepted:
+            return
+        message = msg_dlg.get_message()
+        if not message:
+            return
+
+        from lib.git_helpers.commit_ops import commit_staged
+        if result == CommitStagedSelectivelyDialog.AmendSelectedResult:
+            from lib.git_helpers.commit_ops import amend_staged
+            ok = amend_staged(self.repo_path, message)
+        else:
+            ok = commit_staged(self.repo_path, message)
+        if ok:
+            self.load_history()
+            QMessageBox.information(self, "Done", f"Committed {len(checked)} file(s).")
+        else:
+            QMessageBox.critical(self, "Commit Failed", "Failed to commit.")
 
     def _staged_action_unstage(self, dlg):
         self.handle_unstage_all(dlg.staged_files)
