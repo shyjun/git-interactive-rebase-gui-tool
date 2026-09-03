@@ -6,6 +6,7 @@ from .diff_dialogs import (
     BranchDiffDialog,
     SingleCommitViewDialog,
     UnstagedDiffDialog,
+    StagedDiffDialog,
     FileWiseViewDialog,
 )
 

@@ -450,15 +450,18 @@ class StashMixin:
         if not staged:
             QMessageBox.information(self, "No Staged Changes", "There are no staged changes to view.")
             return
-        from lib.git_helpers import get_staged_diff
+        from lib.git_helpers import get_staged_diff, get_staged_file_stats, get_current_branch, get_full_head_sha
         diff = get_staged_diff(self.repo_path)
         if not diff.strip():
             QMessageBox.information(self, "No Diff", "No staged changes to display.")
             return
-        from lib.dialogs.diff_dialogs import DiffViewerDialog
-        dlg = DiffViewerDialog(
-            f"Staged Changes ({len(staged)} file(s))", "STAGED", diff,
-            font_size=self.current_font_size, parent=self,
+        file_stats = get_staged_file_stats(self.repo_path)
+        branch = get_current_branch(self.repo_path) or "HEAD"
+        head_sha = get_full_head_sha(self.repo_path)
+        from lib.dialogs.diff_dialogs import StagedDiffDialog
+        dlg = StagedDiffDialog(
+            self.repo_path, staged, diff, file_stats,
+            branch, head_sha, self.current_font_size, parent=self,
         )
         dlg.exec()
 

@@ -126,11 +126,43 @@ def get_unstaged_file_stats(repo_path, ignore_submodules=False):
         return {}
 
 
+def get_staged_file_stats(repo_path):
+    """Returns a dict mapping filepath -> (added_lines, deleted_lines) for staged changes."""
+    try:
+        cmd = ["git", "diff", "--cached", "--numstat"]
+        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
+        stats = {}
+        for line in result.stdout.strip().split('\n'):
+            if not line.strip():
+                continue
+            parts = line.split('\t', 2)
+            if len(parts) == 3:
+                added_str, deleted_str, filepath = parts
+                try:
+                    added = int(added_str)
+                    deleted = int(deleted_str)
+                except ValueError:
+                    added, deleted = 0, 0  # binary file
+                stats[filepath.strip()] = (added, deleted)
+        return stats
+    except subprocess.CalledProcessError as exc:
+        err = exc.stderr.strip() if exc.stderr else str(exc)
+        print(f"[git_helpers] get_staged_file_stats: git diff --cached --numstat failed: {err}")
+        return {}
+
+
 def get_unstaged_file_diff(repo_path, filepath):
     """Returns the diff for a single file's unstaged changes."""
     return _pad_diff_separators(
         _git_capture(repo_path, ["git", "diff", "--", filepath],
                      "Failed to get unstaged file diff"))
+
+
+def get_staged_file_diff(repo_path, filepath):
+    """Returns the diff for a single file's staged changes."""
+    return _pad_diff_separators(
+        _git_capture(repo_path, ["git", "diff", "--cached", "--", filepath],
+                     "Failed to get staged file diff"))
 
 
 def _get_git_version(repo_path):
