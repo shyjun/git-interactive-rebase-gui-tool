@@ -4,6 +4,17 @@ import subprocess
 from .core import _git_capture, _pad_diff_separators
 
 
+def get_staged_diff(repo_path):
+    """Returns the diff of all staged changes."""
+    try:
+        cmd = ["git", "diff", "--cached"]
+        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True,
+                                encoding='utf-8', errors='replace')
+        return result.stdout
+    except subprocess.CalledProcessError as e:
+        raise Exception(f"Failed to get staged diff: {e.stderr}")
+
+
 def get_merge_base(repo_path, ref):
     """Returns the merge-base of HEAD with *ref* (e.g. 'origin/main').
 

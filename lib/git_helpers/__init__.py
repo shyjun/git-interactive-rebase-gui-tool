@@ -52,11 +52,12 @@ from .commits import (
 )
 
 from .diffs import (
+    get_staged_diff,
     get_merge_base,
     get_diff_between,
     get_files_between,
+    get_files_with_status_between,
     get_file_diff_between,
-    get_file_stats_between,
     get_unstaged_diff,
     get_unstaged_file_stats,
     get_unstaged_file_diff,

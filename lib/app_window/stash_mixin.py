@@ -415,6 +415,25 @@ class StashMixin:
         else:
             QMessageBox.critical(self, "Unstage Failed", "Failed to unstage changes.")
 
+    def handle_view_staged_diff(self):
+        """View diff of all staged changes."""
+        from lib.git_helpers.status import get_staged_files
+        staged = get_staged_files(self.repo_path)
+        if not staged:
+            QMessageBox.information(self, "No Staged Changes", "There are no staged changes to view.")
+            return
+        from lib.git_helpers import get_staged_diff
+        diff = get_staged_diff(self.repo_path)
+        if not diff.strip():
+            QMessageBox.information(self, "No Diff", "No staged changes to display.")
+            return
+        from lib.dialogs.diff_dialogs import DiffViewerDialog
+        dlg = DiffViewerDialog(
+            f"Staged Changes ({len(staged)} file(s))", "STAGED", diff,
+            font_size=self.current_font_size, parent=self,
+        )
+        dlg.exec()
+
     def handle_stage_files(self):
         """Open a dialog to select unstaged/untracked files to stage (git add)."""
         unstaged_files = get_unstaged_files(self.repo_path, ignore_submodules=True)
