@@ -68,11 +68,11 @@ Visual documentation for the Git Interactive Rebase GUI Tool. Each section showc
 
 ## 1. Launch
 
-Launch the application by specifying a commit range, using the auto-detected branch base, or starting in read-only Viewer Mode.
+Launch the application with auto-detected arguments, or start in read-only Viewer Mode.
 
 ### Option 1: Auto-detect branch base (default, recommended)
 
-Just run the tool with **no commit argument** — it automatically detects the base branch (for example, `main` or `master`) and shows the commits since the branch divergence point.
+Just run the tool with **no arguments** — it automatically detects the base branch (for example, `main` or `master`) and shows the commits since the branch divergence point.
 
 This is the most useful way to launch: it shows **only your branch's changes**, i.e. everything you've done since the branch split from the base — ideal for reviewing and cleaning up your feature branch before raising a PR.
 
@@ -84,9 +84,20 @@ If detection fails, it falls back to displaying the **200 most recent commits fr
 
 **Description:** The screenshot above shows the application launched using `python3 git_interactive_rebase.py HEAD~N` (where `N` is the number of commits to show).
 
-### Option 2: Show commits since a specific commit (provide SHA as argument)
+### Option 2: Pass a branch, file, tag, or commit ref
 
-View commits starting from a specific commit SHA or relative HEAD reference.
+The tool auto-detects the type of positional arguments:
+
+```bash
+python3 git_interactive_rebase.py <branch>          # browse a branch (read-only)
+python3 git_interactive_rebase.py <tag>             # browse from a tag (read-only)
+python3 git_interactive_rebase.py <file>            # open file log (read-only)
+python3 git_interactive_rebase.py <commit-ref>      # start from a specific commit
+python3 git_interactive_rebase.py <branch> <file>   # browse branch, filtered to file
+python3 git_interactive_rebase.py <tag> <file>      # browse tag, filtered to file
+```
+
+Detection priority: file → branch → tag → commit ref → error.
 
 You can specify commits using:
 
