@@ -189,6 +189,10 @@ class MenusMixin:
         apply_patch_action.setToolTip("Apply a patch file to the repository, committing the changes or leaving them unstaged.")
         apply_patch_action.triggered.connect(lambda *_: self.handle_apply_patch())
 
+        stage_files_action = QAction("Add Unstaged File(s)…", self)
+        stage_files_action.setToolTip("Select unstaged files to stage (git add).")
+        stage_files_action.triggered.connect(lambda *_: self.handle_stage_files())
+
         browse_action = QAction("Browse Branch", self)
         browse_action.setToolTip("Open a read-only viewer of another branch's full history.")
         browse_action.triggered.connect(lambda *_: self.handle_browse_branch())
@@ -225,6 +229,7 @@ class MenusMixin:
         menu.addAction(view_commit_action)
         menu.addAction(cherry_pick_action)
         menu.addAction(apply_patch_action)
+        menu.addAction(stage_files_action)
         menu.addAction(browse_action)
         menu.addAction(browse_file_action)
         menu.addAction(browse_commit_log_action)

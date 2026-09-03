@@ -31,6 +31,7 @@ from lib.git_helpers import (
     get_branch_base_info,
     stash_changes,
     get_unstaged_files,
+    classify_tracked_changes,
     commit_file,
     bulk_commit_all,
     amend_with_head,
@@ -354,6 +355,13 @@ def main():
         else:
             print("Exiting as requested by the user.")
             sys.exit(0)
+
+    # Warn about staged changes (informational only)
+    has_staged, _ = classify_tracked_changes(repo_path)
+    if has_staged:
+        ack_messages.append(("info", "Staged Changes",
+                             "You have staged changes in the repository.\n\n"
+                             "Consider committing or unstaging them before rebasing."))
 
     window = GitInteractiveRebaseApp(
         repo_path, commit_sha, app_start_time,

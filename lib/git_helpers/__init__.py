@@ -90,6 +90,7 @@ from .status import (
     classify_cherry_pick_failure,
     classify_tracked_changes,
     get_unstaged_files,
+    get_untracked_files,
 )
 
 from .commit_ops import (

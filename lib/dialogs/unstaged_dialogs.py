@@ -475,3 +475,127 @@ class CommitSelectivelyDialog(QDialog):
         return [self.file_list.item(i).text()
                 for i in range(self.file_list.count())
                 if self.file_list.item(i).checkState() == Qt.Checked]
+
+
+class StageFilesDialog(QDialog):
+    """Dialog to select unstaged files to stage (git add)."""
+
+    def __init__(self, repo_path, files, file_stats, font_size=10, parent=None, colors=None):
+        super().__init__(parent)
+        self.repo_path = repo_path
+        self.files = list(files)
+        self.file_stats = file_stats or {}
+        self.selected_files = []
+        self.font_size = font_size
+
+        if colors is None:
+            main_win = parent if isinstance(parent, QMainWindow) else None
+            if main_win and hasattr(main_win, 'current_theme_colors'):
+                colors = main_win.current_theme_colors
+            else:
+                colors = {"added": "#a6e22e", "removed": "#f92672"}
+        self.colors = colors
+
+        self.setWindowTitle("Stage Unstaged Files")
+        self.setMinimumSize(700, 500)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(8)
+
+        branch = get_current_branch(repo_path) or "HEAD"
+        header = QLabel(
+            f"Unstaged Changes: <b>{branch}</b> - {len(self.files)} file{'s' if len(self.files) != 1 else ''}<br>"
+            "Select files to stage (<code>git add</code>)."
+        )
+        header.setTextFormat(Qt.RichText)
+        header.setWordWrap(True)
+        layout.addWidget(header)
+
+        top_row = QHBoxLayout()
+        top_row.setSpacing(6)
+        select_all_btn = QPushButton("Select All")
+        deselect_all_btn = QPushButton("Deselect All")
+        select_all_btn.setFixedWidth(110)
+        deselect_all_btn.setFixedWidth(110)
+        select_all_btn.clicked.connect(lambda: self._set_all(True))
+        deselect_all_btn.clicked.connect(lambda: self._set_all(False))
+        top_row.addWidget(select_all_btn)
+        top_row.addWidget(deselect_all_btn)
+        top_row.addStretch()
+        self.counter_label = QLabel()
+        top_row.addWidget(self.counter_label)
+        layout.addLayout(top_row)
+
+        self.file_list = QListWidget()
+        self.file_list.setFont(QFont("Courier New", font_size))
+        for f in self.files:
+            item = QListWidgetItem(f)
+            item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsUserCheckable)
+            item.setCheckState(Qt.Unchecked)
+            item.setData(Qt.UserRole, self.file_stats.get(f))
+            self.file_list.addItem(item)
+        self.stats_delegate = StatsItemDelegate(
+            added_color=colors.get("added", "#22863a"),
+            removed_color=colors.get("removed", "#cb2431"),
+            parent=self.file_list
+        )
+        self.file_list.setItemDelegate(self.stats_delegate)
+        self.file_list.itemChanged.connect(self._update_counter)
+        layout.addWidget(self.file_list)
+
+        bot_row = QHBoxLayout()
+        bot_row.setSpacing(10)
+
+        stage_btn = QPushButton("Stage Selected Files")
+        stage_btn.setDefault(True)
+        stage_btn.setToolTip("Run 'git add' on the checked files.")
+        stage_btn.setStyleSheet(
+            "QPushButton { color: #22863a; border: 2px solid #22863a; padding: 10px 18px; "
+            "border-radius: 6px; font-weight: bold; } "
+            "QPushButton:hover { background-color: #f0fff0; }"
+        )
+
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.setToolTip("Close without staging anything.")
+        cancel_btn.setStyleSheet(
+            "QPushButton { color: #555; border: 2px solid #555; padding: 10px 18px; "
+            "border-radius: 6px; font-weight: bold; } "
+            "QPushButton:hover { background-color: #f5f5f5; }"
+        )
+
+        stage_btn.clicked.connect(self._on_stage)
+        cancel_btn.clicked.connect(self.reject)
+
+        bot_row.addStretch()
+        bot_row.addWidget(stage_btn)
+        bot_row.addWidget(cancel_btn)
+        layout.addLayout(bot_row)
+
+        self._update_counter()
+
+    def _on_stage(self):
+        self.selected_files = self.checked_files()
+        if not self.selected_files:
+            QMessageBox.information(self, "No Files Selected", "Please check at least one file to stage.")
+            return
+        from lib.git_helpers import stage_files
+        if stage_files(self.repo_path, self.selected_files):
+            self.accept()
+        else:
+            QMessageBox.critical(self, "Stage Failed", "Failed to stage the selected files.")
+
+    def _set_all(self, state):
+        for i in range(self.file_list.count()):
+            self.file_list.item(i).setCheckState(Qt.Checked if state else Qt.Unchecked)
+
+    def _update_counter(self, _=None):
+        total = self.file_list.count()
+        sel = len(self.checked_files())
+        self.counter_label.setText(f"<b>Selected:</b> {sel}&nbsp;&nbsp;<b>Total:</b> {total}")
+        self.counter_label.setTextFormat(Qt.RichText)
+
+    def checked_files(self):
+        return [self.file_list.item(i).text()
+                for i in range(self.file_list.count())
+                if self.file_list.item(i).checkState() == Qt.Checked]
