@@ -394,9 +394,9 @@ def main():
         def _show_deferred_acks():
             for kind, title, text in ack_messages:
                 if kind == "critical":
-                    QMessageBox.critical(None, title, text)
+                    QMessageBox.critical(window, title, text)
                 else:
-                    QMessageBox.information(None, title, text)
+                    QMessageBox.information(window, title, text)
         QTimer.singleShot(0, _show_deferred_acks)
 
     exit_code = app.exec()
