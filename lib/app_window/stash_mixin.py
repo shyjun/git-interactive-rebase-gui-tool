@@ -498,8 +498,8 @@ class StashMixin:
         default_msg = get_full_commit_message(self.repo_path, head_sha) if head_sha else ""
         from lib.dialogs.commit_message_dialogs import NewCommitMessageDialog
         dlg = NewCommitMessageDialog(
-            "Amend Last Commit",
-            f"Amending {len(staged)} staged file(s) into the last commit.\n"
+            "Amend HEAD Commit",
+            f"Amending {len(staged)} staged file(s) into the HEAD commit.\n"
             "Edit the message below or keep it unchanged to preserve the original.",
             default_message=default_msg,
             font_size=self.current_font_size,

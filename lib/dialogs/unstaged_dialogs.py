@@ -807,8 +807,8 @@ class StagedChangesDialog(QDialog):
         self.discard_btn = QPushButton("Discard Staged Changes")
         self.discard_btn.setToolTip("Discard all staged changes (destructive!).")
 
-        self.amend_btn = QPushButton("Amend Last Commit…")
-        self.amend_btn.setToolTip("Amend the last commit with staged changes.")
+        self.amend_btn = QPushButton("Amend HEAD Commit…")
+        self.amend_btn.setToolTip("Amend the HEAD commit with staged changes.")
 
         self.stash_btn = QPushButton("Stash Changes…")
         self.stash_btn.setToolTip("Stash all changes (staged and unstaged).")
