@@ -15,6 +15,18 @@ def get_staged_files(repo_path):
         return []
 
 
+def unstage_all(repo_path):
+    """Unstage all staged changes (git reset HEAD). Returns True on success."""
+    try:
+        subprocess.run(["git", "reset", "HEAD"], cwd=repo_path,
+                       check=True, capture_output=True)
+        return True
+    except subprocess.CalledProcessError as exc:
+        err = exc.stderr.decode('utf-8') if exc.stderr else str(exc)
+        print(f"[git_helpers] unstage_all: git reset HEAD failed: {err}")
+        return False
+
+
 def has_uncommitted_changes(repo_path):
     """Returns True if there are uncommitted changes in the repository."""
     try:
