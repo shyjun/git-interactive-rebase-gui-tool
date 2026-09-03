@@ -193,39 +193,10 @@ class MenusMixin:
         stage_files_action.setToolTip("Select unstaged files to stage (git add).")
         stage_files_action.triggered.connect(lambda *_: self.handle_stage_files())
 
-        # Handle Staged Changes submenu
-        staged_changes_menu = menu.addMenu("Handle Staged Changes")
-        staged_changes_menu.setToolTip("Actions for staged changes.")
-
-        commit_staged_action = QAction("Commit Staged Changes…", self)
-        commit_staged_action.setToolTip("Commit all currently staged changes.")
-        commit_staged_action.triggered.connect(lambda *_: self.handle_commit_staged())
-        staged_changes_menu.addAction(commit_staged_action)
-
-        unstage_all_action = QAction("Unstage All", self)
-        unstage_all_action.setToolTip("Unstage all staged changes (git reset HEAD).")
-        unstage_all_action.triggered.connect(lambda *_: self.handle_unstage_all())
-        staged_changes_menu.addAction(unstage_all_action)
-
-        view_staged_diff_action = QAction("View Staged Diff", self)
-        view_staged_diff_action.setToolTip("View diff of all staged changes.")
-        view_staged_diff_action.triggered.connect(lambda *_: self.handle_view_staged_diff())
-        staged_changes_menu.addAction(view_staged_diff_action)
-
-        discard_staged_action = QAction("Discard Staged Changes", self)
-        discard_staged_action.setToolTip("Discard all staged changes (destructive!).")
-        discard_staged_action.triggered.connect(lambda *_: self.handle_discard_staged())
-        staged_changes_menu.addAction(discard_staged_action)
-
-        amend_staged_action = QAction("Amend Last Commit…", self)
-        amend_staged_action.setToolTip("Amend the last commit with staged changes.")
-        amend_staged_action.triggered.connect(lambda *_: self.handle_amend_staged())
-        staged_changes_menu.addAction(amend_staged_action)
-
-        stash_staged_action = QAction("Stash Changes…", self)
-        stash_staged_action.setToolTip("Stash all changes (staged and unstaged).")
-        stash_staged_action.triggered.connect(lambda *_: self.handle_stash_staged())
-        staged_changes_menu.addAction(stash_staged_action)
+        staged_changes_action = QAction("Handle Staged Changes…", self)
+        staged_changes_action.setToolTip("Open dialog to handle staged changes.")
+        staged_changes_action.triggered.connect(lambda *_: self.handle_staged_changes())
+        menu.addAction(staged_changes_action)
 
         browse_action = QAction("Browse Branch", self)
         browse_action.setToolTip("Open a read-only viewer of another branch's full history.")

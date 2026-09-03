@@ -757,3 +757,83 @@ class StageFilesDialog(QDialog):
         return [self.file_list.item(i).text()
                 for i in range(self.file_list.count())
                 if self.file_list.item(i).checkState() == Qt.Checked]
+
+
+class StagedChangesDialog(QDialog):
+    """Dialog for handling staged changes with various options."""
+    CommitResult = 1
+    UnstageAllResult = 2
+    ViewDiffResult = 3
+    DiscardResult = 4
+    AmendResult = 5
+    StashResult = 6
+
+    def __init__(self, repo_path, staged_files, parent=None, font_size=None):
+        super().__init__(parent)
+        self.repo_path = repo_path
+        self.staged_files = staged_files
+        if font_size is None:
+            font_size = int(QSettings("shyjun", "GitInteractiveRebase").value("font_size", 10))
+        self.font_size = font_size
+        self.setWindowTitle("Handle Staged Changes")
+        self.setMinimumWidth(600)
+        self.setModal(True)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(20)
+
+        message = (
+            f"<b>You have {len(staged_files)} staged file(s).</b><br><br>"
+            "Choose an action to perform on the staged changes."
+        )
+        self.label = QLabel(message)
+        self.label.setWordWrap(True)
+        self.label.setStyleSheet("font-size: 13px; font-weight: normal;")
+        layout.addWidget(self.label)
+
+        btn_layout = QVBoxLayout()
+        btn_layout.setSpacing(10)
+
+        self.commit_btn = QPushButton("Commit Staged Changes…")
+        self.commit_btn.setToolTip("Commit all currently staged changes.")
+
+        self.unstage_all_btn = QPushButton("Unstage All")
+        self.unstage_all_btn.setToolTip("Unstage all staged changes (git reset HEAD).")
+
+        self.view_diff_btn = QPushButton("View Staged Diff")
+        self.view_diff_btn.setToolTip("View diff of all staged changes.")
+
+        self.discard_btn = QPushButton("Discard Staged Changes")
+        self.discard_btn.setToolTip("Discard all staged changes (destructive!).")
+
+        self.amend_btn = QPushButton("Amend Last Commit…")
+        self.amend_btn.setToolTip("Amend the last commit with staged changes.")
+
+        self.stash_btn = QPushButton("Stash Changes…")
+        self.stash_btn.setToolTip("Stash all changes (staged and unstaged).")
+
+        self.close_btn = QPushButton("Close")
+        self.close_btn.setToolTip("Close this dialog.")
+
+        for btn in [self.commit_btn, self.unstage_all_btn, self.view_diff_btn,
+                    self.discard_btn, self.amend_btn, self.stash_btn, self.close_btn]:
+            btn.setMinimumHeight(35)
+
+        self.commit_btn.clicked.connect(lambda: self.done(self.CommitResult))
+        self.unstage_all_btn.clicked.connect(lambda: self.done(self.UnstageAllResult))
+        self.view_diff_btn.clicked.connect(lambda: self.done(self.ViewDiffResult))
+        self.discard_btn.clicked.connect(lambda: self.done(self.DiscardResult))
+        self.amend_btn.clicked.connect(lambda: self.done(self.AmendResult))
+        self.stash_btn.clicked.connect(lambda: self.done(self.StashResult))
+        self.close_btn.clicked.connect(self.reject)
+
+        btn_layout.addWidget(self.commit_btn)
+        btn_layout.addWidget(self.unstage_all_btn)
+        btn_layout.addWidget(self.view_diff_btn)
+        btn_layout.addWidget(self.discard_btn)
+        btn_layout.addWidget(self.amend_btn)
+        btn_layout.addWidget(self.stash_btn)
+        btn_layout.addWidget(self.close_btn)
+
+        layout.addLayout(btn_layout)

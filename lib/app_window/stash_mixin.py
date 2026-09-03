@@ -366,10 +366,36 @@ class StashMixin:
             f"{kind} ID:\n{self.get_head_sha()[:8]}"
         )
 
-    def handle_commit_staged(self):
-        """Commit all currently staged changes."""
+    def handle_staged_changes(self):
+        """Open dialog to handle staged changes."""
         from lib.git_helpers.status import get_staged_files
         staged = get_staged_files(self.repo_path)
+        if not staged:
+            QMessageBox.information(self, "No Staged Changes", "There are no staged changes to handle.")
+            return
+        from lib.dialogs import StagedChangesDialog
+        dlg = StagedChangesDialog(
+            self.repo_path, staged, parent=self, font_size=self.current_font_size
+        )
+        result = dlg.exec()
+        if result == StagedChangesDialog.CommitResult:
+            self.handle_commit_staged(staged)
+        elif result == StagedChangesDialog.UnstageAllResult:
+            self.handle_unstage_all(staged)
+        elif result == StagedChangesDialog.ViewDiffResult:
+            self.handle_view_staged_diff(staged)
+        elif result == StagedChangesDialog.DiscardResult:
+            self.handle_discard_staged(staged)
+        elif result == StagedChangesDialog.AmendResult:
+            self.handle_amend_staged(staged)
+        elif result == StagedChangesDialog.StashResult:
+            self.handle_stash_staged()
+
+    def handle_commit_staged(self, staged=None):
+        """Commit all currently staged changes."""
+        from lib.git_helpers.status import get_staged_files
+        if staged is None:
+            staged = get_staged_files(self.repo_path)
         if not staged:
             QMessageBox.information(self, "No Staged Changes", "There are no staged changes to commit.")
             return
@@ -394,10 +420,11 @@ class StashMixin:
         else:
             QMessageBox.critical(self, "Commit Failed", "Failed to commit staged changes.")
 
-    def handle_unstage_all(self):
+    def handle_unstage_all(self, staged=None):
         """Unstage all staged changes (git reset HEAD)."""
         from lib.git_helpers.status import get_staged_files
-        staged = get_staged_files(self.repo_path)
+        if staged is None:
+            staged = get_staged_files(self.repo_path)
         if not staged:
             QMessageBox.information(self, "No Staged Changes", "There are no staged changes to unstage.")
             return
@@ -415,10 +442,11 @@ class StashMixin:
         else:
             QMessageBox.critical(self, "Unstage Failed", "Failed to unstage changes.")
 
-    def handle_view_staged_diff(self):
+    def handle_view_staged_diff(self, staged=None):
         """View diff of all staged changes."""
         from lib.git_helpers.status import get_staged_files
-        staged = get_staged_files(self.repo_path)
+        if staged is None:
+            staged = get_staged_files(self.repo_path)
         if not staged:
             QMessageBox.information(self, "No Staged Changes", "There are no staged changes to view.")
             return
@@ -434,10 +462,11 @@ class StashMixin:
         )
         dlg.exec()
 
-    def handle_discard_staged(self):
+    def handle_discard_staged(self, staged=None):
         """Discard all staged changes (destructive!)."""
         from lib.git_helpers.status import get_staged_files
-        staged = get_staged_files(self.repo_path)
+        if staged is None:
+            staged = get_staged_files(self.repo_path)
         if not staged:
             QMessageBox.information(self, "No Staged Changes", "There are no staged changes to discard.")
             return
@@ -456,10 +485,11 @@ class StashMixin:
         else:
             QMessageBox.critical(self, "Discard Failed", "Failed to discard staged changes.")
 
-    def handle_amend_staged(self):
+    def handle_amend_staged(self, staged=None):
         """Amend the last commit with staged changes."""
         from lib.git_helpers.status import get_staged_files
-        staged = get_staged_files(self.repo_path)
+        if staged is None:
+            staged = get_staged_files(self.repo_path)
         if not staged:
             QMessageBox.information(self, "No Staged Changes", "There are no staged changes to amend.")
             return
