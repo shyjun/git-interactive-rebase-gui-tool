@@ -222,6 +222,11 @@ class MenusMixin:
         amend_staged_action.triggered.connect(lambda *_: self.handle_amend_staged())
         staged_changes_menu.addAction(amend_staged_action)
 
+        stash_staged_action = QAction("Stash Changes…", self)
+        stash_staged_action.setToolTip("Stash all changes (staged and unstaged).")
+        stash_staged_action.triggered.connect(lambda *_: self.handle_stash_staged())
+        staged_changes_menu.addAction(stash_staged_action)
+
         browse_action = QAction("Browse Branch", self)
         browse_action.setToolTip("Open a read-only viewer of another branch's full history.")
         browse_action.triggered.connect(lambda *_: self.handle_browse_branch())
