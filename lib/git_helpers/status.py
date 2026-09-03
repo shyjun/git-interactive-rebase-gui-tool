@@ -151,3 +151,26 @@ def get_unstaged_files(repo_path, ignore_submodules=False):
     except Exception as exc:
         print(f"[git_helpers] get_unstaged_files: git status failed: {exc}")
         return []
+
+
+def get_untracked_files(repo_path, ignore_submodules=False):
+    """Returns a list of untracked file paths."""
+    try:
+        cmd = ["git", "status", "--porcelain", "--untracked-files=all"]
+        if ignore_submodules:
+            cmd.append("--ignore-submodules=all")
+
+        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
+        files = []
+        for line in result.stdout.strip().split('\n'):
+            if not line.strip(): continue
+            parts = line.strip().split(maxsplit=1)
+            if len(parts) == 2 and parts[0] == '??':
+                filepath = parts[1]
+                if filepath.startswith('"') and filepath.endswith('"'):
+                    filepath = filepath[1:-1]
+                files.append(filepath)
+        return files
+    except Exception as exc:
+        print(f"[git_helpers] get_untracked_files: git status failed: {exc}")
+        return []

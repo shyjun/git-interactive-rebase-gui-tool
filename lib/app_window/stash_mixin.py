@@ -3,7 +3,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QMessageBox, QDialog
 from lib.git_helpers import (
     get_stash_status, get_stash_subject, stash_pop_can_apply,
-    stash_pop, merge_into_stash, get_unstaged_files,
+    stash_pop, merge_into_stash, get_unstaged_files, get_untracked_files,
     get_unstaged_file_diff, get_unstaged_file_stats,
     stage_files, commit_staged, amend_staged, apply_patch_to_index,
     get_full_commit_message,
@@ -365,3 +365,24 @@ class StashMixin:
             f"Done. Selected hunks were staged and committed.\n\n"
             f"{kind} ID:\n{self.get_head_sha()[:8]}"
         )
+
+    def handle_stage_files(self):
+        """Open a dialog to select unstaged/untracked files to stage (git add)."""
+        unstaged_files = get_unstaged_files(self.repo_path, ignore_submodules=True)
+        untracked_files = get_untracked_files(self.repo_path, ignore_submodules=True)
+        all_files = unstaged_files + untracked_files
+        if not all_files:
+            QMessageBox.information(self, "No Files to Stage", "There are no unstaged or untracked files to stage.")
+            return
+        file_stats = get_unstaged_file_stats(self.repo_path, ignore_submodules=True)
+        from lib.dialogs import StageFilesDialog
+        dialog = StageFilesDialog(
+            self.repo_path, all_files, file_stats,
+            font_size=self.current_font_size, parent=self,
+        )
+        if dialog.exec() == QDialog.Accepted:
+            self.load_history()
+            QMessageBox.information(
+                self, "Files Staged",
+                f"Successfully staged {len(dialog.selected_files)} file(s)."
+            )
