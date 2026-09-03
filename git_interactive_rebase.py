@@ -41,7 +41,6 @@ from lib.git_helpers import (
     discard_changes,
     get_stash_status,
     STASH_NOTHING_STASHED,
-    branch_exists,
     normalize_branch_ref,
     get_merge_base,
     perform_self_update,
@@ -68,7 +67,6 @@ def main():
     parser.add_argument("--viewer-mode", action="store_true", help="Run in read-only viewer mode.")
     parser.add_argument("--update", action="store_true", help="Update the tool to the latest version and exit.")
     parser.add_argument("--version", action="store_true", help="Print the tool's version (short git id) and exit.")
-    parser.add_argument("--branch", type=str, help="Use the merge-base of HEAD and this branch as the starting point.")
     parser.add_argument("positional", nargs="*", help="Branch, file, tag, or commit ref (auto-detected)")
     args = parser.parse_args()
 
@@ -207,20 +205,7 @@ def main():
     browse_file = None
     browse_tag_name = None
 
-    if args.branch:
-        # Explicit --branch flag: open in browse mode for that branch
-        try:
-            if not branch_exists(repo_path, args.branch):
-                QMessageBox.critical(None, "Branch does not exist",
-                    f"The branch '{args.branch}' does not exist in this repository.")
-                sys.exit(1)
-            ref = normalize_branch_ref(repo_path, args.branch)
-            browse_branch = ref
-            print(f"Using --branch '{args.branch}': browsing branch '{ref}'")
-        except Exception as e:
-            QMessageBox.critical(None, "Error", f"Could not find branch '{args.branch}': {e}")
-            sys.exit(1)
-    elif len(positional) == 0:
+    if len(positional) == 0:
         # No args: auto-detect base
         print("No args provided. Will detect branch base after window opens.")
         base_sha = get_recent_history_start(repo_path, count=200)
@@ -378,7 +363,7 @@ def main():
         browse_file=browse_file,
         browse_file_ref=browse_tag_name if browse_tag_name else None,
         browse_tag=bool(browse_tag_name),
-        cli_mode=bool(args.branch or browse_branch or browse_tag_name),
+        cli_mode=bool(browse_branch or browse_tag_name),
         auto_detect_base=detect_base,
     )
     window.show()
