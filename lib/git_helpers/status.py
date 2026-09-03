@@ -2,6 +2,19 @@ import os
 import subprocess
 
 
+def get_staged_files(repo_path):
+    """Returns list of staged files (excluding submodules)."""
+    try:
+        cmd = ["git", "diff", "--cached", "--name-only", "--ignore-submodules=all"]
+        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True,
+                                encoding='utf-8', errors='replace')
+        return [f for f in result.stdout.strip().split('\n') if f]
+    except subprocess.CalledProcessError as exc:
+        err = exc.stderr.strip() if exc.stderr else str(exc)
+        print(f"[git_helpers] get_staged_files: git diff --cached failed: {err}")
+        return []
+
+
 def has_uncommitted_changes(repo_path):
     """Returns True if there are uncommitted changes in the repository."""
     try:

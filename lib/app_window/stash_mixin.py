@@ -366,6 +366,34 @@ class StashMixin:
             f"{kind} ID:\n{self.get_head_sha()[:8]}"
         )
 
+    def handle_commit_staged(self):
+        """Commit all currently staged changes."""
+        from lib.git_helpers.status import get_staged_files
+        staged = get_staged_files(self.repo_path)
+        if not staged:
+            QMessageBox.information(self, "No Staged Changes", "There are no staged changes to commit.")
+            return
+
+        from lib.dialogs.commit_message_dialogs import NewCommitMessageDialog
+        dlg = NewCommitMessageDialog(
+            "Commit Staged Changes",
+            f"Committing {len(staged)} staged file(s):",
+            font_size=self.current_font_size,
+            parent=self,
+        )
+        if dlg.exec() != QDialog.Accepted:
+            return
+        message = dlg.get_message()
+        if not message:
+            return
+
+        from lib.git_helpers.commit_ops import commit_staged
+        if commit_staged(self.repo_path, message):
+            self.load_history()
+            QMessageBox.information(self, "Committed", f"Committed {len(staged)} file(s).")
+        else:
+            QMessageBox.critical(self, "Commit Failed", "Failed to commit staged changes.")
+
     def handle_stage_files(self):
         """Open a dialog to select unstaged/untracked files to stage (git add)."""
         unstaged_files = get_unstaged_files(self.repo_path, ignore_submodules=True)
