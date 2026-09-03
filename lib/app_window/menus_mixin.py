@@ -217,6 +217,11 @@ class MenusMixin:
         discard_staged_action.triggered.connect(lambda *_: self.handle_discard_staged())
         staged_changes_menu.addAction(discard_staged_action)
 
+        amend_staged_action = QAction("Amend Last Commit…", self)
+        amend_staged_action.setToolTip("Amend the last commit with staged changes.")
+        amend_staged_action.triggered.connect(lambda *_: self.handle_amend_staged())
+        staged_changes_menu.addAction(amend_staged_action)
+
         browse_action = QAction("Browse Branch", self)
         browse_action.setToolTip("Open a read-only viewer of another branch's full history.")
         browse_action.triggered.connect(lambda *_: self.handle_browse_branch())

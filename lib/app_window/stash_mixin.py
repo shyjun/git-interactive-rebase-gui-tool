@@ -456,6 +456,33 @@ class StashMixin:
         else:
             QMessageBox.critical(self, "Discard Failed", "Failed to discard staged changes.")
 
+    def handle_amend_staged(self):
+        """Amend the last commit with staged changes."""
+        from lib.git_helpers.status import get_staged_files
+        staged = get_staged_files(self.repo_path)
+        if not staged:
+            QMessageBox.information(self, "No Staged Changes", "There are no staged changes to amend.")
+            return
+        from lib.dialogs.commit_message_dialogs import NewCommitMessageDialog
+        dlg = NewCommitMessageDialog(
+            "Amend Last Commit",
+            f"Amending {len(staged)} staged file(s) into the last commit.\n"
+            "Leave the message unchanged to keep the original commit message.",
+            font_size=self.current_font_size,
+            parent=self,
+        )
+        if dlg.exec() != QDialog.Accepted:
+            return
+        message = dlg.get_message()
+        if not message:
+            return
+        from lib.git_helpers.commit_ops import amend_staged
+        if amend_staged(self.repo_path, message):
+            self.load_history()
+            QMessageBox.information(self, "Amended", f"Amended last commit with {len(staged)} file(s).")
+        else:
+            QMessageBox.critical(self, "Amend Failed", "Failed to amend last commit.")
+
     def handle_stage_files(self):
         """Open a dialog to select unstaged/untracked files to stage (git add)."""
         unstaged_files = get_unstaged_files(self.repo_path, ignore_submodules=True)
