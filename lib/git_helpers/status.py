@@ -164,7 +164,7 @@ def classify_tracked_changes(repo_path):
     return has_staged, has_unstaged
 
 def get_unstaged_files(repo_path, ignore_submodules=False):
-    """Returns a list of file paths that have unstaged changes."""
+    """Returns a list of file paths that have unstaged changes (worktree modifications only)."""
     try:
         cmd = ["git", "status", "--porcelain", "--untracked-files=no"]
         if ignore_submodules:
@@ -175,8 +175,12 @@ def get_unstaged_files(repo_path, ignore_submodules=False):
         for line in result.stdout.strip().split('\n'):
             if not line.strip(): continue
             # Format: XY filename (X=index, Y=worktree)
-            # We care about unstaged changes (Y != ' ' and Y != '?')
-            # But porcelain v1 is a bit cryptic. Simplified check:
+            # Unstaged changes = Y is not ' ' and Y is not '?'
+            if len(line) < 3:
+                continue
+            y_status = line[1]
+            if y_status == ' ' or y_status == '?':
+                continue
             parts = line.strip().split(maxsplit=1)
             if len(parts) == 2:
                 filepath = parts[1]
