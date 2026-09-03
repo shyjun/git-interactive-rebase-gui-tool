@@ -80,6 +80,7 @@ from lib.git_helpers import (
     get_unstaged_diff,
     get_unstaged_file_stats,
     get_unstaged_file_diff,
+    get_staged_file_diff,
     get_current_branch,
     get_full_head_sha,
     classify_tracked_changes,
@@ -1205,6 +1206,75 @@ class UnstagedDiffDialog(BranchDiffDialog):
                         filepath = entry[1] if entry else ""
                         if filepath:
                             diff = get_unstaged_file_diff(self.repo_path, filepath)
+                            diffs.append(diff)
+                    except Exception:
+                        pass
+
+
+class StagedDiffDialog(BranchDiffDialog):
+    """Read-only window showing staged (index vs HEAD) changes with 3 tabs:
+    Plain Diff, File-wise Diff, Tree-wise Diff."""
+    def __init__(self, repo_path, files, diff_text, file_stats, branch, head_sha, font_size=10, parent=None, colors=None):
+        if colors is None:
+            main_win = parent if isinstance(parent, QMainWindow) else None
+            if main_win and hasattr(main_win, 'current_theme_colors'):
+                colors = main_win.current_theme_colors
+            else:
+                theme_name = QSettings("git-interactive-rebase-gui-tool", "settings").value("theme", "light", type=str)
+                colors = get_theme_colors(theme_name)
+
+        super().__init__(
+            repo_path, branch, head_sha, len(files), diff_text,
+            files, file_stats, font_size, parent, colors=colors
+        )
+        self.setWindowTitle("Staged Changes")
+        self.header_label.setText(
+            f"Staged Changes: <b>{branch}</b> - {len(files)} file{'s' if len(files) != 1 else ''}"
+        )
+
+    def on_filewise_file_selected(self, filepath):
+        if not filepath:
+            self.filewise_diff_view.clear()
+            return
+        try:
+            diff = get_staged_file_diff(self.repo_path, filepath)
+            self.filewise_diff_view.setPlainText(diff)
+            self.filewise_diff_view.set_separator_color(self.colors.get("separator", "#444444"))
+            self.filewise_diff_search._perform_search()
+        except Exception as e:
+            self.filewise_diff_view.setPlainText(f"Error loading diff: {e}")
+
+    def on_treewise_item_clicked(self, item, column):
+        """Handle click on tree-wise item for staged changes."""
+        item_data = item.data(0, Qt.UserRole + 10)
+        if not item_data:
+            return
+        try:
+            if item_data["type"] == "file":
+                filepath = item_data.get("filepath", "")
+                if filepath:
+                    diff = get_staged_file_diff(self.repo_path, filepath)
+                    self.treewise_diff_view.setPlainText(diff)
+            else:
+                diffs = []
+                self._collect_folder_diffs_staged(item_data["node"], diffs)
+                self.treewise_diff_view.setPlainText("\n".join(diffs))
+            self.treewise_diff_view.set_separator_color(self.colors.get("separator", "#444444"))
+            self.treewise_diff_search._perform_search()
+        except Exception as e:
+            self.treewise_diff_view.setPlainText(f"Error loading diff: {e}")
+
+    def _collect_folder_diffs_staged(self, node, diffs):
+        """Recursively collect staged diffs for all leaf files under a folder node."""
+        for child in node["children"].values():
+            if child["children"]:
+                self._collect_folder_diffs_staged(child, diffs)
+            else:
+                for entry in child["entries"]:
+                    try:
+                        filepath = entry[1] if entry else ""
+                        if filepath:
+                            diff = get_staged_file_diff(self.repo_path, filepath)
                             diffs.append(diff)
                     except Exception:
                         pass

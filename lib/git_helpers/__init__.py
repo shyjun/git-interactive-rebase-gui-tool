@@ -53,6 +53,8 @@ from .commits import (
 
 from .diffs import (
     get_staged_diff,
+    get_staged_file_diff,
+    get_staged_file_stats,
     get_merge_base,
     get_diff_between,
     get_files_between,
