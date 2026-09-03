@@ -206,47 +206,30 @@ python3 git_interactive_rebase.py
 
 ## ⚙️ Command Line Arguments
 
-You can pass optional arguments when running the script:
-
-Run from a specific commit:
+The tool auto-detects the type of positional arguments (file, branch, tag, or commit ref):
 
 ```bash
-python3 git_interactive_rebase.py <commit-sha>
+python3 git_interactive_rebase.py                         # auto-detect base, show history
+python3 git_interactive_rebase.py <branch>                # browse a branch (read-only)
+python3 git_interactive_rebase.py <tag>                   # browse from a tag (read-only)
+python3 git_interactive_rebase.py <file>                  # open file log (read-only)
+python3 git_interactive_rebase.py <commit-ref>            # start from a specific commit
+python3 git_interactive_rebase.py <branch> <file>         # browse branch, filtered to file
+python3 git_interactive_rebase.py <tag> <file>            # browse tag, filtered to file
 ```
 
-Start in read-only viewer mode (disabled history-modifying operations):
+Other options:
 
 ```bash
-python3 git_interactive_rebase.py --viewer-mode
+python3 git_interactive_rebase.py --viewer-mode           # read-only viewer mode
+python3 git_interactive_rebase.py -C /path/to/repo       # different repository location
+python3 git_interactive_rebase.py --update                # update tool and exit
+python3 git_interactive_rebase.py --version               # print version and exit
 ```
 
-Specify a different repository location:
+Detection priority for positional args: file → branch → tag → commit ref → error.
 
-```bash
-python3 git_interactive_rebase.py -C /path/to/repo
-```
-
-Update the tool to the latest version and exit:
-
-```bash
-python3 git_interactive_rebase.py --update
-```
-
-Print the tool's version (short git id) and exit:
-
-```bash
-python3 git_interactive_rebase.py --version
-```
-
-Browse a specific branch in read-only viewer mode:
-
-```bash
-python3 git_interactive_rebase.py --branch <branch-name>
-```
-
-Opens the specified branch's commit history in a read-only viewer window. History-modifying operations (rebase, squash, drop, etc.) are disabled and cannot be exited. Useful for reviewing a branch's commits before cherry-picking or comparing.
-
-If no start commit is given, the tool automatically detects your branch base
+If no arguments are given, the tool automatically detects your branch base
 and shows the commits since that point. If detection fails, it falls back to
 the 200 most recent commits with a **Load 100 more** option to extend further.
 
