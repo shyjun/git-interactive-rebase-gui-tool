@@ -21,12 +21,15 @@ from PySide6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QSplitter,
+    QTabWidget,
+    QTreeWidget,
+    QTreeWidgetItem,
+    QHeaderView,
 )
 # pyrefly: ignore [missing-import]
 from PySide6.QtCore import (
     Qt,
     QSettings,
-    QTimer,
 )
 # pyrefly: ignore [missing-import]
 from PySide6.QtGui import (
@@ -43,12 +46,14 @@ from lib.git_helpers import (
     get_full_head_sha,
     classify_tracked_changes,
     get_unstaged_file_diff,
+    build_file_tree,
 )
 from lib.widgets import (
     DiffHighlighter,
     DiffSearchBar,
     DiffView,
     StatsItemDelegate,
+    TreeStatsDelegate,
 )
 
 
@@ -527,6 +532,14 @@ class StageFilesDialog(QDialog):
         top_row.addWidget(self.counter_label)
         layout.addLayout(top_row)
 
+        # Tab widget for File List and Tree View
+        self.tab_widget = QTabWidget()
+
+        # Tab 0: File List
+        file_list_widget = QWidget()
+        file_list_layout = QVBoxLayout(file_list_widget)
+        file_list_layout.setContentsMargins(0, 0, 0, 0)
+
         self.file_list = QListWidget()
         self.file_list.setFont(QFont("Courier New", font_size))
         for f in self.files:
@@ -542,7 +555,32 @@ class StageFilesDialog(QDialog):
         )
         self.file_list.setItemDelegate(self.stats_delegate)
         self.file_list.itemChanged.connect(self._update_counter)
-        layout.addWidget(self.file_list)
+        file_list_layout.addWidget(self.file_list)
+        self.tab_widget.addTab(file_list_widget, "File List")
+
+        # Tab 1: Tree View
+        tree_widget = QWidget()
+        tree_layout = QVBoxLayout(tree_widget)
+        tree_layout.setContentsMargins(0, 0, 0, 0)
+
+        self.treewise_tree = QTreeWidget()
+        self.treewise_tree.setHeaderLabels(["Name", "Stats"])
+        self.treewise_tree.setColumnCount(2)
+        self.treewise_tree.header().setDefaultAlignment(Qt.AlignRight)
+        self.treewise_tree.header().setStretchLastSection(False)
+        self.treewise_tree.header().setSectionResizeMode(0, QHeaderView.Stretch)
+        self.treewise_tree.header().setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        self.treewise_tree.setFont(QFont("Courier New", font_size))
+        self.treewise_tree.setAnimated(True)
+        self.treewise_tree.setItemDelegateForColumn(1, TreeStatsDelegate())
+        self.treewise_tree.itemChanged.connect(self._on_tree_item_changed)
+        tree_layout.addWidget(self.treewise_tree)
+
+        # Populate tree
+        self._populate_tree()
+
+        self.tab_widget.addTab(tree_widget, "Tree View")
+        layout.addWidget(self.tab_widget)
 
         bot_row = QHBoxLayout()
         bot_row.setSpacing(10)
@@ -574,6 +612,82 @@ class StageFilesDialog(QDialog):
 
         self._update_counter()
 
+    def _populate_tree(self):
+        """Build tree from file list."""
+        if not self.files:
+            return
+        entries = [('M', f, '') for f in self.files]
+        tree = build_file_tree(entries, self.file_stats)
+        added_color = self.colors.get("added", "#22863a")
+        removed_color = self.colors.get("removed", "#cb2431")
+        self._add_tree_children(None, tree["children"], added_color, removed_color)
+        for i in range(self.treewise_tree.topLevelItemCount()):
+            self.treewise_tree.topLevelItem(i).setExpanded(True)
+
+    def _add_tree_children(self, parent_item, children_dict, added_color, removed_color):
+        """Recursively add folder/file nodes to the QTreeWidget."""
+        folders = sorted(((k, v) for k, v in children_dict.items() if v["children"]),
+                         key=lambda x: x[0].lower())
+        files = sorted(((k, v) for k, v in children_dict.items() if not v["children"]),
+                       key=lambda x: x[0].lower())
+        for name, node in folders + files:
+            item = QTreeWidgetItem()
+            if node["children"]:
+                item.setText(0, f"\U0001f4c1 {name}")
+                item.setData(0, Qt.UserRole + 10, {"type": "folder", "node": node})
+                if node["added"] or node["deleted"]:
+                    item.setText(1, f"+{node['added']} / -{node['deleted']}")
+                    item.setTextAlignment(1, Qt.AlignRight | Qt.AlignVCenter)
+                item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+                item.setCheckState(0, Qt.Unchecked)
+                if parent_item:
+                    parent_item.addChild(item)
+                else:
+                    self.treewise_tree.addTopLevelItem(item)
+                self._add_tree_children(item, node["children"], added_color, removed_color)
+            else:
+                entry = node["entries"][0] if node["entries"] else None
+                filepath = entry[1] if entry else name
+                item.setText(0, name)
+                item.setData(0, Qt.UserRole + 10, {"type": "file", "filepath": filepath})
+                if node["added"] or node["deleted"]:
+                    item.setText(1, f"+{node['added']} / -{node['deleted']}")
+                    item.setTextAlignment(1, Qt.AlignRight | Qt.AlignVCenter)
+                item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+                item.setCheckState(0, Qt.Unchecked)
+                if parent_item:
+                    parent_item.addChild(item)
+                else:
+                    self.treewise_tree.addTopLevelItem(item)
+
+    def _on_tree_item_changed(self, item, column):
+        """Handle checkbox change in tree: sync with file list."""
+        item_data = item.data(0, Qt.UserRole + 10)
+        if not item_data:
+            return
+        checked = item.checkState(0) == Qt.Checked
+        if item_data["type"] == "folder":
+            # Check/uncheck all children
+            self._set_tree_children_checked(item, checked)
+        else:
+            filepath = item_data.get("filepath", "")
+            # Sync with file list
+            for i in range(self.file_list.count()):
+                list_item = self.file_list.item(i)
+                if list_item.text() == filepath:
+                    list_item.setCheckState(Qt.Checked if checked else Qt.Unchecked)
+                    break
+        self._update_counter()
+
+    def _set_tree_children_checked(self, item, checked):
+        """Recursively set check state for all children."""
+        for i in range(item.childCount()):
+            child = item.child(i)
+            child.setCheckState(0, Qt.Checked if checked else Qt.Unchecked)
+            child_data = child.data(0, Qt.UserRole + 10)
+            if child_data and child_data["type"] == "folder":
+                self._set_tree_children_checked(child, checked)
+
     def _on_stage(self):
         self.selected_files = self.checked_files()
         if not self.selected_files:
@@ -588,6 +702,11 @@ class StageFilesDialog(QDialog):
     def _set_all(self, state):
         for i in range(self.file_list.count()):
             self.file_list.item(i).setCheckState(Qt.Checked if state else Qt.Unchecked)
+        # Also update tree checkboxes
+        for i in range(self.treewise_tree.topLevelItemCount()):
+            item = self.treewise_tree.topLevelItem(i)
+            item.setCheckState(0, Qt.Checked if state else Qt.Unchecked)
+            self._set_tree_children_checked(item, state)
 
     def _update_counter(self, _=None):
         total = self.file_list.count()
