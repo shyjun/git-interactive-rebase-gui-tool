@@ -69,7 +69,7 @@ def main():
     parser.add_argument("--update", action="store_true", help="Update the tool to the latest version and exit.")
     parser.add_argument("--version", action="store_true", help="Print the tool's version (short git id) and exit.")
     parser.add_argument("--branch", type=str, help="Use the merge-base of HEAD and this branch as the starting point.")
-    parser.add_argument("commit_sha", type=str, nargs="?", help="Starting commit SHA (optional, defaults to root)")
+    parser.add_argument("positional", nargs="*", help="Branch, file, tag, or commit ref (auto-detected)")
     args = parser.parse_args()
 
     if args.version:
@@ -173,39 +173,102 @@ def main():
             "Please run this tool inside a git repository.")
         sys.exit(1)
 
-    commit_sha = args.commit_sha
-    base_branch = None  # only set when auto-detected from branch base
-    detect_base = False  # True when no args → async base detection after window opens
+    # --- Detect positional arg types ---
+
+    def _is_file(repo_path, arg):
+        return os.path.isfile(os.path.join(repo_path, arg))
+
+    def _is_branch(repo_path, arg):
+        res = subprocess.run(
+            ["git", "rev-parse", "--verify", "--quiet", f"refs/heads/{arg}"],
+            cwd=repo_path, capture_output=True
+        )
+        return res.returncode == 0
+
+    def _is_tag(repo_path, arg):
+        res = subprocess.run(
+            ["git", "rev-parse", "--verify", "--quiet", f"refs/tags/{arg}"],
+            cwd=repo_path, capture_output=True
+        )
+        return res.returncode == 0
+
+    def _is_commit_ref(repo_path, arg):
+        res = subprocess.run(
+            ["git", "rev-parse", "--verify", "--quiet", arg],
+            cwd=repo_path, capture_output=True
+        )
+        return res.returncode == 0
+
+    positional = args.positional
+    commit_sha = None
+    base_branch = None
+    detect_base = False
+    browse_branch = None
+    browse_file = None
+    browse_tag_name = None
+
     if args.branch:
-        # Explicit branch provided: open in browse mode for that branch
+        # Explicit --branch flag: open in browse mode for that branch
         try:
             if not branch_exists(repo_path, args.branch):
                 QMessageBox.critical(None, "Branch does not exist",
                     f"The branch '{args.branch}' does not exist in this repository.")
                 sys.exit(1)
             ref = normalize_branch_ref(repo_path, args.branch)
+            browse_branch = ref
             print(f"Using --branch '{args.branch}': browsing branch '{ref}'")
         except Exception as e:
             QMessageBox.critical(None, "Error", f"Could not find branch '{args.branch}': {e}")
             sys.exit(1)
-    elif not commit_sha:
-        # No SHA provided: show recent history immediately; detect base in
-        # background but only use it if the range is <= 200 commits.
-        print("No commit SHA provided. Will detect branch base after window opens.")
+    elif len(positional) == 0:
+        # No args: auto-detect base
+        print("No args provided. Will detect branch base after window opens.")
         base_sha = get_recent_history_start(repo_path, count=200)
         commit_sha = base_sha
         detect_base = True
-    else:
-        # Resolve the provided SHA/ref (like HEAD^^^^) to a concrete static SHA-1 hash.
-        # This is critical so the base doesn't drift when the rebase rewrites HEAD!
-        try:
-            res = subprocess.run(["git", "rev-parse", commit_sha], cwd=repo_path, check=True, capture_output=True, encoding='utf-8', errors='replace')
-            resolved_sha = res.stdout.strip()
-            print(f"Commit SHA provided: {commit_sha} -> resolved to {resolved_sha}")
-            commit_sha = resolved_sha
-        except Exception:
-            QMessageBox.critical(None, "Error", f"Invalid commit reference: {commit_sha}")
+    elif len(positional) == 1:
+        arg = positional[0]
+        if _is_file(repo_path, arg):
+            print(f"Arg '{arg}' is a file. Opening file log.")
+            browse_file = arg
+        elif _is_branch(repo_path, arg):
+            print(f"Arg '{arg}' is a branch. Browsing branch.")
+            browse_branch = normalize_branch_ref(repo_path, arg)
+        elif _is_tag(repo_path, arg):
+            print(f"Arg '{arg}' is a tag. Browsing from tag.")
+            browse_tag_name = arg
+        elif _is_commit_ref(repo_path, arg):
+            print(f"Arg '{arg}' is a commit ref. Resolving...")
+            res = subprocess.run(["git", "rev-parse", arg], cwd=repo_path, check=True,
+                                 capture_output=True, encoding='utf-8', errors='replace')
+            commit_sha = res.stdout.strip()
+            print(f"Resolved '{arg}' -> {commit_sha}")
+        else:
+            QMessageBox.critical(None, "Error", f"Cannot understand argument: '{arg}'\n\nNot a file, branch, tag, or commit reference.")
             sys.exit(1)
+    elif len(positional) == 2:
+        # Two args: <branch-or-tag> <file>
+        ref_arg, file_arg = positional
+        if _is_file(repo_path, file_arg):
+            if _is_branch(repo_path, ref_arg):
+                print(f"Browsing branch '{ref_arg}', file '{file_arg}'")
+                browse_branch = normalize_branch_ref(repo_path, ref_arg)
+                browse_file = file_arg
+            elif _is_tag(repo_path, ref_arg):
+                print(f"Browsing tag '{ref_arg}', file '{file_arg}'")
+                browse_tag_name = ref_arg
+                browse_file = file_arg
+            else:
+                QMessageBox.critical(None, "Error",
+                    f"First argument '{ref_arg}' is not a branch or tag.")
+                sys.exit(1)
+        else:
+            QMessageBox.critical(None, "Error",
+                f"Second argument '{file_arg}' is not a valid file path.")
+            sys.exit(1)
+    else:
+        QMessageBox.critical(None, "Error", "Too many arguments. Use at most 2: <branch-or-tag> <file>")
+        sys.exit(1)
 
     # Apply global stylesheet before any dialog, so the startup unstaged-changes
     # dialog matches the themed look of the rest of the app.
@@ -307,7 +370,17 @@ def main():
             print("Exiting as requested by the user.")
             sys.exit(0)
 
-    window = GitInteractiveRebaseApp(repo_path, commit_sha, app_start_time, base_branch=base_branch, viewer_mode=args.viewer_mode, browse_branch=ref if args.branch else None, cli_mode=bool(args.branch), auto_detect_base=detect_base)
+    window = GitInteractiveRebaseApp(
+        repo_path, commit_sha, app_start_time,
+        base_branch=base_branch,
+        viewer_mode=args.viewer_mode or bool(browse_branch or browse_file or browse_tag_name),
+        browse_branch=browse_branch or browse_tag_name,
+        browse_file=browse_file,
+        browse_file_ref=browse_tag_name if browse_tag_name else None,
+        browse_tag=bool(browse_tag_name),
+        cli_mode=bool(args.branch or browse_branch or browse_tag_name),
+        auto_detect_base=detect_base,
+    )
     window.show()
     if created_stash_sha:
         window.app_managed_stash_sha = created_stash_sha
