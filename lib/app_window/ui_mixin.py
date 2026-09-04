@@ -183,7 +183,7 @@ class UIMixin:
         # File list
         self.filewise_file_list = QListWidget()
         self.filewise_file_list.setMinimumHeight(60)
-        self.filewise_file_list.currentTextChanged.connect(self.on_filewise_file_selected)
+        self.filewise_file_list.itemChanged.connect(self._on_filewise_item_changed)
         self.filewise_file_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.filewise_file_list.customContextMenuRequested.connect(self.show_filewise_context_menu)
         # Install stats delegate (colors updated when theme changes)
@@ -220,6 +220,23 @@ class UIMixin:
         self.filewise_splitter.setSizes([100, 300]) # default split
 
         filewise_layout.addWidget(self.filewise_splitter)
+
+        # Filewise buttons row
+        filewise_btn_layout = QHBoxLayout()
+        self.filewise_counter_label = QLabel()
+        self.filewise_counter_label.setTextFormat(Qt.RichText)
+        filewise_btn_layout.addWidget(self.filewise_counter_label)
+        filewise_btn_layout.addStretch()
+        self.filewise_select_all_btn = QPushButton("Select All")
+        self.filewise_select_all_btn.setProperty("class", "dialog-btn")
+        self.filewise_select_all_btn.clicked.connect(lambda: self._set_all_filewise(True))
+        filewise_btn_layout.addWidget(self.filewise_select_all_btn)
+        self.filewise_deselect_all_btn = QPushButton("Deselect All")
+        self.filewise_deselect_all_btn.setProperty("class", "dialog-btn-secondary")
+        self.filewise_deselect_all_btn.clicked.connect(lambda: self._set_all_filewise(False))
+        filewise_btn_layout.addWidget(self.filewise_deselect_all_btn)
+        filewise_layout.addLayout(filewise_btn_layout)
+
         # Keep a strong reference: in file-log mode the tab page is not added to
         # the tab widget, so it would otherwise be garbage-collected.
         self.filewise_widget = filewise_widget
@@ -243,7 +260,7 @@ class UIMixin:
         self.treewise_tree.setMinimumHeight(60)
         self.treewise_tree.setAnimated(True)
         self.treewise_tree.setItemDelegateForColumn(1, TreeStatsDelegate())
-        self.treewise_tree.itemClicked.connect(self.on_treewise_item_clicked)
+        self.treewise_tree.itemChanged.connect(self._on_treewise_item_changed)
         self.treewise_tree.setContextMenuPolicy(Qt.CustomContextMenu)
         self.treewise_tree.customContextMenuRequested.connect(self.show_treewise_context_menu)
 
