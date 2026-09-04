@@ -143,23 +143,27 @@ class MenusMixin:
                     self.finished.emit("")
 
         def _on_finished(remote_sha):
-            self._startup_check_worker = None  # prevent GC
             if not remote_sha:
-                print("[startup_check] network error or no response, skipping")
+                print("[startup_check] network error or no response, skipping", flush=True)
                 return
             if remote_sha == self.start_time_tool_full_head:
-                print(f"[startup_check] already latest ({remote_sha[:8]})")
+                print(f"[startup_check] already latest ({remote_sha[:8]})", flush=True)
             else:
                 msg = f"Update available: {remote_sha[:8]} (current: {self.start_time_tool_head[:8]})"
-                print(f"[startup_check] {msg}")
+                print(f"[startup_check] {msg}", flush=True)
                 self.update_label.setText(f"Update({remote_sha[:8]}) available")
                 self.update_label.setToolTip("Go to Configure > Check for updates")
                 self.update_label.setVisible(True)
 
-        print(f"[startup_check] checking remote (local={self.start_time_tool_head[:8]})...")
+        print(f"[startup_check] checking remote (local={self.start_time_tool_head[:8]})...", flush=True)
         self._startup_check_worker = _UpdateCheckWorker()
         self._startup_check_worker.finished.connect(_on_finished)
-        print(f"[thread] startup check worker.start()")
+        # deleteLater() releases the QThread safely via the event loop after it
+        # fully finishes, instead of dropping the reference in _on_finished
+        # (which can GC the QThread mid-emission and trigger
+        # 'QThread: Destroyed while thread is still running').
+        self._startup_check_worker.finished.connect(self._startup_check_worker.deleteLater)
+        print(f"[thread] startup check worker.start()", flush=True)
         self._startup_check_worker.start()
 
     def _configure_external_tools(self):
