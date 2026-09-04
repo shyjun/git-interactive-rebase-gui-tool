@@ -44,6 +44,20 @@ A Python-based Git Interactive Rebase GUI tool to visually manage commit history
   * **Stop and handle manually**
 * **Transparent results**: After the operation a summary shows how many commits were cherry-picked / skipped / not applied, with every SHA listed. Nothing is left in a half-finished cherry-pick state.
 
+### 📦 Staged Changes Management
+
+* **Handle Staged Changes dialog**: Repo menu → **Handle Staged Changes…** opens a persistent dialog with actions for staged files. The dialog stays open after each action and refreshes automatically.
+* **Commit / Unstage Staged Changes Selectively**: Choose exactly which staged files to commit, amend, or unstage — with file checkboxes, tree view, and live diff preview.
+  * **Commit Selected Files** — commit only the checked staged files
+  * **Amend HEAD with Selected** — amend only the checked staged files into HEAD
+  * **Unstage Selected** — unstage only the checked files (`git reset HEAD -- <files>`)
+* **View Staged Diff**: 3-tab diff viewer (Plain, File-wise, Tree-wise) for all staged changes.
+* **Unstage All**: Unstage all staged changes (`git reset HEAD`).
+* **Discard Staged Changes**: Discard all staged changes with confirmation (`git checkout -- .`).
+* **Amend HEAD Commit**: Amend staged changes into HEAD with the commit message pre-filled from HEAD (editable).
+* **Stash Changes**: Stash all changes (staged and unstaged).
+* **Staged changes warning**: If staged changes exist at startup, the Repo button is highlighted and an info dialog suggests using **Handle Staged Changes**.
+
 ### 🔍 Discovery & Navigation
 
 * **Live search & filter**: Instantly find commits while you type.
@@ -83,6 +97,8 @@ A Python-based Git Interactive Rebase GUI tool to visually manage commit history
 * **Per-window font zoom**: Adjust the code font-size with the **+/- (zoom)** buttons in the status bar.
 * **Visual feedback**: Instant "Copied" notifications for clipboard actions (SHA, message, or both).
 * **Resizable dialogs**: Long result/confirmation dialogs can be resized to read all the details.
+* **Auto-background on launch**: When run from a terminal, the tool automatically detaches and runs in the background, returning the terminal immediately.
+* **Tree view in file dialogs**: Stage files and commit staged changes dialogs include a Tree View tab with folder hierarchy, checkboxes, and stats.
 
 ## ⌨️ Keyboard Shortcuts
 
