@@ -18,8 +18,8 @@ def format_tree_node_stats(node):
     is_binary = (old_size != 0 or new_size != 0) and added == 0 and deleted == 0
 
     if is_binary:
-        if old_size >= 0 and new_size >= 0:
-            return f"old: {_format_bytes(old_size)}, new: {_format_bytes(new_size)}"
+        if old_size >= 0 and new_size >= 0 and old_size != new_size:
+            return f"size: {_format_bytes(old_size)} -> {_format_bytes(new_size)}"
         elif new_size >= 0:
             return f"size: {_format_bytes(new_size)}"
         elif old_size >= 0:
@@ -156,10 +156,7 @@ def _fill_binary_sizes(repo_path, sha, binary_files, stats, is_commit=True):
     for filepath in binary_files:
         new_size = _get_file_size(repo_path, sha, filepath)
         if is_commit:
-            old_size = _get_file_size(repo_path, f"{sha}^{{tree}}", filepath)
-            # If file is newly added, try parent commit
-            if old_size == -1:
-                old_size = _get_file_size(repo_path, f"{sha}^", filepath)
+            old_size = _get_file_size(repo_path, f"{sha}^", filepath)
         else:
             old_size = _get_file_size(repo_path, sha, filepath)
         stats[filepath] = (0, 0, old_size, new_size)
