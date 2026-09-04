@@ -10,6 +10,20 @@ from .core import (
     _pad_diff_separators,
 )
 
+
+def format_binary_size(size_bytes):
+    """Format a byte count into a human-readable string."""
+    if size_bytes < 0:
+        return "unknown"
+    if size_bytes < 1024:
+        return f"{size_bytes} bytes"
+    elif size_bytes < 1024 * 1024:
+        return f"{size_bytes / 1024:.1f} KB"
+    elif size_bytes < 1024 * 1024 * 1024:
+        return f"{size_bytes / (1024 * 1024):.1f} MB"
+    else:
+        return f"{size_bytes / (1024 * 1024 * 1024):.1f} GB"
+
 from .history import (
     get_git_history,
     get_git_history_fast,

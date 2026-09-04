@@ -477,6 +477,7 @@ class BranchDiffDialog(QDialog):
 
     def _add_tree_children(self, parent_item, children_dict, added_color="#22863a", removed_color="#cb2431"):
         """Recursively add folder/file nodes to the QTreeWidget."""
+        from lib.git_helpers.commits import format_tree_node_stats
         folders = sorted(((k, v) for k, v in children_dict.items() if v["children"]),
                          key=lambda x: x[0].lower())
         files = sorted(((k, v) for k, v in children_dict.items() if not v["children"]),
@@ -488,13 +489,9 @@ class BranchDiffDialog(QDialog):
                 item.setData(0, Qt.UserRole + 10, {"type": "folder", "node": node})
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
                 item.setCheckState(0, Qt.Unchecked)
-                if node["added"] or node["deleted"]:
-                    stats_parts = []
-                    if node["added"]:
-                        stats_parts.append(f"+{node['added']}")
-                    if node["deleted"]:
-                        stats_parts.append(f"-{node['deleted']}")
-                    item.setText(1, " / ".join(stats_parts))
+                stats_text = format_tree_node_stats(node)
+                if stats_text:
+                    item.setText(1, stats_text)
                     item.setTextAlignment(1, Qt.AlignRight | Qt.AlignVCenter)
                 if parent_item:
                     parent_item.addChild(item)
@@ -508,13 +505,9 @@ class BranchDiffDialog(QDialog):
                 item.setData(0, Qt.UserRole + 10, {"type": "file", "entry": entry, "filepath": filepath})
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
                 item.setCheckState(0, Qt.Unchecked)
-                if node["added"] or node["deleted"]:
-                    stats_parts = []
-                    if node["added"]:
-                        stats_parts.append(f"+{node['added']}")
-                    if node["deleted"]:
-                        stats_parts.append(f"-{node['deleted']}")
-                    item.setText(1, " / ".join(stats_parts))
+                stats_text = format_tree_node_stats(node)
+                if stats_text:
+                    item.setText(1, stats_text)
                     item.setTextAlignment(1, Qt.AlignRight | Qt.AlignVCenter)
                 if parent_item:
                     parent_item.addChild(item)
@@ -1330,6 +1323,7 @@ class SingleCommitViewDialog(QDialog):
 
     def _add_tree_children(self, parent_item, children_dict):
         """Recursively add folder/file nodes to the QTreeWidget."""
+        from lib.git_helpers.commits import format_tree_node_stats
         folders = sorted(((k, v) for k, v in children_dict.items() if v["children"]),
                          key=lambda x: x[0].lower())
         files = sorted(((k, v) for k, v in children_dict.items() if not v["children"]),
@@ -1341,13 +1335,9 @@ class SingleCommitViewDialog(QDialog):
                 item.setData(0, Qt.UserRole + 10, {"type": "folder", "node": node})
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
                 item.setCheckState(0, Qt.Unchecked)
-                if node["added"] or node["deleted"]:
-                    stats_parts = []
-                    if node["added"]:
-                        stats_parts.append(f"+{node['added']}")
-                    if node["deleted"]:
-                        stats_parts.append(f"-{node['deleted']}")
-                    item.setText(1, " / ".join(stats_parts))
+                stats_text = format_tree_node_stats(node)
+                if stats_text:
+                    item.setText(1, stats_text)
                     item.setTextAlignment(1, Qt.AlignRight | Qt.AlignVCenter)
                 if parent_item:
                     parent_item.addChild(item)
@@ -1369,13 +1359,9 @@ class SingleCommitViewDialog(QDialog):
                 item.setData(0, Qt.UserRole + 10, {"type": "file", "entry": entry})
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
                 item.setCheckState(0, Qt.Unchecked)
-                if node["added"] or node["deleted"]:
-                    stats_parts = []
-                    if node["added"]:
-                        stats_parts.append(f"+{node['added']}")
-                    if node["deleted"]:
-                        stats_parts.append(f"-{node['deleted']}")
-                    item.setText(1, " / ".join(stats_parts))
+                stats_text = format_tree_node_stats(node)
+                if stats_text:
+                    item.setText(1, stats_text)
                     item.setTextAlignment(1, Qt.AlignRight | Qt.AlignVCenter)
                 if parent_item:
                     parent_item.addChild(item)
