@@ -422,18 +422,6 @@ class BranchDiffDialog(QDialog):
 
         # Buttons
         btn_layout = QHBoxLayout()
-        self.filewise_counter_label = QLabel()
-        self.filewise_counter_label.setTextFormat(Qt.RichText)
-        btn_layout.addWidget(self.filewise_counter_label)
-        btn_layout.addStretch()
-        self.filewise_select_all_btn = QPushButton("Select All")
-        self.filewise_select_all_btn.setProperty("class", "dialog-btn")
-        self.filewise_select_all_btn.clicked.connect(lambda: self._set_all_filewise(True))
-        btn_layout.addWidget(self.filewise_select_all_btn)
-        self.filewise_deselect_all_btn = QPushButton("Deselect All")
-        self.filewise_deselect_all_btn.setProperty("class", "dialog-btn-secondary")
-        self.filewise_deselect_all_btn.clicked.connect(lambda: self._set_all_filewise(False))
-        btn_layout.addWidget(self.filewise_deselect_all_btn)
         btn_layout.addSpacing(20)
         ok_btn = QPushButton("Close")
         ok_btn.setMinimumWidth(100)
@@ -441,7 +429,6 @@ class BranchDiffDialog(QDialog):
         ok_btn.clicked.connect(self.accept)
         btn_layout.addWidget(ok_btn)
         layout.addLayout(btn_layout)
-        self._update_filewise_counter()
 
     def _focus_active_search(self):
         idx = self.tab_widget.currentIndex()
@@ -669,7 +656,6 @@ class BranchDiffDialog(QDialog):
             filepath = item.text()
         for i in range(self.treewise_tree.topLevelItemCount()):
             self._sync_file_to_tree(self.treewise_tree.topLevelItem(i), filepath, checked)
-        self._update_filewise_counter()
         self._refresh_filewise_diff()
         self._refresh_treewise_diff()
 
@@ -720,7 +706,6 @@ class BranchDiffDialog(QDialog):
             while p:
                 self._update_folder_check_state(p)
                 p = p.parent()
-        self._update_filewise_counter()
         self._refresh_treewise_diff()
         self._refresh_filewise_diff()
 
@@ -792,14 +777,6 @@ class BranchDiffDialog(QDialog):
             folder_item.setCheckState(0, Qt.Unchecked)
         self.treewise_tree.blockSignals(False)
 
-    def _update_filewise_counter(self):
-        """Update the counter label showing checked/total files."""
-        checked = self._checked_filewise_files()
-        total = self.filewise_file_list.count()
-        self.filewise_counter_label.setText(
-            f"<b>{len(checked)}</b> / {total} files selected"
-        )
-
     def _checked_filewise_files(self):
         """Return list of checked file paths in the filewise list."""
         result = []
@@ -812,22 +789,6 @@ class BranchDiffDialog(QDialog):
                 else:
                     result.append(item.text())
         return result
-
-    def _set_all_filewise(self, state):
-        """Select/deselect all files in filewise list + tree."""
-        self.filewise_file_list.blockSignals(True)
-        for i in range(self.filewise_file_list.count()):
-            self.filewise_file_list.item(i).setCheckState(Qt.Checked if state else Qt.Unchecked)
-        self.filewise_file_list.blockSignals(False)
-        self.treewise_tree.blockSignals(True)
-        for i in range(self.treewise_tree.topLevelItemCount()):
-            item = self.treewise_tree.topLevelItem(i)
-            item.setCheckState(0, Qt.Checked if state else Qt.Unchecked)
-            self._set_tree_children_checked(item, state)
-        self.treewise_tree.blockSignals(False)
-        self._update_filewise_counter()
-        self._refresh_filewise_diff()
-        self._refresh_treewise_diff()
 
     def _refresh_filewise_diff(self):
         """Show combined diff of all checked files in the filewise diff pane."""
@@ -1109,18 +1070,6 @@ class SingleCommitViewDialog(QDialog):
 
         # Buttons
         btn_layout = QHBoxLayout()
-        self.filewise_counter_label = QLabel()
-        self.filewise_counter_label.setTextFormat(Qt.RichText)
-        btn_layout.addWidget(self.filewise_counter_label)
-        btn_layout.addStretch()
-        self.filewise_select_all_btn = QPushButton("Select All")
-        self.filewise_select_all_btn.setProperty("class", "dialog-btn")
-        self.filewise_select_all_btn.clicked.connect(lambda: self._set_all_filewise(True))
-        btn_layout.addWidget(self.filewise_select_all_btn)
-        self.filewise_deselect_all_btn = QPushButton("Deselect All")
-        self.filewise_deselect_all_btn.setProperty("class", "dialog-btn-secondary")
-        self.filewise_deselect_all_btn.clicked.connect(lambda: self._set_all_filewise(False))
-        btn_layout.addWidget(self.filewise_deselect_all_btn)
         btn_layout.addSpacing(20)
         ok_btn = QPushButton("Close")
         ok_btn.setMinimumWidth(100)
@@ -1128,7 +1077,6 @@ class SingleCommitViewDialog(QDialog):
         ok_btn.clicked.connect(self.accept)
         btn_layout.addWidget(ok_btn)
         layout.addLayout(btn_layout)
-        self._update_filewise_counter()
 
     def _focus_active_search(self):
         idx = self.tab_widget.currentIndex()
@@ -1181,7 +1129,6 @@ class SingleCommitViewDialog(QDialog):
             filepath = item.text()
         for i in range(self.treewise_tree.topLevelItemCount()):
             self._sync_file_to_tree(self.treewise_tree.topLevelItem(i), filepath, checked)
-        self._update_filewise_counter()
         self._refresh_filewise_diff()
         self._refresh_treewise_diff()
 
@@ -1236,7 +1183,6 @@ class SingleCommitViewDialog(QDialog):
             while p:
                 self._update_folder_check_state(p)
                 p = p.parent()
-        self._update_filewise_counter()
         self._refresh_treewise_diff()
         self._refresh_filewise_diff()
 
@@ -1308,14 +1254,6 @@ class SingleCommitViewDialog(QDialog):
             folder_item.setCheckState(0, Qt.Unchecked)
         self.treewise_tree.blockSignals(False)
 
-    def _update_filewise_counter(self):
-        """Update the counter label showing checked/total files."""
-        checked = self._checked_filewise_files()
-        total = self.filewise_file_list.count()
-        self.filewise_counter_label.setText(
-            f"<b>{len(checked)}</b> / {total} files selected"
-        )
-
     def _checked_filewise_files(self):
         """Return list of checked file paths in the filewise list."""
         result = []
@@ -1328,22 +1266,6 @@ class SingleCommitViewDialog(QDialog):
                 else:
                     result.append(item.text())
         return result
-
-    def _set_all_filewise(self, state):
-        """Select/deselect all files in filewise list + tree."""
-        self.filewise_file_list.blockSignals(True)
-        for i in range(self.filewise_file_list.count()):
-            self.filewise_file_list.item(i).setCheckState(Qt.Checked if state else Qt.Unchecked)
-        self.filewise_file_list.blockSignals(False)
-        self.treewise_tree.blockSignals(True)
-        for i in range(self.treewise_tree.topLevelItemCount()):
-            item = self.treewise_tree.topLevelItem(i)
-            item.setCheckState(0, Qt.Checked if state else Qt.Unchecked)
-            self._set_tree_children_checked(item, state)
-        self.treewise_tree.blockSignals(False)
-        self._update_filewise_counter()
-        self._refresh_filewise_diff()
-        self._refresh_treewise_diff()
 
     def _refresh_filewise_diff(self):
         """Show combined diff of all checked files in the filewise diff pane."""

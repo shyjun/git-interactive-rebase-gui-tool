@@ -221,22 +221,6 @@ class UIMixin:
 
         filewise_layout.addWidget(self.filewise_splitter)
 
-        # Filewise buttons row
-        filewise_btn_layout = QHBoxLayout()
-        self.filewise_counter_label = QLabel()
-        self.filewise_counter_label.setTextFormat(Qt.RichText)
-        filewise_btn_layout.addWidget(self.filewise_counter_label)
-        filewise_btn_layout.addStretch()
-        self.filewise_select_all_btn = QPushButton("Select All")
-        self.filewise_select_all_btn.setProperty("class", "dialog-btn")
-        self.filewise_select_all_btn.clicked.connect(lambda: self._set_all_filewise(True))
-        filewise_btn_layout.addWidget(self.filewise_select_all_btn)
-        self.filewise_deselect_all_btn = QPushButton("Deselect All")
-        self.filewise_deselect_all_btn.setProperty("class", "dialog-btn-secondary")
-        self.filewise_deselect_all_btn.clicked.connect(lambda: self._set_all_filewise(False))
-        filewise_btn_layout.addWidget(self.filewise_deselect_all_btn)
-        filewise_layout.addLayout(filewise_btn_layout)
-
         # Keep a strong reference: in file-log mode the tab page is not added to
         # the tab widget, so it would otherwise be garbage-collected.
         self.filewise_widget = filewise_widget
