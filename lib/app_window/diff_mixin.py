@@ -127,8 +127,6 @@ class DiffMixin:
             # Also populate the tree-wise tab
             self._populate_treewise_tree(file_entries, file_stats)
 
-            self._update_filewise_counter()
-
             # Refresh the active diff pane to show checked files
             tab_idx = self.diff_tab_widget.currentIndex()
             if tab_idx == 1:
@@ -309,7 +307,6 @@ class DiffMixin:
             filepath = item.text()
         for i in range(self.treewise_tree.topLevelItemCount()):
             self._sync_file_to_tree(self.treewise_tree.topLevelItem(i), filepath, checked)
-        self._update_filewise_counter()
         self._refresh_filewise_diff()
         self._refresh_treewise_diff()
 
@@ -363,7 +360,6 @@ class DiffMixin:
             while p:
                 self._update_folder_check_state(p)
                 p = p.parent()
-        self._update_filewise_counter()
         self._refresh_treewise_diff()
         self._refresh_filewise_diff()
 
@@ -437,14 +433,6 @@ class DiffMixin:
             folder_item.setCheckState(0, Qt.Unchecked)
         self.treewise_tree.blockSignals(False)
 
-    def _update_filewise_counter(self):
-        """Update the counter label showing checked/total files."""
-        checked = self._checked_filewise_files()
-        total = self.filewise_file_list.count()
-        self.filewise_counter_label.setText(
-            f"<b>{len(checked)}</b> / {total} files selected"
-        )
-
     def _checked_filewise_files(self):
         """Return list of checked file paths in the filewise list."""
         result = []
@@ -457,22 +445,6 @@ class DiffMixin:
                 else:
                     result.append(item.text())
         return result
-
-    def _set_all_filewise(self, state):
-        """Select/deselect all files in filewise list + tree."""
-        self.filewise_file_list.blockSignals(True)
-        for i in range(self.filewise_file_list.count()):
-            self.filewise_file_list.item(i).setCheckState(Qt.Checked if state else Qt.Unchecked)
-        self.filewise_file_list.blockSignals(False)
-        self.treewise_tree.blockSignals(True)
-        for i in range(self.treewise_tree.topLevelItemCount()):
-            item = self.treewise_tree.topLevelItem(i)
-            item.setCheckState(0, Qt.Checked if state else Qt.Unchecked)
-            self._set_tree_children_checked(item, state)
-        self.treewise_tree.blockSignals(False)
-        self._update_filewise_counter()
-        self._refresh_filewise_diff()
-        self._refresh_treewise_diff()
 
     def _refresh_filewise_diff(self):
         """Show combined diff of all checked files in the filewise diff pane."""
