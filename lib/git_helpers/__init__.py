@@ -1,6 +1,3 @@
-# Re-export all public and private symbols from sub-modules so that
-# ``from lib.git_helpers import X`` continues to work unchanged.
-
 from .core import (
     _parse_log_records,
     _attach_full_messages,
@@ -9,20 +6,6 @@ from .core import (
     _git_capture,
     _pad_diff_separators,
 )
-
-
-def format_binary_size(size_bytes):
-    """Format a byte count into a human-readable string."""
-    if size_bytes < 0:
-        return "unknown"
-    if size_bytes < 1024:
-        return f"{size_bytes} bytes"
-    elif size_bytes < 1024 * 1024:
-        return f"{size_bytes / 1024:.1f} KB"
-    elif size_bytes < 1024 * 1024 * 1024:
-        return f"{size_bytes / (1024 * 1024):.1f} MB"
-    else:
-        return f"{size_bytes / (1024 * 1024 * 1024):.1f} GB"
 
 from .history import (
     get_git_history,
@@ -143,3 +126,17 @@ from .blame import (
     _parse_blame_porcelain,
     get_git_blame,
 )
+
+
+def format_binary_size(size_bytes):
+    """Format a byte count into a human-readable string."""
+    if size_bytes < 0:
+        return "unknown"
+    if size_bytes < 1024:
+        return f"{size_bytes} bytes"
+    elif size_bytes < 1024 * 1024:
+        return f"{size_bytes / 1024:.1f} KB"
+    elif size_bytes < 1024 * 1024 * 1024:
+        return f"{size_bytes / (1024 * 1024):.1f} MB"
+    else:
+        return f"{size_bytes / (1024 * 1024 * 1024):.1f} GB"

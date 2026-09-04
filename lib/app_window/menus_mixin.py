@@ -163,7 +163,7 @@ class MenusMixin:
         # (which can GC the QThread mid-emission and trigger
         # 'QThread: Destroyed while thread is still running').
         self._startup_check_worker.finished.connect(self._startup_check_worker.deleteLater)
-        print(f"[thread] startup check worker.start()", flush=True)
+        print("[thread] startup check worker.start()", flush=True)
         self._startup_check_worker.start()
 
     def _configure_external_tools(self):
