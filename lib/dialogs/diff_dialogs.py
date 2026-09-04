@@ -1056,8 +1056,6 @@ class SingleCommitViewDialog(QDialog):
             item.setCheckState(Qt.Unchecked)
             self.filewise_file_list.addItem(item)
         self.filewise_file_list.blockSignals(False)
-        if self._files:
-            self.filewise_file_list.setCurrentRow(0)
 
         # Populate tree-wise tab
         self._populate_treewise_tree(self._files, self._file_stats)
