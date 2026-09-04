@@ -899,7 +899,7 @@ class StageFilesDialog(QDialog):
             parent=self.file_list
         )
         self.file_list.setItemDelegate(self.stats_delegate)
-        self.file_list.itemChanged.connect(self._update_counter)
+        self.file_list.itemChanged.connect(self._on_file_item_changed)
         file_list_layout.addWidget(self.file_list)
         self.tab_widget.addTab(file_list_widget, "File List")
 
@@ -925,7 +925,37 @@ class StageFilesDialog(QDialog):
         self._populate_tree()
 
         self.tab_widget.addTab(tree_widget, "Tree View")
-        layout.addWidget(self.tab_widget)
+
+        # Diff preview
+        self.diff_view = DiffView()
+        self.diff_view.setReadOnly(True)
+        self.diff_view.setFont(QFont("Courier New", font_size))
+        self.diff_view.setPlaceholderText("Check files to preview their combined diff...")
+        self.highlighter = DiffHighlighter(
+            self.diff_view.document(),
+            added_color=colors.get("added", "#22863a"),
+            removed_color=colors.get("removed", "#cb2431"),
+            header_color=colors.get("header", "#66d9ef")
+        )
+        self.search_bar = DiffSearchBar(target_view=self.diff_view, parent=self)
+        self.ctrl_f_shortcut = QShortcut(QKeySequence("Ctrl+F"), self)
+        self.ctrl_f_shortcut.activated.connect(self.search_bar.show_and_focus)
+
+        # Splitter: tabs on top, diff on bottom
+        self.main_splitter = QSplitter(Qt.Vertical)
+        self.main_splitter.setChildrenCollapsible(False)
+        self.main_splitter.addWidget(self.tab_widget)
+        diff_pane = QWidget()
+        diff_pane_layout = QVBoxLayout(diff_pane)
+        diff_pane_layout.setContentsMargins(0, 0, 0, 0)
+        diff_pane_layout.setSpacing(4)
+        diff_pane_layout.addWidget(self.search_bar)
+        diff_pane_layout.addWidget(self.diff_view)
+        self.main_splitter.addWidget(diff_pane)
+        self.main_splitter.setStretchFactor(0, 1)
+        self.main_splitter.setStretchFactor(1, 2)
+        self.main_splitter.setSizes([260, 400])
+        layout.addWidget(self.main_splitter)
 
         bot_row = QHBoxLayout()
         bot_row.setSpacing(10)
@@ -1027,6 +1057,7 @@ class StageFilesDialog(QDialog):
             if parent:
                 self._update_folder_check_state(parent)
         self._update_counter()
+        self._refresh_diff()
 
     def _update_folder_check_state(self, folder_item):
         """Update folder checkbox based on children check states."""
@@ -1072,6 +1103,39 @@ class StageFilesDialog(QDialog):
             if child_data and child_data["type"] == "folder":
                 self._set_tree_children_checked(child, checked)
 
+    def _on_file_item_changed(self, item):
+        """Handle checkbox change in file list: update counter and refresh diff."""
+        self._update_counter()
+        self._refresh_diff()
+
+    def _set_all(self, state):
+        for i in range(self.file_list.count()):
+            self.file_list.item(i).setCheckState(Qt.Checked if state else Qt.Unchecked)
+        for i in range(self.treewise_tree.topLevelItemCount()):
+            item = self.treewise_tree.topLevelItem(i)
+            item.setCheckState(0, Qt.Checked if state else Qt.Unchecked)
+            self._set_tree_children_checked(item, state)
+        self._refresh_diff()
+
+    def _refresh_diff(self, _=None):
+        """Show the combined diff of the currently checked files."""
+        checked = self.checked_files()
+        if not checked:
+            self.diff_view.clear()
+            return
+        try:
+            parts = []
+            for f in checked:
+                d = get_unstaged_file_diff(self.repo_path, f).rstrip("\n")
+                if d:
+                    parts.append(d)
+            text = "\n\n".join(parts) + ("\n" if parts else "")
+            self.diff_view.setPlainText(text)
+            self.diff_view.set_separator_color(self.colors.get("separator", "#444444"))
+            self.search_bar._perform_search()
+        except Exception as e:
+            self.diff_view.setPlainText(f"Error loading diff: {e}")
+
     def _on_stage(self):
         self.selected_files = self.checked_files()
         if not self.selected_files:
@@ -1091,6 +1155,7 @@ class StageFilesDialog(QDialog):
             item = self.treewise_tree.topLevelItem(i)
             item.setCheckState(0, Qt.Checked if state else Qt.Unchecked)
             self._set_tree_children_checked(item, state)
+        self._refresh_diff()
 
     def _update_counter(self, _=None):
         total = self.file_list.count()
