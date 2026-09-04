@@ -464,19 +464,7 @@ if __name__ == "__main__":
     import platform
     if "--update" not in sys.argv and "--version" not in sys.argv:
         if sys.stdout and sys.stdout.isatty():
-            if platform.system() == "Windows":
-                import subprocess
-                err_log = os.path.join(os.environ.get("TEMP", os.path.expanduser("~")), "git_rebase_bg_err.log")
-                proc = subprocess.Popen(
-                    [sys.executable] + sys.argv,
-                    creationflags=subprocess.DETACHED_PROCESS,
-                    stdout=open(os.devnull, "w"),
-                    stderr=open(err_log, "w"),
-                    stdin=open(os.devnull, "r"),
-                )
-                print(f"Tool started in background (PID {proc.pid})")
-                sys.exit(0)
-            else:
+            if platform.system() != "Windows":
                 pid = os.fork()
                 if pid > 0:
                     print(f"Tool started in background (PID {pid})")
