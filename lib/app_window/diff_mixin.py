@@ -128,6 +128,13 @@ class DiffMixin:
             self._populate_treewise_tree(file_entries, file_stats)
 
             self._update_filewise_counter()
+
+            # Refresh the active diff pane to show checked files
+            tab_idx = self.diff_tab_widget.currentIndex()
+            if tab_idx == 1:
+                self._refresh_filewise_diff()
+            elif tab_idx == 2:
+                self._refresh_treewise_diff()
         except Exception as e:
             self.side_diff_view.setPlainText(f"Error loading diff: {e}")
             if hasattr(self, 'side_commit_msg'):
@@ -138,8 +145,28 @@ class DiffMixin:
 
     def on_diff_tab_changed(self, index):
         self.settings.setValue(self._sk("diff_tab_index"), index)
-        self.update_side_diff()
-        if index == 1:
+        if index == 0:
+            # Load plain diff if not cached yet
+            item = self.list_widget.currentItem()
+            if item and item.data(Qt.UserRole + 9) != "load_more":
+                sha = item.text().split()[0]
+                cache_entry = self.commit_cache.get(sha, {})
+                if 'diff' not in cache_entry:
+                    try:
+                        if self.browse_file:
+                            cache_entry['diff'] = get_file_diff_only_in_commit(
+                                self.repo_path, sha, self.browse_file)
+                        else:
+                            cache_entry['diff'] = get_commit_diff(self.repo_path, sha)
+                        self.commit_cache[sha] = cache_entry
+                    except Exception:
+                        pass
+                if 'diff' in cache_entry:
+                    self.side_diff_view.setPlainText(cache_entry['diff'])
+                    self.side_diff_view.set_separator_color(self.current_theme_colors.get("separator", "#444444"))
+                    if self.plain_diff_search.isVisible():
+                        self.plain_diff_search._perform_search()
+        elif index == 1:
             self._refresh_filewise_diff()
         elif index == 2:
             self._refresh_treewise_diff()
