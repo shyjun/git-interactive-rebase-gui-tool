@@ -467,8 +467,32 @@ class StatsItemDelegate(QStyledItemDelegate):
         filename = index.data(Qt.DisplayRole) or ""
 
         # Measure stats width so we can clip the filename safely
-        if stats and isinstance(stats, tuple) and len(stats) == 2:
-            added, deleted = stats
+        is_binary = False
+        old_size = new_size = 0
+        added = deleted = 0
+        if stats and isinstance(stats, tuple):
+            if len(stats) == 4:
+                added, deleted, old_size, new_size = stats
+                is_binary = (old_size != 0 or new_size != 0) and added == 0 and deleted == 0
+            elif len(stats) == 2:
+                added, deleted = stats
+
+        if is_binary:
+            from lib.git_helpers import format_binary_size
+            parts = []
+            if old_size >= 0:
+                parts.append(f"old: {format_binary_size(old_size)}")
+            if new_size >= 0:
+                parts.append(f"new: {format_binary_size(new_size)}")
+            stats_text = ", ".join(parts)
+            stats_w = fm.horizontalAdvance(stats_text) + 4
+            painter.setPen(QColor("white") if is_selected else option.palette.text().color())
+            painter.drawText(
+                QRect(rect.right() - stats_w, rect.top(), stats_w, rect.height()),
+                Qt.AlignLeft | Qt.AlignVCenter, stats_text)
+            filename_rect = QRect(rect.left(), rect.top(),
+                                  rect.width() - stats_w - 8, rect.height())
+        elif added or deleted:
             added_str = f"+{added}"
             deleted_str = f" -{deleted}" if deleted else ""
             deleted_w = fm.horizontalAdvance(deleted_str)

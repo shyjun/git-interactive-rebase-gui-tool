@@ -1,7 +1,49 @@
+import os
 import re
 import subprocess
 
 from .core import _git_capture, _pad_diff_separators
+
+
+def _get_file_size(repo_path, ref, filepath):
+    """Get file size in bytes at a given ref. Returns -1 if not found."""
+    try:
+        result = subprocess.run(
+            ["git", "cat-file", "-s", f"{ref}:{filepath}"],
+            cwd=repo_path, capture_output=True, text=True,
+            encoding='utf-8', errors='replace')
+        if result.returncode == 0:
+            return int(result.stdout.strip())
+    except (ValueError, subprocess.SubprocessError):
+        pass
+    return -1
+
+
+def _get_working_tree_file_size(repo_path, filepath):
+    """Get file size in bytes from the working tree. Returns -1 if not found."""
+    try:
+        fullpath = os.path.join(repo_path, filepath)
+        if os.path.isfile(fullpath):
+            return os.path.getsize(fullpath)
+    except OSError:
+        pass
+    return -1
+
+
+def _get_staged_file_size(repo_path, filepath):
+    """Get file size in bytes from the staging area (index). Returns -1 if not found."""
+    try:
+        result = subprocess.run(
+            ["git", "ls-files", "-s", "--", filepath],
+            cwd=repo_path, capture_output=True, text=True,
+            encoding='utf-8', errors='replace')
+        if result.returncode == 0 and result.stdout.strip():
+            parts = result.stdout.strip().split()
+            if len(parts) >= 4:
+                return int(parts[3])
+    except (ValueError, subprocess.SubprocessError):
+        pass
+    return -1
 
 
 def get_staged_diff(repo_path):
@@ -60,28 +102,49 @@ def get_file_diff_between(repo_path, start_sha, end_sha, filepath):
 
 
 def get_file_stats_between(repo_path, start_sha, end_sha):
-    """Returns a dict mapping filepath -> (added_lines, deleted_lines) between *start_sha* and *end_sha*."""
+    """Returns a dict mapping filepath -> (added_lines, deleted_lines, old_size, new_size) between *start_sha* and *end_sha*."""
     try:
         cmd = ["git", "diff", "--numstat", start_sha, end_sha]
         result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
         stats = {}
+        binary_files = []
         for line in result.stdout.strip().split('\n'):
             if not line.strip():
                 continue
             parts = line.split('\t', 2)
             if len(parts) == 3:
                 added_str, deleted_str, filepath = parts
+                filepath = filepath.strip()
                 try:
                     added = int(added_str)
                     deleted = int(deleted_str)
+                    stats[filepath] = (added, deleted, 0, 0)
                 except ValueError:
-                    added, deleted = 0, 0  # binary file
-                stats[filepath.strip()] = (added, deleted)
+                    binary_files.append(filepath)
+        if binary_files:
+            for filepath in binary_files:
+                old_size = _get_file_size(repo_path, start_sha, filepath)
+                new_size = _get_file_size(repo_path, end_sha, filepath)
+                stats[filepath] = (0, 0, old_size, new_size)
         return stats
     except subprocess.CalledProcessError as exc:
         err = exc.stderr.strip() if exc.stderr else str(exc)
         print(f"[git_helpers] get_file_stats_between: git diff --numstat failed between {start_sha} and {end_sha}: {err}")
         return {}
+
+
+def _get_file_size(repo_path, ref, filepath):
+    """Get file size in bytes at a given ref. Returns -1 if not found."""
+    try:
+        result = subprocess.run(
+            ["git", "cat-file", "-s", f"{ref}:{filepath}"],
+            cwd=repo_path, capture_output=True, text=True,
+            encoding='utf-8', errors='replace')
+        if result.returncode == 0:
+            return int(result.stdout.strip())
+    except (ValueError, subprocess.SubprocessError):
+        pass
+    return -1
 
 
 def get_unstaged_diff(repo_path, ignore_submodules=False):
@@ -100,25 +163,32 @@ def get_unstaged_diff(repo_path, ignore_submodules=False):
 
 
 def get_unstaged_file_stats(repo_path, ignore_submodules=False):
-    """Returns a dict mapping filepath -> (added_lines, deleted_lines) for unstaged changes."""
+    """Returns a dict mapping filepath -> (added_lines, deleted_lines, old_size, new_size) for unstaged changes."""
     try:
         cmd = ["git", "diff", "--numstat"]
         if ignore_submodules:
             cmd.append("--ignore-submodules=all")
         result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
         stats = {}
+        binary_files = []
         for line in result.stdout.strip().split('\n'):
             if not line.strip():
                 continue
             parts = line.split('\t', 2)
             if len(parts) == 3:
                 added_str, deleted_str, filepath = parts
+                filepath = filepath.strip()
                 try:
                     added = int(added_str)
                     deleted = int(deleted_str)
+                    stats[filepath] = (added, deleted, 0, 0)
                 except ValueError:
-                    added, deleted = 0, 0  # binary file
-                stats[filepath.strip()] = (added, deleted)
+                    binary_files.append(filepath)
+        if binary_files:
+            for filepath in binary_files:
+                old_size = _get_file_size(repo_path, "HEAD", filepath)
+                new_size = _get_working_tree_file_size(repo_path, filepath)
+                stats[filepath] = (0, 0, old_size, new_size)
         return stats
     except subprocess.CalledProcessError as exc:
         err = exc.stderr.strip() if exc.stderr else str(exc)
@@ -127,23 +197,30 @@ def get_unstaged_file_stats(repo_path, ignore_submodules=False):
 
 
 def get_staged_file_stats(repo_path):
-    """Returns a dict mapping filepath -> (added_lines, deleted_lines) for staged changes."""
+    """Returns a dict mapping filepath -> (added_lines, deleted_lines, old_size, new_size) for staged changes."""
     try:
         cmd = ["git", "diff", "--cached", "--numstat"]
         result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
         stats = {}
+        binary_files = []
         for line in result.stdout.strip().split('\n'):
             if not line.strip():
                 continue
             parts = line.split('\t', 2)
             if len(parts) == 3:
                 added_str, deleted_str, filepath = parts
+                filepath = filepath.strip()
                 try:
                     added = int(added_str)
                     deleted = int(deleted_str)
+                    stats[filepath] = (added, deleted, 0, 0)
                 except ValueError:
-                    added, deleted = 0, 0  # binary file
-                stats[filepath.strip()] = (added, deleted)
+                    binary_files.append(filepath)
+        if binary_files:
+            for filepath in binary_files:
+                old_size = _get_file_size(repo_path, "HEAD", filepath)
+                new_size = _get_staged_file_size(repo_path, filepath)
+                stats[filepath] = (0, 0, old_size, new_size)
         return stats
     except subprocess.CalledProcessError as exc:
         err = exc.stderr.strip() if exc.stderr else str(exc)

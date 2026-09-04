@@ -500,14 +500,24 @@ class DiffMixin:
         for i in range(self.treewise_tree.topLevelItemCount()):
             self.treewise_tree.topLevelItem(i).setExpanded(True)
 
-    def _set_stats_column(self, item, added, deleted, added_color, removed_color):
+    def _set_stats_column(self, item, added, deleted, added_color, removed_color, old_size=0, new_size=0):
         """Set colored stats text in column 1 of a tree widget item."""
-        stats_parts = []
-        if added:
-            stats_parts.append(f"+{added}")
-        if deleted:
-            stats_parts.append(f"-{deleted}")
-        item.setText(1, " / ".join(stats_parts))
+        is_binary = (old_size != 0 or new_size != 0) and added == 0 and deleted == 0
+        if is_binary:
+            from lib.git_helpers import format_binary_size
+            parts = []
+            if old_size >= 0:
+                parts.append(f"old: {format_binary_size(old_size)}")
+            if new_size >= 0:
+                parts.append(f"new: {format_binary_size(new_size)}")
+            item.setText(1, ", ".join(parts))
+        else:
+            stats_parts = []
+            if added:
+                stats_parts.append(f"+{added}")
+            if deleted:
+                stats_parts.append(f"-{deleted}")
+            item.setText(1, " / ".join(stats_parts))
         item.setTextAlignment(1, Qt.AlignRight | Qt.AlignVCenter)
 
     def _add_tree_children(self, parent_item, children_dict):
@@ -530,8 +540,9 @@ class DiffMixin:
                 item.setData(0, Qt.UserRole + 10, {"type": "folder", "node": node})
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
                 item.setCheckState(0, Qt.Unchecked)
-                if node["added"] or node["deleted"]:
-                    self._set_stats_column(item, node['added'], node['deleted'], added_color, removed_color)
+                if node["added"] or node["deleted"] or node.get("old_size") or node.get("new_size"):
+                    self._set_stats_column(item, node['added'], node['deleted'], added_color, removed_color,
+                                           node.get('old_size', 0), node.get('new_size', 0))
                 if parent_item:
                     parent_item.addChild(item)
                 else:
@@ -553,8 +564,9 @@ class DiffMixin:
                 item.setData(0, Qt.UserRole + 10, {"type": "file", "entry": entry})
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
                 item.setCheckState(0, Qt.Unchecked)
-                if node["added"] or node["deleted"]:
-                    self._set_stats_column(item, node['added'], node['deleted'], added_color, removed_color)
+                if node["added"] or node["deleted"] or node.get("old_size") or node.get("new_size"):
+                    self._set_stats_column(item, node['added'], node['deleted'], added_color, removed_color,
+                                           node.get('old_size', 0), node.get('new_size', 0))
                 if parent_item:
                     parent_item.addChild(item)
                 else:
