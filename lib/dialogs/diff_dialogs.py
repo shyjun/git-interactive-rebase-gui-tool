@@ -760,6 +760,7 @@ class BranchDiffDialog(QDialog):
                             li.setCheckState(Qt.Checked if child.checkState(0) == Qt.Checked else Qt.Unchecked)
                             break
 
+        sync_item(self.treewise_tree.invisibleRootItem())
         self.filewise_file_list.blockSignals(False)
 
     def _update_folder_check_state(self, folder_item):
@@ -1275,6 +1276,7 @@ class SingleCommitViewDialog(QDialog):
                             li.setCheckState(Qt.Checked if child.checkState(0) == Qt.Checked else Qt.Unchecked)
                             break
 
+        sync_item(self.treewise_tree.invisibleRootItem())
         self.filewise_file_list.blockSignals(False)
 
     def _update_folder_check_state(self, folder_item):
