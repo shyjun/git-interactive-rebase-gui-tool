@@ -116,6 +116,7 @@ class UpdateMixin:
                     self._run_self_update(tool_dir)
 
         self.worker.finished.connect(on_check_finished)
+        print(f"[thread] update check worker.start()")
         self.worker.start()
         self.progress_dialog.exec()
 
@@ -140,5 +141,6 @@ class UpdateMixin:
                 QMessageBox.critical(self, "Update Failed", message)
 
         self.update_worker.finished.connect(on_update_finished)
+        print(f"[thread] update self-update worker.start()")
         self.update_worker.start()
         self.update_progress_dialog.exec()
