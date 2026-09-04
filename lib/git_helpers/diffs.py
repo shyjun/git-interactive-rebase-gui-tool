@@ -1,8 +1,17 @@
 import os
 import re
 import subprocess
+import platform
 
 from .core import _git_capture, _pad_diff_separators
+
+
+def _popen_no_window(cmd, cwd):
+    """Launch a process silently — no console flash on Windows."""
+    kwargs = {"cwd": cwd}
+    if platform.system() == "Windows":
+        kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
+    subprocess.Popen(cmd, **kwargs)
 
 
 def _get_file_size(repo_path, ref, filepath):
@@ -340,7 +349,7 @@ def run_difftool_temp_files(repo_path, source_sha, source_file, dest_sha, dest_f
         # Run difftool
         cmd = ["git", "difftool", "--no-index", "--", src_path, dst_path]
         print(f"[difftool] Running: {' '.join(cmd)}")
-        subprocess.Popen(cmd, cwd=repo_path)
+        _popen_no_window(cmd, repo_path)
         return True, ""
     except Exception as e:
         print(f"[difftool] Exception: {e}")
@@ -392,7 +401,7 @@ def run_difftool_direct(repo_path, source_sha, source_file, dest_sha, dest_file,
         else:
             cmd = ["git", "difftool", source_sha, dest_sha, "--", source_file]
             print(f"[direct] Running: {' '.join(cmd)}")
-            subprocess.Popen(cmd, cwd=repo_path)
+            _popen_no_window(cmd, repo_path)
         return True, ""
     except Exception as e:
         return False, str(e)
