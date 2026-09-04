@@ -193,6 +193,7 @@ finally:
                     self.load_history()
 
             self.split_worker.finished.connect(on_split_finished)
+            print(f"[thread] split_file split_worker.start()")
             self.split_worker.start()
             progress.exec()
         except Exception as e:

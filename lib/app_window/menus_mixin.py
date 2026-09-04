@@ -159,6 +159,7 @@ class MenusMixin:
         print(f"[startup_check] checking remote (local={self.start_time_tool_head[:8]})...")
         self._startup_check_worker = _UpdateCheckWorker()
         self._startup_check_worker.finished.connect(_on_finished)
+        print(f"[thread] startup check worker.start()")
         self._startup_check_worker.start()
 
     def _configure_external_tools(self):

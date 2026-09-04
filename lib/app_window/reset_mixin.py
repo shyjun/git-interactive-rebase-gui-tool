@@ -14,6 +14,7 @@ class ResetMixin:
 
         self.worker = GitWorker(["git", "fetch"], self.repo_path)
         self.worker.finished.connect(self.on_fetch_finished)
+        print(f"[thread] GitWorker.start()")
         self.worker.start()
 
         self.progress_dialog.exec()
@@ -73,6 +74,7 @@ class ResetMixin:
                 self.load_history()
 
             self.worker.finished.connect(on_origin_reset_finished)
+            print(f"[thread] GitWorker.start()")
             self.worker.start()
             self.progress_dialog.exec()
         else:
@@ -96,6 +98,7 @@ class ResetMixin:
 
             self.worker = GitWorker(["git", "push", "--force"], self.repo_path)
             self.worker.finished.connect(self.on_push_finished)
+            print(f"[thread] GitWorker.start()")
             self.worker.start()
 
             self.progress_dialog.exec()
@@ -213,6 +216,7 @@ class ResetMixin:
                 QMessageBox.critical(self, "Reset Failed", f"Could not perform reset.\n\nError: {stderr}")
 
         self.worker.finished.connect(on_reset_finished)
+        print(f"[thread] GitWorker.start()")
         self.worker.start()
         self.progress_dialog.exec()
 
@@ -298,6 +302,7 @@ class ResetMixin:
                 )
 
         self.worker.finished.connect(on_reset_here_finished)
+        print(f"[thread] GitWorker.start()")
         self.worker.start()
         self.progress_dialog.exec()
 

@@ -117,6 +117,7 @@ class UndoMixin:
                     self.load_history()
 
             self.worker.finished.connect(on_undo_finished)
+            print("[thread] undo GitWorker.start()")
             self.worker.start()
             self.progress_dialog.exec()
         else:
