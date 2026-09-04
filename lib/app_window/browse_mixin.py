@@ -61,6 +61,7 @@ class BrowseMixin:
             viewer.is_dark_theme = self.is_dark_theme
             viewer.apply_theme("dark" if self.is_dark_theme else "light")
         self.browse_windows.append(viewer)
+        viewer.setWindowFlags(viewer.windowFlags() | Qt.Window)
         viewer.show()
         print(f"[browse] Branch viewer shown ({len(self.browse_windows)} browse windows open)")
 
@@ -95,6 +96,7 @@ class BrowseMixin:
             viewer.is_dark_theme = self.is_dark_theme
             viewer.apply_theme("dark" if self.is_dark_theme else "light")
         self.browse_windows.append(viewer)
+        viewer.setWindowFlags(viewer.windowFlags() | Qt.Window)
         viewer.show()
         print(f"[browse] Commit log viewer shown ({len(self.browse_windows)} browse windows open)")
 
@@ -116,6 +118,7 @@ class BrowseMixin:
             viewer.is_dark_theme = self.is_dark_theme
             viewer.apply_theme("dark" if self.is_dark_theme else "light")
         self.browse_windows.append(viewer)
+        viewer.setWindowFlags(viewer.windowFlags() | Qt.Window)
         viewer.show()
         print(f"[browse] Reflog viewer shown ({len(self.browse_windows)} browse windows open)")
 
@@ -136,6 +139,7 @@ class BrowseMixin:
             viewer.is_dark_theme = self.is_dark_theme
             viewer.apply_theme("dark" if self.is_dark_theme else "light")
         self.browse_windows.append(viewer)
+        viewer.setWindowFlags(viewer.windowFlags() | Qt.Window)
         viewer.show()
         print(f"[browse] Tags browser shown ({len(self.browse_windows)} browse windows open)")
 
@@ -156,6 +160,7 @@ class BrowseMixin:
             viewer.is_dark_theme = self.is_dark_theme
             viewer.apply_theme("dark" if self.is_dark_theme else "light")
         self.browse_windows.append(viewer)
+        viewer.setWindowFlags(viewer.windowFlags() | Qt.Window)
         viewer.show()
         print(f"[browse] Stash browser shown ({len(self.browse_windows)} browse windows open)")
 
@@ -190,6 +195,7 @@ class BrowseMixin:
             viewer.is_dark_theme = self.is_dark_theme
             viewer.apply_theme("dark" if self.is_dark_theme else "light")
         self.browse_windows.append(viewer)
+        viewer.setWindowFlags(viewer.windowFlags() | Qt.Window)
         viewer.show()
 
     def handle_browse_reflog(self):
@@ -209,6 +215,7 @@ class BrowseMixin:
             viewer.is_dark_theme = self.is_dark_theme
             viewer.apply_theme("dark" if self.is_dark_theme else "light")
         self.browse_windows.append(viewer)
+        viewer.setWindowFlags(viewer.windowFlags() | Qt.Window)
         viewer.show()
 
     def handle_browse_tags(self):
@@ -234,6 +241,7 @@ class BrowseMixin:
             viewer.is_dark_theme = self.is_dark_theme
             viewer.apply_theme("dark" if self.is_dark_theme else "light")
         self.browse_windows.append(viewer)
+        viewer.setWindowFlags(viewer.windowFlags() | Qt.Window)
         viewer.show()
 
     def handle_browse_stash(self):
@@ -259,6 +267,7 @@ class BrowseMixin:
             viewer.is_dark_theme = self.is_dark_theme
             viewer.apply_theme("dark" if self.is_dark_theme else "light")
         self.browse_windows.append(viewer)
+        viewer.setWindowFlags(viewer.windowFlags() | Qt.Window)
         viewer.show()
 
     def handle_reflog_copy_sha(self):
@@ -303,6 +312,7 @@ class BrowseMixin:
             viewer.is_dark_theme = self.is_dark_theme
             viewer.apply_theme("dark" if self.is_dark_theme else "light")
         self.browse_windows.append(viewer)
+        viewer.setWindowFlags(viewer.windowFlags() | Qt.Window)
         viewer.show()
 
     def _reload_stash_list(self):
@@ -489,6 +499,7 @@ class BrowseMixin:
             viewer.is_dark_theme = self.is_dark_theme
             viewer.apply_theme("dark" if self.is_dark_theme else "light")
         self.browse_windows.append(viewer)
+        viewer.setWindowFlags(viewer.windowFlags() | Qt.Window)
         viewer.show()
 
     def handle_open_file_at_ref(self):
