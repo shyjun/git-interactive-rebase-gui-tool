@@ -461,19 +461,16 @@ def main():
 
 if __name__ == "__main__":
     import platform
-    # Auto-background: detach from terminal so it returns immediately.
-    # Skip for --update/--version (need terminal output) and when already backgrounded.
     if "--update" not in sys.argv and "--version" not in sys.argv:
         if sys.stdout and sys.stdout.isatty():
             if platform.system() == "Windows":
                 import subprocess
-                # Re-launch detached on Windows (no os.fork)
-                flags = subprocess.CREATE_NO_WINDOW | subprocess.DETACHED_PROCESS
+                err_log = os.path.join(os.environ.get("TEMP", os.path.expanduser("~")), "git_rebase_bg_err.log")
                 proc = subprocess.Popen(
                     [sys.executable] + sys.argv,
-                    creationflags=flags,
+                    creationflags=subprocess.DETACHED_PROCESS,
                     stdout=open(os.devnull, "w"),
-                    stderr=subprocess.STDOUT,
+                    stderr=open(err_log, "w"),
                     stdin=open(os.devnull, "r"),
                 )
                 print(f"Tool started in background (PID {proc.pid})")
