@@ -538,12 +538,7 @@ class DiffMixin:
             elif old_size >= 0:
                 item.setText(1, f"size: {format_binary_size(old_size)}")
         else:
-            stats_parts = []
-            if added:
-                stats_parts.append(f"+{added}")
-            if deleted:
-                stats_parts.append(f"-{deleted}")
-            item.setText(1, " / ".join(stats_parts))
+            item.setText(1, f"+{added} / -{deleted}")
         item.setTextAlignment(1, Qt.AlignRight | Qt.AlignVCenter)
 
     def _add_tree_children(self, parent_item, children_dict):
