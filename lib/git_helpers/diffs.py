@@ -397,7 +397,7 @@ def run_difftool_direct(repo_path, source_sha, source_file, dest_sha, dest_file,
             else:
                 cmd_parts = ["git", "difftool", "--no-index", "--", src_path, dst_path]
             print(f"[direct] Running: {' '.join(cmd_parts)}")
-            subprocess.Popen(cmd_parts, cwd=repo_path)
+            _popen_no_window(cmd_parts, repo_path)
         else:
             cmd = ["git", "difftool", source_sha, dest_sha, "--", source_file]
             print(f"[direct] Running: {' '.join(cmd)}")
@@ -474,7 +474,7 @@ def _run_custom_difftool(repo_path, command, args_template,
         args_str = args_template.replace("{file1}", src_path).replace("{file2}", dst_path)
         cmd_parts = shlex.split(command) + shlex.split(args_str)
         print(f"[custom-difftool] Running: {' '.join(cmd_parts)}")
-        subprocess.Popen(cmd_parts, cwd=repo_path)
+        _popen_no_window(cmd_parts, repo_path)
         return True, ""
     except Exception as e:
         return False, str(e)
