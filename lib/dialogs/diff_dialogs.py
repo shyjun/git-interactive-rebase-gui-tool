@@ -700,6 +700,7 @@ class BranchDiffDialog(QDialog):
         checked = item.checkState(0) == Qt.Checked
         if item_data["type"] == "folder":
             self._set_tree_children_checked(item, checked)
+            self._sync_tree_checked_to_file_list()
             p = item.parent()
             while p:
                 self._update_folder_check_state(p)
@@ -736,6 +737,30 @@ class BranchDiffDialog(QDialog):
             child_data = child.data(0, Qt.UserRole + 10)
             if child_data and child_data["type"] == "folder":
                 self._set_tree_children_checked_impl(child, checked)
+
+    def _sync_tree_checked_to_file_list(self):
+        self.filewise_file_list.blockSignals(True)
+
+        def sync_item(parent_item):
+            for i in range(parent_item.childCount()):
+                child = parent_item.child(i)
+                child_data = child.data(0, Qt.UserRole + 10)
+                if not child_data:
+                    continue
+                if child_data["type"] == "folder":
+                    sync_item(child)
+                else:
+                    entry = child_data.get("entry")
+                    if not entry:
+                        continue
+                    for j in range(self.filewise_file_list.count()):
+                        li = self.filewise_file_list.item(j)
+                        li_entry = li.data(FILE_ENTRY_ROLE)
+                        if li_entry and li_entry == entry:
+                            li.setCheckState(Qt.Checked if child.checkState(0) == Qt.Checked else Qt.Unchecked)
+                            break
+
+        self.filewise_file_list.blockSignals(False)
 
     def _update_folder_check_state(self, folder_item):
         """Update folder checkbox based on children check states."""
@@ -1189,6 +1214,7 @@ class SingleCommitViewDialog(QDialog):
         checked = item.checkState(0) == Qt.Checked
         if item_data["type"] == "folder":
             self._set_tree_children_checked(item, checked)
+            self._sync_tree_checked_to_file_list()
             p = item.parent()
             while p:
                 self._update_folder_check_state(p)
@@ -1226,6 +1252,30 @@ class SingleCommitViewDialog(QDialog):
             child_data = child.data(0, Qt.UserRole + 10)
             if child_data and child_data["type"] == "folder":
                 self._set_tree_children_checked_impl(child, checked)
+
+    def _sync_tree_checked_to_file_list(self):
+        self.filewise_file_list.blockSignals(True)
+
+        def sync_item(parent_item):
+            for i in range(parent_item.childCount()):
+                child = parent_item.child(i)
+                child_data = child.data(0, Qt.UserRole + 10)
+                if not child_data:
+                    continue
+                if child_data["type"] == "folder":
+                    sync_item(child)
+                else:
+                    entry = child_data.get("entry")
+                    if not entry:
+                        continue
+                    for j in range(self.filewise_file_list.count()):
+                        li = self.filewise_file_list.item(j)
+                        li_entry = li.data(FILE_ENTRY_ROLE)
+                        if li_entry and li_entry == entry:
+                            li.setCheckState(Qt.Checked if child.checkState(0) == Qt.Checked else Qt.Unchecked)
+                            break
+
+        self.filewise_file_list.blockSignals(False)
 
     def _update_folder_check_state(self, folder_item):
         """Update folder checkbox based on children check states."""
