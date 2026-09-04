@@ -372,6 +372,7 @@ class DiffMixin:
         self.treewise_tree.blockSignals(True)
         self._set_tree_children_checked_impl(item, checked)
         self.treewise_tree.blockSignals(False)
+        self._sync_tree_checked_to_file_list()
 
     def _set_tree_children_checked_impl(self, item, checked):
         for i in range(item.childCount()):
@@ -380,6 +381,32 @@ class DiffMixin:
             child_data = child.data(0, Qt.UserRole + 10)
             if child_data and child_data["type"] == "folder":
                 self._set_tree_children_checked_impl(child, checked)
+
+    def _sync_tree_checked_to_file_list(self):
+        """Sync all tree check states to the filewise list."""
+        self.filewise_file_list.blockSignals(True)
+
+        def sync_item(parent_item):
+            for i in range(parent_item.childCount()):
+                child = parent_item.child(i)
+                child_data = child.data(0, Qt.UserRole + 10)
+                if not child_data:
+                    continue
+                if child_data["type"] == "folder":
+                    sync_item(child)
+                else:
+                    entry = child_data.get("entry")
+                    if not entry:
+                        continue
+                    for j in range(self.filewise_file_list.count()):
+                        li = self.filewise_file_list.item(j)
+                        li_entry = li.data(FILE_ENTRY_ROLE)
+                        if li_entry and li_entry == entry:
+                            li.setCheckState(Qt.Checked if child.checkState(0) == Qt.Checked else Qt.Unchecked)
+                            break
+
+        sync_item(self.treewise_tree.invisibleRootItem())
+        self.filewise_file_list.blockSignals(False)
 
     def _update_folder_check_state(self, folder_item):
         """Update folder checkbox based on children check states."""
