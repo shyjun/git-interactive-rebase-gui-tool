@@ -63,6 +63,11 @@ Visual documentation for the Git Interactive Rebase GUI Tool. Each section showc
 42. [Browse Tags](#42-browse-tags)
 43. [External Tools Dialog](#43-external-tools-dialog)
 44. [Keyboard Shortcuts](#44-keyboard-shortcuts)
+45. [Handle Staged Changes](#45-handle-staged-changes)
+46. [Commit Staged Changes Selectively](#46-commit-staged-changes-selectively)
+47. [Add Unstaged Files Dialog](#47-add-unstaged-files-dialog)
+48. [Staged Changes Warning at Startup](#48-staged-changes-warning-at-startup)
+49. [Auto-background on Launch](#49-auto-background-on-launch)
 
 ---
 
@@ -1081,3 +1086,65 @@ Keyboard shortcuts for faster navigation and workflow.
 
 - `Esc` behaves contextually and may close dialogs, clear filters, exit search, or exit multi-select mode depending on the active state.
 - `Ctrl+F` focuses the diff search bar, which is available in every diff view (see [Diff Search Bar](#9-diff-search-bar)).
+
+---
+
+## 45. Handle Staged Changes
+
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/handle-staged-changes.webp`
+
+![Handle Staged Changes](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/handle-staged-changes.webp) The dialog stays open after each action and refreshes the staged files list automatically.
+
+Actions available:
+- **Commit / Unstage Staged Changes Selectively** — opens a file picker with checkboxes, tree view, and diff preview
+- **Unstage All** — unstages everything (`git reset HEAD`)
+- **View Staged Diff** — 3-tab diff viewer (Plain, File-wise, Tree-wise)
+- **Discard Staged Changes** — discards all staged changes (with confirmation)
+- **Amend HEAD Commit** — amends staged changes into HEAD (message pre-filled from HEAD)
+- **Stash Changes** — stashes all changes (staged and unstaged)
+- **Close** — closes the dialog
+
+Buttons are disabled when no staged files remain.
+
+---
+
+## 46. Commit Staged Changes Selectively
+
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/commit_or_unstage-staged-selectively.webp`
+
+![Commit Staged Changes Selectively](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/commit_or_unstage-staged-selectively.webp)
+
+Features:
+- **File List tab** — checkboxes with per-file `+N / -M` stats
+- **Tree View tab** — folder/file hierarchy with checkboxes (folders auto-tick when all children checked)
+- **Diff preview pane** — shows combined diff of checked files (Ctrl+F search)
+- **Amend HEAD with Selected** — amend only checked files into HEAD
+- **Commit Selected Files** — commit only checked files
+- **Unstage Selected** — unstage only checked files
+- **Cancel** — close without changes
+
+---
+
+## 47. Add Unstaged Files Dialog
+
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/add-unstaged-files.webp`
+
+![Add Unstaged Files Dialog](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/add-unstaged-files.webp)
+- **File List tab** — checkboxes with per-file stats
+- **Tree View tab** — folder/file hierarchy with checkboxes
+
+Select files and click **Stage Selected Files** to run `git add` on them.
+
+---
+
+## 48. Staged Changes Warning at Startup
+
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/staged-changes-warning.webp`
+
+![Staged Changes Warning](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/staged-changes-warning.webp) The **Repo** button is also highlighted with an orange blink to draw attention.
+
+---
+
+## 49. Auto-background on Launch
+
+**Description:** When run from a terminal, the tool automatically detaches and runs in the background. The terminal returns immediately with a message like `Tool started in background (PID xxx)`. This works on both Linux (`os.fork`) and Windows (`subprocess.Popen` with `DETACHED_PROCESS`). The `--version` and `--update` flags skip auto-background to keep terminal output.
