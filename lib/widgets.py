@@ -479,12 +479,14 @@ class StatsItemDelegate(QStyledItemDelegate):
 
         if is_binary:
             from lib.git_helpers import format_binary_size
-            parts = []
-            if old_size >= 0:
-                parts.append(f"old: {format_binary_size(old_size)}")
-            if new_size >= 0:
-                parts.append(f"new: {format_binary_size(new_size)}")
-            stats_text = ", ".join(parts)
+            if old_size >= 0 and new_size >= 0:
+                stats_text = f"old: {format_binary_size(old_size)}, new: {format_binary_size(new_size)}"
+            elif new_size >= 0:
+                stats_text = f"size: {format_binary_size(new_size)}"
+            elif old_size >= 0:
+                stats_text = f"size: {format_binary_size(old_size)}"
+            else:
+                stats_text = ""
             stats_w = fm.horizontalAdvance(stats_text) + 4
             painter.setPen(QColor("white") if is_selected else option.palette.text().color())
             painter.drawText(

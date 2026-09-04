@@ -18,12 +18,13 @@ def format_tree_node_stats(node):
     is_binary = (old_size != 0 or new_size != 0) and added == 0 and deleted == 0
 
     if is_binary:
-        parts = []
-        if old_size >= 0:
-            parts.append(f"old: {_format_bytes(old_size)}")
-        if new_size >= 0:
-            parts.append(f"new: {_format_bytes(new_size)}")
-        return ", ".join(parts)
+        if old_size >= 0 and new_size >= 0:
+            return f"old: {_format_bytes(old_size)}, new: {_format_bytes(new_size)}"
+        elif new_size >= 0:
+            return f"size: {_format_bytes(new_size)}"
+        elif old_size >= 0:
+            return f"size: {_format_bytes(old_size)}"
+        return ""
     elif added or deleted:
         stats_parts = []
         if added:

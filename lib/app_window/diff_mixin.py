@@ -524,12 +524,12 @@ class DiffMixin:
         is_binary = (old_size != 0 or new_size != 0) and added == 0 and deleted == 0
         if is_binary:
             from lib.git_helpers import format_binary_size
-            parts = []
-            if old_size >= 0:
-                parts.append(f"old: {format_binary_size(old_size)}")
-            if new_size >= 0:
-                parts.append(f"new: {format_binary_size(new_size)}")
-            item.setText(1, ", ".join(parts))
+            if old_size >= 0 and new_size >= 0:
+                item.setText(1, f"old: {format_binary_size(old_size)}, new: {format_binary_size(new_size)}")
+            elif new_size >= 0:
+                item.setText(1, f"size: {format_binary_size(new_size)}")
+            elif old_size >= 0:
+                item.setText(1, f"size: {format_binary_size(old_size)}")
         else:
             stats_parts = []
             if added:
