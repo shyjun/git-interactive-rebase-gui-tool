@@ -403,6 +403,8 @@ class BranchDiffDialog(QDialog):
             item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
             item.setCheckState(Qt.Unchecked)
             item.setData(Qt.UserRole, file_stats.get(f))
+            # Store entry tuple so tree↔file sync can match by FILE_ENTRY_ROLE
+            item.setData(FILE_ENTRY_ROLE, ('M', f, ''))
             self.filewise_file_list.addItem(item)
         self.filewise_file_list.blockSignals(False)
 
