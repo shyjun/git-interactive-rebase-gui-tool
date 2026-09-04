@@ -364,6 +364,7 @@ class BranchDiffDialog(QDialog):
         self.treewise_tree.setAnimated(True)
         self.treewise_tree.setItemDelegateForColumn(1, TreeStatsDelegate())
         self.treewise_tree.itemChanged.connect(self._on_treewise_item_changed)
+        self.treewise_tree.currentItemChanged.connect(self._on_treewise_current_item_changed)
         self.treewise_tree.setContextMenuPolicy(Qt.CustomContextMenu)
         self.treewise_tree.customContextMenuRequested.connect(self.show_treewise_context_menu)
         self.treewise_splitter.addWidget(self.treewise_tree)
@@ -662,7 +663,11 @@ class BranchDiffDialog(QDialog):
     def _on_filewise_item_changed(self, item):
         """Handle checkbox change in filewise list: sync to tree and refresh diff."""
         checked = item.checkState() == Qt.Checked
-        filepath = item.text()
+        entry = item.data(FILE_ENTRY_ROLE)
+        if entry:
+            filepath = entry[2] if entry[0] == 'R' else entry[1]
+        else:
+            filepath = item.text()
         for i in range(self.treewise_tree.topLevelItemCount()):
             self._sync_file_to_tree(self.treewise_tree.topLevelItem(i), filepath, checked)
         self._update_filewise_counter()
@@ -687,6 +692,26 @@ class BranchDiffDialog(QDialog):
                     self._update_folder_check_state(parent)
                 return
 
+    def _on_treewise_current_item_changed(self, current, previous):
+        """Show diff of the selected file in the treewise diff pane."""
+        if not current:
+            return
+        item_data = current.data(0, Qt.UserRole + 10)
+        if not item_data or item_data["type"] == "folder":
+            self._refresh_treewise_diff()
+            return
+        entry = item_data.get("entry")
+        if not entry:
+            return
+        filepath = entry[2] if entry[0] == 'R' else entry[1]
+        try:
+            d = self._get_file_diff(filepath).rstrip("\n")
+            self.treewise_diff_view.setPlainText(d)
+            self.treewise_diff_view.set_separator_color(self.colors.get("separator", "#444444"))
+            self.treewise_diff_search._perform_search()
+        except Exception as e:
+            self.treewise_diff_view.setPlainText(f"Error loading diff: {e}")
+
     def _on_treewise_item_changed(self, item, column):
         """Handle checkbox change in tree: sync to file list and refresh diff."""
         item_data = item.data(0, Qt.UserRole + 10)
@@ -695,11 +720,16 @@ class BranchDiffDialog(QDialog):
         checked = item.checkState(0) == Qt.Checked
         if item_data["type"] == "folder":
             self._set_tree_children_checked(item, checked)
+            parent = item.parent()
+            if parent:
+                self._update_folder_check_state(parent)
         else:
             filepath = item_data.get("filepath", "")
+            entry = item_data.get("entry")
             for i in range(self.filewise_file_list.count()):
                 list_item = self.filewise_file_list.item(i)
-                if list_item.text() == filepath:
+                list_entry = list_item.data(FILE_ENTRY_ROLE)
+                if list_entry and list_entry == entry:
                     self.filewise_file_list.blockSignals(True)
                     list_item.setCheckState(Qt.Checked if checked else Qt.Unchecked)
                     self.filewise_file_list.blockSignals(False)
@@ -713,12 +743,17 @@ class BranchDiffDialog(QDialog):
 
     def _set_tree_children_checked(self, item, checked):
         """Recursively set check state for all children."""
+        self.treewise_tree.blockSignals(True)
+        self._set_tree_children_checked_impl(item, checked)
+        self.treewise_tree.blockSignals(False)
+
+    def _set_tree_children_checked_impl(self, item, checked):
         for i in range(item.childCount()):
             child = item.child(i)
             child.setCheckState(0, Qt.Checked if checked else Qt.Unchecked)
             child_data = child.data(0, Qt.UserRole + 10)
             if child_data and child_data["type"] == "folder":
-                self._set_tree_children_checked(child, checked)
+                self._set_tree_children_checked_impl(child, checked)
 
     def _update_folder_check_state(self, folder_item):
         """Update folder checkbox based on children check states."""
@@ -748,9 +783,6 @@ class BranchDiffDialog(QDialog):
         else:
             folder_item.setCheckState(0, Qt.Unchecked)
         self.treewise_tree.blockSignals(False)
-        parent = folder_item.parent()
-        if parent:
-            self._update_folder_check_state(parent)
 
     def _update_filewise_counter(self):
         """Update the counter label showing checked/total files."""
@@ -990,6 +1022,7 @@ class SingleCommitViewDialog(QDialog):
         self.treewise_tree.setAnimated(True)
         self.treewise_tree.setItemDelegateForColumn(1, TreeStatsDelegate())
         self.treewise_tree.itemChanged.connect(self._on_treewise_item_changed)
+        self.treewise_tree.currentItemChanged.connect(self._on_treewise_current_item_changed)
         self.treewise_tree.setContextMenuPolicy(Qt.CustomContextMenu)
         self.treewise_tree.customContextMenuRequested.connect(self.show_treewise_context_menu)
         self.treewise_splitter.addWidget(self.treewise_tree)
@@ -1105,7 +1138,13 @@ class SingleCommitViewDialog(QDialog):
             item = None
             for i in range(self.filewise_file_list.count()):
                 li = self.filewise_file_list.item(i)
-                if li.text() == filepath:
+                li_entry = li.data(FILE_ENTRY_ROLE)
+                if li_entry:
+                    li_path = li_entry[2] if li_entry[0] == 'R' else li_entry[1]
+                    if li_path == filepath:
+                        item = li
+                        break
+                elif li.text() == filepath:
                     item = li
                     break
             entry = item.data(FILE_ENTRY_ROLE) if item else None
@@ -1121,7 +1160,11 @@ class SingleCommitViewDialog(QDialog):
     def _on_filewise_item_changed(self, item):
         """Handle checkbox change in filewise list: sync to tree and refresh diff."""
         checked = item.checkState() == Qt.Checked
-        filepath = item.text()
+        entry = item.data(FILE_ENTRY_ROLE)
+        if entry:
+            filepath = entry[2] if entry[0] == 'R' else entry[1]
+        else:
+            filepath = item.text()
         for i in range(self.treewise_tree.topLevelItemCount()):
             self._sync_file_to_tree(self.treewise_tree.topLevelItem(i), filepath, checked)
         self._update_filewise_counter()
@@ -1149,6 +1192,26 @@ class SingleCommitViewDialog(QDialog):
                         self._update_folder_check_state(parent)
                     return
 
+    def _on_treewise_current_item_changed(self, current, previous):
+        """Show diff of the selected file in the treewise diff pane."""
+        if not current:
+            return
+        item_data = current.data(0, Qt.UserRole + 10)
+        if not item_data or item_data["type"] == "folder":
+            self._refresh_treewise_diff()
+            return
+        entry = item_data.get("entry")
+        if not entry:
+            return
+        filepath = entry[2] if entry[0] == 'R' else entry[1]
+        try:
+            d = self._get_file_diff(filepath).rstrip("\n")
+            self.treewise_diff_view.setPlainText(d)
+            self.treewise_diff_view.set_separator_color(self.colors.get("separator", "#444444"))
+            self.treewise_diff_search._perform_search()
+        except Exception as e:
+            self.treewise_diff_view.setPlainText(f"Error loading diff: {e}")
+
     def _on_treewise_item_changed(self, item, column):
         """Handle checkbox change in tree: sync to file list and refresh diff."""
         item_data = item.data(0, Qt.UserRole + 10)
@@ -1157,13 +1220,17 @@ class SingleCommitViewDialog(QDialog):
         checked = item.checkState(0) == Qt.Checked
         if item_data["type"] == "folder":
             self._set_tree_children_checked(item, checked)
+            parent = item.parent()
+            if parent:
+                self._update_folder_check_state(parent)
         else:
             entry = item_data.get("entry")
             if entry:
                 filepath = entry[2] if entry[0] == 'R' else entry[1]
                 for i in range(self.filewise_file_list.count()):
                     list_item = self.filewise_file_list.item(i)
-                    if list_item.text() == filepath:
+                    list_entry = list_item.data(FILE_ENTRY_ROLE)
+                    if list_entry and list_entry == entry:
                         self.filewise_file_list.blockSignals(True)
                         list_item.setCheckState(Qt.Checked if checked else Qt.Unchecked)
                         self.filewise_file_list.blockSignals(False)
@@ -1177,12 +1244,17 @@ class SingleCommitViewDialog(QDialog):
 
     def _set_tree_children_checked(self, item, checked):
         """Recursively set check state for all children."""
+        self.treewise_tree.blockSignals(True)
+        self._set_tree_children_checked_impl(item, checked)
+        self.treewise_tree.blockSignals(False)
+
+    def _set_tree_children_checked_impl(self, item, checked):
         for i in range(item.childCount()):
             child = item.child(i)
             child.setCheckState(0, Qt.Checked if checked else Qt.Unchecked)
             child_data = child.data(0, Qt.UserRole + 10)
             if child_data and child_data["type"] == "folder":
-                self._set_tree_children_checked(child, checked)
+                self._set_tree_children_checked_impl(child, checked)
 
     def _update_folder_check_state(self, folder_item):
         """Update folder checkbox based on children check states."""
@@ -1212,9 +1284,6 @@ class SingleCommitViewDialog(QDialog):
         else:
             folder_item.setCheckState(0, Qt.Unchecked)
         self.treewise_tree.blockSignals(False)
-        parent = folder_item.parent()
-        if parent:
-            self._update_folder_check_state(parent)
 
     def _update_filewise_counter(self):
         """Update the counter label showing checked/total files."""
