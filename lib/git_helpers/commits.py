@@ -26,12 +26,7 @@ def format_tree_node_stats(node):
             return f"size: {_format_bytes(old_size)}"
         return ""
     elif added or deleted:
-        stats_parts = []
-        if added:
-            stats_parts.append(f"+{added}")
-        if deleted:
-            stats_parts.append(f"-{deleted}")
-        return " / ".join(stats_parts)
+        return f"+{added} / -{deleted}"
     return ""
 
 
