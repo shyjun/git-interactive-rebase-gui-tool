@@ -176,7 +176,7 @@ class DiffMixin:
         if not item:
             return
         entry = item.data(FILE_ENTRY_ROLE)
-        target_path = entry[2] if entry and entry[0] == 'R' else item.text()
+        target_path = entry[2] if entry and entry[0] == 'R' else (entry[1] if entry else item.text())
         menu = QMenu(self)
         commit_sha = None
         list_item = self.list_widget.currentItem()
