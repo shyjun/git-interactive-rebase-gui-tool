@@ -841,7 +841,7 @@ class BranchDiffDialog(QDialog):
         """Recursively collect checked file paths from tree."""
         for i in range(parent_item.childCount()):
             item = parent_item.child(i)
-            if item.checkState(0) != Qt.Checked:
+            if item.checkState(0) == Qt.Unchecked:
                 continue
             item_data = item.data(0, Qt.UserRole + 10)
             if not item_data:
@@ -1321,7 +1321,7 @@ class SingleCommitViewDialog(QDialog):
         """Recursively collect checked file paths from tree."""
         for i in range(parent_item.childCount()):
             item = parent_item.child(i)
-            if item.checkState(0) != Qt.Checked:
+            if item.checkState(0) == Qt.Unchecked:
                 continue
             item_data = item.data(0, Qt.UserRole + 10)
             if not item_data:
