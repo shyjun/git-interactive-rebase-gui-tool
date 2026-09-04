@@ -103,7 +103,7 @@ class DiffMixin:
                 self.commit_cache[sha] = cache_entry
             file_stats = cache_entry.get('file_stats', {})
 
-            # Temporarily block signals to avoid triggering on_filewise_file_selected prematurely
+            # Temporarily block signals to avoid triggering _on_filewise_item_changed prematurely
             self.filewise_file_list.blockSignals(True)
             self.filewise_file_list.clear()
             for entry in file_entries:
@@ -119,16 +119,15 @@ class DiffMixin:
                 item = QListWidgetItem(display)
                 item.setData(Qt.UserRole, file_stats.get(path1))
                 item.setData(FILE_ENTRY_ROLE, entry)
+                item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+                item.setCheckState(Qt.Unchecked)
                 self.filewise_file_list.addItem(item)
             self.filewise_file_list.blockSignals(False)
 
             # Also populate the tree-wise tab
             self._populate_treewise_tree(file_entries, file_stats)
 
-            if file_entries:
-                self.filewise_file_list.setCurrentRow(0)
-            else:
-                self.filewise_diff_view.clear()
+            self._update_filewise_counter()
         except Exception as e:
             self.side_diff_view.setPlainText(f"Error loading diff: {e}")
             if hasattr(self, 'side_commit_msg'):
@@ -140,6 +139,10 @@ class DiffMixin:
     def on_diff_tab_changed(self, index):
         self.settings.setValue(self._sk("diff_tab_index"), index)
         self.update_side_diff()
+        if index == 1:
+            self._refresh_filewise_diff()
+        elif index == 2:
+            self._refresh_treewise_diff()
 
     def show_filewise_context_menu(self, pos):
         item = self.filewise_file_list.itemAt(pos)
@@ -240,28 +243,218 @@ class DiffMixin:
         QApplication.clipboard().setText(fullpath)
         QMessageBox.information(self, "Copied", f"Copied '{fullpath}' to clipboard.")
 
-    def on_filewise_file_selected(self, filepath):
-        if not filepath:
+    def _get_file_diff(self, filepath):
+        """Get diff for a single file in the current commit."""
+        list_item = self.list_widget.currentItem()
+        if not list_item:
+            return ""
+        sha = list_item.text().split()[0]
+        try:
+            item = None
+            for i in range(self.filewise_file_list.count()):
+                li = self.filewise_file_list.item(i)
+                if li.text() == filepath:
+                    item = li
+                    break
+            entry = item.data(FILE_ENTRY_ROLE) if item else None
+            if entry and entry[0] == 'R':
+                return get_rename_diff_in_commit(self.repo_path, sha, entry[1], entry[2])
+            elif entry:
+                return get_file_diff_only_in_commit(self.repo_path, sha, entry[1])
+            else:
+                return get_file_diff_only_in_commit(self.repo_path, sha, filepath)
+        except Exception as e:
+            return f"Error loading diff: {e}"
+
+    def _on_filewise_item_changed(self, item):
+        """Handle checkbox change in filewise list: sync to tree and refresh diff."""
+        checked = item.checkState() == Qt.Checked
+        filepath = item.text()
+        for i in range(self.treewise_tree.topLevelItemCount()):
+            self._sync_file_to_tree(self.treewise_tree.topLevelItem(i), filepath, checked)
+        self._update_filewise_counter()
+        self._refresh_filewise_diff()
+        self._refresh_treewise_diff()
+
+    def _sync_file_to_tree(self, parent_item, filepath, checked):
+        """Recursively find and sync a file's check state in the tree."""
+        for i in range(parent_item.childCount()):
+            child = parent_item.child(i)
+            child_data = child.data(0, Qt.UserRole + 10)
+            if not child_data:
+                continue
+            if child_data["type"] == "folder":
+                self._sync_file_to_tree(child, filepath, checked)
+            elif child_data.get("entry"):
+                entry = child_data["entry"]
+                child_path = entry[2] if entry[0] == 'R' else entry[1]
+                if child_path == filepath:
+                    self.treewise_tree.blockSignals(True)
+                    child.setCheckState(0, Qt.Checked if checked else Qt.Unchecked)
+                    self.treewise_tree.blockSignals(False)
+                    parent = child.parent()
+                    if parent:
+                        self._update_folder_check_state(parent)
+                    return
+
+    def _on_treewise_item_changed(self, item, column):
+        """Handle checkbox change in tree: sync to file list and refresh diff."""
+        item_data = item.data(0, Qt.UserRole + 10)
+        if not item_data:
+            return
+        checked = item.checkState(0) == Qt.Checked
+        if item_data["type"] == "folder":
+            self._set_tree_children_checked(item, checked)
+        else:
+            entry = item_data.get("entry")
+            if entry:
+                filepath = entry[2] if entry[0] == 'R' else entry[1]
+                for i in range(self.filewise_file_list.count()):
+                    list_item = self.filewise_file_list.item(i)
+                    if list_item.text() == filepath:
+                        self.filewise_file_list.blockSignals(True)
+                        list_item.setCheckState(Qt.Checked if checked else Qt.Unchecked)
+                        self.filewise_file_list.blockSignals(False)
+                        break
+            parent = item.parent()
+            if parent:
+                self._update_folder_check_state(parent)
+        self._update_filewise_counter()
+        self._refresh_treewise_diff()
+        self._refresh_filewise_diff()
+
+    def _set_tree_children_checked(self, item, checked):
+        """Recursively set check state for all children."""
+        for i in range(item.childCount()):
+            child = item.child(i)
+            child.setCheckState(0, Qt.Checked if checked else Qt.Unchecked)
+            child_data = child.data(0, Qt.UserRole + 10)
+            if child_data and child_data["type"] == "folder":
+                self._set_tree_children_checked(child, checked)
+
+    def _update_folder_check_state(self, folder_item):
+        """Update folder checkbox based on children check states."""
+        if folder_item.childCount() == 0:
+            return
+        all_checked = True
+        has_checked = False
+        for i in range(folder_item.childCount()):
+            child = folder_item.child(i)
+            child_data = child.data(0, Qt.UserRole + 10)
+            if child_data and child_data["type"] == "folder":
+                self._update_folder_check_state(child)
+                if child.checkState(0) == Qt.Checked:
+                    has_checked = True
+                else:
+                    all_checked = False
+            else:
+                if child.checkState(0) == Qt.Checked:
+                    has_checked = True
+                else:
+                    all_checked = False
+        self.treewise_tree.blockSignals(True)
+        if all_checked:
+            folder_item.setCheckState(0, Qt.Checked)
+        elif has_checked:
+            folder_item.setCheckState(0, Qt.PartiallyChecked)
+        else:
+            folder_item.setCheckState(0, Qt.Unchecked)
+        self.treewise_tree.blockSignals(False)
+        parent = folder_item.parent()
+        if parent:
+            self._update_folder_check_state(parent)
+
+    def _update_filewise_counter(self):
+        """Update the counter label showing checked/total files."""
+        checked = self._checked_filewise_files()
+        total = self.filewise_file_list.count()
+        self.filewise_counter_label.setText(
+            f"<b>{len(checked)}</b> / {total} files selected"
+        )
+
+    def _checked_filewise_files(self):
+        """Return list of checked file paths in the filewise list."""
+        return [self.filewise_file_list.item(i).text()
+                for i in range(self.filewise_file_list.count())
+                if self.filewise_file_list.item(i).checkState() == Qt.Checked]
+
+    def _set_all_filewise(self, state):
+        """Select/deselect all files in filewise list + tree."""
+        self.filewise_file_list.blockSignals(True)
+        for i in range(self.filewise_file_list.count()):
+            self.filewise_file_list.item(i).setCheckState(Qt.Checked if state else Qt.Unchecked)
+        self.filewise_file_list.blockSignals(False)
+        self.treewise_tree.blockSignals(True)
+        for i in range(self.treewise_tree.topLevelItemCount()):
+            item = self.treewise_tree.topLevelItem(i)
+            item.setCheckState(0, Qt.Checked if state else Qt.Unchecked)
+            self._set_tree_children_checked(item, state)
+        self.treewise_tree.blockSignals(False)
+        self._update_filewise_counter()
+        self._refresh_filewise_diff()
+        self._refresh_treewise_diff()
+
+    def _refresh_filewise_diff(self):
+        """Show combined diff of all checked files in the filewise diff pane."""
+        checked = self._checked_filewise_files()
+        if not checked:
             self.filewise_diff_view.clear()
             return
-        item = self.list_widget.currentItem()
-        if not item:
-            return
-        sha = item.text().split()[0]
-        fw_item = self.filewise_file_list.currentItem()
         try:
-            entry = fw_item.data(FILE_ENTRY_ROLE) if fw_item else None
-            if entry and entry[0] == 'R':
-                diff = get_rename_diff_in_commit(self.repo_path, sha, entry[1], entry[2])
-            elif entry:
-                diff = get_file_diff_only_in_commit(self.repo_path, sha, entry[1])
-            else:
-                diff = get_file_diff_only_in_commit(self.repo_path, sha, filepath)
-            self.filewise_diff_view.setPlainText(diff)
+            parts = []
+            for f in checked:
+                d = self._get_file_diff(f).rstrip("\n")
+                if d:
+                    parts.append(d)
+            text = "\n\n".join(parts) + ("\n" if parts else "")
+            self.filewise_diff_view.setPlainText(text)
             self.filewise_diff_view.set_separator_color(self.current_theme_colors.get("separator", "#444444"))
             self.filewise_diff_search._perform_search()
         except Exception as e:
             self.filewise_diff_view.setPlainText(f"Error loading diff: {e}")
+
+    def _refresh_treewise_diff(self):
+        """Show combined diff of all checked tree items."""
+        checked = self._checked_treewise_files()
+        if not checked:
+            self.treewise_diff_view.clear()
+            return
+        try:
+            parts = []
+            for f in checked:
+                d = self._get_file_diff(f).rstrip("\n")
+                if d:
+                    parts.append(d)
+            text = "\n\n".join(parts) + ("\n" if parts else "")
+            self.treewise_diff_view.setPlainText(text)
+            self.treewise_diff_view.set_separator_color(self.current_theme_colors.get("separator", "#444444"))
+            self.treewise_diff_search._perform_search()
+        except Exception as e:
+            self.treewise_diff_view.setPlainText(f"Error loading diff: {e}")
+
+    def _checked_treewise_files(self):
+        """Return list of checked file paths from the tree widget."""
+        files = []
+        self._collect_checked_tree_files(self.treewise_tree.invisibleRootItem(), files)
+        return files
+
+    def _collect_checked_tree_files(self, parent_item, files):
+        """Recursively collect checked file paths from tree."""
+        for i in range(parent_item.childCount()):
+            item = parent_item.child(i)
+            if item.checkState(0) != Qt.Checked:
+                continue
+            item_data = item.data(0, Qt.UserRole + 10)
+            if not item_data:
+                continue
+            if item_data["type"] == "folder":
+                self._collect_checked_tree_files(item, files)
+            else:
+                entry = item_data.get("entry")
+                if entry:
+                    filepath = entry[2] if entry[0] == 'R' else entry[1]
+                    if filepath and filepath not in files:
+                        files.append(filepath)
 
     def _populate_treewise_tree(self, file_entries, file_stats):
         """Build and display the tree-wise file tree from commit file entries."""
@@ -308,6 +501,8 @@ class DiffMixin:
                 # Folder node
                 item.setText(0, f"\U0001f4c1 {name}")
                 item.setData(0, Qt.UserRole + 10, {"type": "folder", "node": node})
+                item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+                item.setCheckState(0, Qt.Unchecked)
                 if node["added"] or node["deleted"]:
                     self._set_stats_column(item, node['added'], node['deleted'], added_color, removed_color)
                 if parent_item:
@@ -329,42 +524,14 @@ class DiffMixin:
                     display = name
                 item.setText(0, display)
                 item.setData(0, Qt.UserRole + 10, {"type": "file", "entry": entry})
+                item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+                item.setCheckState(0, Qt.Unchecked)
                 if node["added"] or node["deleted"]:
                     self._set_stats_column(item, node['added'], node['deleted'], added_color, removed_color)
                 if parent_item:
                     parent_item.addChild(item)
                 else:
                     self.treewise_tree.addTopLevelItem(item)
-
-    def on_treewise_item_clicked(self, item, column):
-        """Handle click on tree-wise item: show file diff or concatenated folder diff."""
-        item_data = item.data(0, Qt.UserRole + 10)
-        if not item_data:
-            return
-        list_item = self.list_widget.currentItem()
-        if not list_item:
-            return
-        sha = list_item.text().split()[0]
-
-        try:
-            if item_data["type"] == "file":
-                entry = item_data["entry"]
-                if entry and entry[0] == 'R':
-                    diff = get_rename_diff_in_commit(self.repo_path, sha, entry[1], entry[2])
-                elif entry:
-                    diff = get_file_diff_only_in_commit(self.repo_path, sha, entry[1])
-                else:
-                    diff = ""
-                self.treewise_diff_view.setPlainText(diff)
-            else:
-                # Folder: concatenate diffs of all leaf files
-                diffs = []
-                self._collect_folder_diffs(item_data["node"], sha, diffs)
-                self.treewise_diff_view.setPlainText("\n".join(diffs))
-            self.treewise_diff_view.set_separator_color(self.current_theme_colors.get("separator", "#444444"))
-            self.treewise_diff_search._perform_search()
-        except Exception as e:
-            self.treewise_diff_view.setPlainText(f"Error loading diff: {e}")
 
     def _collect_folder_diffs(self, node, sha, diffs):
         """Recursively collect diffs for all leaf files under a folder node."""
