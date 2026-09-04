@@ -107,9 +107,10 @@ def main():
 
     repo_path = os.path.abspath(os.path.expanduser(args.location))
 
-    # Ignore SIGHUP so the app survives terminal close when launched with &
+    # Ignore SIGHUP so the app survives terminal close when launched with & (not available on Windows)
     import signal
-    signal.signal(signal.SIGHUP, signal.SIG_IGN)
+    if hasattr(signal, "SIGHUP"):
+        signal.signal(signal.SIGHUP, signal.SIG_IGN)
 
     now = datetime.now()
     app_start_time = f"{now.strftime('%I.%M%p').lower()} {now.day}-{now.strftime('%b-%Y')}"
