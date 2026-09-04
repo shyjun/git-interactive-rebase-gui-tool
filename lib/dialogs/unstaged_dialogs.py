@@ -544,9 +544,10 @@ class CommitSelectivelyDialog(QDialog):
                 self.treewise_tree.blockSignals(True)
                 child.setCheckState(0, Qt.Checked if checked else Qt.Unchecked)
                 self.treewise_tree.blockSignals(False)
-                parent = child.parent()
-                if parent:
-                    self._update_folder_check_state(parent)
+                p = child.parent()
+                while p:
+                    self._update_folder_check_state(p)
+                    p = p.parent()
                 return
 
     def _on_tree_item_changed(self, item, column):
@@ -557,9 +558,10 @@ class CommitSelectivelyDialog(QDialog):
         checked = item.checkState(0) == Qt.Checked
         if item_data["type"] == "folder":
             self._set_tree_children_checked(item, checked)
-            parent = item.parent()
-            if parent:
-                self._update_folder_check_state(parent)
+            p = item.parent()
+            while p:
+                self._update_folder_check_state(p)
+                p = p.parent()
         else:
             filepath = item_data.get("filepath", "")
             for i in range(self.file_list.count()):
@@ -569,9 +571,10 @@ class CommitSelectivelyDialog(QDialog):
                     list_item.setCheckState(Qt.Checked if checked else Qt.Unchecked)
                     self.file_list.blockSignals(False)
                     break
-            parent = item.parent()
-            if parent:
-                self._update_folder_check_state(parent)
+            p = item.parent()
+            while p:
+                self._update_folder_check_state(p)
+                p = p.parent()
         self._update_counter()
         self._refresh_diff()
 
@@ -960,9 +963,10 @@ class CommitStagedSelectivelyDialog(QDialog):
         checked = item.checkState(0) == Qt.Checked
         if item_data["type"] == "folder":
             self._set_tree_children_checked(item, checked)
-            parent = item.parent()
-            if parent:
-                self._update_folder_check_state(parent)
+            p = item.parent()
+            while p:
+                self._update_folder_check_state(p)
+                p = p.parent()
         else:
             filepath = item_data.get("filepath", "")
             for i in range(self.file_list.count()):
@@ -972,9 +976,10 @@ class CommitStagedSelectivelyDialog(QDialog):
                     list_item.setCheckState(Qt.Checked if checked else Qt.Unchecked)
                     self.file_list.blockSignals(False)
                     break
-            parent = item.parent()
-            if parent:
-                self._update_folder_check_state(parent)
+            p = item.parent()
+            while p:
+                self._update_folder_check_state(p)
+                p = p.parent()
         self._update_counter()
         self._refresh_diff()
 
@@ -1243,9 +1248,10 @@ class StageFilesDialog(QDialog):
         if item_data["type"] == "folder":
             # Check/uncheck all children
             self._set_tree_children_checked(item, checked)
-            parent = item.parent()
-            if parent:
-                self._update_folder_check_state(parent)
+            p = item.parent()
+            while p:
+                self._update_folder_check_state(p)
+                p = p.parent()
         else:
             filepath = item_data.get("filepath", "")
             # Sync with file list
@@ -1255,9 +1261,10 @@ class StageFilesDialog(QDialog):
                     list_item.setCheckState(Qt.Checked if checked else Qt.Unchecked)
                     break
             # Update parent folder check state
-            parent = item.parent()
-            if parent:
-                self._update_folder_check_state(parent)
+            p = item.parent()
+            while p:
+                self._update_folder_check_state(p)
+                p = p.parent()
         self._update_counter()
         self._refresh_diff()
 
