@@ -329,9 +329,10 @@ class DiffMixin:
                     self.treewise_tree.blockSignals(True)
                     child.setCheckState(0, Qt.Checked if checked else Qt.Unchecked)
                     self.treewise_tree.blockSignals(False)
-                    parent = child.parent()
-                    if parent:
-                        self._update_folder_check_state(parent)
+                    p = child.parent()
+                    while p:
+                        self._update_folder_check_state(p)
+                        p = p.parent()
                     return
 
     def _on_treewise_item_changed(self, item, column):
@@ -342,9 +343,10 @@ class DiffMixin:
         checked = item.checkState(0) == Qt.Checked
         if item_data["type"] == "folder":
             self._set_tree_children_checked(item, checked)
-            parent = item.parent()
-            if parent:
-                self._update_folder_check_state(parent)
+            p = item.parent()
+            while p:
+                self._update_folder_check_state(p)
+                p = p.parent()
         else:
             entry = item_data.get("entry")
             if entry:
@@ -357,9 +359,10 @@ class DiffMixin:
                         list_item.setCheckState(Qt.Checked if checked else Qt.Unchecked)
                         self.filewise_file_list.blockSignals(False)
                         break
-            parent = item.parent()
-            if parent:
-                self._update_folder_check_state(parent)
+            p = item.parent()
+            while p:
+                self._update_folder_check_state(p)
+                p = p.parent()
         self._update_filewise_counter()
         self._refresh_treewise_diff()
         self._refresh_filewise_diff()
