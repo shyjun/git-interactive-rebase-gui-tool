@@ -479,8 +479,8 @@ class StatsItemDelegate(QStyledItemDelegate):
 
         if is_binary:
             from lib.git_helpers import format_binary_size
-            if old_size >= 0 and new_size >= 0:
-                stats_text = f"old: {format_binary_size(old_size)}, new: {format_binary_size(new_size)}"
+            if old_size >= 0 and new_size >= 0 and old_size != new_size:
+                stats_text = f"size: {format_binary_size(old_size)} -> {format_binary_size(new_size)}"
             elif new_size >= 0:
                 stats_text = f"size: {format_binary_size(new_size)}"
             elif old_size >= 0:
