@@ -334,26 +334,6 @@ class DiffMixin:
                         self._update_folder_check_state(parent)
                     return
 
-    def _on_treewise_current_item_changed(self, current, previous):
-        """Show diff of the selected file in the treewise diff pane."""
-        if not current:
-            return
-        item_data = current.data(0, Qt.UserRole + 10)
-        if not item_data or item_data["type"] == "folder":
-            self._refresh_treewise_diff()
-            return
-        entry = item_data.get("entry")
-        if not entry:
-            return
-        filepath = entry[2] if entry[0] == 'R' else entry[1]
-        try:
-            d = self._get_file_diff(filepath).rstrip("\n")
-            self.treewise_diff_view.setPlainText(d)
-            self.treewise_diff_view.set_separator_color(self.current_theme_colors.get("separator", "#444444"))
-            self.treewise_diff_search._perform_search()
-        except Exception as e:
-            self.treewise_diff_view.setPlainText(f"Error loading diff: {e}")
-
     def _on_treewise_item_changed(self, item, column):
         """Handle checkbox change in tree: sync to file list and refresh diff."""
         item_data = item.data(0, Qt.UserRole + 10)
