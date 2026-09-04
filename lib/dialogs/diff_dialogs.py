@@ -489,7 +489,12 @@ class BranchDiffDialog(QDialog):
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
                 item.setCheckState(0, Qt.Unchecked)
                 if node["added"] or node["deleted"]:
-                    item.setText(1, f"+{node['added']} / -{node['deleted']}")
+                    stats_parts = []
+                    if node["added"]:
+                        stats_parts.append(f"+{node['added']}")
+                    if node["deleted"]:
+                        stats_parts.append(f"-{node['deleted']}")
+                    item.setText(1, " / ".join(stats_parts))
                     item.setTextAlignment(1, Qt.AlignRight | Qt.AlignVCenter)
                 if parent_item:
                     parent_item.addChild(item)
@@ -504,7 +509,12 @@ class BranchDiffDialog(QDialog):
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
                 item.setCheckState(0, Qt.Unchecked)
                 if node["added"] or node["deleted"]:
-                    item.setText(1, f"+{node['added']} / -{node['deleted']}")
+                    stats_parts = []
+                    if node["added"]:
+                        stats_parts.append(f"+{node['added']}")
+                    if node["deleted"]:
+                        stats_parts.append(f"-{node['deleted']}")
+                    item.setText(1, " / ".join(stats_parts))
                     item.setTextAlignment(1, Qt.AlignRight | Qt.AlignVCenter)
                 if parent_item:
                     parent_item.addChild(item)
@@ -1118,7 +1128,12 @@ class SingleCommitViewDialog(QDialog):
                 item.setText(0, f"\U0001f4c1 {name}")
                 item.setData(0, Qt.UserRole + 10, {"type": "folder", "node": node})
                 if node["added"] or node["deleted"]:
-                    item.setText(1, f"+{node['added']} / -{node['deleted']}")
+                    stats_parts = []
+                    if node["added"]:
+                        stats_parts.append(f"+{node['added']}")
+                    if node["deleted"]:
+                        stats_parts.append(f"-{node['deleted']}")
+                    item.setText(1, " / ".join(stats_parts))
                     item.setTextAlignment(1, Qt.AlignRight | Qt.AlignVCenter)
                 if parent_item:
                     parent_item.addChild(item)
@@ -1139,7 +1154,12 @@ class SingleCommitViewDialog(QDialog):
                 item.setText(0, display)
                 item.setData(0, Qt.UserRole + 10, {"type": "file", "entry": entry})
                 if node["added"] or node["deleted"]:
-                    item.setText(1, f"+{node['added']} / -{node['deleted']}")
+                    stats_parts = []
+                    if node["added"]:
+                        stats_parts.append(f"+{node['added']}")
+                    if node["deleted"]:
+                        stats_parts.append(f"-{node['deleted']}")
+                    item.setText(1, " / ".join(stats_parts))
                     item.setTextAlignment(1, Qt.AlignRight | Qt.AlignVCenter)
                 if parent_item:
                     parent_item.addChild(item)

@@ -470,7 +470,7 @@ class StatsItemDelegate(QStyledItemDelegate):
         if stats and isinstance(stats, tuple) and len(stats) == 2:
             added, deleted = stats
             added_str = f"+{added}"
-            deleted_str = f" -{deleted}"
+            deleted_str = f" -{deleted}" if deleted else ""
             deleted_w = fm.horizontalAdvance(deleted_str)
             added_w = fm.horizontalAdvance(added_str)
             stats_total_w = added_w + deleted_w + 4
@@ -482,10 +482,11 @@ class StatsItemDelegate(QStyledItemDelegate):
                 Qt.AlignLeft | Qt.AlignVCenter, added_str)
 
             # Draw -M (red / white-on-select)
-            painter.setPen(QColor("white") if is_selected else self.removed_color)
-            painter.drawText(
-                QRect(rect.right() - deleted_w, rect.top(), deleted_w, rect.height()),
-                Qt.AlignLeft | Qt.AlignVCenter, deleted_str)
+            if deleted:
+                painter.setPen(QColor("white") if is_selected else self.removed_color)
+                painter.drawText(
+                    QRect(rect.right() - deleted_w, rect.top(), deleted_w, rect.height()),
+                    Qt.AlignLeft | Qt.AlignVCenter, deleted_str)
 
             filename_rect = QRect(rect.left(), rect.top(),
                                   rect.width() - stats_total_w - 8, rect.height())

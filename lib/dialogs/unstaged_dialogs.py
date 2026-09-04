@@ -917,7 +917,12 @@ class CommitStagedSelectivelyDialog(QDialog):
                 item.setText(0, f"\U0001f4c1 {name}")
                 item.setData(0, Qt.UserRole + 10, {"type": "folder", "node": node})
                 if node["added"] or node["deleted"]:
-                    item.setText(1, f"+{node['added']} / -{node['deleted']}")
+                    stats_parts = []
+                    if node["added"]:
+                        stats_parts.append(f"+{node['added']}")
+                    if node["deleted"]:
+                        stats_parts.append(f"-{node['deleted']}")
+                    item.setText(1, " / ".join(stats_parts))
                     item.setTextAlignment(1, Qt.AlignRight | Qt.AlignVCenter)
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
                 item.setCheckState(0, Qt.Checked)
@@ -932,7 +937,12 @@ class CommitStagedSelectivelyDialog(QDialog):
                 item.setText(0, name)
                 item.setData(0, Qt.UserRole + 10, {"type": "file", "filepath": filepath})
                 if node["added"] or node["deleted"]:
-                    item.setText(1, f"+{node['added']} / -{node['deleted']}")
+                    stats_parts = []
+                    if node["added"]:
+                        stats_parts.append(f"+{node['added']}")
+                    if node["deleted"]:
+                        stats_parts.append(f"-{node['deleted']}")
+                    item.setText(1, " / ".join(stats_parts))
                     item.setTextAlignment(1, Qt.AlignRight | Qt.AlignVCenter)
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
                 item.setCheckState(0, Qt.Checked)
@@ -1190,10 +1200,15 @@ class StageFilesDialog(QDialog):
                 item.setText(0, f"\U0001f4c1 {name}")
                 item.setData(0, Qt.UserRole + 10, {"type": "folder", "node": node})
                 if node["added"] or node["deleted"]:
-                    item.setText(1, f"+{node['added']} / -{node['deleted']}")
+                    stats_parts = []
+                    if node["added"]:
+                        stats_parts.append(f"+{node['added']}")
+                    if node["deleted"]:
+                        stats_parts.append(f"-{node['deleted']}")
+                    item.setText(1, " / ".join(stats_parts))
                     item.setTextAlignment(1, Qt.AlignRight | Qt.AlignVCenter)
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
-                item.setCheckState(0, Qt.Unchecked)
+                item.setCheckState(0, Qt.Checked)
                 if parent_item:
                     parent_item.addChild(item)
                 else:
@@ -1205,14 +1220,20 @@ class StageFilesDialog(QDialog):
                 item.setText(0, name)
                 item.setData(0, Qt.UserRole + 10, {"type": "file", "filepath": filepath})
                 if node["added"] or node["deleted"]:
-                    item.setText(1, f"+{node['added']} / -{node['deleted']}")
+                    stats_parts = []
+                    if node["added"]:
+                        stats_parts.append(f"+{node['added']}")
+                    if node["deleted"]:
+                        stats_parts.append(f"-{node['deleted']}")
+                    item.setText(1, " / ".join(stats_parts))
                     item.setTextAlignment(1, Qt.AlignRight | Qt.AlignVCenter)
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
-                item.setCheckState(0, Qt.Unchecked)
+                item.setCheckState(0, Qt.Checked)
                 if parent_item:
                     parent_item.addChild(item)
                 else:
                     self.treewise_tree.addTopLevelItem(item)
+
 
     def _on_tree_item_changed(self, item, column):
         """Handle checkbox change in tree: sync with file list."""
