@@ -711,11 +711,15 @@ class MenusMixin:
             return
 
         import subprocess
+        import platform
         print(f"[difftool] Running: git difftool {sha1[:8]} {sha2[:8]}")
         try:
+            kwargs = {"cwd": self.repo_path}
+            if platform.system() == "Windows":
+                kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
             subprocess.Popen(
                 ["git", "difftool", sha1, sha2],
-                cwd=self.repo_path
+                **kwargs
             )
         except Exception as e:
             QMessageBox.critical(self, "Git Difftool Failed", f"Could not run git difftool: {e}")
