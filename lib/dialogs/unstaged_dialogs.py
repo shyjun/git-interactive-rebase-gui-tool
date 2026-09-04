@@ -780,8 +780,7 @@ class CommitStagedSelectivelyDialog(QDialog):
             parent=self.file_list
         )
         self.file_list.setItemDelegate(self.stats_delegate)
-        self.file_list.itemChanged.connect(self._update_counter)
-        self.file_list.itemChanged.connect(self._refresh_diff)
+        self.file_list.itemChanged.connect(self._on_file_item_changed)
         file_list_layout.addWidget(self.file_list)
         self.tab_widget.addTab(file_list_widget, "File List")
 
@@ -983,6 +982,34 @@ class CommitStagedSelectivelyDialog(QDialog):
                     parent_item.addChild(item)
                 else:
                     self.treewise_tree.addTopLevelItem(item)
+
+    def _on_file_item_changed(self, item):
+        """Handle checkbox change in file list: sync to tree, refresh diff."""
+        checked = item.checkState() == Qt.Checked
+        filepath = item.text()
+        for i in range(self.treewise_tree.topLevelItemCount()):
+            self._sync_file_to_tree(self.treewise_tree.topLevelItem(i), filepath, checked)
+        self._update_counter()
+        self._refresh_diff()
+
+    def _sync_file_to_tree(self, parent_item, filepath, checked):
+        """Recursively find and sync a file's check state in the tree."""
+        for i in range(parent_item.childCount()):
+            child = parent_item.child(i)
+            child_data = child.data(0, Qt.UserRole + 10)
+            if not child_data:
+                continue
+            if child_data["type"] == "folder":
+                self._sync_file_to_tree(child, filepath, checked)
+            elif child_data.get("filepath") == filepath:
+                self.treewise_tree.blockSignals(True)
+                child.setCheckState(0, Qt.Checked if checked else Qt.Unchecked)
+                self.treewise_tree.blockSignals(False)
+                p = child.parent()
+                while p:
+                    self._update_folder_check_state(p)
+                    p = p.parent()
+                return
 
     def _on_tree_item_changed(self, item, column):
         """Handle checkbox change in tree: sync with file list."""
@@ -1400,8 +1427,31 @@ class StageFilesDialog(QDialog):
         sync_item(self.treewise_tree.invisibleRootItem())
         self.file_list.blockSignals(False)
 
+    def _sync_file_to_tree(self, parent_item, filepath, checked):
+        """Recursively find and sync a file's check state in the tree."""
+        for i in range(parent_item.childCount()):
+            child = parent_item.child(i)
+            child_data = child.data(0, Qt.UserRole + 10)
+            if not child_data:
+                continue
+            if child_data["type"] == "folder":
+                self._sync_file_to_tree(child, filepath, checked)
+            elif child_data.get("filepath") == filepath:
+                self.treewise_tree.blockSignals(True)
+                child.setCheckState(0, Qt.Checked if checked else Qt.Unchecked)
+                self.treewise_tree.blockSignals(False)
+                p = child.parent()
+                while p:
+                    self._update_folder_check_state(p)
+                    p = p.parent()
+                return
+
     def _on_file_item_changed(self, item):
-        """Handle checkbox change in file list: update counter and refresh diff."""
+        """Handle checkbox change in file list: sync to tree, refresh diff."""
+        checked = item.checkState() == Qt.Checked
+        filepath = item.text()
+        for i in range(self.treewise_tree.topLevelItemCount()):
+            self._sync_file_to_tree(self.treewise_tree.topLevelItem(i), filepath, checked)
         self._update_counter()
         self._refresh_diff()
 
