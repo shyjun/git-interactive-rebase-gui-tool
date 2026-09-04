@@ -579,7 +579,12 @@ class TreeStatsDelegate(QStyledItemDelegate):
                 QRect(rect.right() - deleted_w, rect.top(), deleted_w, rect.height()),
                 Qt.AlignLeft | Qt.AlignVCenter, deleted_str)
         elif stats_text:
-            painter.setPen(QColor("white") if is_selected else option.palette.text().color())
+            if stats_text.startswith("+"):
+                painter.setPen(QColor("white") if is_selected else self.added_color)
+            elif stats_text.startswith("-"):
+                painter.setPen(QColor("white") if is_selected else self.removed_color)
+            else:
+                painter.setPen(QColor("white") if is_selected else option.palette.text().color())
             text_w = fm.horizontalAdvance(stats_text) + 4
             painter.drawText(
                 QRect(rect.right() - text_w, rect.top(), text_w, rect.height()),
