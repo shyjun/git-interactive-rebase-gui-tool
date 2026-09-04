@@ -584,6 +584,7 @@ class CommitSelectivelyDialog(QDialog):
         self.treewise_tree.blockSignals(True)
         self._set_tree_children_checked_impl(item, checked)
         self.treewise_tree.blockSignals(False)
+        self._sync_tree_checked_to_file_list()
 
     def _set_tree_children_checked_impl(self, item, checked):
         for i in range(item.childCount()):
@@ -1045,6 +1046,7 @@ class CommitStagedSelectivelyDialog(QDialog):
         self.treewise_tree.blockSignals(True)
         self._set_tree_children_checked_impl(item, checked)
         self.treewise_tree.blockSignals(False)
+        self._sync_tree_checked_to_file_list()
 
     def _set_tree_children_checked_impl(self, item, checked):
         for i in range(item.childCount()):
@@ -1390,6 +1392,7 @@ class StageFilesDialog(QDialog):
         self.treewise_tree.blockSignals(True)
         self._set_tree_children_checked_impl(item, checked)
         self.treewise_tree.blockSignals(False)
+        self._sync_tree_checked_to_file_list()
 
     def _set_tree_children_checked_impl(self, item, checked):
         for i in range(item.childCount()):
