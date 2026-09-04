@@ -1,3 +1,4 @@
+import os
 import subprocess
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QMessageBox, QDialog
@@ -189,7 +190,10 @@ class StashMixin:
         return "Changes in " + ", ".join(checked[:3]) + ("..." if len(checked) > 3 else "")
 
     def _selective_commit_whole_files(self, checked):
-        """Commit only the checked files, as a single commit."""
+        """Commit only the checked files, as a single commit.
+
+        Uses git commit --only to bypass the index, so previously staged
+        changes are NOT included in this commit."""
         msg_dlg = NewCommitMessageDialog(
             "Commit Selected Files",
             "Enter commit message for the selected files:",
@@ -201,18 +205,17 @@ class StashMixin:
             return  # Cancelled - nothing staged yet
         message = msg_dlg.get_message()
 
-        progress = ProgressDialog("Committing Changes", "Staging selected files...", self)
+        progress = ProgressDialog("Committing Changes", "Committing selected files...", self)
         progress.show()
         QApplication.processEvents()
         try:
-            if not stage_files(self.repo_path, checked):
-                raise Exception("Failed to stage the selected files.")
-            if not commit_staged(self.repo_path, message):
-                raise Exception("Git commit failed.")
-        except Exception as e:
-            subprocess.run(["git", "reset", "-q"], cwd=self.repo_path)
+            import subprocess
+            subprocess.run(
+                ["git", "commit", "--only", "-m", message, "--"] + list(checked),
+                cwd=self.repo_path, check=True, capture_output=True)
+        except subprocess.CalledProcessError as e:
             progress.close()
-            QMessageBox.critical(self, "Error", f"Commit failed: {e}")
+            QMessageBox.critical(self, "Error", f"Commit failed: {e.stderr.decode('utf-8', errors='replace')}")
             return
         progress.close()
 
@@ -225,7 +228,10 @@ class StashMixin:
 
     def _selective_amend_files(self, checked):
         """Amend only the checked files into the HEAD commit. The message dialog is
-        pre-filled with the current HEAD message (editable)."""
+        pre-filled with the current HEAD message (editable).
+
+        Uses git commit --amend --only to bypass the index, so previously
+        staged changes are NOT included in the amend."""
         try:
             default_msg = get_full_commit_message(self.repo_path, "HEAD")
         except Exception:
@@ -241,18 +247,25 @@ class StashMixin:
             return  # Cancelled - nothing staged yet
         message = msg_dlg.get_message()
 
-        progress = ProgressDialog("Amending Changes", "Staging selected files...", self)
+        progress = ProgressDialog("Amending Changes", "Amending selected files...", self)
         progress.show()
         QApplication.processEvents()
         try:
-            if not stage_files(self.repo_path, checked):
-                raise Exception("Failed to stage the selected files.")
-            if not amend_staged(self.repo_path, message):
-                raise Exception("Git commit --amend failed.")
-        except Exception as e:
+            import subprocess
+            import tempfile
+            msg_fd, msg_path = tempfile.mkstemp(prefix='git_amend_msg_', text=True)
+            try:
+                with os.fdopen(msg_fd, 'w', encoding='utf-8') as f:
+                    f.write(message)
+                subprocess.run(
+                    ["git", "commit", "--amend", "--only", "-F", msg_path, "--"] + list(checked),
+                    cwd=self.repo_path, check=True, capture_output=True)
+            finally:
+                os.unlink(msg_path)
+        except subprocess.CalledProcessError as e:
             subprocess.run(["git", "reset", "-q"], cwd=self.repo_path)
             progress.close()
-            QMessageBox.critical(self, "Error", f"Amend failed: {e}")
+            QMessageBox.critical(self, "Error", f"Amend failed: {e.stderr.decode('utf-8', errors='replace')}")
             return
         progress.close()
 
