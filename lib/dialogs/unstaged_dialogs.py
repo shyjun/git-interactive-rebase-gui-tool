@@ -557,6 +557,9 @@ class CommitSelectivelyDialog(QDialog):
         checked = item.checkState(0) == Qt.Checked
         if item_data["type"] == "folder":
             self._set_tree_children_checked(item, checked)
+            parent = item.parent()
+            if parent:
+                self._update_folder_check_state(parent)
         else:
             filepath = item_data.get("filepath", "")
             for i in range(self.file_list.count()):
@@ -574,12 +577,17 @@ class CommitSelectivelyDialog(QDialog):
 
     def _set_tree_children_checked(self, item, checked):
         """Recursively set check state for all children."""
+        self.treewise_tree.blockSignals(True)
+        self._set_tree_children_checked_impl(item, checked)
+        self.treewise_tree.blockSignals(False)
+
+    def _set_tree_children_checked_impl(self, item, checked):
         for i in range(item.childCount()):
             child = item.child(i)
             child.setCheckState(0, Qt.Checked if checked else Qt.Unchecked)
             child_data = child.data(0, Qt.UserRole + 10)
             if child_data and child_data["type"] == "folder":
-                self._set_tree_children_checked(child, checked)
+                self._set_tree_children_checked_impl(child, checked)
 
     def _update_folder_check_state(self, folder_item):
         """Update folder checkbox based on children check states."""
@@ -609,9 +617,6 @@ class CommitSelectivelyDialog(QDialog):
         else:
             folder_item.setCheckState(0, Qt.Unchecked)
         self.treewise_tree.blockSignals(False)
-        parent = folder_item.parent()
-        if parent:
-            self._update_folder_check_state(parent)
 
     def _populate_tree(self):
         """Build tree from unstaged file list."""
@@ -955,6 +960,9 @@ class CommitStagedSelectivelyDialog(QDialog):
         checked = item.checkState(0) == Qt.Checked
         if item_data["type"] == "folder":
             self._set_tree_children_checked(item, checked)
+            parent = item.parent()
+            if parent:
+                self._update_folder_check_state(parent)
         else:
             filepath = item_data.get("filepath", "")
             for i in range(self.file_list.count()):
@@ -972,12 +980,17 @@ class CommitStagedSelectivelyDialog(QDialog):
 
     def _set_tree_children_checked(self, item, checked):
         """Recursively set check state for all children."""
+        self.treewise_tree.blockSignals(True)
+        self._set_tree_children_checked_impl(item, checked)
+        self.treewise_tree.blockSignals(False)
+
+    def _set_tree_children_checked_impl(self, item, checked):
         for i in range(item.childCount()):
             child = item.child(i)
             child.setCheckState(0, Qt.Checked if checked else Qt.Unchecked)
             child_data = child.data(0, Qt.UserRole + 10)
             if child_data and child_data["type"] == "folder":
-                self._set_tree_children_checked(child, checked)
+                self._set_tree_children_checked_impl(child, checked)
 
     def _update_folder_check_state(self, folder_item):
         """Update folder checkbox based on children check states."""
@@ -1007,9 +1020,6 @@ class CommitStagedSelectivelyDialog(QDialog):
         else:
             folder_item.setCheckState(0, Qt.Unchecked)
         self.treewise_tree.blockSignals(False)
-        parent = folder_item.parent()
-        if parent:
-            self._update_folder_check_state(parent)
 
 
 class StageFilesDialog(QDialog):
@@ -1233,6 +1243,9 @@ class StageFilesDialog(QDialog):
         if item_data["type"] == "folder":
             # Check/uncheck all children
             self._set_tree_children_checked(item, checked)
+            parent = item.parent()
+            if parent:
+                self._update_folder_check_state(parent)
         else:
             filepath = item_data.get("filepath", "")
             # Sync with file list
@@ -1278,19 +1291,20 @@ class StageFilesDialog(QDialog):
         else:
             folder_item.setCheckState(0, Qt.Unchecked)
         self.treewise_tree.blockSignals(False)
-        # Update parent of this folder
-        parent = folder_item.parent()
-        if parent:
-            self._update_folder_check_state(parent)
 
     def _set_tree_children_checked(self, item, checked):
         """Recursively set check state for all children."""
+        self.treewise_tree.blockSignals(True)
+        self._set_tree_children_checked_impl(item, checked)
+        self.treewise_tree.blockSignals(False)
+
+    def _set_tree_children_checked_impl(self, item, checked):
         for i in range(item.childCount()):
             child = item.child(i)
             child.setCheckState(0, Qt.Checked if checked else Qt.Unchecked)
             child_data = child.data(0, Qt.UserRole + 10)
             if child_data and child_data["type"] == "folder":
-                self._set_tree_children_checked(child, checked)
+                self._set_tree_children_checked_impl(child, checked)
 
     def _on_file_item_changed(self, item):
         """Handle checkbox change in file list: update counter and refresh diff."""
