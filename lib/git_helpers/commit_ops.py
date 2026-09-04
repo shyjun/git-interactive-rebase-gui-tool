@@ -6,13 +6,16 @@ import tempfile
 def commit_file(repo_path, filepath, message):
     """Stages and commits a single file.
 
+    Uses git commit --only so that any previously staged changes are NOT
+    included in this commit — only the specified file is committed.
+
     Returns (True, "") on success, or (False, detail) where detail carries the
     git error text."""
     try:
         # Stage the file
         subprocess.run(["git", "add", filepath], cwd=repo_path, check=True, capture_output=True)
-        # Commit the file
-        subprocess.run(["git", "commit", "-m", message], cwd=repo_path, check=True, capture_output=True)
+        # Commit only this file, leaving other staged changes untouched
+        subprocess.run(["git", "commit", "--only", filepath, "-m", message], cwd=repo_path, check=True, capture_output=True)
         return True, ""
     except subprocess.CalledProcessError as e:
         err = e.stderr.decode('utf-8') if e.stderr else str(e)
