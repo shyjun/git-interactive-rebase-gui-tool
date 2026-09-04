@@ -420,9 +420,16 @@ class DiffMixin:
 
     def _checked_filewise_files(self):
         """Return list of checked file paths in the filewise list."""
-        return [self.filewise_file_list.item(i).text()
-                for i in range(self.filewise_file_list.count())
-                if self.filewise_file_list.item(i).checkState() == Qt.Checked]
+        result = []
+        for i in range(self.filewise_file_list.count()):
+            item = self.filewise_file_list.item(i)
+            if item.checkState() == Qt.Checked:
+                entry = item.data(FILE_ENTRY_ROLE)
+                if entry:
+                    result.append(entry[2] if entry[0] == 'R' else entry[1])
+                else:
+                    result.append(item.text())
+        return result
 
     def _set_all_filewise(self, state):
         """Select/deselect all files in filewise list + tree."""
