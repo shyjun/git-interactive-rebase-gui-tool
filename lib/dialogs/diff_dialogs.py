@@ -313,7 +313,7 @@ class BranchDiffDialog(QDialog):
             parent=self.filewise_file_list
         )
         self.filewise_file_list.setItemDelegate(stats_delegate)
-        self.filewise_file_list.currentTextChanged.connect(self.on_filewise_file_selected)
+        self.filewise_file_list.itemChanged.connect(self._on_filewise_item_changed)
         self.filewise_splitter.addWidget(self.filewise_file_list)
 
         # File diff view + search
@@ -363,7 +363,7 @@ class BranchDiffDialog(QDialog):
         self.treewise_tree.setFont(QFont("Courier New", font_size))
         self.treewise_tree.setAnimated(True)
         self.treewise_tree.setItemDelegateForColumn(1, TreeStatsDelegate())
-        self.treewise_tree.itemClicked.connect(self.on_treewise_item_clicked)
+        self.treewise_tree.itemChanged.connect(self._on_treewise_item_changed)
         self.treewise_tree.setContextMenuPolicy(Qt.CustomContextMenu)
         self.treewise_tree.customContextMenuRequested.connect(self.show_treewise_context_menu)
         self.treewise_splitter.addWidget(self.treewise_tree)
@@ -400,11 +400,11 @@ class BranchDiffDialog(QDialog):
         self.filewise_file_list.blockSignals(True)
         for f in files:
             item = QListWidgetItem(f)
+            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+            item.setCheckState(Qt.Checked)
             item.setData(Qt.UserRole, file_stats.get(f))
             self.filewise_file_list.addItem(item)
         self.filewise_file_list.blockSignals(False)
-        if files:
-            self.filewise_file_list.setCurrentRow(0)
 
         # Context menu for the file list
         self.filewise_file_list.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -419,14 +419,26 @@ class BranchDiffDialog(QDialog):
 
         # Buttons
         btn_layout = QHBoxLayout()
+        self.filewise_counter_label = QLabel()
+        self.filewise_counter_label.setTextFormat(Qt.RichText)
+        btn_layout.addWidget(self.filewise_counter_label)
         btn_layout.addStretch()
+        self.filewise_select_all_btn = QPushButton("Select All")
+        self.filewise_select_all_btn.setProperty("class", "dialog-btn")
+        self.filewise_select_all_btn.clicked.connect(lambda: self._set_all_filewise(True))
+        btn_layout.addWidget(self.filewise_select_all_btn)
+        self.filewise_deselect_all_btn = QPushButton("Deselect All")
+        self.filewise_deselect_all_btn.setProperty("class", "dialog-btn-secondary")
+        self.filewise_deselect_all_btn.clicked.connect(lambda: self._set_all_filewise(False))
+        btn_layout.addWidget(self.filewise_deselect_all_btn)
+        btn_layout.addSpacing(20)
         ok_btn = QPushButton("Close")
         ok_btn.setMinimumWidth(100)
         ok_btn.setProperty("class", "dialog-btn")
         ok_btn.clicked.connect(self.accept)
         btn_layout.addWidget(ok_btn)
-        btn_layout.addStretch()
         layout.addLayout(btn_layout)
+        self._update_filewise_counter()
 
     def _focus_active_search(self):
         idx = self.tab_widget.currentIndex()
@@ -464,6 +476,8 @@ class BranchDiffDialog(QDialog):
             if node["children"]:
                 item.setText(0, f"\U0001f4c1 {name}")
                 item.setData(0, Qt.UserRole + 10, {"type": "folder", "node": node})
+                item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+                item.setCheckState(0, Qt.Checked)
                 if node["added"] or node["deleted"]:
                     item.setText(1, f"+{node['added']} / -{node['deleted']}")
                     item.setTextAlignment(1, Qt.AlignRight | Qt.AlignVCenter)
@@ -477,6 +491,8 @@ class BranchDiffDialog(QDialog):
                 filepath = entry[1] if entry else name
                 item.setText(0, name)
                 item.setData(0, Qt.UserRole + 10, {"type": "file", "entry": entry, "filepath": filepath})
+                item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+                item.setCheckState(0, Qt.Checked)
                 if node["added"] or node["deleted"]:
                     item.setText(1, f"+{node['added']} / -{node['deleted']}")
                     item.setTextAlignment(1, Qt.AlignRight | Qt.AlignVCenter)
@@ -625,6 +641,169 @@ class BranchDiffDialog(QDialog):
             ok, err = run_configured_difftool(self.repo_path, source_sha, target_file, ref_sha, target_file)
         if not ok:
             QMessageBox.critical(self, "Difftool Failed", f"Could not run difftool: {err}")
+
+    def _get_file_diff(self, filepath):
+        """Get diff for a single file. Subclasses override for different scopes."""
+        return get_file_diff_between(self.repo_path, self.start_sha, self.end_sha, filepath)
+
+    def _on_filewise_item_changed(self, item):
+        """Handle checkbox change in filewise list."""
+        self._update_filewise_counter()
+        self._refresh_filewise_diff()
+
+    def _on_treewise_item_changed(self, item, column):
+        """Handle checkbox change in tree: sync to file list and refresh diff."""
+        item_data = item.data(0, Qt.UserRole + 10)
+        if not item_data:
+            return
+        checked = item.checkState(0) == Qt.Checked
+        if item_data["type"] == "folder":
+            self._set_tree_children_checked(item, checked)
+        else:
+            filepath = item_data.get("filepath", "")
+            for i in range(self.filewise_file_list.count()):
+                list_item = self.filewise_file_list.item(i)
+                if list_item.text() == filepath:
+                    self.filewise_file_list.blockSignals(True)
+                    list_item.setCheckState(Qt.Checked if checked else Qt.Unchecked)
+                    self.filewise_file_list.blockSignals(False)
+                    break
+            parent = item.parent()
+            if parent:
+                self._update_folder_check_state(parent)
+        self._update_filewise_counter()
+        self._refresh_treewise_diff()
+
+    def _set_tree_children_checked(self, item, checked):
+        """Recursively set check state for all children."""
+        for i in range(item.childCount()):
+            child = item.child(i)
+            child.setCheckState(0, Qt.Checked if checked else Qt.Unchecked)
+            child_data = child.data(0, Qt.UserRole + 10)
+            if child_data and child_data["type"] == "folder":
+                self._set_tree_children_checked(child, checked)
+
+    def _update_folder_check_state(self, folder_item):
+        """Update folder checkbox based on children check states."""
+        if folder_item.childCount() == 0:
+            return
+        all_checked = True
+        has_checked = False
+        for i in range(folder_item.childCount()):
+            child = folder_item.child(i)
+            child_data = child.data(0, Qt.UserRole + 10)
+            if child_data and child_data["type"] == "folder":
+                self._update_folder_check_state(child)
+                if child.checkState(0) == Qt.Checked:
+                    has_checked = True
+                else:
+                    all_checked = False
+            else:
+                if child.checkState(0) == Qt.Checked:
+                    has_checked = True
+                else:
+                    all_checked = False
+        self.treewise_tree.blockSignals(True)
+        if all_checked:
+            folder_item.setCheckState(0, Qt.Checked)
+        elif has_checked:
+            folder_item.setCheckState(0, Qt.PartiallyChecked)
+        else:
+            folder_item.setCheckState(0, Qt.Unchecked)
+        self.treewise_tree.blockSignals(False)
+        parent = folder_item.parent()
+        if parent:
+            self._update_folder_check_state(parent)
+
+    def _update_filewise_counter(self):
+        """Update the counter label showing checked/total files."""
+        checked = self._checked_filewise_files()
+        total = self.filewise_file_list.count()
+        self.filewise_counter_label.setText(
+            f"<b>{len(checked)}</b> / {total} files selected"
+        )
+
+    def _checked_filewise_files(self):
+        """Return list of checked file paths in the filewise list."""
+        return [self.filewise_file_list.item(i).text()
+                for i in range(self.filewise_file_list.count())
+                if self.filewise_file_list.item(i).checkState() == Qt.Checked]
+
+    def _set_all_filewise(self, state):
+        """Select/deselect all files in filewise list + tree."""
+        self.filewise_file_list.blockSignals(True)
+        for i in range(self.filewise_file_list.count()):
+            self.filewise_file_list.item(i).setCheckState(Qt.Checked if state else Qt.Unchecked)
+        self.filewise_file_list.blockSignals(False)
+        self.treewise_tree.blockSignals(True)
+        for i in range(self.treewise_tree.topLevelItemCount()):
+            item = self.treewise_tree.topLevelItem(i)
+            item.setCheckState(0, Qt.Checked if state else Qt.Unchecked)
+            self._set_tree_children_checked(item, state)
+        self.treewise_tree.blockSignals(False)
+        self._update_filewise_counter()
+        self._refresh_filewise_diff()
+        self._refresh_treewise_diff()
+
+    def _refresh_filewise_diff(self):
+        """Show combined diff of all checked files in the filewise diff pane."""
+        checked = self._checked_filewise_files()
+        if not checked:
+            self.filewise_diff_view.clear()
+            return
+        try:
+            parts = []
+            for f in checked:
+                d = self._get_file_diff(f).rstrip("\n")
+                if d:
+                    parts.append(d)
+            text = "\n\n".join(parts) + ("\n" if parts else "")
+            self.filewise_diff_view.setPlainText(text)
+            self.filewise_diff_view.set_separator_color(self.colors.get("separator", "#444444"))
+            self.filewise_diff_search._perform_search()
+        except Exception as e:
+            self.filewise_diff_view.setPlainText(f"Error loading diff: {e}")
+
+    def _refresh_treewise_diff(self):
+        """Show combined diff of all checked tree items."""
+        checked = self._checked_treewise_files()
+        if not checked:
+            self.treewise_diff_view.clear()
+            return
+        try:
+            parts = []
+            for f in checked:
+                d = self._get_file_diff(f).rstrip("\n")
+                if d:
+                    parts.append(d)
+            text = "\n\n".join(parts) + ("\n" if parts else "")
+            self.treewise_diff_view.setPlainText(text)
+            self.treewise_diff_view.set_separator_color(self.colors.get("separator", "#444444"))
+            self.treewise_diff_search._perform_search()
+        except Exception as e:
+            self.treewise_diff_view.setPlainText(f"Error loading diff: {e}")
+
+    def _checked_treewise_files(self):
+        """Return list of checked file paths from the tree widget."""
+        files = []
+        self._collect_checked_tree_files(self.treewise_tree.invisibleRootItem(), files)
+        return files
+
+    def _collect_checked_tree_files(self, parent_item, files):
+        """Recursively collect checked file paths from tree."""
+        for i in range(parent_item.childCount()):
+            item = parent_item.child(i)
+            if item.checkState(0) != Qt.Checked:
+                continue
+            item_data = item.data(0, Qt.UserRole + 10)
+            if not item_data:
+                continue
+            if item_data["type"] == "folder":
+                self._collect_checked_tree_files(item, files)
+            else:
+                filepath = item_data.get("filepath", "")
+                if filepath and filepath not in files:
+                    files.append(filepath)
 
 
 class SingleCommitViewDialog(QDialog):
@@ -1163,6 +1342,9 @@ class UnstagedDiffDialog(BranchDiffDialog):
             f"Unstaged Changes: <b>{branch}</b> - {len(files)} file{'s' if len(files) != 1 else ''}"
         )
 
+    def _get_file_diff(self, filepath):
+        return get_unstaged_file_diff(self.repo_path, filepath)
+
     def on_filewise_file_selected(self, filepath):
         if not filepath:
             self.filewise_diff_view.clear()
@@ -1231,6 +1413,9 @@ class StagedDiffDialog(BranchDiffDialog):
         self.header_label.setText(
             f"Staged Changes: <b>{branch}</b> - {len(files)} file{'s' if len(files) != 1 else ''}"
         )
+
+    def _get_file_diff(self, filepath):
+        return get_staged_file_diff(self.repo_path, filepath)
 
     def on_filewise_file_selected(self, filepath):
         if not filepath:
@@ -1349,6 +1534,8 @@ class FileWiseViewDialog(QDialog):
             else:
                 display = path1
             item = QListWidgetItem(display)
+            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+            item.setCheckState(Qt.Checked)
             item.setData(Qt.UserRole, self.file_stats.get(display))
             item.setData(FILE_ENTRY_ROLE, entry)
             self.file_list.addItem(item)
@@ -1358,7 +1545,7 @@ class FileWiseViewDialog(QDialog):
             parent=self.file_list
         )
         self.file_list.setItemDelegate(stats_delegate)
-        self.file_list.currentTextChanged.connect(self.on_file_selected)
+        self.file_list.itemChanged.connect(self._on_file_item_changed)
         self.file_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.file_list.customContextMenuRequested.connect(self.show_file_context_menu)
         file_layout.addWidget(self.file_list)
@@ -1399,17 +1586,27 @@ class FileWiseViewDialog(QDialog):
 
         # Buttons
         btn_layout = QHBoxLayout()
+        self.counter_label = QLabel()
+        self.counter_label.setTextFormat(Qt.RichText)
+        btn_layout.addWidget(self.counter_label)
         btn_layout.addStretch()
+        select_all_btn = QPushButton("Select All")
+        select_all_btn.setProperty("class", "dialog-btn")
+        select_all_btn.clicked.connect(lambda: self._set_all(True))
+        btn_layout.addWidget(select_all_btn)
+        deselect_all_btn = QPushButton("Deselect All")
+        deselect_all_btn.setProperty("class", "dialog-btn-secondary")
+        deselect_all_btn.clicked.connect(lambda: self._set_all(False))
+        btn_layout.addWidget(deselect_all_btn)
+        btn_layout.addSpacing(20)
         cancel_btn = QPushButton("Close")
         cancel_btn.setMinimumWidth(100)
         cancel_btn.setProperty("class", "dialog-btn-secondary")
         cancel_btn.clicked.connect(self.reject)
         btn_layout.addWidget(cancel_btn)
-        btn_layout.addStretch()
         layout.addLayout(btn_layout)
-
-        if files:
-            self.file_list.setCurrentRow(0)
+        self._update_counter()
+        self._refresh_diff()
 
     def show_file_context_menu(self, pos):
         item = self.file_list.itemAt(pos)
@@ -1504,6 +1701,59 @@ class FileWiseViewDialog(QDialog):
             else:
                 diff = get_file_diff_only_in_commit(self.repo_path, self.sha, filepath)
             self.diff_view.setPlainText(diff)
+            self.diff_view.set_separator_color(self.colors.get("separator", "#444444"))
+            self.search_bar._perform_search()
+        except Exception as e:
+            self.diff_view.setPlainText(f"Error loading diff: {e}")
+
+    def _on_file_item_changed(self, item):
+        """Handle checkbox change: update counter and refresh combined diff."""
+        self._update_counter()
+        self._refresh_diff()
+
+    def _update_counter(self):
+        checked = self._checked_files()
+        total = self.file_list.count()
+        self.counter_label.setText(f"<b>{len(checked)}</b> / {total} files selected")
+
+    def _checked_files(self):
+        return [self.file_list.item(i).text()
+                for i in range(self.file_list.count())
+                if self.file_list.item(i).checkState() == Qt.Checked]
+
+    def _set_all(self, state):
+        self.file_list.blockSignals(True)
+        for i in range(self.file_list.count()):
+            self.file_list.item(i).setCheckState(Qt.Checked if state else Qt.Unchecked)
+        self.file_list.blockSignals(False)
+        self._update_counter()
+        self._refresh_diff()
+
+    def _refresh_diff(self):
+        checked = self._checked_files()
+        if not checked:
+            self.diff_view.clear()
+            return
+        try:
+            parts = []
+            for display_name in checked:
+                item = None
+                for i in range(self.file_list.count()):
+                    if self.file_list.item(i).text() == display_name:
+                        item = self.file_list.item(i)
+                        break
+                entry = item.data(FILE_ENTRY_ROLE) if item else None
+                if entry and entry[0] == 'R':
+                    d = get_rename_diff_in_commit(self.repo_path, self.sha, entry[1], entry[2])
+                elif entry:
+                    d = get_file_diff_only_in_commit(self.repo_path, self.sha, entry[1])
+                else:
+                    d = get_file_diff_only_in_commit(self.repo_path, self.sha, display_name)
+                d = d.rstrip("\n")
+                if d:
+                    parts.append(d)
+            text = "\n\n".join(parts) + ("\n" if parts else "")
+            self.diff_view.setPlainText(text)
             self.diff_view.set_separator_color(self.colors.get("separator", "#444444"))
             self.search_bar._perform_search()
         except Exception as e:
