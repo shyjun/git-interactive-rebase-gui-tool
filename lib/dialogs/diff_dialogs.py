@@ -401,7 +401,7 @@ class BranchDiffDialog(QDialog):
         for f in files:
             item = QListWidgetItem(f)
             item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
-            item.setCheckState(Qt.Checked)
+            item.setCheckState(Qt.Unchecked)
             item.setData(Qt.UserRole, file_stats.get(f))
             self.filewise_file_list.addItem(item)
         self.filewise_file_list.blockSignals(False)
@@ -416,6 +416,9 @@ class BranchDiffDialog(QDialog):
         # Ctrl+F focuses the search bar of the active tab
         self.ctrl_f_shortcut = QShortcut(QKeySequence("Ctrl+F"), self)
         self.ctrl_f_shortcut.activated.connect(self._focus_active_search)
+
+        # Refresh diff when switching tabs
+        self.tab_widget.currentChanged.connect(self._on_tab_changed)
 
         # Buttons
         btn_layout = QHBoxLayout()
@@ -449,6 +452,13 @@ class BranchDiffDialog(QDialog):
         elif idx == 2:
             self.treewise_diff_search.show_and_focus()
 
+    def _on_tab_changed(self, idx):
+        """Refresh diff pane when switching tabs."""
+        if idx == 1:
+            self._refresh_filewise_diff()
+        elif idx == 2:
+            self._refresh_treewise_diff()
+
     def _populate_treewise_from_files(self, files, file_stats):
         """Build tree from plain file list (BranchDiffDialog uses file strings, not status tuples)."""
         self.treewise_tree.blockSignals(True)
@@ -477,7 +487,7 @@ class BranchDiffDialog(QDialog):
                 item.setText(0, f"\U0001f4c1 {name}")
                 item.setData(0, Qt.UserRole + 10, {"type": "folder", "node": node})
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
-                item.setCheckState(0, Qt.Checked)
+                item.setCheckState(0, Qt.Unchecked)
                 if node["added"] or node["deleted"]:
                     item.setText(1, f"+{node['added']} / -{node['deleted']}")
                     item.setTextAlignment(1, Qt.AlignRight | Qt.AlignVCenter)
@@ -492,7 +502,7 @@ class BranchDiffDialog(QDialog):
                 item.setText(0, name)
                 item.setData(0, Qt.UserRole + 10, {"type": "file", "entry": entry, "filepath": filepath})
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
-                item.setCheckState(0, Qt.Checked)
+                item.setCheckState(0, Qt.Unchecked)
                 if node["added"] or node["deleted"]:
                     item.setText(1, f"+{node['added']} / -{node['deleted']}")
                     item.setTextAlignment(1, Qt.AlignRight | Qt.AlignVCenter)
@@ -647,9 +657,32 @@ class BranchDiffDialog(QDialog):
         return get_file_diff_between(self.repo_path, self.start_sha, self.end_sha, filepath)
 
     def _on_filewise_item_changed(self, item):
-        """Handle checkbox change in filewise list."""
+        """Handle checkbox change in filewise list: sync to tree and refresh diff."""
+        checked = item.checkState() == Qt.Checked
+        filepath = item.text()
+        for i in range(self.treewise_tree.topLevelItemCount()):
+            self._sync_file_to_tree(self.treewise_tree.topLevelItem(i), filepath, checked)
         self._update_filewise_counter()
         self._refresh_filewise_diff()
+        self._refresh_treewise_diff()
+
+    def _sync_file_to_tree(self, parent_item, filepath, checked):
+        """Recursively find and sync a file's check state in the tree."""
+        for i in range(parent_item.childCount()):
+            child = parent_item.child(i)
+            child_data = child.data(0, Qt.UserRole + 10)
+            if not child_data:
+                continue
+            if child_data["type"] == "folder":
+                self._sync_file_to_tree(child, filepath, checked)
+            elif child_data.get("filepath") == filepath:
+                self.treewise_tree.blockSignals(True)
+                child.setCheckState(0, Qt.Checked if checked else Qt.Unchecked)
+                self.treewise_tree.blockSignals(False)
+                parent = child.parent()
+                if parent:
+                    self._update_folder_check_state(parent)
+                return
 
     def _on_treewise_item_changed(self, item, column):
         """Handle checkbox change in tree: sync to file list and refresh diff."""
@@ -673,6 +706,7 @@ class BranchDiffDialog(QDialog):
                 self._update_folder_check_state(parent)
         self._update_filewise_counter()
         self._refresh_treewise_diff()
+        self._refresh_filewise_diff()
 
     def _set_tree_children_checked(self, item, checked):
         """Recursively set check state for all children."""
@@ -1535,7 +1569,7 @@ class FileWiseViewDialog(QDialog):
                 display = path1
             item = QListWidgetItem(display)
             item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
-            item.setCheckState(Qt.Checked)
+            item.setCheckState(Qt.Unchecked)
             item.setData(Qt.UserRole, self.file_stats.get(display))
             item.setData(FILE_ENTRY_ROLE, entry)
             self.file_list.addItem(item)
