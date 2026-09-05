@@ -789,6 +789,10 @@ class UIMixin:
             if hasattr(self, '_splitter_filter'):
                 handle.removeEventFilter(self._splitter_filter)
                 self._splitter_filter = None
+            splitter.setCollapsible(0, True)
+            header = splitter.widget(0).layout().itemAt(0).widget()
+            header_height = header.sizeHint().height()
+            splitter.setSizes([header_height, 1000])
             # Hide all bottom controls
             for w in [self.failsafe_group, self.origin_group,
                       self.squash_group, self.rebase_group]:
