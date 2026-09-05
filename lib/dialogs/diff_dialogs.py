@@ -424,12 +424,13 @@ class BranchDiffDialog(QDialog):
 
         # Buttons
         btn_layout = QHBoxLayout()
-        btn_layout.addSpacing(20)
+        btn_layout.addStretch()
         ok_btn = QPushButton("Close")
         ok_btn.setMinimumWidth(100)
         ok_btn.setProperty("class", "dialog-btn")
         ok_btn.clicked.connect(self.accept)
         btn_layout.addWidget(ok_btn)
+        btn_layout.addStretch()
         layout.addLayout(btn_layout)
 
     def _focus_active_search(self):
@@ -1072,12 +1073,13 @@ class SingleCommitViewDialog(QDialog):
 
         # Buttons
         btn_layout = QHBoxLayout()
-        btn_layout.addSpacing(20)
+        btn_layout.addStretch()
         ok_btn = QPushButton("Close")
         ok_btn.setMinimumWidth(100)
         ok_btn.setProperty("class", "dialog-btn")
         ok_btn.clicked.connect(self.accept)
         btn_layout.addWidget(ok_btn)
+        btn_layout.addStretch()
         layout.addLayout(btn_layout)
 
     def _focus_active_search(self):
