@@ -769,8 +769,10 @@ class UIMixin:
         else:
             if not self._full_diff_view:
                 splitter.setCollapsible(0, True)
-                splitter.widget(0).layout().activate()
-                header_height = splitter.widget(0).sizeHint().height()
+                # Query sizeHint from the header widget itself, not the
+                # container which may still cache the hidden QTextEdit height
+                header = splitter.widget(0).layout().itemAt(0).widget()
+                header_height = header.sizeHint().height()
                 splitter.setSizes([header_height, 1000])
                 self._splitter_filter = CollapsibleSplitterFilter(splitter)
                 handle.installEventFilter(self._splitter_filter)
