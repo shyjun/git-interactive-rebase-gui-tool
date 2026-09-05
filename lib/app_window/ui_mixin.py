@@ -1,4 +1,4 @@
-from PySide6.QtCore import Qt, QTimer, QPoint
+from PySide6.QtCore import Qt, QTimer, QPoint, QEvent, QObject
 from PySide6.QtGui import QFont, QAction, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
     QMessageBox, QTreeWidget, QTreeWidgetItem, QHeaderView,
 )
 from lib.app_window.commit_list import CommitListWidget
-from lib.dialogs.diff_dialogs import CollapsibleCommitHeader
+from lib.dialogs.diff_dialogs import CollapsibleCommitHeader, CollapsibleSplitterFilter
 from lib.app_window.delegates import CommitItemDelegate
 from lib.app_window.helpers import MATCH_ROLE, _diff_search_matches
 from lib.widgets import (
@@ -748,11 +748,20 @@ class UIMixin:
             get_commit_diff, self.settings, self._sk)
 
     def _on_side_commit_header_toggled(self, expanded):
+        splitter = self.right_splitter
+        handle = splitter.handle(1)
         if expanded:
-            self.right_splitter.setSizes([150, 650])
+            if hasattr(self, '_splitter_filter'):
+                handle.removeEventFilter(self._splitter_filter)
+                self._splitter_filter = None
+            splitter.setCollapsible(0, False)
+            splitter.setSizes([150, 650])
         else:
-            header_height = self.right_splitter.widget(0).sizeHint().height()
-            self.right_splitter.setSizes([header_height, 1000])
+            splitter.setCollapsible(0, True)
+            header_height = splitter.widget(0).sizeHint().height()
+            splitter.setSizes([header_height, 1000])
+            self._splitter_filter = CollapsibleSplitterFilter(splitter)
+            handle.installEventFilter(self._splitter_filter)
 
     def _toggle_filewise_file_list(self):
         file_list = self.filewise_file_list
