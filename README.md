@@ -99,6 +99,9 @@ A Python-based Git Interactive Rebase GUI tool to visually manage commit history
 * **Resizable dialogs**: Long result/confirmation dialogs can be resized to read all the details.
 * **Auto-background on launch**: When run from a terminal, the tool automatically detaches and runs in the background, returning the terminal immediately.
 * **Tree view in file dialogs**: Stage files and commit staged changes dialogs include a Tree View tab with folder hierarchy, checkboxes, and stats.
+* **Full Height Diff View**: Toggle button below the diff pane maximizes diff viewing area by collapsing commit details and hiding bottom controls — click again to restore.
+* **Collapsible commit details**: Click the disclosure arrow (▼/▶) on the commit header to collapse/expand the message, giving more space to the diff.
+* **Collapsible file lists**: Click File-wise Diff or Tree-wise Diff tab titles to toggle file list visibility. Switching to a tab auto-expands its file list; selecting a new commit resets both to collapsed.
 
 ## ⌨️ Keyboard Shortcuts
 
