@@ -120,6 +120,9 @@ class MenusMixin:
         if not getattr(self, 'is_running_from_repo', False):
             print("[startup_check] not running from repo, skipping")
             return
+        if self.browse_mode:
+            print("[startup_check] browse mode, skipping")
+            return
         from PySide6.QtCore import QThread, Signal
         from lib.git_helpers import GIT_REPO_URL
 
