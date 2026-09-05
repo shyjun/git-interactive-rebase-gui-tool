@@ -854,6 +854,47 @@ class BranchDiffDialog(QDialog):
                     files.append(filepath)
 
 
+class CollapsibleCommitHeader(QWidget):
+    """Clickable header with a disclosure arrow that toggles visibility of a
+    target widget (typically the commit message)."""
+
+    toggled = Signal(bool)
+
+    def __init__(self, text, target, parent=None):
+        super().__init__(parent)
+        self._target = target
+        self._expanded = True
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(4)
+
+        self._arrow = QLabel("\u25BC")  # ▼
+        self._arrow.setFixedWidth(20)
+        self._arrow.setAlignment(Qt.AlignCenter)
+        self._arrow.setStyleSheet("QLabel { font-size: 14px; }")
+        self._arrow.setCursor(Qt.PointingHandCursor)
+
+        self._label = QLabel(text)
+        self._label.setTextFormat(Qt.RichText)
+        self._label.setStyleSheet("QLabel { padding: 4px 0; font-size: 13px; }")
+
+        layout.addWidget(self._arrow)
+        layout.addWidget(self._label, 1)
+
+        self.setCursor(Qt.PointingHandCursor)
+        self.mousePressEvent = self._on_mouse_press
+
+    def _on_mouse_press(self, event):
+        self.toggle()
+
+    def toggle(self):
+        self._expanded = not self._expanded
+        self._target.setVisible(self._expanded)
+        self._arrow.setText("\u25BC" if self._expanded else "\u25B6")  # ▼ / ▶
+        self.toggled.emit(self._expanded)
+
+
 class SingleCommitViewDialog(QDialog):
     """Single-commit viewer replicating the app's right-side pane: commit
     message on top, with Plain Diff and File-wise Diff tabs below."""
@@ -898,13 +939,14 @@ class SingleCommitViewDialog(QDialog):
         top_widget = QWidget()
         top_layout = QVBoxLayout(top_widget)
         top_layout.setContentsMargins(0, 0, 0, 0)
-        header = QLabel(f"Commit: <b>{sha}</b> <span style='color:gray;'>({commit_meta})</span>")
-        header.setTextFormat(Qt.RichText)
-        top_layout.addWidget(header)
+        header_text = f"Commit: <b>{sha}</b> <span style='color:gray;'>({commit_meta})</span>"
         self.msg_view = QTextEdit()
         self.msg_view.setReadOnly(True)
         self.msg_view.setPlainText(commit_msg)
         self.msg_view.setFont(QFont("Courier New", font_size))
+        header = CollapsibleCommitHeader(header_text, self.msg_view)
+        header.toggled.connect(self._on_commit_header_toggled)
+        top_layout.addWidget(header)
         top_layout.addWidget(self.msg_view)
         self.main_splitter.addWidget(top_widget)
 
@@ -1090,6 +1132,13 @@ class SingleCommitViewDialog(QDialog):
             self.filewise_diff_search.show_and_focus()
         elif idx == 2:
             self.treewise_diff_search.show_and_focus()
+
+    def _on_commit_header_toggled(self, expanded):
+        if expanded:
+            self.main_splitter.setSizes([150, 450])
+        else:
+            header_height = self.main_splitter.widget(0).sizeHint().height()
+            self.main_splitter.setSizes([header_height, 1000])
 
     def _on_tab_changed(self, idx):
         """Refresh diff pane when switching tabs."""
