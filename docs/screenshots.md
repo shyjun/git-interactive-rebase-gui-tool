@@ -156,7 +156,7 @@ The status bar holds a **Configure** button whose **Show/Hide** menu lets you to
 
 - **Show Origin** → origin markers
 - **Show Rebase** → rebase markers
-- **Show Squash** → squash markers
+- **Show Multi-Select** → multi-select controls for squashing, marking, dropping, or moving commits
 - **Show Local Branches** → local/remote branch names next to commits
 - **Show Tags** → tag names next to commits (purple `{tag}` labels)
 - **Show Stats** → per-commit line stats
@@ -239,7 +239,7 @@ The **Configure** button in the status bar controls which markers, columns, and 
 
 - **Show Origin** → origin markers
 - **Show Rebase** → rebase markers (see [Rebase Options](#21-rebase-options))
-- **Show Squash** → squash markers
+- **Show Multi-Select** → multi-select controls for squashing, marking, dropping, or moving commits
 - **Show Local Branches** → local/remote branch names next to commits (see [Show Local Branches](#37-show-local-branches))
 - **Show Tags** → tag names next to commits (see [Tag Commit](#40-tag-commit))
 - **Show Stats** → per-commit line stats
@@ -1148,3 +1148,38 @@ Select files and click **Stage Selected Files** to run `git add` on them.
 ## 49. Auto-background on Launch
 
 **Description:** When run from a terminal, the tool automatically detaches and runs in the background. The terminal returns immediately with a message like `Tool started in background (PID xxx)`. This works on both Linux (`os.fork`) and Windows (`subprocess.Popen` with `DETACHED_PROCESS`). The `--version` and `--update` flags skip auto-background to keep terminal output.
+
+---
+
+## 50. Full Height Diff View
+
+**Description:** A **▼ Full Height ▼** toggle button sits below the commit list and diff pane, spanning the full window width. Clicking it collapses the commit message header and hides all bottom control groups (failsafe, origin, multi-select, rebase) to maximize the diff viewing area. The button text changes to **▲ Show buttons ▲**.
+
+Clicking **▲ Show buttons ▲** restores the normal layout — the commit message expands and only the control groups that were enabled via the Configure menu reappear.
+
+This is useful when reviewing large diffs where you need maximum vertical space.
+
+---
+
+## 51. Collapsible Commit Details Header
+
+**Description:** The commit details header in the right-side pane (and in the Single Commit View dialog) has a clickable disclosure arrow (▼/▶). Clicking the arrow collapses the commit message, leaving only the compact metadata header visible. This gives more space to the diff pane without using the Full Height toggle. Click again to expand.
+
+The splitter handle is locked when collapsed to prevent accidental resizing. Dragging is re-enabled when expanded.
+
+---
+
+## 52. Collapsible File List in Diff Tabs
+
+**Description:** The **File-wise Diff** and **Tree-wise Diff** tab titles act as toggle buttons. Each tab title shows a ▼ or ▶ prefix indicating whether the file list is visible. Clicking the active tab toggles the file list visibility:
+
+- **▼ File-wise Diff** — file list is visible
+- **▶ File-wise Diff** — file list is collapsed, diff pane gets more space
+
+Clicking a different tab switches normally without toggling. This works in the main window, Branch Diff dialog, and Single Commit View dialog.
+
+---
+
+## 53. Collapsible File List in Branch/Commit Dialogs
+
+**Description:** The Branch Diff dialog and Single Commit View dialog also support the collapsible file list toggle on their File-wise Diff and Tree-wise Diff tabs, identical to the main window behavior described in [Collapsible File List in Diff Tabs](#52-collapsible-file-list-in-diff-tabs).
