@@ -769,6 +769,7 @@ class UIMixin:
         else:
             if not self._full_diff_view:
                 splitter.setCollapsible(0, True)
+                splitter.widget(0).layout().activate()
                 header_height = splitter.widget(0).sizeHint().height()
                 splitter.setSizes([header_height, 1000])
                 self._splitter_filter = CollapsibleSplitterFilter(splitter)
@@ -782,12 +783,10 @@ class UIMixin:
             # Enter full view: collapse commit message, maximize diff
             if self.side_commit_msg.isVisible():
                 self.side_commit_header.toggle()
+            # Remove any leftover filter from the header toggle handler
             if hasattr(self, '_splitter_filter'):
                 handle.removeEventFilter(self._splitter_filter)
                 self._splitter_filter = None
-            splitter.setCollapsible(0, True)
-            header_height = splitter.widget(0).sizeHint().height()
-            splitter.setSizes([header_height, 1000])
             # Hide all bottom controls
             for w in [self.failsafe_group, self.origin_group,
                       self.squash_group, self.rebase_group]:

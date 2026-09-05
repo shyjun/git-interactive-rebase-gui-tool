@@ -1201,6 +1201,7 @@ class SingleCommitViewDialog(QDialog):
             splitter.setSizes([150, 450])
         else:
             splitter.setCollapsible(0, True)
+            splitter.widget(0).layout().activate()
             header_height = splitter.widget(0).sizeHint().height()
             splitter.setSizes([header_height, 1000])
             self._splitter_filter = CollapsibleSplitterFilter(splitter)
