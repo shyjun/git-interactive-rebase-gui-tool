@@ -894,6 +894,9 @@ class CollapsibleCommitHeader(QWidget):
         self._arrow.setText("\u25BC" if self._expanded else "\u25B6")  # ▼ / ▶
         self.toggled.emit(self._expanded)
 
+    def set_text(self, text):
+        self._label.setText(text)
+
 
 class SingleCommitViewDialog(QDialog):
     """Single-commit viewer replicating the app's right-side pane: commit
