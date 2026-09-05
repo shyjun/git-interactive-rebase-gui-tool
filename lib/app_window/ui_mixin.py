@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (
     QMessageBox, QTreeWidget, QTreeWidgetItem, QHeaderView,
 )
 from lib.app_window.commit_list import CommitListWidget
+from lib.dialogs.diff_dialogs import CollapsibleCommitHeader
 from lib.app_window.delegates import CommitItemDelegate
 from lib.app_window.helpers import MATCH_ROLE, _diff_search_matches
 from lib.widgets import (
@@ -141,13 +142,14 @@ class UIMixin:
         right_top_layout = QVBoxLayout(self.right_top_widget)
         right_top_layout.setContentsMargins(0, 0, 0, 0)
 
-        self.side_commit_label = QLabel("Select a commit to view details")
-        self.side_commit_label.setTextFormat(Qt.RichText)
-        right_top_layout.addWidget(self.side_commit_label)
-
         self.side_commit_msg = QTextEdit()
         self.side_commit_msg.setReadOnly(True)
         self.side_commit_msg.setMinimumHeight(60)
+        self.side_commit_header = CollapsibleCommitHeader(
+            "Select a commit to view details", self.side_commit_msg)
+        self.side_commit_label = self.side_commit_header._label
+        self.side_commit_header.toggled.connect(self._on_side_commit_header_toggled)
+        right_top_layout.addWidget(self.side_commit_header)
         right_top_layout.addWidget(self.side_commit_msg)
 
         self.right_splitter.addWidget(self.right_top_widget)
@@ -740,6 +742,13 @@ class UIMixin:
             self.showing_commits_label, self.sep_merge, self.merge_commits_label,
             MATCH_ROLE, _diff_search_matches, get_commit_files_with_status,
             get_commit_diff, self.settings, self._sk)
+
+    def _on_side_commit_header_toggled(self, expanded):
+        if expanded:
+            self.right_splitter.setSizes([150, 650])
+        else:
+            header_height = self.right_splitter.widget(0).sizeHint().height()
+            self.right_splitter.setSizes([header_height, 1000])
 
     def _handle_restart_if_updated(self):
         """Hidden shortcut (Ctrl+Shift+F5): check if the tool's repo has new commits
