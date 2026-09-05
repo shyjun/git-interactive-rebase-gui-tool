@@ -25,10 +25,10 @@ class MenusMixin:
         self.show_rebase_action.setToolTip("Show rebase markers.")
         self.show_rebase_action.toggled.connect(self.on_rebase_visibility_toggled)
 
-        self.show_squash_action = QAction("Show Squash", self)
+        self.show_squash_action = QAction("Show Multi-Select", self)
         self.show_squash_action.setCheckable(True)
         self.show_squash_action.setChecked(self.show_squash_options)
-        self.show_squash_action.setToolTip("Show squash markers.")
+        self.show_squash_action.setToolTip("Show the multi-select controls for squashing, marking, dropping, or moving commits.")
         self.show_squash_action.toggled.connect(self.on_squash_visibility_toggled)
 
         self.show_local_branches_action = QAction("Show Local Branches", self)
