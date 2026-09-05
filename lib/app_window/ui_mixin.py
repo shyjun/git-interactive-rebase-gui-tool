@@ -309,6 +309,15 @@ class UIMixin:
 
         layout.addWidget(self.main_splitter, 1)
 
+        # Full-height diff toggle button (full width across both panels)
+        self._full_diff_view = False
+        self.full_view_btn = QPushButton("\u25BC Full Height \u25BC")
+        self.full_view_btn.setFixedHeight(18)
+        self.full_view_btn.setStyleSheet("QPushButton { font-size: 10px; padding: 0px; }")
+        self.full_view_btn.setToolTip("Expand diff pane to full height, hiding the commit message.")
+        self.full_view_btn.clicked.connect(self._toggle_full_diff_view)
+        layout.addWidget(self.full_view_btn)
+
         # In browse (read-only) mode use only the right-side pane for details;
         # no commit-viewer dialog on double-click. In reflog mode, double-click
         # opens the selected entry's commit history viewer.
@@ -755,13 +764,47 @@ class UIMixin:
                 handle.removeEventFilter(self._splitter_filter)
                 self._splitter_filter = None
             splitter.setCollapsible(0, False)
-            splitter.setSizes([150, 650])
+            if not self._full_diff_view:
+                splitter.setSizes([150, 650])
         else:
+            if not self._full_diff_view:
+                splitter.setCollapsible(0, True)
+                header_height = splitter.widget(0).sizeHint().height()
+                splitter.setSizes([header_height, 1000])
+                self._splitter_filter = CollapsibleSplitterFilter(splitter)
+                handle.installEventFilter(self._splitter_filter)
+
+    def _toggle_full_diff_view(self):
+        splitter = self.right_splitter
+        handle = splitter.handle(1)
+        self._full_diff_view = not self._full_diff_view
+        if self._full_diff_view:
+            # Enter full view: collapse commit message, maximize diff
+            if self.side_commit_msg.isVisible():
+                self.side_commit_header.toggle()
+            if hasattr(self, '_splitter_filter'):
+                handle.removeEventFilter(self._splitter_filter)
+                self._splitter_filter = None
             splitter.setCollapsible(0, True)
             header_height = splitter.widget(0).sizeHint().height()
             splitter.setSizes([header_height, 1000])
-            self._splitter_filter = CollapsibleSplitterFilter(splitter)
-            handle.installEventFilter(self._splitter_filter)
+            # Hide bottom controls to give diff more vertical space
+            for w in [self.failsafe_group, self.squash_group]:
+                w.setVisible(False)
+            self.full_view_btn.setText("\u25B2 Show buttons \u25B2")
+            self.full_view_btn.setToolTip("Show bottom controls and restore normal view.")
+        else:
+            # Exit full view: expand commit message, restore split
+            if not self.side_commit_msg.isVisible():
+                self.side_commit_header.toggle()
+            splitter.setCollapsible(0, False)
+            splitter.setSizes([150, 650])
+            # Restore bottom controls
+            if not self.browse_mode:
+                self.failsafe_group.setVisible(True)
+            self.squash_group.setVisible(self.multi_select_mode)
+            self.full_view_btn.setText("\u25BC Full Height \u25BC")
+            self.full_view_btn.setToolTip("Expand diff pane to full height, hiding the commit message.")
 
     def _toggle_filewise_file_list(self):
         file_list = self.filewise_file_list
