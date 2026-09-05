@@ -342,7 +342,8 @@ class BranchDiffDialog(QDialog):
         self.filewise_splitter.setSizes([150, 350])
         filewise_layout.addWidget(self.filewise_splitter)
 
-        self.tab_widget.addTab(filewise_widget, "Filewise Diff")
+        self.tab_widget.addTab(filewise_widget, "\u25BC Filewise Diff")
+        self._filewise_tab_idx = self.tab_widget.indexOf(filewise_widget)
 
         # Tab 2: Tree-wise Diff
         treewise_widget = QWidget()
@@ -392,7 +393,8 @@ class BranchDiffDialog(QDialog):
         self.treewise_splitter.setSizes([150, 350])
         treewise_layout.addWidget(self.treewise_splitter)
 
-        self.tab_widget.addTab(treewise_widget, "Tree-wise Diff")
+        self.tab_widget.addTab(treewise_widget, "\u25BC Tree-wise Diff")
+        self._treewise_tab_idx = self.tab_widget.indexOf(treewise_widget)
 
         layout.addWidget(self.tab_widget)
 
@@ -421,6 +423,7 @@ class BranchDiffDialog(QDialog):
 
         # Refresh diff when switching tabs
         self.tab_widget.currentChanged.connect(self._on_tab_changed)
+        self.tab_widget.tabBar().tabBarClicked.connect(self._on_tab_bar_clicked)
 
         # Buttons
         btn_layout = QHBoxLayout()
@@ -448,6 +451,35 @@ class BranchDiffDialog(QDialog):
             self._refresh_filewise_diff()
         elif idx == 2:
             self._refresh_treewise_diff()
+
+    def _on_tab_bar_clicked(self, idx):
+        if idx == self.tab_widget.currentIndex():
+            if idx == getattr(self, '_filewise_tab_idx', -1):
+                self._toggle_filewise_file_list()
+            elif idx == getattr(self, '_treewise_tab_idx', -1):
+                self._toggle_treewise_file_list()
+
+    def _toggle_filewise_file_list(self):
+        visible = self.filewise_file_list.isVisible()
+        self.filewise_file_list.setVisible(not visible)
+        arrow = "\u25B6" if visible else "\u25BC"
+        self.tab_widget.setTabText(self._filewise_tab_idx,
+                                   f"{arrow} Filewise Diff")
+        if visible:
+            self.filewise_splitter.setSizes([0, 1000])
+        else:
+            self.filewise_splitter.setSizes([150, 350])
+
+    def _toggle_treewise_file_list(self):
+        visible = self.treewise_tree.isVisible()
+        self.treewise_tree.setVisible(not visible)
+        arrow = "\u25B6" if visible else "\u25BC"
+        self.tab_widget.setTabText(self._treewise_tab_idx,
+                                   f"{arrow} Tree-wise Diff")
+        if visible:
+            self.treewise_splitter.setSizes([0, 1000])
+        else:
+            self.treewise_splitter.setSizes([150, 350])
 
     def _populate_treewise_from_files(self, files, file_stats):
         """Build tree from plain file list (BranchDiffDialog uses file strings, not status tuples)."""
@@ -1024,7 +1056,8 @@ class SingleCommitViewDialog(QDialog):
         self.filewise_splitter.setSizes([150, 350])
         filewise_layout.addWidget(self.filewise_splitter)
 
-        self.tab_widget.addTab(filewise_widget, "Filewise Diff")
+        self.tab_widget.addTab(filewise_widget, "\u25BC Filewise Diff")
+        self._filewise_tab_idx = self.tab_widget.indexOf(filewise_widget)
 
         # Tab 2: Tree-wise Diff
         treewise_widget = QWidget()
@@ -1074,7 +1107,8 @@ class SingleCommitViewDialog(QDialog):
         self.treewise_splitter.setSizes([150, 350])
         treewise_layout.addWidget(self.treewise_splitter)
 
-        self.tab_widget.addTab(treewise_widget, "Tree-wise Diff")
+        self.tab_widget.addTab(treewise_widget, "\u25BC Tree-wise Diff")
+        self._treewise_tab_idx = self.tab_widget.indexOf(treewise_widget)
 
         self.main_splitter.addWidget(self.tab_widget)
         self.main_splitter.setSizes([150, 450])
@@ -1115,6 +1149,7 @@ class SingleCommitViewDialog(QDialog):
 
         # Refresh diff when switching tabs
         self.tab_widget.currentChanged.connect(self._on_tab_changed)
+        self.tab_widget.tabBar().tabBarClicked.connect(self._on_tab_bar_clicked)
 
         # Buttons
         btn_layout = QHBoxLayout()
@@ -1149,6 +1184,35 @@ class SingleCommitViewDialog(QDialog):
             self._refresh_filewise_diff()
         elif idx == 2:
             self._refresh_treewise_diff()
+
+    def _on_tab_bar_clicked(self, idx):
+        if idx == self.tab_widget.currentIndex():
+            if idx == getattr(self, '_filewise_tab_idx', -1):
+                self._toggle_filewise_file_list()
+            elif idx == getattr(self, '_treewise_tab_idx', -1):
+                self._toggle_treewise_file_list()
+
+    def _toggle_filewise_file_list(self):
+        visible = self.filewise_file_list.isVisible()
+        self.filewise_file_list.setVisible(not visible)
+        arrow = "\u25B6" if visible else "\u25BC"
+        self.tab_widget.setTabText(self._filewise_tab_idx,
+                                   f"{arrow} Filewise Diff")
+        if visible:
+            self.filewise_splitter.setSizes([0, 1000])
+        else:
+            self.filewise_splitter.setSizes([150, 350])
+
+    def _toggle_treewise_file_list(self):
+        visible = self.treewise_tree.isVisible()
+        self.treewise_tree.setVisible(not visible)
+        arrow = "\u25B6" if visible else "\u25BC"
+        self.tab_widget.setTabText(self._treewise_tab_idx,
+                                   f"{arrow} Tree-wise Diff")
+        if visible:
+            self.treewise_splitter.setSizes([0, 1000])
+        else:
+            self.treewise_splitter.setSizes([150, 350])
 
     def _get_file_diff(self, filepath):
         """Get diff for a single file in this commit."""
