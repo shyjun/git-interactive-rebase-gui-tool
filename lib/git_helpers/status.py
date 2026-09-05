@@ -184,16 +184,15 @@ def get_unstaged_files(repo_path, ignore_submodules=False):
 
         result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
         files = []
-        for line in result.stdout.strip().split('\n'):
-            if not line.strip(): continue
+        for line in result.stdout.split('\n'):
+            if not line or len(line) < 3:
+                continue
             # Format: XY filename (X=index, Y=worktree)
             # Unstaged changes = Y is not ' ' and Y is not '?'
-            if len(line) < 3:
-                continue
             y_status = line[1]
             if y_status == ' ' or y_status == '?':
                 continue
-            parts = line.strip().split(maxsplit=1)
+            parts = line.split(maxsplit=1)
             if len(parts) == 2:
                 filepath = parts[1]
                 # git status --porcelain quotes paths with special chars
@@ -215,9 +214,10 @@ def get_untracked_files(repo_path, ignore_submodules=False):
 
         result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
         files = []
-        for line in result.stdout.strip().split('\n'):
-            if not line.strip(): continue
-            parts = line.strip().split(maxsplit=1)
+        for line in result.stdout.split('\n'):
+            if not line or len(line) < 3:
+                continue
+            parts = line.split(maxsplit=1)
             if len(parts) == 2 and parts[0] == '??':
                 filepath = parts[1]
                 if filepath.startswith('"') and filepath.endswith('"'):
