@@ -49,6 +49,10 @@ class DiffMixin:
         if item.data(Qt.UserRole + 9) == "load_more":
             return
 
+        # Always switch to plain diff tab when selecting a commit
+        if self.diff_tab_widget.currentIndex() != 0:
+            self.diff_tab_widget.setCurrentIndex(0)
+
         sha = item.text().split()[0]
 
         # Check cache
