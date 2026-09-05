@@ -4,7 +4,8 @@ from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QLineEdit, QSplitter, QCheckBox, QToolButton, QMenu,
     QWidgetAction, QRadioButton, QGroupBox, QSizePolicy,
-    QStatusBar, QListWidget, QListWidgetItem, QTabWidget, QTextEdit, QPushButton,
+    QStatusBar, QListWidget, QListWidgetItem, QTabWidget, QTabBar,
+    QTextEdit, QPushButton,
     QMessageBox, QTreeWidget, QTreeWidgetItem, QHeaderView,
 )
 from lib.app_window.commit_list import CommitListWidget
@@ -227,7 +228,8 @@ class UIMixin:
         # the tab widget, so it would otherwise be garbage-collected.
         self.filewise_widget = filewise_widget
         if not self.browse_file:
-            self.diff_tab_widget.addTab(filewise_widget, "File-wise Diff")
+            self.diff_tab_widget.addTab(filewise_widget, "\u25BC File-wise Diff")
+            self._filewise_tab_idx = self.diff_tab_widget.indexOf(filewise_widget)
 
         # Page 2: Tree-wise Diff
         treewise_widget = QWidget()
@@ -276,7 +278,8 @@ class UIMixin:
         treewise_layout.addWidget(self.treewise_splitter)
         self.treewise_widget = treewise_widget
         if not self.browse_file:
-            self.diff_tab_widget.addTab(treewise_widget, "Tree-wise Diff")
+            self.diff_tab_widget.addTab(treewise_widget, "\u25BC Tree-wise Diff")
+            self._treewise_tab_idx = self.diff_tab_widget.indexOf(treewise_widget)
 
         self.right_splitter.addWidget(self.diff_tab_widget)
 
@@ -317,6 +320,7 @@ class UIMixin:
         self.list_widget.itemClicked.connect(self._on_list_item_clicked)
 
         self.diff_tab_widget.currentChanged.connect(self.on_diff_tab_changed)
+        self.diff_tab_widget.tabBar().tabBarClicked.connect(self._on_tab_bar_clicked)
 
         self.update_window_title()
 
@@ -749,6 +753,37 @@ class UIMixin:
         else:
             header_height = self.right_splitter.widget(0).sizeHint().height()
             self.right_splitter.setSizes([header_height, 1000])
+
+    def _toggle_filewise_file_list(self):
+        file_list = self.filewise_file_list
+        visible = file_list.isVisible()
+        file_list.setVisible(not visible)
+        arrow = "\u25B6" if visible else "\u25BC"  # ▶ collapsed, ▼ expanded
+        self.diff_tab_widget.setTabText(self._filewise_tab_idx,
+                                       f"{arrow} File-wise Diff")
+        if visible:
+            self.filewise_splitter.setSizes([0, 1000])
+        else:
+            self.filewise_splitter.setSizes([100, 300])
+
+    def _toggle_treewise_file_list(self):
+        tree = self.treewise_tree
+        visible = tree.isVisible()
+        tree.setVisible(not visible)
+        arrow = "\u25B6" if visible else "\u25BC"
+        self.diff_tab_widget.setTabText(self._treewise_tab_idx,
+                                       f"{arrow} Tree-wise Diff")
+        if visible:
+            self.treewise_splitter.setSizes([0, 1000])
+        else:
+            self.treewise_splitter.setSizes([100, 300])
+
+    def _on_tab_bar_clicked(self, idx):
+        if idx == self.diff_tab_widget.currentIndex():
+            if idx == getattr(self, '_filewise_tab_idx', -1):
+                self._toggle_filewise_file_list()
+            elif idx == getattr(self, '_treewise_tab_idx', -1):
+                self._toggle_treewise_file_list()
 
     def _handle_restart_if_updated(self):
         """Hidden shortcut (Ctrl+Shift+F5): check if the tool's repo has new commits
