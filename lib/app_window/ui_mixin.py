@@ -788,8 +788,9 @@ class UIMixin:
             splitter.setCollapsible(0, True)
             header_height = splitter.widget(0).sizeHint().height()
             splitter.setSizes([header_height, 1000])
-            # Hide bottom controls to give diff more vertical space
-            for w in [self.failsafe_group, self.squash_group]:
+            # Hide all bottom controls
+            for w in [self.failsafe_group, self.origin_group,
+                      self.squash_group, self.rebase_group]:
                 w.setVisible(False)
             self.full_view_btn.setText("\u25B2 Show buttons \u25B2")
             self.full_view_btn.setToolTip("Show bottom controls and restore normal view.")
@@ -799,10 +800,12 @@ class UIMixin:
                 self.side_commit_header.toggle()
             splitter.setCollapsible(0, False)
             splitter.setSizes([150, 650])
-            # Restore bottom controls
+            # Restore bottom controls based on their configured visibility
             if not self.browse_mode:
                 self.failsafe_group.setVisible(True)
-            self.squash_group.setVisible(self.multi_select_mode)
+            self.origin_group.setVisible(self.show_origin_options)
+            self.squash_group.setVisible(self.show_squash_options)
+            self.rebase_group.setVisible(self.show_rebase_options)
             self.full_view_btn.setText("\u25BC Full Height \u25BC")
             self.full_view_btn.setToolTip("Expand diff pane to full height, hiding the commit message.")
 
