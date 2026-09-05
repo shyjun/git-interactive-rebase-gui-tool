@@ -7,7 +7,7 @@ from lib.git_helpers import (
     stash_pop, merge_into_stash, get_unstaged_files, get_untracked_files,
     get_unstaged_file_diff, get_unstaged_file_stats,
     stage_files, commit_staged, amend_staged, apply_patch_to_index,
-    get_full_commit_message,
+    get_full_commit_message, get_staged_files,
 )
 from lib.dialogs import (
     StashNoticeDialog, CommitSelectivelyDialog, SelectiveHunkDialog,
@@ -350,6 +350,19 @@ class StashMixin:
         progress.show()
         QApplication.processEvents()
         try:
+            # Save previously staged changes so only the new hunks are committed.
+            # git commit includes ALL index entries; stash --keep-index preserves
+            # the original index so we can restore it after the commit.
+            had_staged = bool(get_staged_files(self.repo_path))
+            if had_staged:
+                subprocess.run(
+                    ["git", "stash", "push", "-q", "--keep-index",
+                     "--message", "interactive-rebase-gui: save index"],
+                    cwd=self.repo_path, check=True, capture_output=True)
+                subprocess.run(
+                    ["git", "reset", "-q", "HEAD"],
+                    cwd=self.repo_path, check=True, capture_output=True)
+
             for f, patch in patch_by_file.items():
                 apply_patch_to_index(self.repo_path, patch)
             if whole_files:
@@ -361,7 +374,18 @@ class StashMixin:
             else:
                 if not amend_staged(self.repo_path, message):
                     raise Exception("Git commit --amend failed.")
+
+            # Restore the previously staged changes to the index
+            if had_staged:
+                subprocess.run(
+                    ["git", "stash", "pop", "-q", "--index"],
+                    cwd=self.repo_path, check=True, capture_output=True)
+                subprocess.run(
+                    ["git", "checkout", "HEAD", "--", "."],
+                    cwd=self.repo_path, check=True, capture_output=True)
         except Exception as e:
+            if had_staged:
+                subprocess.run(["git", "stash", "drop", "-q"], cwd=self.repo_path)
             subprocess.run(["git", "reset", "-q"], cwd=self.repo_path)
             progress.close()
             QMessageBox.critical(self, "Error",
