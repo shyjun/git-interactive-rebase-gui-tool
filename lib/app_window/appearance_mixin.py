@@ -131,16 +131,19 @@ class AppearanceMixin:
             viewer.update_font()
 
     def on_origin_visibility_toggled(self, visible):
+        self.show_origin_options = visible
         self.origin_group.setVisible(visible)
         self.settings.setValue(self._sk("show_origin_options"), visible)
         # self.force_window_resize()  # intentionally disabled: window keeps its size instead of auto-collapsing
 
     def on_rebase_visibility_toggled(self, visible):
+        self.show_rebase_options = visible
         self.rebase_group.setVisible(visible)
         self.settings.setValue(self._sk("show_rebase_options"), visible)
         # self.force_window_resize()  # intentionally disabled: window keeps its size instead of auto-collapsing
 
     def on_squash_visibility_toggled(self, visible):
+        self.show_squash_options = visible
         self.squash_group.setVisible(visible)
         self.settings.setValue(self._sk("show_squash_options"), visible)
         # self.force_window_resize()  # intentionally disabled: window keeps its size instead of auto-collapsing
