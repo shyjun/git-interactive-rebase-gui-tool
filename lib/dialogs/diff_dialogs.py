@@ -455,9 +455,16 @@ class BranchDiffDialog(QDialog):
 
     def _on_tab_bar_clicked(self, idx):
         if idx == self.tab_widget.currentIndex():
+            # Clicking the active tab toggles file list visibility
             if idx == getattr(self, '_filewise_tab_idx', -1):
                 self._toggle_filewise_file_list()
             elif idx == getattr(self, '_treewise_tab_idx', -1):
+                self._toggle_treewise_file_list()
+        else:
+            # Switching to a different tab: auto-expand its file list
+            if idx == getattr(self, '_filewise_tab_idx', -1) and not self.filewise_file_list.isVisible():
+                self._toggle_filewise_file_list()
+            elif idx == getattr(self, '_treewise_tab_idx', -1) and not self.treewise_tree.isVisible():
                 self._toggle_treewise_file_list()
 
     def _toggle_filewise_file_list(self):
@@ -1208,9 +1215,16 @@ class SingleCommitViewDialog(QDialog):
 
     def _on_tab_bar_clicked(self, idx):
         if idx == self.tab_widget.currentIndex():
+            # Clicking the active tab toggles file list visibility
             if idx == getattr(self, '_filewise_tab_idx', -1):
                 self._toggle_filewise_file_list()
             elif idx == getattr(self, '_treewise_tab_idx', -1):
+                self._toggle_treewise_file_list()
+        else:
+            # Switching to a different tab: auto-expand its file list
+            if idx == getattr(self, '_filewise_tab_idx', -1) and not self.filewise_file_list.isVisible():
+                self._toggle_filewise_file_list()
+            elif idx == getattr(self, '_treewise_tab_idx', -1) and not self.treewise_tree.isVisible():
                 self._toggle_treewise_file_list()
 
     def _toggle_filewise_file_list(self):
