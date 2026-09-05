@@ -47,6 +47,7 @@ from PySide6.QtCore import (
     Signal,
     QRect,
     QEvent,
+    QObject,
 )
 # pyrefly: ignore [missing-import]
 from PySide6.QtGui import (
@@ -886,6 +887,17 @@ class BranchDiffDialog(QDialog):
                     files.append(filepath)
 
 
+class CollapsibleSplitterFilter(QObject):
+    """Event filter that blocks mouse events on a QSplitter handle,
+    preventing the user from dragging to resize a collapsed pane."""
+
+    def eventFilter(self, obj, event):
+        if event.type() in (QEvent.MouseButtonPress, QEvent.MouseButtonRelease,
+                            QEvent.MouseMove, QEvent.MouseButtonDblClick):
+            return True
+        return super().eventFilter(obj, event)
+
+
 class CollapsibleCommitHeader(QWidget):
     """Clickable header with a disclosure arrow that toggles visibility of a
     target widget (typically the commit message)."""
@@ -1172,11 +1184,20 @@ class SingleCommitViewDialog(QDialog):
             self.treewise_diff_search.show_and_focus()
 
     def _on_commit_header_toggled(self, expanded):
+        splitter = self.main_splitter
+        handle = splitter.handle(1)
         if expanded:
-            self.main_splitter.setSizes([150, 450])
+            if hasattr(self, '_splitter_filter'):
+                handle.removeEventFilter(self._splitter_filter)
+                self._splitter_filter = None
+            splitter.setCollapsible(0, False)
+            splitter.setSizes([150, 450])
         else:
-            header_height = self.main_splitter.widget(0).sizeHint().height()
-            self.main_splitter.setSizes([header_height, 1000])
+            splitter.setCollapsible(0, True)
+            header_height = splitter.widget(0).sizeHint().height()
+            splitter.setSizes([header_height, 1000])
+            self._splitter_filter = CollapsibleSplitterFilter(splitter)
+            handle.installEventFilter(self._splitter_filter)
 
     def _on_tab_changed(self, idx):
         """Refresh diff pane when switching tabs."""
