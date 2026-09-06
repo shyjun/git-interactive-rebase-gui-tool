@@ -117,9 +117,6 @@ class MenusMixin:
 
     def _check_updates_on_startup(self):
         """Background check for updates on startup. Called from init if enabled."""
-        if not getattr(self, 'is_running_from_repo', False):
-            print("[startup_check] not running from repo, skipping")
-            return
         if self.browse_mode:
             print("[startup_check] browse mode, skipping")
             return
