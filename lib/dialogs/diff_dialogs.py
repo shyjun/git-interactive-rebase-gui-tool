@@ -802,15 +802,14 @@ class BranchDiffDialog(QDialog):
             child_data = child.data(0, Qt.UserRole + 10)
             if child_data and child_data["type"] == "folder":
                 self._update_folder_check_state(child)
-                if child.checkState(0) == Qt.Checked:
-                    has_checked = True
-                else:
-                    all_checked = False
+            state = child.checkState(0)
+            if state == Qt.Checked:
+                has_checked = True
+            elif state == Qt.PartiallyChecked:
+                has_checked = True
+                all_checked = False
             else:
-                if child.checkState(0) == Qt.Checked:
-                    has_checked = True
-                else:
-                    all_checked = False
+                all_checked = False
         self.treewise_tree.blockSignals(True)
         if all_checked:
             folder_item.setCheckState(0, Qt.Checked)
@@ -1394,15 +1393,14 @@ class SingleCommitViewDialog(QDialog):
             child_data = child.data(0, Qt.UserRole + 10)
             if child_data and child_data["type"] == "folder":
                 self._update_folder_check_state(child)
-                if child.checkState(0) == Qt.Checked:
-                    has_checked = True
-                else:
-                    all_checked = False
+            state = child.checkState(0)
+            if state == Qt.Checked:
+                has_checked = True
+            elif state == Qt.PartiallyChecked:
+                has_checked = True
+                all_checked = False
             else:
-                if child.checkState(0) == Qt.Checked:
-                    has_checked = True
-                else:
-                    all_checked = False
+                all_checked = False
         self.treewise_tree.blockSignals(True)
         if all_checked:
             folder_item.setCheckState(0, Qt.Checked)
