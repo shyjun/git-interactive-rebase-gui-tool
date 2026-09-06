@@ -142,20 +142,24 @@ class MenusMixin:
                 except Exception:
                     self.finished.emit("")
 
+        local_head = self.start_time_tool_full_head
+
         def _on_finished(remote_sha):
             if not remote_sha:
                 print("[startup_check] network error or no response, skipping", flush=True)
                 return
-            if remote_sha == self.start_time_tool_full_head:
+            if local_head and remote_sha == local_head:
                 print(f"[startup_check] already latest ({remote_sha[:8]})", flush=True)
             else:
-                msg = f"Update available: {remote_sha[:8]} (current: {self.start_time_tool_head[:8]})"
+                local_display = self.start_time_tool_head[:8] if self.start_time_tool_head else "pip"
+                msg = f"Update available: {remote_sha[:8]} (current: {local_display})"
                 print(f"[startup_check] {msg}", flush=True)
                 self.update_label.setText(f"Update({remote_sha[:8]}) available")
                 self.update_label.setToolTip("Go to Configure > Check for updates")
                 self.update_label.setVisible(True)
 
-        print(f"[startup_check] checking remote (local={self.start_time_tool_head[:8]})...", flush=True)
+        local_display = self.start_time_tool_head[:8] if self.start_time_tool_head else "pip"
+        print(f"[startup_check] checking remote (local={local_display})...", flush=True)
         self._startup_check_worker = _UpdateCheckWorker()
         self._startup_check_worker.finished.connect(_on_finished)
         # deleteLater() releases the QThread safely via the event loop after it
