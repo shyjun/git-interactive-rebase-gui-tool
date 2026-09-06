@@ -58,6 +58,20 @@ class InitMixin:
         self._tool_repo_path = _tool_dir if self.is_running_from_repo else None
         self.start_time_tool_head = get_head_sha(self._tool_repo_path) if self._tool_repo_path else None
         self.start_time_tool_full_head = get_full_head_sha(self._tool_repo_path) if self._tool_repo_path else None
+        # For pip installs, read installed SHA from app_version.json
+        if not self.start_time_tool_head:
+            try:
+                from lib.utils import get_assets_path
+                import json as _json
+                vpath = os.path.join(get_assets_path(), "app_version.json")
+                if os.path.exists(vpath):
+                    with open(vpath, encoding='utf-8') as f:
+                        sha = _json.load(f).get("sha", "")
+                        if sha:
+                            self.start_time_tool_head = sha[:8]
+                            self.start_time_tool_full_head = sha
+            except Exception:
+                pass
         self.cached_current_head_full_sha = self.start_time_full_head
         self.cached_has_uncommitted = False
         self.last_head = None
