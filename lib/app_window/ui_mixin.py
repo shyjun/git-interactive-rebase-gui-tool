@@ -769,31 +769,19 @@ class UIMixin:
                 splitter.setSizes([150, 650])
         else:
             splitter.setCollapsible(0, True)
-            # Query sizeHint from the header widget itself, not the
-            # container which may still cache the hidden QTextEdit height
             header = splitter.widget(0).layout().itemAt(0).widget()
             header_height = header.sizeHint().height()
-            if not self._full_diff_view:
-                splitter.setSizes([header_height, 1000])
-                self._splitter_filter = CollapsibleSplitterFilter(splitter)
-                handle.installEventFilter(self._splitter_filter)
+            splitter.setSizes([header_height, 1000])
+            self._splitter_filter = CollapsibleSplitterFilter(splitter)
+            handle.installEventFilter(self._splitter_filter)
 
     def _toggle_full_diff_view(self):
         splitter = self.right_splitter
-        handle = splitter.handle(1)
         self._full_diff_view = not self._full_diff_view
         if self._full_diff_view:
             # Enter full view: collapse commit message, maximize diff
             if self.side_commit_msg.isVisible():
                 self.side_commit_header.toggle()
-            # Remove any leftover filter from the header toggle handler
-            if hasattr(self, '_splitter_filter'):
-                handle.removeEventFilter(self._splitter_filter)
-                self._splitter_filter = None
-            splitter.setCollapsible(0, True)
-            header = splitter.widget(0).layout().itemAt(0).widget()
-            header_height = header.sizeHint().height()
-            splitter.setSizes([header_height, 1000])
             # Hide all bottom controls
             for w in [self.failsafe_group, self.origin_group,
                       self.squash_group, self.rebase_group]:
