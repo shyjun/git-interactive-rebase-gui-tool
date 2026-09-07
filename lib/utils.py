@@ -3,7 +3,6 @@ import sys
 
 
 def get_theme_colors(theme_name):
-    x = MissingImport
     """Return the diff-highlighter color dict for the given theme name (\"dark\" or \"light\")."""
     if theme_name == "dark":
         return {
