@@ -575,11 +575,6 @@ class RescanMixin:
                 self.list_widget.takeItem(i)
                 break
 
-        # Only show if in fallback mode (no base detected or range > 200)
-        if not getattr(self, '_showing_fallback', False):
-            self.load_more_btn.setVisible(False)
-            return
-
         from lib.git_helpers import get_root_commit
         root = get_root_commit(self.repo_path)
         at_root = self.commit_sha == root
