@@ -553,8 +553,14 @@ class RescanMixin:
     def load_more(self):
         """Load 100 more commits by extending the base further back in history."""
         from lib.git_helpers import get_recent_history_start, get_root_commit
-        self._load_more_offset += 100
-        new_base = get_recent_history_start(self.repo_path, count=200 + self._load_more_offset)
+        # Count actual commits (exclude the load-more item itself)
+        current_count = self.list_widget.count()
+        for i in range(self.list_widget.count()):
+            item = self.list_widget.item(i)
+            if item and item.data(Qt.UserRole + 9) == "load_more":
+                current_count -= 1
+                break
+        new_base = get_recent_history_start(self.repo_path, count=current_count + 100)
         root = get_root_commit(self.repo_path)
         if new_base == self.commit_sha:
             # Already at this base, no more to load
@@ -562,6 +568,7 @@ class RescanMixin:
             self._update_load_more_item()
             return
         self.commit_sha = new_base
+        self._load_more_offset += 100
         print(f"[load_more] Loading more: offset={self._load_more_offset}, base={new_base[:8]}")
         self.load_history()
 
