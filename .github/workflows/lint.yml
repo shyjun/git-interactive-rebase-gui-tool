@@ -24,3 +24,33 @@ jobs:
         run: python3 scripts/lint_imports.py
       - name: Import tests
         run: python3 -m pytest tests/test_imports.py -v
+      - name: Notify failure via Pushover
+        if: failure()
+        continue-on-error: true
+        env:
+          APP_TOKEN: ${{ secrets.APP_TOKEN }}
+          PUSHOVER_USER_KEY: ${{ secrets.PUSHOVER_USER_KEY }}
+        run: |
+          message="Lint workflow failed for ${GITHUB_REPOSITORY} on ${GITHUB_REF_NAME}. Run: https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+          curl --fail --silent --show-error \
+            -F "token=${APP_TOKEN}" \
+            -F "user=${PUSHOVER_USER_KEY}" \
+            -F "title=GitHub Actions failed" \
+            -F "message=${message}" \
+            https://api.pushover.net/1/messages.json
+
+      - name: Notify failure via ntfy
+        if: failure()
+        continue-on-error: true
+        env:
+          TOPIC: ${{ secrets.TOPIC }}
+        run: |
+          message="Lint workflow failed for ${GITHUB_REPOSITORY} on ${GITHUB_REF_NAME}. Run: https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+          curl --fail --silent --show-error --http1.1 \
+            -H "Title: GitHub Actions failed" \
+            -H "Priority: high" \
+            -H "Tags: warning,github" \
+            -d "${message}" \
+            "https://ntfy.sh/${TOPIC}"

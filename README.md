@@ -302,6 +302,41 @@ You can also press **Check Updates** in the app to compare the running version a
 
 ---
 
+## GitHub Actions Notifications
+
+The repository uses GitHub Actions for linting and import tests.
+
+When the workflow fails, it can send notifications to a mobile device through:
+
+- [Pushover](https://pushover.net/)
+- [ntfy](https://ntfy.sh/)
+
+### Forking and CI notifications
+
+If you fork this repository:
+
+- GitHub Actions workflows are copied to your fork.
+- Repository secrets are **not copied**.
+- CI checks will still run, but failure notifications will not work until you configure your own notification credentials.
+
+To enable notifications in your fork, add these repository secrets under:
+
+**Settings → Secrets and variables → Actions**
+
+| Secret | Description |
+|---|---|
+| `APP_TOKEN` | Pushover application token |
+| `PUSHOVER_USER_KEY` | Pushover user key |
+| `TOPIC` | ntfy topic name |
+
+Use your own Pushover account, application token, and ntfy topic. Do not commit notification credentials to the repository.
+
+The notification step uses `curl` to call the Pushover and ntfy HTTP APIs. No Pushover or ntfy application needs to be installed on the GitHub Actions runner.
+
+**Security note:** An ntfy topic can act like a password when anonymous publishing is enabled. Use a private, unpredictable topic and configure authentication if the topic must remain protected.
+
+---
+
 ## 📄 License
 
 This project is licensed under the [MIT License](LICENSE).
