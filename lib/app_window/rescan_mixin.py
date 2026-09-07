@@ -593,6 +593,7 @@ class RescanMixin:
             remaining = 100
 
         label = f"Load {remaining} more" if remaining < 100 else "Load 100 more"
+        self.load_more_btn.setText(label)
         item = QListWidgetItem(f"{label}...")
         item.setData(Qt.UserRole + 9, "load_more")
         item.setForeground(Qt.gray)
