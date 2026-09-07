@@ -556,9 +556,8 @@ class RescanMixin:
         self._load_more_offset += 100
         new_base = get_recent_history_start(self.repo_path, count=200 + self._load_more_offset)
         root = get_root_commit(self.repo_path)
-        if new_base == self.commit_sha or new_base == root:
-            # Reached the root — no more to load
-            print("[load_more] Reached root commit, no more history")
+        if new_base == self.commit_sha:
+            # Already at this base, no more to load
             self._showing_fallback = False
             self._update_load_more_item()
             return
@@ -567,7 +566,7 @@ class RescanMixin:
         self.load_history()
 
     def _update_load_more_item(self):
-        """Add or remove the 'Load 100 more' item at the end of the commit list."""
+        """Add or remove the 'Load more' item at the end of the commit list."""
         # Remove existing load-more item if any
         for i in range(self.list_widget.count()):
             item = self.list_widget.item(i)
@@ -584,7 +583,17 @@ class RescanMixin:
         if at_root:
             return
 
-        item = QListWidgetItem("Load 100 more...")
+        # Calculate remaining commits
+        try:
+            shown = self.list_widget.count()
+            total_text = self.total_commits_label.text()
+            total = int(''.join(c for c in total_text.split(':')[-1] if c.isdigit()))
+            remaining = max(0, total - shown)
+        except (ValueError, AttributeError):
+            remaining = 100
+
+        label = f"Load {remaining} more" if remaining < 100 else "Load 100 more"
+        item = QListWidgetItem(f"{label}...")
         item.setData(Qt.UserRole + 9, "load_more")
         item.setForeground(Qt.gray)
         item.setFlags(item.flags() & ~Qt.ItemIsDragEnabled & ~Qt.ItemIsDropEnabled)
