@@ -584,13 +584,9 @@ class RescanMixin:
             return
 
         # Calculate remaining commits
-        try:
-            shown = self.list_widget.count()
-            total_text = self.total_commits_label.text()
-            total = int(''.join(c for c in total_text.split(':')[-1] if c.isdigit()))
-            remaining = max(0, total - shown)
-        except (ValueError, AttributeError):
-            remaining = 100
+        shown = self.list_widget.count()
+        total = getattr(self, '_total_commit_count', 0)
+        remaining = max(0, total - shown) if total > 0 else 100
 
         label = f"Load {remaining} more" if remaining < 100 else "Load 100 more"
         self.load_more_btn.setText(label)
@@ -646,9 +642,15 @@ class RescanMixin:
 
     @Slot(str)
     def _set_total_commit_count(self, count_str):
+        try:
+            self._total_commit_count = int(count_str)
+        except (ValueError, TypeError):
+            self._total_commit_count = 0
         if self.browse_stash:
             self.total_commits_label.setText(f"Total stashes: {count_str}")
         elif self.browse_file:
             self.total_commits_label.setText(f"Total commits touching file: {count_str}")
         else:
             self.total_commits_label.setText(f"Total commits in repo: {count_str}")
+        if not getattr(self, 'viewer_mode', False):
+            self._update_load_more_item()
