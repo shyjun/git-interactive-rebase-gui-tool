@@ -147,10 +147,13 @@ def _detect_default_branch(repo_path):
 def build_update_command(tool_dir, is_pip=False):
     """Returns the command line to run for the tool's self-update."""
     if is_pip:
-        return "git_interactive_rebase --update"
+        if sys.platform == "win32":
+            return f'"{sys.executable}" -m git_interactive_rebase --update'
+        return f"{shlex.quote(sys.executable)} -m git_interactive_rebase --update"
     script = os.path.join(tool_dir, "git_interactive_rebase.py")
-    # BUG-16 fix: quote the path so spaces in tool_dir don't break the command.
-    return f"python3 {shlex.quote(script)} --update"
+    if sys.platform == "win32":
+        return f'"{sys.executable}" "{script}" --update'
+    return f"{shlex.quote(sys.executable)} {shlex.quote(script)} --update"
 
 
 def perform_self_update(tool_dir):
