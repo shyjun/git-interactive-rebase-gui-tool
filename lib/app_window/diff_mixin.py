@@ -389,6 +389,14 @@ class DiffMixin:
         """Sync all tree check states to the filewise list."""
         self.filewise_file_list.blockSignals(True)
 
+        # Pre-build lookup table mapping entry -> list item to achieve O(N + M) performance
+        entry_map = {}
+        for j in range(self.filewise_file_list.count()):
+            li = self.filewise_file_list.item(j)
+            li_entry = li.data(FILE_ENTRY_ROLE)
+            if li_entry:
+                entry_map[li_entry] = li
+
         def sync_item(parent_item):
             for i in range(parent_item.childCount()):
                 child = parent_item.child(i)
@@ -399,14 +407,9 @@ class DiffMixin:
                     sync_item(child)
                 else:
                     entry = child_data.get("entry")
-                    if not entry:
-                        continue
-                    for j in range(self.filewise_file_list.count()):
-                        li = self.filewise_file_list.item(j)
-                        li_entry = li.data(FILE_ENTRY_ROLE)
-                        if li_entry and li_entry == entry:
-                            li.setCheckState(Qt.Checked if child.checkState(0) == Qt.Checked else Qt.Unchecked)
-                            break
+                    if entry and entry in entry_map:
+                        li = entry_map[entry]
+                        li.setCheckState(Qt.Checked if child.checkState(0) == Qt.Checked else Qt.Unchecked)
 
         sync_item(self.treewise_tree.invisibleRootItem())
         self.filewise_file_list.blockSignals(False)
