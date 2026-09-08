@@ -324,6 +324,8 @@ class UIMixin:
         # opens the selected entry's commit history viewer.
         if self.browse_reflog or self.browse_tags:
             self.list_widget.itemDoubleClicked.connect(self.handle_reflog_show_log)
+        elif self.browse_file:
+            self.list_widget.itemDoubleClicked.connect(self.view_commit)
         elif not self.browse_mode:
             self.list_widget.itemDoubleClicked.connect(self.view_commit)
         self.list_widget.itemSelectionChanged.connect(self.on_selection_changed)
