@@ -204,6 +204,7 @@ class StashMixin:
         if msg_dlg.exec() != QDialog.Accepted:
             return  # Cancelled - nothing staged yet
         message = msg_dlg.get_message()
+        self.save_undo_state()
 
         progress = ProgressDialog("Committing Changes", "Committing selected files...", self)
         progress.show()
@@ -385,7 +386,7 @@ class StashMixin:
                     cwd=self.repo_path, check=True, capture_output=True)
         except Exception as e:
             if had_staged:
-                subprocess.run(["git", "stash", "drop", "-q"], cwd=self.repo_path)
+                subprocess.run(["git", "stash", "pop", "-q"], cwd=self.repo_path)
             subprocess.run(["git", "reset", "-q"], cwd=self.repo_path)
             progress.close()
             QMessageBox.critical(self, "Error",
