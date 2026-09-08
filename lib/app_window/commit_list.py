@@ -1,4 +1,4 @@
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import QListWidget, QMessageBox
 
 
@@ -137,7 +137,6 @@ class CommitListWidget(QListWidget):
         )
 
         if reply != QMessageBox.Yes:
-            print("Cancelled multi-reorder.")
             event.ignore()
             return
 
@@ -153,6 +152,7 @@ class CommitListWidget(QListWidget):
 
         original_shas = [self.item(i).text().split()[0] for i in range(count)]
 
+        # Do the visual reorder synchronously so the user sees it immediately.
         items = [self.takeItem(0) for _ in range(count)]
         self.blockSignals(True)
         for idx in new_order:
@@ -160,6 +160,14 @@ class CommitListWidget(QListWidget):
         self.blockSignals(False)
 
         new_shas = [self.item(i).text().split()[0] for i in range(count)]
-        self.main_window.perform_move(new_shas, original_shas)
-        self.main_window.exit_multi_select_mode()
+
+        # Defer perform_move + cleanup to the next event loop iteration.
+        # Calling perform_move / load_history inside dropEvent prevents Qt
+        # from repainting the viewport — the data is correct but the user
+        # sees stale items until they press Refresh.
+        def _deferred(new_s, orig_s):
+            self.main_window.perform_move(new_s, orig_s)
+            self.main_window.exit_multi_select_mode()
+
+        QTimer.singleShot(0, lambda: _deferred(new_shas, original_shas))
         event.accept()

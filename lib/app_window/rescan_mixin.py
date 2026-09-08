@@ -294,6 +294,12 @@ class RescanMixin:
         finally:
             self.list_widget.setUpdatesEnabled(True)
             self.list_widget.blockSignals(False)
+            # Force Qt to process the pending repaint scheduled by
+            # setUpdatesEnabled(True).  A plain repaint() call may not
+            # take effect inside a nested event loop (e.g. a modal dialog
+            # triggered by a failed rebase), so processEvents is more
+            # reliable here.
+            QApplication.processEvents()
             # Defer side diff so the window appears immediately
             QTimer.singleShot(0, self.update_side_diff)
 
