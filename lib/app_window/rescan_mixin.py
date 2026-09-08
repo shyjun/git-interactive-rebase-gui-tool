@@ -587,21 +587,41 @@ class RescanMixin:
                 self.list_widget.takeItem(i)
                 break
 
-        from lib.git_helpers import get_root_commit
-        root = get_root_commit(self.repo_path)
-        at_root = self.commit_sha == root
-
-        self.load_more_btn.setVisible(not at_root)
-
-        if at_root:
-            return
-
-        # Calculate remaining commits
         shown = self.list_widget.count()
         total = getattr(self, '_total_commit_count', 0)
+
+        # --- Browse / file mode: use total-vs-shown logic ---
+        if getattr(self, 'browse_mode', False) or getattr(self, 'browse_file', None):
+            # If total is known and we've already shown everything, hide.
+            if total > 0 and shown >= total:
+                self.load_more_btn.setVisible(False)
+                return
+            # If total isn't known yet, only show load-more if we hit the
+            # page limit (meaning there are likely more to fetch).
+            browse_limit = getattr(self, 'browse_limit', 100)
+            if total == 0 and shown < browse_limit:
+                self.load_more_btn.setVisible(False)
+                return
+            # Otherwise fall through to render the item.
+        else:
+            # --- Normal rebase mode: hide when we've reached the root commit ---
+            from lib.git_helpers import get_root_commit
+            root = get_root_commit(self.repo_path)
+            at_root = self.commit_sha == root
+            if at_root:
+                self.load_more_btn.setVisible(False)
+                return
+
+        # Calculate how many commits are still unloaded.
         remaining = max(0, total - shown) if total > 0 else 100
 
+        # Never show "Load 0 more" — if nothing remains, hide everything.
+        if remaining == 0:
+            self.load_more_btn.setVisible(False)
+            return
+
         label = f"Load {remaining} more" if remaining < 100 else "Load 100 more"
+        self.load_more_btn.setVisible(True)
         self.load_more_btn.setText(label)
         item = QListWidgetItem(f"{label}...")
         item.setData(Qt.UserRole + 9, "load_more")
