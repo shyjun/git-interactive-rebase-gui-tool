@@ -800,7 +800,7 @@ class UIMixin:
             elif not was_visible and self.side_commit_msg.isVisible():
                 self.side_commit_header.toggle()
 
-            if self.side_commit_header.is_expanded:
+            if self.side_commit_msg.isVisible():
                 splitter.setCollapsible(0, False)
                 splitter.setSizes([150, 650])
             else:
