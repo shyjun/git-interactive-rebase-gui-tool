@@ -230,15 +230,16 @@ def _parse_stash_records(stdout):
         })
     return commits
 
-def _git_capture(repo_path, cmd, error_msg):
+def _git_capture(repo_path, cmd, error_msg, timeout=15):
     """Run git *cmd* in *repo_path*, returning stdout decoded as UTF-8 text.
 
-    On a non-zero exit, raises an Exception carrying git's stderr, mirroring
-    the historical behavior of the diff helpers."""
+    On a non-zero exit or timeout, raises an Exception carrying git's stderr."""
     try:
         result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True,
-                                check=True, encoding='utf-8', errors='replace')
+                                check=True, encoding='utf-8', errors='replace', timeout=timeout)
         return result.stdout
+    except subprocess.TimeoutExpired:
+        raise Exception(f"{error_msg}: command timed out after {timeout}s")
     except subprocess.CalledProcessError as e:
         raise Exception(f"{error_msg}: {e.stderr}")
 
