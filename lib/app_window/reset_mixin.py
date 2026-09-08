@@ -12,10 +12,16 @@ class ResetMixin:
         print("Running git fetch...")
         self.progress_dialog = ProgressDialog("Git Fetching", "git fetch in progress...", self)
 
-        self.worker = GitWorker(["git", "fetch"], self.repo_path)
-        self.worker.finished.connect(self.on_fetch_finished)
+        if not hasattr(self, '_active_workers'):
+            self._active_workers = set()
+
+        worker = GitWorker(["git", "fetch"], self.repo_path)
+        self._active_workers.add(worker)
+        worker.finished.connect(lambda *a: self._active_workers.discard(worker))
+        worker.finished.connect(self.on_fetch_finished)
+        self.worker = worker
         print("[thread] GitWorker.start()")
-        self.worker.start()
+        worker.start()
 
         self.progress_dialog.exec()
 
