@@ -8,6 +8,7 @@ from lib.git_helpers import (
 )
 from lib.dialogs import (
     BrowseBranchDialog, BrowseCommitLogDialog, BrowseFileLogDialog,
+    BlameFileDialog,
     MergeBaseDialog, MergeBaseResultDialog, StashNoticeDialog,
     OpenFileAtRefDialog,
 )
@@ -482,6 +483,26 @@ class BrowseMixin:
             commit_limit = self.browse_limit
         print(f"[browse] File log for: '{file_path}', limit={commit_limit}")
         self._open_file_log_viewer(file_path, commit_limit)
+
+    def handle_blame_file(self):
+        """Opens a read-only blame viewer for a single file.
+        Prompts for a repo-relative file path."""
+        dialog = BlameFileDialog(self.repo_path, parent=self)
+        if dialog.exec() != QDialog.Accepted:
+            return
+        file_path = dialog.file_path
+        if not file_path:
+            QMessageBox.warning(self, "No file path",
+                                "Please enter a file path to blame.")
+            return
+        full_path = os.path.join(self.repo_path, file_path)
+        if not os.path.isfile(full_path):
+            QMessageBox.critical(self, "File does not exist",
+                                 f"The file '{file_path}' does not exist.")
+            return
+        print(f"[browse] Opening blame: '{file_path}'")
+        from lib.dialogs.blame_dialog import open_blame_window
+        open_blame_window(self, file_path)
 
     def _open_file_log_viewer(self, file_path, commit_limit):
         file_ref = self.browse_branch if self.browse_branch else None

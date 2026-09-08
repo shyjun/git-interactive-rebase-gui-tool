@@ -33,6 +33,7 @@ from .history_branch_dialogs import (
     BrowseBranchDialog,
     BrowseCommitLogDialog,
     BrowseFileLogDialog,
+    BlameFileDialog,
     ApplyPatchDialog,
     TagCommitDialog,
     MergeBaseDialog,

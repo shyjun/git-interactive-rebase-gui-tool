@@ -215,6 +215,10 @@ class MenusMixin:
         browse_file_action.setToolTip("Open a read-only viewer of a single file's history.")
         browse_file_action.triggered.connect(lambda *_: self.handle_browse_file_log())
 
+        blame_file_action = QAction("Blame a File", self)
+        blame_file_action.setToolTip("Open a read-only blame viewer for a single file.")
+        blame_file_action.triggered.connect(lambda *_: self.handle_blame_file())
+
         browse_commit_log_action = QAction("Browse Log of a Commit", self)
         browse_commit_log_action.setToolTip("Open a read-only viewer of a commit's history.")
         browse_commit_log_action.triggered.connect(lambda *_: self.handle_browse_commit_log())
@@ -246,6 +250,7 @@ class MenusMixin:
         menu.addAction(stage_files_action)
         menu.addAction(browse_action)
         menu.addAction(browse_file_action)
+        menu.addAction(blame_file_action)
         menu.addAction(browse_commit_log_action)
         menu.addAction(browse_reflog_action)
         menu.addAction(browse_tags_action)

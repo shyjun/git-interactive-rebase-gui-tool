@@ -265,6 +265,67 @@ class BrowseFileLogDialog(QDialog):
         return self.limit_spin.value()
 
 
+class BlameFileDialog(QDialog):
+    """Dialog to pick a file for blame viewing."""
+
+    def __init__(self, repo_path, parent=None):
+        super().__init__(parent)
+        self.repo_path = repo_path
+        self.setWindowTitle("Blame a File")
+        self.setMinimumWidth(420)
+        self.setModal(True)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
+
+        file_label = QLabel("File path (repo-relative):")
+        layout.addWidget(file_label)
+
+        file_row = QHBoxLayout()
+        file_row.setSpacing(6)
+        self.file_edit = QLineEdit()
+        self.file_edit.setPlaceholderText("e.g. lib/app_window.py, README.md")
+        self.file_edit.setToolTip("A path relative to the repository root; use Browse... to pick a file.")
+        file_row.addWidget(self.file_edit, 1)
+
+        browse_btn = QPushButton("Browse...")
+        browse_btn.setToolTip("Pick a file in the repository.")
+        browse_btn.clicked.connect(self._pick_file)
+        file_row.addWidget(browse_btn)
+        layout.addLayout(file_row)
+
+        blame_btn = QPushButton("Blame")
+        blame_btn.setDefault(True)
+        blame_btn.setToolTip("Open a read-only blame viewer for this file.")
+        blame_btn.clicked.connect(self.accept)
+
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(self.reject)
+
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+        btn_layout.addWidget(cancel_btn)
+        btn_layout.addWidget(blame_btn)
+        layout.addLayout(btn_layout)
+
+        self.file_edit.setFocus()
+
+    def _pick_file(self):
+        file_path, _ = QFileDialog.getOpenFileName(self, "Select file to blame", self.repo_path)
+        if file_path:
+            rel = os.path.relpath(file_path, self.repo_path)
+            if rel.startswith(".."):
+                QMessageBox.warning(self, "Outside repository",
+                                    "Please select a file inside the repository.")
+                return
+            self.file_edit.setText(rel.replace(os.sep, "/"))
+
+    @property
+    def file_path(self):
+        return self.file_edit.text().strip()
+
+
 class ApplyPatchDialog(QDialog):
     """Dialog to pick a patch file and choose whether to commit the changes or
     leave them unstaged in the working tree."""
