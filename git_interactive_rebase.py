@@ -176,7 +176,6 @@ def main():
         print(f"Warning: Could not load application icon: {e}")
 
     # Check if we are inside a git repository
-    import subprocess
     try:
         subprocess.run(["git", "rev-parse", "--is-inside-work-tree"], cwd=repo_path, check=True, capture_output=True, encoding='utf-8', errors='replace')
         root_res = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=repo_path, check=True, capture_output=True, encoding='utf-8', errors='replace')
