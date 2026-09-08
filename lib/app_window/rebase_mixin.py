@@ -178,11 +178,25 @@ class RebaseMixin:
                         cmd = ["git", "rebase", "-i", "--autosquash", upstream]
 
                     process = subprocess.Popen(cmd, cwd=self.repo_path, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                    out_chunks, err_chunks = [], []
                     while process.poll() is None:
                         QApplication.processEvents()
-                        time.sleep(0.05)
+                        try:
+                            out, err = process.communicate(timeout=0.05)
+                            out_chunks.append(out)
+                            err_chunks.append(err)
+                        except subprocess.TimeoutExpired as te:
+                            if te.stdout:
+                                out_chunks.append(te.stdout if isinstance(te.stdout, str) else te.stdout.decode('utf-8', 'replace'))
+                            if te.stderr:
+                                err_chunks.append(te.stderr if isinstance(te.stderr, str) else te.stderr.decode('utf-8', 'replace'))
 
-                    stdout, stderr = process.communicate()
+                    out_rest, err_rest = process.communicate()
+                    out_chunks.append(out_rest)
+                    err_chunks.append(err_rest)
+
+                    stdout = "".join(out_chunks)
+                    stderr = "".join(err_chunks)
 
                     result = subprocess.CompletedProcess(process.args, process.returncode, stdout, stderr)
                 finally:
