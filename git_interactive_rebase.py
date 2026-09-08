@@ -69,6 +69,7 @@ def main():
     parser.add_argument("--viewer-mode", action="store_true", help="Run in read-only viewer mode.")
     parser.add_argument("--update", action="store_true", help="Update the tool to the latest version and exit.")
     parser.add_argument("--version", action="store_true", help="Print the tool's version (short git id) and exit.")
+    parser.add_argument("--no-fork", action="store_true", help=argparse.SUPPRESS)  # internal flag: already backgrounded
     parser.add_argument("positional", nargs="*", help="Branch, file, tag, or commit ref (auto-detected)")
     args = parser.parse_args()
 
@@ -107,6 +108,24 @@ def main():
         sys.exit(0 if ok else 1)
 
     repo_path = os.path.abspath(os.path.expanduser(args.location))
+
+    # --- Background launch so the terminal is not blocked ---
+    # Re-launch ourselves as a detached child process so the shell gets its
+    # prompt back immediately.  stdout/stderr are intentionally inherited so
+    # all print() calls still appear in the same terminal.  Only stdin is
+    # closed (DEVNULL) so the GUI doesn't accidentally read from the shell.
+    # The --no-fork flag prevents the child from looping back here.
+    import platform
+    if not args.no_fork and platform.system() != "Windows":
+        if sys.stdout and sys.stdout.isatty():
+            proc = subprocess.Popen(
+                [sys.executable] + sys.argv + ["--no-fork"],
+                stdin=subprocess.DEVNULL,
+                # stdout / stderr inherited → prints still appear in terminal
+                start_new_session=True,
+            )
+            print(f"Tool started in background (PID {proc.pid})")
+            sys.exit(0)
 
     # Ignore SIGHUP so the app survives terminal close when launched with & (not available on Windows)
     import signal
