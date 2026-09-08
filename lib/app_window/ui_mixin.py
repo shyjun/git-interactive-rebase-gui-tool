@@ -727,13 +727,13 @@ class UIMixin:
         self.f5_shortcut = QShortcut(QKeySequence("F5"), self)
         self.f5_shortcut.activated.connect(self.handle_manual_refresh)
 
-        self.ctrl_f_shortcut = QShortcut(QKeySequence("Ctrl+F"), self)
+        self.ctrl_f_shortcut = QShortcut(QKeySequence.Find, self)
         self.ctrl_f_shortcut.activated.connect(self.show_search_bar)
 
-        self.ctrl_q_shortcut = QShortcut(QKeySequence("Ctrl+Q"), self)
+        self.ctrl_q_shortcut = QShortcut(QKeySequence.Quit, self)
         self.ctrl_q_shortcut.activated.connect(self.close)
 
-        self.ctrl_z_shortcut = QShortcut(QKeySequence("Ctrl+Z"), self)
+        self.ctrl_z_shortcut = QShortcut(QKeySequence.Undo, self)
         self.ctrl_z_shortcut.activated.connect(self.handle_undo_shortcut)
 
         self.ctrl_alt_f5_shortcut = QShortcut(QKeySequence("Ctrl+Shift+F5"), self)
@@ -779,6 +779,8 @@ class UIMixin:
         splitter = self.right_splitter
         self._full_diff_view = not self._full_diff_view
         if self._full_diff_view:
+            # Remember whether commit message was visible before entering full height
+            self._was_commit_msg_visible = self.side_commit_msg.isVisible()
             # Enter full view: collapse commit message, maximize diff
             if self.side_commit_msg.isVisible():
                 self.side_commit_header.toggle()
@@ -789,9 +791,13 @@ class UIMixin:
             self.full_view_btn.setText("\u25B2 Show buttons \u25B2")
             self.full_view_btn.setToolTip("Show bottom controls and restore normal view.")
         else:
-            # Exit full view: expand commit message, restore split
-            if not self.side_commit_msg.isVisible():
+            # Exit full view: restore commit message to its prior state
+            was_visible = getattr(self, '_was_commit_msg_visible', True)
+            if was_visible and not self.side_commit_msg.isVisible():
                 self.side_commit_header.toggle()
+            elif not was_visible and self.side_commit_msg.isVisible():
+                self.side_commit_header.toggle()
+
             splitter.setCollapsible(0, False)
             splitter.setSizes([150, 650])
             # Restore bottom controls based on their configured visibility
@@ -812,8 +818,10 @@ class UIMixin:
                                        f"{arrow} File-wise Diff")
         if visible:
             self.filewise_splitter.setSizes([0, 1000])
+            self.filewise_splitter.handle(1).setEnabled(False)
         else:
             self.filewise_splitter.setSizes([100, 300])
+            self.filewise_splitter.handle(1).setEnabled(True)
 
     def _toggle_treewise_file_list(self):
         tree = self.treewise_tree
@@ -824,8 +832,10 @@ class UIMixin:
                                        f"{arrow} Tree-wise Diff")
         if visible:
             self.treewise_splitter.setSizes([0, 1000])
+            self.treewise_splitter.handle(1).setEnabled(False)
         else:
             self.treewise_splitter.setSizes([100, 300])
+            self.treewise_splitter.handle(1).setEnabled(True)
 
     def _on_tab_bar_clicked(self, idx):
         if idx == self.diff_tab_widget.currentIndex():
