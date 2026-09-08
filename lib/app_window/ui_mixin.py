@@ -800,8 +800,17 @@ class UIMixin:
             elif not was_visible and self.side_commit_msg.isVisible():
                 self.side_commit_header.toggle()
 
-            splitter.setCollapsible(0, False)
-            splitter.setSizes([150, 650])
+            if self.side_commit_header.is_expanded:
+                splitter.setCollapsible(0, False)
+                splitter.setSizes([150, 650])
+            else:
+                splitter.setCollapsible(0, True)
+                header = splitter.widget(0).layout().itemAt(0).widget()
+                header_height = header.sizeHint().height()
+                splitter.setSizes([header_height, 1000])
+                if not getattr(self, '_splitter_filter', None):
+                    self._splitter_filter = CollapsibleSplitterFilter(splitter)
+                    splitter.handle(1).installEventFilter(self._splitter_filter)
             # Restore bottom controls based on their configured visibility
             if not self.browse_mode:
                 self.failsafe_group.setVisible(True)
