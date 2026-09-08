@@ -194,6 +194,10 @@ class RebaseMixin:
                     ok, detail = self._abort_rebase_safely()
                     if not ok:
                         self._warn_rebase_abort_failure(detail)
+                    # Restore the list to the correct (pre-rebase) state
+                    # BEFORE showing the failure dialog, so the user sees
+                    # the right commits behind the modal.
+                    self.load_history()
                     if not suppress_failure_box:
                         QMessageBox.critical(self, "Rebase Failed",
                             f"Action failed (likely due to merge conflicts).\n"
