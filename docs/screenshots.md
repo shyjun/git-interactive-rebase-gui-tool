@@ -751,6 +751,7 @@ Open any other branch's history in a separate read-only window.
 
 - Select a single commit, or check multiple commits in multi-select mode
 - **Cherry-pick selected commit(s)** into your current branch (oldest-first order)
+- **View Commit** in a tabbed diff viewer (right-click context menu)
 - Copy SHA / message to the clipboard
 - Refresh the branch history
 
@@ -773,7 +774,7 @@ View the complete history of a single file.
 
 ![Browse File Log](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/browse-file-log.webp)
 
-**Description:** Use **Repo → Browse File Log**, or right-click a file in the file-wise diff viewer and choose **Browse file log**. A read-only window opens showing the history of that file (following renames via `git log --follow`), with the diff pane scoped to that file. Like Browse Branch, it uses a dimmed grey "viewer" overlay to distinguish it from the main window. Copy SHA / message to the clipboard directly from this window.
+**Description:** Use **Repo → Browse File Log**, or right-click a file in the file-wise diff viewer and choose **Browse file log**. A read-only window opens showing the history of that file (following renames via `git log --follow`), with the diff pane scoped to that file. Like Browse Branch, it uses a dimmed grey "viewer" overlay to distinguish it from the main window. Right-click any commit to **View Commit** in a tabbed diff viewer, or copy SHA / message to the clipboard.
 
 ---
 
@@ -784,7 +785,7 @@ Open a read-only history window for any commit.
 
 ![Browse Log of a Commit](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/browse-commit-log.webp)
 
-**Description:** Use **Repo → Browse Log of a Commit**, enter a commit SHA (or ref like `HEAD` or a branch name), and choose how many of the most recent commits to show. The commit is validated before opening, and its history opens in a read-only window (same style as Browse Branch / Browse File Log). Copy SHA / message to the clipboard directly from this window.
+**Description:** Use **Repo → Browse Log of a Commit**, enter a commit SHA (or ref like `HEAD` or a branch name), and choose how many of the most recent commits to show. The commit is validated before opening, and its history opens in a read-only window (same style as Browse Branch / Browse File Log). Right-click any commit to **View Commit** in a tabbed diff viewer, or copy SHA / message to the clipboard.
 
 ---
 
