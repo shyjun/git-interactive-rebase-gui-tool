@@ -520,6 +520,13 @@ class BrowseMixin:
         from lib.dialogs.blame_dialog import open_blame_window
         open_blame_window(self, file_path)
 
+    def _blame_browse_file(self):
+        """Blame the file currently being browsed (browse_file)."""
+        if not self.browse_file:
+            return
+        from lib.dialogs.blame_dialog import open_blame_window
+        open_blame_window(self, self.browse_file)
+
     def _open_file_log_viewer(self, file_path, commit_limit):
         file_ref = self.browse_branch if self.browse_branch else None
         print(f"[browse] Creating file-log viewer: '{file_path}', ref={file_ref}, limit={commit_limit}")
