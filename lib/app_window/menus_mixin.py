@@ -290,6 +290,11 @@ class MenusMixin:
             add_open_with_system_default_action(menu, self.browse_file, self, sha=sha, is_head=False)
             menu.addSeparator()
 
+        view_commit_action = QAction("View Commit", self)
+        view_commit_action.triggered.connect(lambda: self.view_commit(item))
+        menu.addAction(view_commit_action)
+        menu.addSeparator()
+
         copy_sha_action = QAction("Copy SHA to clipboard", self)
         copy_msg_action = QAction("Copy commit msg to clipboard", self)
         copy_sha_msg_action = QAction("Copy SHA and commit msg to clipboard", self)
