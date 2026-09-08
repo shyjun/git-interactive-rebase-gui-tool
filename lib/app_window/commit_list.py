@@ -156,7 +156,9 @@ class CommitListWidget(QListWidget):
         for i in range(count):
             item = self.item(i)
             if item.data(Qt.UserRole + 9) != "load_more":
-                sha_map[i] = item.text().split()[0]
+                token = item.text().split()[0]
+                if token and len(token) >= 7 and all(c in "0123456789abcdefABCDEF" for c in token):
+                    sha_map[i] = token
 
         affected_start = min(start, insert_pos)
         affected_end = max(end, insert_pos + block_len - 1)
