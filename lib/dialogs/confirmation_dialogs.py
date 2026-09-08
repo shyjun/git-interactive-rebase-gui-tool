@@ -75,7 +75,7 @@ class RephraseDialog(QDialog):
         layout.addWidget(label)
 
         self.message_edit = QTextEdit()
-        self.message_edit.setFont(QFont("Courier New", self.font_size))
+        self.message_edit.setFont(QFont("Monospace", self.font_size))
         self.message_edit.setPlainText(current_message)
         layout.addWidget(self.message_edit)
 
@@ -126,7 +126,7 @@ class CherryPickDialog(QDialog):
 
         self.sha_edit = QLineEdit()
         self.sha_edit.setPlaceholderText("Commit SHA")
-        self.sha_edit.setFont(QFont("Courier New", self.font_size))
+        self.sha_edit.setFont(QFont("Monospace", self.font_size))
         self.sha_edit.setMinimumHeight(36)
         layout.addWidget(self.sha_edit)
 
@@ -188,7 +188,7 @@ class RevertCommitDialog(QDialog):
         layout.addWidget(label)
 
         self.message_edit = QTextEdit()
-        self.message_edit.setFont(QFont("Courier New", self.font_size))
+        self.message_edit.setFont(QFont("Monospace", self.font_size))
         self.message_edit.setPlainText(revert_message)
         layout.addWidget(self.message_edit)
 
@@ -246,7 +246,7 @@ class SquashDialog(QDialog):
 
         # Text Editor
         self.editor = QTextEdit()
-        self.editor.setFont(QFont("Courier New", self.font_size))
+        self.editor.setFont(QFont("Monospace", self.font_size))
         layout.addWidget(self.editor)
 
         # Connections
@@ -336,7 +336,7 @@ class MultiSquashDialog(QDialog):
 
         # Text editor
         self.editor = QTextEdit()
-        self.editor.setFont(QFont("Courier New", font_size))
+        self.editor.setFont(QFont("Monospace", font_size))
         self.editor.setMinimumHeight(100)
 
         # Add to splitter

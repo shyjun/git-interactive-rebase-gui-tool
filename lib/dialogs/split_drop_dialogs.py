@@ -96,7 +96,7 @@ class SplitCommitDialog(QDialog):
         self.msg_view = QTextEdit()
         self.msg_view.setReadOnly(True)
         self.msg_view.setPlainText(msg)
-        self.msg_view.setFont(QFont("Courier New", font_size))
+        self.msg_view.setFont(QFont("Monospace", font_size))
         msg_layout.addWidget(self.msg_view)
 
         self.main_splitter.addWidget(msg_widget)
@@ -109,7 +109,7 @@ class SplitCommitDialog(QDialog):
 
         self.file_list = QListWidget()
         self.file_list.setMinimumHeight(60)
-        self.file_list.setFont(QFont("Courier New", font_size))
+        self.file_list.setFont(QFont("Monospace", font_size))
         for f in files:
             item = QListWidgetItem(f)
             item.setData(Qt.UserRole, self.file_stats.get(f))
@@ -136,7 +136,7 @@ class SplitCommitDialog(QDialog):
         self.diff_view = DiffView()
         self.diff_view.setMinimumHeight(100)
         self.diff_view.setReadOnly(True)
-        self.diff_view.setFont(QFont("Courier New", font_size))
+        self.diff_view.setFont(QFont("Monospace", font_size))
         self.diff_view.setPlaceholderText("Select a file above to view its diff...")
         self.highlighter = DiffHighlighter(
             self.diff_view.document(),
@@ -276,7 +276,7 @@ class DropFileFromCommitDialog(QDialog):
         self.msg_view = QTextEdit()
         self.msg_view.setReadOnly(True)
         self.msg_view.setPlainText(msg)
-        self.msg_view.setFont(QFont("Courier New", font_size))
+        self.msg_view.setFont(QFont("Monospace", font_size))
         msg_layout.addWidget(self.msg_view)
 
         self.main_splitter.addWidget(msg_widget)
@@ -289,7 +289,7 @@ class DropFileFromCommitDialog(QDialog):
 
         self.file_list = QListWidget()
         self.file_list.setMinimumHeight(60)
-        self.file_list.setFont(QFont("Courier New", font_size))
+        self.file_list.setFont(QFont("Monospace", font_size))
         for f in files:
             item = QListWidgetItem(f)
             item.setData(Qt.UserRole, self.file_stats.get(f))
@@ -316,7 +316,7 @@ class DropFileFromCommitDialog(QDialog):
         self.diff_view = DiffView()
         self.diff_view.setMinimumHeight(100)
         self.diff_view.setReadOnly(True)
-        self.diff_view.setFont(QFont("Courier New", font_size))
+        self.diff_view.setFont(QFont("Monospace", font_size))
         self.diff_view.setPlaceholderText("Select a file above to view its diff...")
         self.highlighter = DiffHighlighter(
             self.diff_view.document(),
@@ -580,7 +580,7 @@ class AggressiveRemoveConfirmationDialog(QDialog):
         # List of future commits
         commit_list = QTextEdit()
         commit_list.setReadOnly(True)
-        commit_list.setFont(QFont("Courier New", self.font_size))
+        commit_list.setFont(QFont("Monospace", self.font_size))
 
         # Display each commit
         commits_text = ""

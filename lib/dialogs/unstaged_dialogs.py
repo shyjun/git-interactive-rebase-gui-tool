@@ -320,7 +320,7 @@ class CommitSelectivelyDialog(QDialog):
         file_list_layout.setContentsMargins(0, 0, 0, 0)
 
         self.file_list = QListWidget()
-        self.file_list.setFont(QFont("Courier New", font_size))
+        self.file_list.setFont(QFont("Monospace", font_size))
         for f in self.files:
             item = QListWidgetItem(f)
             item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsUserCheckable)
@@ -349,7 +349,7 @@ class CommitSelectivelyDialog(QDialog):
         self.treewise_tree.header().setStretchLastSection(False)
         self.treewise_tree.header().setSectionResizeMode(0, QHeaderView.Stretch)
         self.treewise_tree.header().setSectionResizeMode(1, QHeaderView.ResizeToContents)
-        self.treewise_tree.setFont(QFont("Courier New", font_size))
+        self.treewise_tree.setFont(QFont("Monospace", font_size))
         self.treewise_tree.setAnimated(True)
         self.treewise_tree.setItemDelegateForColumn(1, TreeStatsDelegate())
         self.treewise_tree.itemChanged.connect(self._on_tree_item_changed)
@@ -362,7 +362,7 @@ class CommitSelectivelyDialog(QDialog):
         # Diff preview with the shared search bar
         self.diff_view = DiffView()
         self.diff_view.setReadOnly(True)
-        self.diff_view.setFont(QFont("Courier New", font_size))
+        self.diff_view.setFont(QFont("Monospace", font_size))
         self.diff_view.setPlaceholderText("No files selected. Check files to preview their combined diff...")
         self.highlighter = DiffHighlighter(
             self.diff_view.document(),
@@ -738,7 +738,7 @@ class CommitStagedSelectivelyDialog(QDialog):
         file_list_layout.setContentsMargins(0, 0, 0, 0)
 
         self.file_list = QListWidget()
-        self.file_list.setFont(QFont("Courier New", font_size))
+        self.file_list.setFont(QFont("Monospace", font_size))
         for f in self.files:
             item = QListWidgetItem(f)
             item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsUserCheckable)
@@ -767,7 +767,7 @@ class CommitStagedSelectivelyDialog(QDialog):
         self.treewise_tree.header().setStretchLastSection(False)
         self.treewise_tree.header().setSectionResizeMode(0, QHeaderView.Stretch)
         self.treewise_tree.header().setSectionResizeMode(1, QHeaderView.ResizeToContents)
-        self.treewise_tree.setFont(QFont("Courier New", font_size))
+        self.treewise_tree.setFont(QFont("Monospace", font_size))
         self.treewise_tree.setAnimated(True)
         self.treewise_tree.setItemDelegateForColumn(1, TreeStatsDelegate())
         self.treewise_tree.itemChanged.connect(self._on_tree_item_changed)
@@ -782,7 +782,7 @@ class CommitStagedSelectivelyDialog(QDialog):
         # Diff preview
         self.diff_view = DiffView()
         self.diff_view.setReadOnly(True)
-        self.diff_view.setFont(QFont("Courier New", font_size))
+        self.diff_view.setFont(QFont("Monospace", font_size))
         self.diff_view.setPlaceholderText("No files selected. Check files to preview their combined diff...")
         self.highlighter = DiffHighlighter(
             self.diff_view.document(),
@@ -1112,7 +1112,7 @@ class StageFilesDialog(QDialog):
         file_list_layout.setContentsMargins(0, 0, 0, 0)
 
         self.file_list = QListWidget()
-        self.file_list.setFont(QFont("Courier New", font_size))
+        self.file_list.setFont(QFont("Monospace", font_size))
         for f in self.files:
             item = QListWidgetItem(f)
             item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsUserCheckable)
@@ -1141,7 +1141,7 @@ class StageFilesDialog(QDialog):
         self.treewise_tree.header().setStretchLastSection(False)
         self.treewise_tree.header().setSectionResizeMode(0, QHeaderView.Stretch)
         self.treewise_tree.header().setSectionResizeMode(1, QHeaderView.ResizeToContents)
-        self.treewise_tree.setFont(QFont("Courier New", font_size))
+        self.treewise_tree.setFont(QFont("Monospace", font_size))
         self.treewise_tree.setAnimated(True)
         self.treewise_tree.setItemDelegateForColumn(1, TreeStatsDelegate())
         self.treewise_tree.itemChanged.connect(self._on_tree_item_changed)
@@ -1155,7 +1155,7 @@ class StageFilesDialog(QDialog):
         # Diff preview
         self.diff_view = DiffView()
         self.diff_view.setReadOnly(True)
-        self.diff_view.setFont(QFont("Courier New", font_size))
+        self.diff_view.setFont(QFont("Monospace", font_size))
         self.diff_view.setPlaceholderText("Check files to preview their combined diff...")
         self.highlighter = DiffHighlighter(
             self.diff_view.document(),

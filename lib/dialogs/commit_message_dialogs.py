@@ -30,7 +30,7 @@ class NewCommitMessageDialog(QDialog):
         layout.addWidget(self.label)
 
         self.message_edit = QTextEdit()
-        self.message_edit.setFont(QFont("Courier New", self.font_size))
+        self.message_edit.setFont(QFont("Monospace", self.font_size))
         self.message_edit.setPlainText(default_message)
         layout.addWidget(self.message_edit)
 

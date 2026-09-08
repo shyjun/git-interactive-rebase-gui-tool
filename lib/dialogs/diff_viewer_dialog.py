@@ -39,7 +39,7 @@ class DiffViewerDialog(QDialog):
         # Full diff view
         self.diff_view = DiffView()
         self.diff_view.setReadOnly(True)
-        self.diff_view.setFont(QFont("Courier New", self.font_size))
+        self.diff_view.setFont(QFont("Monospace", self.font_size))
         self.diff_view.setPlainText(diff_text)
 
         # Determine highlighting colors based on parent theme or default to dark
