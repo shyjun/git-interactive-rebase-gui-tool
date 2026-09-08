@@ -776,6 +776,8 @@ class UIMixin:
             handle.installEventFilter(self._splitter_filter)
 
     def _toggle_full_diff_view(self):
+        if not getattr(self, 'show_diffs', True):
+            return
         splitter = self.right_splitter
         self._full_diff_view = not self._full_diff_view
         if self._full_diff_view:

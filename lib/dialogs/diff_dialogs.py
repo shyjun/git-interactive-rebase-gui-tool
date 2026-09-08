@@ -476,8 +476,10 @@ class BranchDiffDialog(QDialog):
                                    f"{arrow} Filewise Diff")
         if visible:
             self.filewise_splitter.setSizes([0, 1000])
+            self.filewise_splitter.handle(1).setEnabled(False)
         else:
             self.filewise_splitter.setSizes([150, 350])
+            self.filewise_splitter.handle(1).setEnabled(True)
 
     def _toggle_treewise_file_list(self):
         visible = self.treewise_tree.isVisible()
@@ -487,8 +489,10 @@ class BranchDiffDialog(QDialog):
                                    f"{arrow} Tree-wise Diff")
         if visible:
             self.treewise_splitter.setSizes([0, 1000])
+            self.treewise_splitter.handle(1).setEnabled(False)
         else:
             self.treewise_splitter.setSizes([150, 350])
+            self.treewise_splitter.handle(1).setEnabled(True)
 
     def _populate_treewise_from_files(self, files, file_stats):
         """Build tree from plain file list (BranchDiffDialog uses file strings, not status tuples)."""
@@ -1208,8 +1212,10 @@ class SingleCommitViewDialog(QDialog):
                                    f"{arrow} Filewise Diff")
         if visible:
             self.filewise_splitter.setSizes([0, 1000])
+            self.filewise_splitter.handle(1).setEnabled(False)
         else:
             self.filewise_splitter.setSizes([150, 350])
+            self.filewise_splitter.handle(1).setEnabled(True)
 
     def _toggle_treewise_file_list(self):
         visible = self.treewise_tree.isVisible()
@@ -1219,8 +1225,10 @@ class SingleCommitViewDialog(QDialog):
                                    f"{arrow} Tree-wise Diff")
         if visible:
             self.treewise_splitter.setSizes([0, 1000])
+            self.treewise_splitter.handle(1).setEnabled(False)
         else:
             self.treewise_splitter.setSizes([150, 350])
+            self.treewise_splitter.handle(1).setEnabled(True)
 
     def _get_file_diff(self, filepath):
         """Get diff for a single file in this commit."""

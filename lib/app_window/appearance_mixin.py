@@ -171,4 +171,6 @@ class AppearanceMixin:
     def on_diffs_visibility_toggled(self, visible):
         self.show_diffs = visible
         self.right_panel.setVisible(visible)
+        if hasattr(self, 'full_view_btn'):
+            self.full_view_btn.setVisible(visible)
         self.settings.setValue(self._sk("show_diffs"), self.show_diffs)
