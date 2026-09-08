@@ -272,6 +272,7 @@ class CherryPickMixin:
         if not self._check_no_unstaged_changes():
             return
 
+        self.save_undo_state()
         success, err = self._run_cherry_pick(sha)
         if success:
             self._sync_cached_head()
