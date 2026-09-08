@@ -1046,10 +1046,14 @@ class SingleCommitViewDialog(QDialog):
         file_right_layout.addWidget(self.filewise_diff_view)
 
         self.filewise_splitter.addWidget(file_right_widget)
-        self.filewise_splitter.setSizes([150, 350])
+        self.filewise_file_list.setVisible(False)
+        self.filewise_file_list.setMinimumHeight(0)
+        self.filewise_splitter.setCollapsible(0, True)
+        self.filewise_splitter.setSizes([0, 1000])
+        self.filewise_splitter.handle(1).setEnabled(False)
         filewise_layout.addWidget(self.filewise_splitter)
 
-        self.tab_widget.addTab(filewise_widget, "\u25BC Filewise Diff")
+        self.tab_widget.addTab(filewise_widget, "\u25B6 Filewise Diff")
         self._filewise_tab_idx = self.tab_widget.indexOf(filewise_widget)
 
         # Tab 2: Tree-wise Diff
@@ -1097,10 +1101,14 @@ class SingleCommitViewDialog(QDialog):
         treewise_right_layout.addWidget(self.treewise_diff_view)
 
         self.treewise_splitter.addWidget(treewise_right_widget)
-        self.treewise_splitter.setSizes([150, 350])
+        self.treewise_tree.setVisible(False)
+        self.treewise_tree.setMinimumHeight(0)
+        self.treewise_splitter.setCollapsible(0, True)
+        self.treewise_splitter.setSizes([0, 1000])
+        self.treewise_splitter.handle(1).setEnabled(False)
         treewise_layout.addWidget(self.treewise_splitter)
 
-        self.tab_widget.addTab(treewise_widget, "\u25BC Tree-wise Diff")
+        self.tab_widget.addTab(treewise_widget, "\u25B6 Tree-wise Diff")
         self._treewise_tab_idx = self.tab_widget.indexOf(treewise_widget)
 
         self.main_splitter.addWidget(self.tab_widget)
@@ -1211,9 +1219,13 @@ class SingleCommitViewDialog(QDialog):
         self.tab_widget.setTabText(self._filewise_tab_idx,
                                    f"{arrow} Filewise Diff")
         if visible:
+            self.filewise_file_list.setMinimumHeight(0)
+            self.filewise_splitter.setCollapsible(0, True)
             self.filewise_splitter.setSizes([0, 1000])
             self.filewise_splitter.handle(1).setEnabled(False)
         else:
+            self.filewise_file_list.setMinimumHeight(60)
+            self.filewise_splitter.setCollapsible(0, False)
             self.filewise_splitter.setSizes([150, 350])
             self.filewise_splitter.handle(1).setEnabled(True)
 
@@ -1224,9 +1236,13 @@ class SingleCommitViewDialog(QDialog):
         self.tab_widget.setTabText(self._treewise_tab_idx,
                                    f"{arrow} Tree-wise Diff")
         if visible:
+            self.treewise_tree.setMinimumHeight(0)
+            self.treewise_splitter.setCollapsible(0, True)
             self.treewise_splitter.setSizes([0, 1000])
             self.treewise_splitter.handle(1).setEnabled(False)
         else:
+            self.treewise_tree.setMinimumHeight(60)
+            self.treewise_splitter.setCollapsible(0, False)
             self.treewise_splitter.setSizes([150, 350])
             self.treewise_splitter.handle(1).setEnabled(True)
 
