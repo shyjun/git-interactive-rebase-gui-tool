@@ -582,13 +582,13 @@ class MenusMixin:
             diff_here_action = QAction("Show Diff to Here", self)
             diff_here_action.setEnabled(False)
 
-        head_to_here_action = QAction("From HEAD Till Here", self)
+        head_to_here_action = QAction("From Here Till HEAD", self)
 
         set_start_action.triggered.connect(lambda: self._set_consolidated_diff_start(sha))
         diff_here_action.triggered.connect(
             lambda: self.show_consolidated_diff(self.consolidated_diff_start_sha, sha, title="Consolidated Diff"))
         head_to_here_action.triggered.connect(
-            lambda: self.show_consolidated_diff(self.get_head_sha(), sha, title="Consolidated Diff"))
+            lambda: self.show_consolidated_diff(sha, self.get_head_sha(), title="Consolidated Diff"))
 
         if self.multi_select_mode:
             set_start_action.setEnabled(False)
@@ -609,9 +609,9 @@ class MenusMixin:
             difftool_start_action = QAction("Git Difftool from Start to Here", self)
             difftool_start_action.setEnabled(False)
 
-        difftool_head_action = QAction("Git Difftool from HEAD to Here", self)
+        difftool_head_action = QAction("Git Difftool from Here to HEAD", self)
         difftool_head_action.triggered.connect(
-            lambda: self._run_difftool(self.get_head_sha(), sha))
+            lambda: self._run_difftool(sha, self.get_head_sha()))
 
         if self.multi_select_mode:
             difftool_start_action.setEnabled(False)
