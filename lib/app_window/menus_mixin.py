@@ -1,8 +1,21 @@
-from PySide6.QtCore import Qt, QPoint
-from PySide6.QtGui import QFont, QAction
-from PySide6.QtWidgets import QApplication, QMessageBox, QMenu
+from PySide6.QtCore import (
+    QPoint,
+    Qt,
+)
+from PySide6.QtGui import (
+    QAction,
+    QFont,
+)
+from PySide6.QtWidgets import (
+    QApplication,
+    QMenu,
+    QMessageBox,
+)
 from lib.git_helpers import get_commit_files
-from lib.app_window.helpers import MATCH_ROLE, add_open_with_system_default_action
+from lib.app_window.helpers import (
+    add_open_with_system_default_action,
+    MATCH_ROLE,
+)
 
 
 class MenusMixin:
@@ -120,7 +133,10 @@ class MenusMixin:
         if self.browse_mode:
             print("[startup_check] browse mode, skipping")
             return
-        from PySide6.QtCore import QThread, Signal
+        from PySide6.QtCore import (
+            QThread,
+            Signal,
+        )
         from lib.git_helpers import GIT_REPO_URL
 
         class _UpdateCheckWorker(QThread):

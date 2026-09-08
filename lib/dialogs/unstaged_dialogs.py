@@ -6,48 +6,48 @@ if __name__ == "__main__":
 
 # pyrefly: ignore [missing-import]
 from PySide6.QtWidgets import (
+    QApplication,
+    QCheckBox,
     QDialog,
-    QVBoxLayout,
     QHBoxLayout,
-    QWidget,
-    QPushButton,
+    QHeaderView,
     QLabel,
     QLineEdit,
-    QCheckBox,
-    QApplication,
-    QMessageBox,
-    QTextEdit,
-    QMainWindow,
     QListWidget,
     QListWidgetItem,
+    QMainWindow,
+    QMessageBox,
+    QPushButton,
     QSplitter,
     QTabWidget,
+    QTextEdit,
     QTreeWidget,
     QTreeWidgetItem,
-    QHeaderView,
+    QVBoxLayout,
+    QWidget,
 )
 # pyrefly: ignore [missing-import]
 from PySide6.QtCore import (
-    Qt,
     QSettings,
+    Qt,
 )
 # pyrefly: ignore [missing-import]
 from PySide6.QtGui import (
-    QFont,
     QAction,
-    QShortcut,
+    QFont,
     QKeySequence,
+    QShortcut,
 )
 
 from lib.git_helpers import (
-    get_unstaged_diff,
-    get_unstaged_file_stats,
+    build_file_tree,
+    classify_tracked_changes,
     get_current_branch,
     get_full_head_sha,
-    classify_tracked_changes,
-    get_unstaged_file_diff,
     get_staged_file_diff,
-    build_file_tree,
+    get_unstaged_diff,
+    get_unstaged_file_diff,
+    get_unstaged_file_stats,
 )
 from lib.widgets import (
     DiffHighlighter,
@@ -56,7 +56,10 @@ from lib.widgets import (
     StatsItemDelegate,
     TreeStatsDelegate,
 )
-from lib.tree_utils import set_tree_children_checked, update_folder_check_state
+from lib.tree_utils import (
+    set_tree_children_checked,
+    update_folder_check_state,
+)
 
 
 class UnstagedChangesDialog(QDialog):

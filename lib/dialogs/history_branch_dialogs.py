@@ -6,27 +6,30 @@ if __name__ == "__main__":
 import os
 
 from PySide6.QtWidgets import (
+    QApplication,
+    QButtonGroup,
+    QCheckBox,
+    QComboBox,
     QDialog,
-    QVBoxLayout,
-    QWidget,
-    QPushButton,
+    QFileDialog,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
-    QComboBox,
-    QSpinBox,
-    QCheckBox,
-    QFileDialog,
-    QTextEdit,
     QMessageBox,
-    QApplication,
-    QGroupBox,
+    QPushButton,
     QRadioButton,
-    QButtonGroup,
+    QSpinBox,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
 )
 from PySide6.QtCore import Qt
 
-from lib.git_helpers import get_branch_names, get_current_branch
+from lib.git_helpers import (
+    get_branch_names,
+    get_current_branch,
+)
 from lib.utils import get_theme_colors
 
 
@@ -647,7 +650,11 @@ class OpenFileAtRefDialog(QDialog):
             return
 
         # Simple selection dialog
-        from PySide6.QtWidgets import QDialog, QListWidget, QDialogButtonBox
+        from PySide6.QtWidgets import (
+            QDialog,
+            QDialogButtonBox,
+            QListWidget,
+        )
         pick = QDialog(self)
         pick.setWindowTitle(f"Select file at {ref}")
         pick.setMinimumSize(500, 400)
@@ -861,7 +868,9 @@ class DiffFileAtRefDialog(QDialog):
     def _update_direct_enabled(self):
         """Enable 'External Difftool' only when source is HEAD or file unchanged."""
         from lib.git_helpers import (
-            is_file_unchanged_between, is_file_working_tree_clean)
+            is_file_unchanged_between,
+            is_file_working_tree_clean,
+        )
 
         source_is_head = self.src_head_radio.isChecked()
         if source_is_head:
@@ -914,7 +923,11 @@ class DiffFileAtRefDialog(QDialog):
             QMessageBox.critical(self, "Error", f"Could not list files: {e}")
             return
 
-        from PySide6.QtWidgets import QDialog as _D, QListWidget, QDialogButtonBox
+        from PySide6.QtWidgets import (
+            QDialog as _D,
+            QDialogButtonBox,
+            QListWidget,
+        )
         pick = _D(self)
         pick.setWindowTitle(f"Select file at {ref}")
         pick.setMinimumSize(500, 400)

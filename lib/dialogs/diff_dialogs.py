@@ -9,87 +9,87 @@ import os
 # pyrefly: ignore [missing-import]
 from PySide6.QtWidgets import (
     QApplication,
-    QMainWindow,
-    QListWidget,
-    QVBoxLayout,
-    QWidget,
-    QMessageBox,
-    QListWidgetItem,
-    QMenu,
+    QCheckBox,
+    QComboBox,
     QDialog,
-    QTextEdit,
-    QPlainTextEdit,
-    QPushButton,
+    QFileDialog,
+    QFrame,
     QHBoxLayout,
     QLabel,
-    QRadioButton,
     QLineEdit,
-    QSplitter,
+    QListWidget,
+    QListWidgetItem,
+    QMainWindow,
+    QMenu,
+    QMessageBox,
+    QPlainTextEdit,
+    QPushButton,
     QProgressBar,
+    QRadioButton,
     QScrollArea,
-    QFrame,
-    QCheckBox,
     QSizePolicy,
-    QToolButton,
+    QSpinBox,
+    QSplitter,
     QTabWidget,
+    QTextEdit,
+    QToolButton,
     QTreeWidget,
     QTreeWidgetItem,
-    QSpinBox,
-    QComboBox,
-    QFileDialog,
+    QVBoxLayout,
+    QWidget,
 )
 # pyrefly: ignore [missing-import]
 from PySide6.QtCore import (
-    Qt,
-    QSize,
-    QSettings,
-    QTimer,
-    Signal,
-    QRect,
     QEvent,
     QObject,
+    QRect,
+    QSettings,
+    QSize,
+    Qt,
+    QTimer,
+    Signal,
 )
 # pyrefly: ignore [missing-import]
 from PySide6.QtGui import (
+    QAction,
+    QColor,
     QFont,
     QFontMetrics,
-    QSyntaxHighlighter,
-    QTextCharFormat,
-    QColor,
-    QAction,
-    QShortcut,
     QKeySequence,
     QPainter,
+    QShortcut,
+    QSyntaxHighlighter,
+    QTextCharFormat,
     QTextCursor,
     QTextDocument,
 )
 # pyrefly: ignore [missing-import]
 from PySide6.QtWidgets import (
-    QStyledItemDelegate,
-    QStyle,
-    QTableWidget,
     QHeaderView,
+    QStyle,
+    QStyledItemDelegate,
+    QTableWidget,
     QTableWidgetItem,
 )
 
 from lib.git_helpers import (
-    get_file_diff_only_in_commit,
-    get_commit_metadata_and_message,
-    get_revert_commit_message,
-    get_commit_file_stats,
-    get_file_diff_between,
-    get_unstaged_diff,
-    get_unstaged_file_stats,
-    get_unstaged_file_diff,
-    get_staged_file_diff,
-    get_current_branch,
-    get_full_head_sha,
+    build_file_tree,
     classify_tracked_changes,
     get_branch_names,
-    get_rename_diff_in_commit,
     get_commit_diff,
+    get_commit_file_stats,
     get_commit_files_with_status,
-    build_file_tree,
+    get_commit_metadata_and_message,
+    get_current_branch,
+    get_file_diff_between,
+    get_file_diff_only_in_commit,
+    get_full_head_sha,
+    get_rename_diff_in_commit,
+    get_revert_commit_message,
+    get_staged_file_diff,
+    get_unstaged_diff,
+    get_unstaged_file_diff,
+    get_unstaged_file_stats,
 )
 from lib.utils import get_theme_colors
 from lib.widgets import (
@@ -101,9 +101,16 @@ from lib.widgets import (
     StatsItemDelegate,
     TreeStatsDelegate,
 )
-from lib.tree_utils import set_tree_children_checked, update_folder_check_state
+from lib.tree_utils import (
+    set_tree_children_checked,
+    update_folder_check_state,
+)
 from .hunk_file_dialogs import open_blame_window
-from lib.app_window.helpers import add_open_with_system_default_action, is_editable_branch, _get_head_sha
+from lib.app_window.helpers import (
+    _get_head_sha,
+    add_open_with_system_default_action,
+    is_editable_branch,
+)
 
 
 def _find_main_window(widget):

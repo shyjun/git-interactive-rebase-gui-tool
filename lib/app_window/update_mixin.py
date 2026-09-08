@@ -1,11 +1,22 @@
 import os
 import subprocess
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QMessageBox, QDialog
-from lib.git_helpers import build_update_command, _is_git_install, GIT_REPO_URL
+from PySide6.QtWidgets import (
+    QApplication,
+    QDialog,
+    QMessageBox,
+)
+from lib.git_helpers import (
+    _is_git_install,
+    build_update_command,
+    GIT_REPO_URL,
+)
 from lib.utils import get_assets_path
 from lib.dialogs import ProgressDialog
-from lib.app_window.workers import GitWorker, SelfUpdateWorker
+from lib.app_window.workers import (
+    GitWorker,
+    SelfUpdateWorker,
+)
 
 
 class UpdateMixin:

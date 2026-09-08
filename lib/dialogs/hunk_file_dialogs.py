@@ -11,10 +11,21 @@ if __name__ == "__main__":
     print("Please run the main app: git_interactive_rebase.py (git-interactive-rebase-gui-tool)")
     sys.exit(1)
 
-from lib.dialogs.blame_dialog import _find_main_window, open_blame_window, BlameDialog
-from lib.dialogs.unstaged_dialogs import UnstagedChangesDialog, CommitSelectivelyDialog
+from lib.dialogs.blame_dialog import (
+    BlameDialog,
+    _find_main_window,
+    open_blame_window,
+)
+from lib.dialogs.unstaged_dialogs import (
+    CommitSelectivelyDialog,
+    UnstagedChangesDialog,
+)
 from lib.dialogs.hunk_widgets import (
-    EditHunkDialog, DropHunkDialog, ElidedLabel, HunkWidget, SelectiveHunkDialog,
+    DropHunkDialog,
+    EditHunkDialog,
+    ElidedLabel,
+    HunkWidget,
+    SelectiveHunkDialog,
 )
 from lib.dialogs.refine_changes_dialog import RefineChangesDialog
 

@@ -1,16 +1,32 @@
 import os
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QMessageBox, QInputDialog, QDialog
+from PySide6.QtWidgets import (
+    QApplication,
+    QDialog,
+    QInputDialog,
+    QMessageBox,
+)
 from lib.git_helpers import (
-    get_current_branch, branch_exists, commit_exists,
-    normalize_branch_ref, get_merge_base, get_commit_subject,
-    stash_apply, stash_drop, get_stash_history, get_tags_history,
+    branch_exists,
+    commit_exists,
+    get_commit_subject,
+    get_current_branch,
+    get_merge_base,
+    get_stash_history,
+    get_tags_history,
+    normalize_branch_ref,
+    stash_apply,
+    stash_drop,
 )
 from lib.dialogs import (
-    BrowseBranchDialog, BrowseCommitLogDialog, BrowseFileLogDialog,
     BlameFileDialog,
-    MergeBaseDialog, MergeBaseResultDialog, StashNoticeDialog,
+    BrowseBranchDialog,
+    BrowseCommitLogDialog,
+    BrowseFileLogDialog,
+    MergeBaseDialog,
+    MergeBaseResultDialog,
     OpenFileAtRefDialog,
+    StashNoticeDialog,
 )
 
 # Lazy import to avoid circular dependency - GitInteractiveRebaseApp
@@ -565,7 +581,11 @@ class BrowseMixin:
     def handle_diff_file_at_ref(self, filepath, current_sha):
         """Diff a file against a different version using difftool."""
         from lib.dialogs.history_branch_dialogs import DiffFileAtRefDialog
-        from lib.git_helpers import get_head_sha, run_configured_difftool, run_difftool_direct
+        from lib.git_helpers import (
+            get_head_sha,
+            run_configured_difftool,
+            run_difftool_direct,
+        )
         head_sha = get_head_sha(self.repo_path)
         dialog = DiffFileAtRefDialog(self.repo_path, filepath, current_sha, head_sha, parent=self)
         if dialog.exec() != QDialog.Accepted:

@@ -3,13 +3,21 @@ import subprocess
 import tempfile
 import time
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QMessageBox, QDialog
+from PySide6.QtWidgets import (
+    QApplication,
+    QDialog,
+    QMessageBox,
+)
 from lib.git_helpers import (
-    get_commit_files, get_full_commit_message,
+    get_commit_files,
+    get_full_commit_message,
 )
 from lib.dialogs import ProgressDialog
 from lib.app_window.workers import SplitWorker
-from lib.app_window.helpers import _script_command, _safe_unlink
+from lib.app_window.helpers import (
+    _safe_unlink,
+    _script_command,
+)
 
 
 class SplitBulkMixin:

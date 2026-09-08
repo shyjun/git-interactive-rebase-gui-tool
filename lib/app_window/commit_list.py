@@ -1,5 +1,11 @@
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtWidgets import QListWidget, QMessageBox
+from PySide6.QtCore import (
+    Qt,
+    QTimer,
+)
+from PySide6.QtWidgets import (
+    QListWidget,
+    QMessageBox,
+)
 
 
 class CommitListWidget(QListWidget):

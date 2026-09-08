@@ -1,7 +1,17 @@
 import subprocess
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QMessageBox, QInputDialog, QDialog
-from lib.git_helpers import get_current_branch, branch_exists, get_full_head_sha, rebase_in_progress
+from PySide6.QtWidgets import (
+    QApplication,
+    QDialog,
+    QInputDialog,
+    QMessageBox,
+)
+from lib.git_helpers import (
+    branch_exists,
+    get_current_branch,
+    get_full_head_sha,
+    rebase_in_progress,
+)
 from lib.dialogs import ProgressDialog
 from lib.app_window.workers import GitWorker
 

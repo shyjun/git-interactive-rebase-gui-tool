@@ -1,5 +1,8 @@
 import subprocess
-from PySide6.QtCore import QThread, Signal
+from PySide6.QtCore import (
+    QThread,
+    Signal,
+)
 from lib.git_helpers import perform_self_update
 
 

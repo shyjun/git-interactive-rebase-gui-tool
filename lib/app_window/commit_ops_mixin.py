@@ -2,15 +2,28 @@ import os
 import re
 import subprocess
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QMessageBox, QInputDialog, QDialog, QFileDialog
+from PySide6.QtWidgets import (
+    QApplication,
+    QDialog,
+    QFileDialog,
+    QInputDialog,
+    QMessageBox,
+)
 from lib.git_helpers import (
-    get_full_commit_message, get_revert_commit_message,
-    get_commit_subject, resolve_ref, get_commit_files_with_status,
     apply_patch_file,
+    get_commit_files_with_status,
+    get_commit_subject,
+    get_full_commit_message,
+    get_revert_commit_message,
+    resolve_ref,
 )
 from lib.dialogs import (
-    RephraseDialog, RevertCommitDialog, SingleCommitViewDialog,
-    ApplyPatchDialog, ProgressDialog, TagCommitDialog,
+    ApplyPatchDialog,
+    ProgressDialog,
+    RephraseDialog,
+    RevertCommitDialog,
+    SingleCommitViewDialog,
+    TagCommitDialog,
 )
 from lib.app_window.help_dialog import HelpDialog
 

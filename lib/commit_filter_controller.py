@@ -2,8 +2,20 @@ import re
 import subprocess
 import threading
 
-from PySide6.QtCore import QMetaObject, QObject, Qt, QTimer, Slot
-from PySide6.QtWidgets import QCheckBox, QLabel, QLineEdit, QListWidget, QWidget
+from PySide6.QtCore import (
+    QMetaObject,
+    QObject,
+    Qt,
+    QTimer,
+    Slot,
+)
+from PySide6.QtWidgets import (
+    QCheckBox,
+    QLabel,
+    QLineEdit,
+    QListWidget,
+    QWidget,
+)
 
 
 class CommitFilterController(QObject):

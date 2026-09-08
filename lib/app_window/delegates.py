@@ -1,7 +1,19 @@
-from PySide6.QtCore import Qt, QRect
-from PySide6.QtGui import QFont, QColor, QPainter, QPen, QPainterPath
+from PySide6.QtCore import (
+    QRect,
+    Qt,
+)
+from PySide6.QtGui import (
+    QColor,
+    QFont,
+    QPainter,
+    QPainterPath,
+    QPen,
+)
 from PySide6.QtWidgets import (
-    QApplication, QStyledItemDelegate, QStyle, QStyleOptionViewItem,
+    QApplication,
+    QStyle,
+    QStyledItemDelegate,
+    QStyleOptionViewItem,
 )
 from lib.app_window.helpers import MATCH_ROLE
 

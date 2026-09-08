@@ -3,19 +3,30 @@ import subprocess
 import tempfile
 import time
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QMessageBox, QDialog
+from PySide6.QtWidgets import (
+    QApplication,
+    QDialog,
+    QMessageBox,
+)
 from lib.git_helpers import (
-    get_commit_files, get_file_diff_only_in_commit,
+    get_commit_files,
+    get_file_diff_only_in_commit,
     get_full_commit_message,
 )
 from lib.dialogs import (
-    SplitCommitDialog, DropFileFromCommitDialog,
-    ConfirmDropFileDialog, ConfirmMoveFileDialog,
-    ConfirmRemoveFileOnwardsDialog, AggressiveRemoveConfirmationDialog,
+    AggressiveRemoveConfirmationDialog,
+    ConfirmDropFileDialog,
+    ConfirmMoveFileDialog,
+    ConfirmRemoveFileOnwardsDialog,
+    DropFileFromCommitDialog,
     ProgressDialog,
+    SplitCommitDialog,
 )
 from lib.app_window.workers import SplitWorker
-from lib.app_window.helpers import _script_command, _safe_unlink
+from lib.app_window.helpers import (
+    _safe_unlink,
+    _script_command,
+)
 
 
 class SplitFileMixin:

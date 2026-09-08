@@ -3,20 +3,30 @@ import subprocess
 import tempfile
 import time
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QMessageBox, QDialog
+from PySide6.QtWidgets import (
+    QApplication,
+    QDialog,
+    QMessageBox,
+)
 from lib.git_helpers import (
-    get_commit_files, get_file_diff_only_in_commit,
+    get_commit_files,
+    get_file_diff_only_in_commit,
     get_full_commit_message,
 )
 from lib.dialogs import (
-    RefineFileSelectDialog, RefineChangesDialog,
-    NewCommitMessageDialog, ProgressDialog,
+    NewCommitMessageDialog,
+    ProgressDialog,
+    RefineChangesDialog,
+    RefineFileSelectDialog,
 )
-from lib.app_window.helpers import _script_command, _safe_unlink
+from lib.app_window.helpers import (
+    _safe_unlink,
+    _script_command,
+)
 from lib.app_window.split_utils import (
     parse_hunks as _parse_hunks,
-    rebuild_patch as _rebuild_patch,
     patch_has_changes as _patch_has_changes,
+    rebuild_patch as _rebuild_patch,
 )
 
 

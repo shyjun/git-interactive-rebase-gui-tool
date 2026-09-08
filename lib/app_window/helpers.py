@@ -5,9 +5,20 @@ import subprocess
 import sys
 import tempfile
 import re
-from PySide6.QtCore import Qt, QTimer, QUrl
-from PySide6.QtGui import QColor, QDesktopServices
-from PySide6.QtWidgets import QApplication, QMessageBox, QMenu
+from PySide6.QtCore import (
+    Qt,
+    QTimer,
+    QUrl,
+)
+from PySide6.QtGui import (
+    QColor,
+    QDesktopServices,
+)
+from PySide6.QtWidgets import (
+    QApplication,
+    QMenu,
+    QMessageBox,
+)
 from PySide6.QtGui import QAction
 
 import atexit

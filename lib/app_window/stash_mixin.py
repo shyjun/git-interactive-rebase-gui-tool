@@ -1,20 +1,40 @@
 import os
 import subprocess
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QMessageBox, QDialog
+from PySide6.QtWidgets import (
+    QApplication,
+    QDialog,
+    QMessageBox,
+)
 from lib.git_helpers import (
-    get_stash_status, get_stash_subject, stash_pop_can_apply,
-    stash_pop, merge_into_stash, get_unstaged_files, get_untracked_files,
-    get_unstaged_file_diff, get_unstaged_file_stats,
-    stage_files, commit_staged, amend_staged, apply_patch_to_index,
-    get_full_commit_message, get_staged_files,
+    amend_staged,
+    apply_patch_to_index,
+    commit_staged,
+    get_full_commit_message,
+    get_staged_files,
+    get_stash_status,
+    get_stash_subject,
+    get_unstaged_file_diff,
+    get_unstaged_file_stats,
+    get_unstaged_files,
+    get_untracked_files,
+    merge_into_stash,
+    stage_files,
+    stash_pop,
+    stash_pop_can_apply,
 )
 from lib.dialogs import (
-    StashNoticeDialog, CommitSelectivelyDialog, SelectiveHunkDialog,
-    NewCommitMessageDialog, ProgressDialog,
+    CommitSelectivelyDialog,
+    NewCommitMessageDialog,
+    ProgressDialog,
+    SelectiveHunkDialog,
+    StashNoticeDialog,
 )
 from lib.app_window.helpers import highlight_button_temporarily
-from lib.app_window.split_utils import parse_hunks as _parse_hunks, rebuild_patch as _rebuild_patch
+from lib.app_window.split_utils import (
+    parse_hunks as _parse_hunks,
+    rebuild_patch as _rebuild_patch,
+)
 
 
 class StashMixin:
@@ -430,7 +450,10 @@ class StashMixin:
 
     def handle_commit_staged_selectively(self, staged=None):
         """Open dialog to commit staged files selectively."""
-        from lib.git_helpers.status import get_staged_files, unstage_files
+        from lib.git_helpers.status import (
+            get_staged_files,
+            unstage_files,
+        )
         from lib.git_helpers import get_staged_file_stats
         if staged is None:
             staged = get_staged_files(self.repo_path)
@@ -462,7 +485,10 @@ class StashMixin:
 
         from lib.dialogs.commit_message_dialogs import NewCommitMessageDialog
         if result == CommitStagedSelectivelyDialog.AmendSelectedResult:
-            from lib.git_helpers import get_head_sha, get_full_commit_message
+            from lib.git_helpers import (
+                get_full_commit_message,
+                get_head_sha,
+            )
             head_sha = get_head_sha(self.repo_path)
             default_msg = get_full_commit_message(self.repo_path, head_sha) if head_sha else ""
             msg_dlg = NewCommitMessageDialog(
@@ -574,7 +600,12 @@ class StashMixin:
         if not staged:
             QMessageBox.information(self, "No Staged Changes", "There are no staged changes to view.")
             return
-        from lib.git_helpers import get_staged_diff, get_staged_file_stats, get_current_branch, get_full_head_sha
+        from lib.git_helpers import (
+            get_current_branch,
+            get_full_head_sha,
+            get_staged_diff,
+            get_staged_file_stats,
+        )
         diff = get_staged_diff(self.repo_path)
         if not diff.strip():
             QMessageBox.information(self, "No Diff", "No staged changes to display.")
@@ -620,7 +651,10 @@ class StashMixin:
         if not staged:
             QMessageBox.information(self, "No Staged Changes", "There are no staged changes to amend.")
             return
-        from lib.git_helpers import get_head_sha, get_full_commit_message
+        from lib.git_helpers import (
+            get_full_commit_message,
+            get_head_sha,
+        )
         head_sha = get_head_sha(self.repo_path)
         default_msg = get_full_commit_message(self.repo_path, head_sha) if head_sha else ""
         from lib.dialogs.commit_message_dialogs import NewCommitMessageDialog
@@ -646,7 +680,10 @@ class StashMixin:
 
     def handle_stash_staged(self):
         """Stash all changes (staged and unstaged)."""
-        from lib.git_helpers import stash_changes, STASH_NOTHING_STASHED
+        from lib.git_helpers import (
+            stash_changes,
+            STASH_NOTHING_STASHED,
+        )
         stash_sha, err = stash_changes(self.repo_path, message=None)
         if stash_sha is None:
             QMessageBox.critical(self, "Stash Failed", f"Failed to stash changes:\n{err}")

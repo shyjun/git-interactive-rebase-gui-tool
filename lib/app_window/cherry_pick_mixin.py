@@ -1,11 +1,22 @@
 import re
 import subprocess
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtWidgets import QApplication, QMessageBox, QDialog
+from PySide6.QtCore import (
+    Qt,
+    QTimer,
+)
+from PySide6.QtWidgets import (
+    QApplication,
+    QDialog,
+    QMessageBox,
+)
 from lib.git_helpers import (
-    get_current_branch, get_full_head_sha, get_commit_subject,
-    has_uncommitted_changes, normalize_branch_ref,
-    cherry_pick_in_progress, classify_cherry_pick_failure,
+    cherry_pick_in_progress,
+    classify_cherry_pick_failure,
+    get_commit_subject,
+    get_current_branch,
+    get_full_head_sha,
+    has_uncommitted_changes,
+    normalize_branch_ref,
     rebase_in_progress,
 )
 from lib.dialogs import CherryPickDialog

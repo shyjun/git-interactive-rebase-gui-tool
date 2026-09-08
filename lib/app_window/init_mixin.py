@@ -2,13 +2,23 @@ import os
 import subprocess
 import time
 
-from PySide6.QtCore import Qt, QSettings, QTimer
+from PySide6.QtCore import (
+    QSettings,
+    Qt,
+    QTimer,
+)
 from PySide6.QtGui import QFont
-from PySide6.QtWidgets import QMainWindow, QMessageBox
+from PySide6.QtWidgets import (
+    QMainWindow,
+    QMessageBox,
+)
 
 from lib.git_helpers import (
-    get_full_head_sha, get_head_sha, get_current_branch,
-    has_uncommitted_changes, _is_git_install,
+    _is_git_install,
+    get_current_branch,
+    get_full_head_sha,
+    get_head_sha,
+    has_uncommitted_changes,
 )
 from lib.widgets import BrowseDimOverlay
 from lib.app_window.helpers import highlight_button_temporarily

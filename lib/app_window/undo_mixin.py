@@ -1,5 +1,9 @@
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QMessageBox, QDialog
+from PySide6.QtWidgets import (
+    QApplication,
+    QDialog,
+    QMessageBox,
+)
 from lib.git_helpers import get_full_head_sha
 from lib.dialogs import ProgressDialog
 from lib.app_window.workers import GitWorker
@@ -75,7 +79,11 @@ class UndoMixin:
         focus = self.focusWidget()
         if focus is None:
             return True
-        from PySide6.QtWidgets import QLineEdit, QTextEdit, QPlainTextEdit
+        from PySide6.QtWidgets import (
+            QLineEdit,
+            QPlainTextEdit,
+            QTextEdit,
+        )
         return not isinstance(focus, (QLineEdit, QTextEdit, QPlainTextEdit))
 
     def handle_undo(self):

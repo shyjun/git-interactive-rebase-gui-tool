@@ -2,14 +2,26 @@ import os
 import re
 import subprocess
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QMessageBox, QFileDialog, QDialog
+from PySide6.QtWidgets import (
+    QApplication,
+    QDialog,
+    QFileDialog,
+    QMessageBox,
+)
 from lib.git_helpers import (
-    get_full_commit_message, get_commit_files, get_commit_diff,
-    get_commit_subject, resolve_ref, rebase_in_progress,
+    get_commit_diff,
+    get_commit_files,
+    get_commit_subject,
+    get_full_commit_message,
+    rebase_in_progress,
+    resolve_ref,
 )
 from lib.dialogs import (
-    SquashDialog, MultiSquashDialog, DropDialog, SplitCommitDialog,
+    DropDialog,
+    MultiSquashDialog,
     ProgressDialog,
+    SplitCommitDialog,
+    SquashDialog,
 )
 from lib.app_window.workers import SplitWorker
 

@@ -1,6 +1,19 @@
 import math
-from PySide6.QtCore import Qt, QSize, QPoint
-from PySide6.QtGui import QColor, QPainter, QPixmap, QPen, QPainterPath, QBrush, QPalette, QIcon
+from PySide6.QtCore import (
+    QPoint,
+    QSize,
+    Qt,
+)
+from PySide6.QtGui import (
+    QBrush,
+    QColor,
+    QIcon,
+    QPainter,
+    QPainterPath,
+    QPalette,
+    QPen,
+    QPixmap,
+)
 
 
 class ToolbarMixin:

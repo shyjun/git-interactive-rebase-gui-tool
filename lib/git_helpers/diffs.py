@@ -3,7 +3,10 @@ import re
 import subprocess
 import platform
 
-from .core import _git_capture, _pad_diff_separators
+from .core import (
+    _git_capture,
+    _pad_diff_separators,
+)
 
 
 def _popen_no_window(cmd, cwd):

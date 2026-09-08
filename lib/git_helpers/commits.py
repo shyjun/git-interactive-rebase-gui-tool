@@ -1,7 +1,10 @@
 import re
 import subprocess
 
-from .core import _git_capture, _pad_diff_separators
+from .core import (
+    _git_capture,
+    _pad_diff_separators,
+)
 
 
 def format_tree_node_stats(node):

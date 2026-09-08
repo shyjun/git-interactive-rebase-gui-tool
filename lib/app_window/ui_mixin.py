@@ -1,24 +1,68 @@
-from PySide6.QtCore import Qt, QTimer, QPoint, QEvent, QObject
-from PySide6.QtGui import QFont, QAction, QKeySequence, QShortcut
+from PySide6.QtCore import (
+    QEvent,
+    QObject,
+    QPoint,
+    Qt,
+    QTimer,
+)
+from PySide6.QtGui import (
+    QAction,
+    QFont,
+    QKeySequence,
+    QShortcut,
+)
 from PySide6.QtWidgets import (
-    QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QLineEdit, QSplitter, QCheckBox, QToolButton, QMenu,
-    QWidgetAction, QRadioButton, QGroupBox, QSizePolicy,
-    QStatusBar, QListWidget, QListWidgetItem, QTabWidget, QTabBar,
-    QTextEdit, QPushButton,
-    QMessageBox, QTreeWidget, QTreeWidgetItem, QHeaderView,
+    QApplication,
+    QCheckBox,
+    QGroupBox,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
+    QLineEdit,
+    QListWidget,
+    QListWidgetItem,
+    QMenu,
+    QMessageBox,
+    QPushButton,
+    QRadioButton,
+    QSizePolicy,
+    QSplitter,
+    QStatusBar,
+    QTabBar,
+    QTabWidget,
+    QTextEdit,
+    QToolButton,
+    QTreeWidget,
+    QTreeWidgetItem,
+    QVBoxLayout,
+    QWidget,
+    QWidgetAction,
 )
 from lib.app_window.commit_list import CommitListWidget
-from lib.dialogs.diff_dialogs import CollapsibleCommitHeader, CollapsibleSplitterFilter
+from lib.dialogs.diff_dialogs import (
+    CollapsibleCommitHeader,
+    CollapsibleSplitterFilter,
+)
 from lib.app_window.delegates import CommitItemDelegate
-from lib.app_window.helpers import MATCH_ROLE, _diff_search_matches
+from lib.app_window.helpers import (
+    _diff_search_matches,
+    MATCH_ROLE,
+)
 from lib.widgets import (
-    DiffView, DiffSearchBar, DiffHighlighter, StatsItemDelegate, TreeStatsDelegate,
-    FILE_ENTRY_ROLE, BrowseDimOverlay,
+    BrowseDimOverlay,
+    DiffHighlighter,
+    DiffSearchBar,
+    DiffView,
+    FILE_ENTRY_ROLE,
+    StatsItemDelegate,
+    TreeStatsDelegate,
 )
 from lib.git_helpers import (
-    get_commit_files_with_status, get_commit_diff, get_commit_metadata_and_message,
-    get_file_diff_only_in_commit, get_commit_file_stats,
+    get_commit_diff,
+    get_commit_file_stats,
+    get_commit_files_with_status,
+    get_commit_metadata_and_message,
+    get_file_diff_only_in_commit,
 )
 
 

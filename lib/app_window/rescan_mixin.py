@@ -1,21 +1,51 @@
 import subprocess
 import threading
 from datetime import datetime
-from PySide6.QtCore import Qt, QTimer, Slot, Q_ARG, QMetaObject
-from PySide6.QtWidgets import QApplication, QMessageBox, QListWidgetItem, QInputDialog, QDialog
+from PySide6.QtCore import (
+    Q_ARG,
+    QMetaObject,
+    Qt,
+    QTimer,
+    Slot,
+)
+from PySide6.QtWidgets import (
+    QApplication,
+    QDialog,
+    QInputDialog,
+    QListWidgetItem,
+    QMessageBox,
+)
 from lib.git_helpers import (
-    get_git_history, get_git_history_fast, get_commit_stats,
-    get_branch_history, get_file_history,
-    get_reflog_history, get_stash_history, get_tags_history,
-    get_head_sha, get_full_head_sha, get_current_branch,
+    amend_with_head,
+    bulk_commit_all,
+    commit_file,
+    discard_changes,
+    get_branch_history,
+    get_commit_stats,
+    get_current_branch,
+    get_diff_between,
+    get_file_history,
+    get_file_stats_between,
+    get_files_between,
+    get_full_head_sha,
+    get_git_history,
+    get_git_history_fast,
+    get_head_sha,
     get_local_branches_map,
-    has_uncommitted_changes, stash_changes, STASH_NOTHING_STASHED,
-    commit_file, bulk_commit_all, amend_with_head, discard_changes,
-    get_unstaged_files, get_diff_between, get_files_between,
-    get_file_stats_between, get_merge_base, resolve_ref,
+    get_merge_base,
+    get_reflog_history,
+    get_stash_history,
+    get_tags_history,
+    get_unstaged_files,
+    has_uncommitted_changes,
+    resolve_ref,
+    stash_changes,
+    STASH_NOTHING_STASHED,
 )
 from lib.dialogs import (
-    UnstagedChangesDialog, BranchDiffDialog, ProgressDialog,
+    BranchDiffDialog,
+    ProgressDialog,
+    UnstagedChangesDialog,
 )
 from lib.commit_filter_controller import CommitFilterController
 from lib.app_window.helpers import PR_DIFF_SIZE_WARN_THRESHOLD
@@ -512,7 +542,11 @@ class RescanMixin:
                 base_sha, branch_name = get_branch_base_info(repo_path)
                 if not base_sha:
                     print("[detect_base] No base detected, keeping fallback range")
-                    from PySide6.QtCore import QMetaObject, Qt, Q_ARG
+                    from PySide6.QtCore import (
+                        Q_ARG,
+                        QMetaObject,
+                        Qt,
+                    )
                     QMetaObject.invokeMethod(
                         self, "_apply_detected_base",
                         Qt.QueuedConnection,
@@ -527,7 +561,11 @@ class RescanMixin:
                 ).strip()
                 count = int(count_out)
                 print(f"[detect_base] Detected base: {base_sha[:8]} (branch={branch_name}, {count} commits)")
-                from PySide6.QtCore import QMetaObject, Qt, Q_ARG
+                from PySide6.QtCore import (
+                    Q_ARG,
+                    QMetaObject,
+                    Qt,
+                )
                 QMetaObject.invokeMethod(
                     self, "_apply_detected_base",
                     Qt.QueuedConnection,
@@ -558,7 +596,10 @@ class RescanMixin:
 
     def load_more(self):
         """Load 100 more commits by extending the base further back in history."""
-        from lib.git_helpers import get_recent_history_start, get_root_commit
+        from lib.git_helpers import (
+            get_recent_history_start,
+            get_root_commit,
+        )
         # Count actual commits (exclude the load-more item itself)
         current_count = self.list_widget.count()
         for i in range(self.list_widget.count()):
@@ -655,14 +696,22 @@ class RescanMixin:
                 ).strip()
                 if stash:
                     total = str(len([l for l in total.split('\n') if l.strip()]))
-                from PySide6.QtCore import QMetaObject, Qt, Q_ARG
+                from PySide6.QtCore import (
+                    Q_ARG,
+                    QMetaObject,
+                    Qt,
+                )
                 QMetaObject.invokeMethod(
                     self, "_set_total_commit_count",
                     Qt.QueuedConnection,
                     Q_ARG(str, total)
                 )
             except Exception:
-                from PySide6.QtCore import QMetaObject, Qt, Q_ARG
+                from PySide6.QtCore import (
+                    Q_ARG,
+                    QMetaObject,
+                    Qt,
+                )
                 QMetaObject.invokeMethod(
                     self, "_set_total_commit_count",
                     Qt.QueuedConnection,

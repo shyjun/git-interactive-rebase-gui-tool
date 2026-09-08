@@ -1,14 +1,30 @@
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import (
+    Qt,
+    QTimer,
+)
 from PySide6.QtGui import QAction
-from PySide6.QtWidgets import QApplication, QListWidgetItem, QMessageBox, QMenu, QTreeWidgetItem
+from PySide6.QtWidgets import (
+    QApplication,
+    QListWidgetItem,
+    QMenu,
+    QMessageBox,
+    QTreeWidgetItem,
+)
 import os
 from lib.git_helpers import (
-    get_commit_metadata_and_message, get_commit_diff,
-    get_file_diff_only_in_commit, get_commit_files_with_status,
-    get_commit_file_stats, get_rename_diff_in_commit, build_file_tree,
+    build_file_tree,
+    get_commit_diff,
+    get_commit_file_stats,
+    get_commit_files_with_status,
+    get_commit_metadata_and_message,
+    get_file_diff_only_in_commit,
+    get_rename_diff_in_commit,
 )
 from lib.widgets import FILE_ENTRY_ROLE
-from lib.tree_utils import set_tree_children_checked, update_folder_check_state
+from lib.tree_utils import (
+    set_tree_children_checked,
+    update_folder_check_state,
+)
 from lib.dialogs import open_blame_window
 from lib.app_window.helpers import add_open_with_system_default_action
 

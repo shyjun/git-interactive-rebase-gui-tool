@@ -1,6 +1,10 @@
 import subprocess
 
-from .core import _parse_combined_log, _parse_reflog_records, _parse_stash_records
+from .core import (
+    _parse_combined_log,
+    _parse_reflog_records,
+    _parse_stash_records,
+)
 
 
 def get_git_history(repo_path, start_sha, end_sha, limit=None):

@@ -2,20 +2,20 @@
 # pyrefly: ignore [missing-import]
 from PySide6.QtWidgets import (
     QApplication,
-    QMainWindow,
-    QListWidget,
-    QVBoxLayout,
-    QWidget,
-    QMessageBox,
-    QListWidgetItem,
-    QMenu,
+    QCheckBox,
     QDialog,
-    QTextEdit,
-    QPushButton,
     QHBoxLayout,
     QLabel,
+    QListWidget,
+    QListWidgetItem,
+    QMainWindow,
+    QMenu,
+    QMessageBox,
+    QPushButton,
     QSplitter,
-    QCheckBox,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
 )
 # pyrefly: ignore [missing-import]
 from PySide6.QtCore import (
@@ -24,16 +24,16 @@ from PySide6.QtCore import (
 )
 # pyrefly: ignore [missing-import]
 from PySide6.QtGui import (
-    QFont,
     QAction,
-    QShortcut,
+    QFont,
     QKeySequence,
+    QShortcut,
 )
 
 from lib.git_helpers import (
-    get_file_diff_only_in_commit,
-    get_commit_metadata_and_message,
     get_commit_file_stats,
+    get_commit_metadata_and_message,
+    get_file_diff_only_in_commit,
 )
 from lib.widgets import (
     DiffHighlighter,
@@ -43,7 +43,11 @@ from lib.widgets import (
 )
 from .hunk_file_dialogs import open_blame_window
 from .diff_viewer_dialog import DiffViewerDialog
-from lib.app_window.helpers import add_open_with_system_default_action, is_editable_branch, _get_head_sha
+from lib.app_window.helpers import (
+    _get_head_sha,
+    add_open_with_system_default_action,
+    is_editable_branch,
+)
 
 
 class SplitCommitDialog(QDialog):

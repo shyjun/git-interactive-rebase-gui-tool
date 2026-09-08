@@ -4,9 +4,16 @@ import subprocess
 import tempfile
 import time
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QMessageBox
+from PySide6.QtWidgets import (
+    QApplication,
+    QMessageBox,
+)
 from lib.dialogs import ProgressDialog
-from lib.app_window.helpers import _script_command, _safe_unlink, _posix_path
+from lib.app_window.helpers import (
+    _posix_path,
+    _safe_unlink,
+    _script_command,
+)
 
 
 class RebaseMixin:

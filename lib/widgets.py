@@ -1,4 +1,9 @@
-from PySide6.QtCore import QEvent, QRect, QSize, Qt
+from PySide6.QtCore import (
+    QEvent,
+    QRect,
+    QSize,
+    Qt,
+)
 from PySide6.QtGui import (
     QColor,
     QFontMetrics,
@@ -438,7 +443,10 @@ class StatsItemDelegate(QStyledItemDelegate):
 
     def paint(self, painter, option, index):
         # pyrefly: ignore [missing-import]
-        from PySide6.QtWidgets import QStyleOptionViewItem, QApplication
+        from PySide6.QtWidgets import (
+            QApplication,
+            QStyleOptionViewItem,
+        )
         # pyrefly: ignore [missing-import]
         from PySide6.QtWidgets import QStyle as _QStyle
         # Step 1: Build a full style option (needed for correct highlight colour)
@@ -538,7 +546,10 @@ class TreeStatsDelegate(QStyledItemDelegate):
         self.removed_color = QColor(removed_color)
 
     def paint(self, painter, option, index):
-        from PySide6.QtWidgets import QStyleOptionViewItem, QApplication
+        from PySide6.QtWidgets import (
+            QApplication,
+            QStyleOptionViewItem,
+        )
         from PySide6.QtWidgets import QStyle as _QStyle
 
         opt = QStyleOptionViewItem(option)

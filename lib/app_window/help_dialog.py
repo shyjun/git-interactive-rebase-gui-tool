@@ -1,9 +1,20 @@
 import os
 import webbrowser
-from PySide6.QtCore import Qt, QRect
-from PySide6.QtGui import QPixmap, QPainter
+from PySide6.QtCore import (
+    QRect,
+    Qt,
+)
+from PySide6.QtGui import (
+    QPainter,
+    QPixmap,
+)
 from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QApplication, QMessageBox,
+    QApplication,
+    QDialog,
+    QHBoxLayout,
+    QMessageBox,
+    QPushButton,
+    QVBoxLayout,
 )
 
 
