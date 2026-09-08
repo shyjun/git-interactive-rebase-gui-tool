@@ -150,7 +150,28 @@ class CommitListWidget(QListWidget):
             event.ignore()
             return
 
-        original_shas = [self.item(i).text().split()[0] for i in range(count)]
+        # Build SHA map and identify affected range BEFORE the visual reorder.
+        # Only the block + displaced commits need rebasing — not all 420.
+        sha_map = {}
+        for i in range(count):
+            item = self.item(i)
+            if item.data(Qt.UserRole + 9) != "load_more":
+                sha_map[i] = item.text().split()[0]
+
+        affected_start = min(start, insert_pos)
+        affected_end = max(end, insert_pos + block_len - 1)
+
+        # Original SHAs for affected range (newest-first, same as list order)
+        original_affected = [sha_map[i] for i in range(affected_start, affected_end + 1) if i in sha_map]
+
+        # Upstream: first unaffected commit AFTER the affected range (= parent of oldest affected commit)
+        upstream = None
+        for i in range(affected_end + 1, count):
+            if i in sha_map:
+                upstream = sha_map[i]
+                break
+        if upstream is None:
+            upstream = self.commit_sha
 
         # Do the visual reorder synchronously so the user sees it immediately.
         items = [self.takeItem(0) for _ in range(count)]
@@ -159,15 +180,16 @@ class CommitListWidget(QListWidget):
             self.addItem(items[idx])
         self.blockSignals(False)
 
-        new_shas = [self.item(i).text().split()[0] for i in range(count)]
+        # Compute the new order of affected SHAs after the visual reorder.
+        new_affected = [sha_map[idx] for idx in new_order if affected_start <= idx <= affected_end and idx in sha_map]
 
         # Defer perform_move + cleanup to the next event loop iteration.
         # Calling perform_move / load_history inside dropEvent prevents Qt
         # from repainting the viewport — the data is correct but the user
         # sees stale items until they press Refresh.
-        def _deferred(new_s, orig_s):
-            self.main_window.perform_move(new_s, orig_s)
+        def _deferred(new_s, orig_s, upstream_sha):
+            self.main_window.perform_move(new_s, orig_s, upstream_override=upstream_sha)
             self.main_window.exit_multi_select_mode()
 
-        QTimer.singleShot(0, lambda: _deferred(new_shas, original_shas))
+        QTimer.singleShot(0, lambda: _deferred(new_affected, original_affected, upstream))
         event.accept()

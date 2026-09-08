@@ -12,7 +12,7 @@ from lib.app_window.helpers import _script_command, _safe_unlink, _posix_path
 class RebaseMixin:
     """Interactive rebase and commit move operations."""
 
-    def perform_move(self, new_shas, original_shas=None):
+    def perform_move(self, new_shas, original_shas=None, upstream_override=None):
         """Performs commit reordering using our unified rebase logic."""
         if not self._check_not_viewer_mode():
             return
@@ -22,7 +22,8 @@ class RebaseMixin:
             return
         old_head = self.get_head_sha()
         print(f"[rebase] Commit reorder: {len(new_shas)} commits")
-        if self.run_interactive_rebase(new_shas, original_shas=original_shas, progress_title="Moving Commits", progress_text="Reordering commits. Please wait..."):
+        result = self.run_interactive_rebase(new_shas, original_shas=original_shas, upstream_override=upstream_override, progress_title="Moving Commits", progress_text="Reordering commits. Please wait...")
+        if result:
             self.load_history()
             new_head = self.get_head_sha()
             self.log_action("N/A", "reordered commits", old_head, new_head)
@@ -30,65 +31,77 @@ class RebaseMixin:
             return
         self.load_history()
 
-    def run_interactive_rebase(self, new_shas, rephrase_map=None, squash_shas=None, original_shas=None, progress_title="Rebasing", progress_text="Executing interactive rebase. Please wait...\nThis might take a few moments.", suppress_failure_box=False, progress_dialog=None):
+    def run_interactive_rebase(self, new_shas, rephrase_map=None, squash_shas=None, original_shas=None, upstream_override=None, progress_title="Rebasing", progress_text="Executing interactive rebase. Please wait...\nThis might take a few moments.", suppress_failure_box=False, progress_dialog=None):
         """
         Unified handler for history rewriting using git rebase -i.
         original_shas: The pre-change SHA order (latest-first). If provided, used
                        for prefix comparison instead of reading list_widget (which
                        may already show the new order after a drag-drop).
+        upstream_override: If provided, skip common-prefix detection and rebase
+                           these SHAs onto this upstream directly.
         """
         self.save_undo_state()
         print("Starting interactive rebase...")
         try:
-            # 1. Determine common prefix to minimize work
-            # Use the explicitly passed original order when available (e.g., after a drag)
-            if original_shas is not None:
-                display_shas = original_shas
+            # If upstream is pre-computed (e.g. multi-drag with affected-only SHAs),
+            # skip common-prefix detection entirely and rebase the provided SHAs
+            # directly onto the given upstream.
+            if upstream_override is not None:
+                # Pre-computed upstream (e.g. multi-drag with affected-only SHAs).
+                # Skip common-prefix detection and rebase the provided SHAs directly.
+                upstream = upstream_override
+                todo_shas = list(reversed(new_shas))
+                common_count = 0
             else:
-                display_shas = [self.list_widget.item(i).text().split()[0] for i in range(self.list_widget.count())]
-            old_order = list(reversed(display_shas))
-            proposed_order = list(reversed(new_shas))
-
-            common_count = 0
-            for old, new in zip(old_order, proposed_order):
-                # A commit is only "common" if it's the same SHA AND not being modified
-                if old == new and (not rephrase_map or old not in rephrase_map) and (not squash_shas or old not in squash_shas):
-                    common_count += 1
+                # 1. Determine common prefix to minimize work
+                # Use the explicitly passed original order when available (e.g., after a drag)
+                if original_shas is not None:
+                    display_shas = original_shas
                 else:
-                    break
+                    display_shas = [self.list_widget.item(i).text().split()[0] for i in range(self.list_widget.count())]
+                old_order = list(reversed(display_shas))
+                proposed_order = list(reversed(new_shas))
 
-            # Determine upstream and suffix to re-process
-            if common_count > 0:
-                upstream = old_order[common_count - 1]
-                todo_shas = proposed_order[common_count:]
-
-                # SQUASH FIX: If the first commit to reprocess is a squash,
-                # we MUST include at least one commit before it (the pick target)
-                if todo_shas and squash_shas and todo_shas[0] in squash_shas:
-                    if common_count > 1:
-                        common_count -= 1
-                        upstream = old_order[common_count - 1]
-                        todo_shas = proposed_order[common_count:]
+                common_count = 0
+                for old, new in zip(old_order, proposed_order):
+                    # A commit is only "common" if it's the same SHA AND not being modified
+                    if old == new and (not rephrase_map or old not in rephrase_map) and (not squash_shas or old not in squash_shas):
+                        common_count += 1
                     else:
-                        # We are squashing into the very first commit of our visible range
-                        common_count = 0 # Fall back to full rebase logic below
+                        break
 
-            if common_count == 0:
-                # Check root status (self.commit_sha is the branch base / the last commit NOT shown)
-                # We use self.commit_sha directly as upstream, NOT self.commit_sha^.
-                # self.commit_sha is already the parent of the first local commit, so only
-                # local commits fall in the rebase range. Using self.commit_sha^ would pull
-                # the branch-base commit into the rebase range, causing it to be dropped or
-                # squashed because it doesn't appear in the todo list.
-                has_parent = False
-                try:
-                    subprocess.run(["git", "rev-parse", f"{self.commit_sha}^"],
-                                   cwd=self.repo_path, check=True, capture_output=True)
-                    has_parent = True
-                except:
+                # Determine upstream and suffix to re-process
+                if common_count > 0:
+                    upstream = old_order[common_count - 1]
+                    todo_shas = proposed_order[common_count:]
+
+                    # SQUASH FIX: If the first commit to reprocess is a squash,
+                    # we MUST include at least one commit before it (the pick target)
+                    if todo_shas and squash_shas and todo_shas[0] in squash_shas:
+                        if common_count > 1:
+                            common_count -= 1
+                            upstream = old_order[common_count - 1]
+                            todo_shas = proposed_order[common_count:]
+                        else:
+                            # We are squashing into the very first commit of our visible range
+                            common_count = 0 # Fall back to full rebase logic below
+
+                if common_count == 0:
+                    # Check root status (self.commit_sha is the branch base / the last commit NOT shown)
+                    # We use self.commit_sha directly as upstream, NOT self.commit_sha^.
+                    # self.commit_sha is already the parent of the first local commit, so only
+                    # local commits fall in the rebase range. Using self.commit_sha^ would pull
+                    # the branch-base commit into the rebase range, causing it to be dropped or
+                    # squashed because it doesn't appear in the todo list.
                     has_parent = False
-                upstream = self.commit_sha if has_parent else "--root"
-                todo_shas = proposed_order
+                    try:
+                        subprocess.run(["git", "rev-parse", f"{self.commit_sha}^"],
+                                       cwd=self.repo_path, check=True, capture_output=True)
+                        has_parent = True
+                    except:
+                        has_parent = False
+                    upstream = self.commit_sha if has_parent else "--root"
+                    todo_shas = proposed_order
 
             # Show progress dialog
             own_progress = progress_dialog is None
