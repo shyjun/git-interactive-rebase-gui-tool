@@ -10,9 +10,26 @@ from PySide6.QtGui import QColor, QDesktopServices
 from PySide6.QtWidgets import QApplication, QMessageBox, QMenu
 from PySide6.QtGui import QAction
 
+import atexit
+import shutil
+
 PR_DIFF_SIZE_WARN_THRESHOLD = 200_000
 
 MATCH_ROLE = Qt.UserRole + 7
+
+_CREATED_TEMP_DIRS = set()
+
+
+def _cleanup_temp_dirs():
+    for d in list(_CREATED_TEMP_DIRS):
+        try:
+            if os.path.exists(d):
+                shutil.rmtree(d, ignore_errors=True)
+        except Exception:
+            pass
+
+
+atexit.register(_cleanup_temp_dirs)
 
 
 def _posix_path(p: str) -> str:
@@ -141,6 +158,7 @@ def _open_file_from_commit(repo_path, sha, filepath, parent):
             return
         basename = os.path.basename(filepath)
         tmp_dir = tempfile.mkdtemp(prefix="git-browse-")
+        _CREATED_TEMP_DIRS.add(tmp_dir)
         tmp_path = os.path.join(tmp_dir, basename)
         with open(tmp_path, 'w', encoding='utf-8') as f:
             f.write(result.stdout)
