@@ -285,14 +285,15 @@ class MenusMixin:
         menu = QMenu()
         menu.setFont(QFont("Monospace", max(8, self.current_font_size - 2)))
 
-        if self.browse_file:
-            sha = item.text().split()[0]
-            add_open_with_system_default_action(menu, self.browse_file, self, sha=sha, is_head=False)
-            menu.addSeparator()
-
         view_commit_action = QAction("View Commit", self)
         view_commit_action.triggered.connect(lambda: self.view_commit(item))
         menu.addAction(view_commit_action)
+
+        if self.browse_file:
+            menu.addSeparator()
+            sha = item.text().split()[0]
+            add_open_with_system_default_action(menu, self.browse_file, self, sha=sha, is_head=False)
+
         menu.addSeparator()
 
         copy_sha_action = QAction("Copy SHA to clipboard", self)
