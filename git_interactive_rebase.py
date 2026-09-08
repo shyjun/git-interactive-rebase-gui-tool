@@ -462,17 +462,4 @@ def main():
     sys.exit(exit_code)
 
 if __name__ == "__main__":
-    import platform
-    if "--update" not in sys.argv and "--version" not in sys.argv and "--no-fork" not in sys.argv:
-        if sys.stdout and sys.stdout.isatty():
-            if platform.system() != "Windows":
-                proc = subprocess.Popen(
-                    [sys.executable] + [a for a in sys.argv if a != "--no-fork"] + ["--no-fork"],
-                    stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                    start_new_session=True
-                )
-                print(f"Tool started in background (PID {proc.pid})")
-                sys.exit(0)
-    if "--no-fork" in sys.argv:
-        sys.argv.remove("--no-fork")
     main()
