@@ -765,9 +765,11 @@ class UIMixin:
                 handle.removeEventFilter(self._splitter_filter)
                 self._splitter_filter = None
             splitter.setCollapsible(0, False)
+            self.right_top_widget.setMinimumHeight(60)
             if not self._full_diff_view:
                 splitter.setSizes([150, 650])
         else:
+            self.right_top_widget.setMinimumHeight(0)
             splitter.setCollapsible(0, True)
             header = splitter.widget(0).layout().itemAt(0).widget()
             header_height = header.sizeHint().height()
@@ -802,8 +804,10 @@ class UIMixin:
 
             if self.side_commit_msg.isVisible():
                 splitter.setCollapsible(0, False)
+                self.right_top_widget.setMinimumHeight(60)
                 splitter.setSizes([150, 650])
             else:
+                self.right_top_widget.setMinimumHeight(0)
                 splitter.setCollapsible(0, True)
                 header = splitter.widget(0).layout().itemAt(0).widget()
                 header_height = header.sizeHint().height()
