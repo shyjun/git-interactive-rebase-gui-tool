@@ -440,7 +440,7 @@ class RescanMixin:
         reflog = self.browse_reflog
         stash = self.browse_stash
         tags = self.browse_tags
-        browse_limit = self.browse_limit
+        browse_limit = self.browse_limit + getattr(self, '_load_more_offset', 0)
 
         mode = "file" if filepath else "stash" if stash else "reflog" if reflog else "tags" if tags else "branch"
         print(f"[browse] Async load started: mode={mode}, branch='{branch}', file='{filepath}', limit={browse_limit}")
@@ -656,7 +656,6 @@ class RescanMixin:
                 if stash:
                     total = str(len([l for l in total.split('\n') if l.strip()]))
                 from PySide6.QtCore import QMetaObject, Qt, Q_ARG
-                print(f"Total commits in repo: {total}")
                 QMetaObject.invokeMethod(
                     self, "_set_total_commit_count",
                     Qt.QueuedConnection,
