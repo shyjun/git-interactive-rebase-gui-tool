@@ -684,5 +684,5 @@ class RescanMixin:
             self.total_commits_label.setText(f"Total commits touching file: {count_str}")
         else:
             self.total_commits_label.setText(f"Total commits in repo: {count_str}")
-        if not getattr(self, 'viewer_mode', False):
+        if not getattr(self, 'viewer_mode', False) or getattr(self, 'browse_file', None):
             self._update_load_more_item()
