@@ -192,7 +192,7 @@ Access all commit actions via right-click menu.
 - Move Commit (up / down, or drag to reorder)
 - Split Commit (drop file change, move file out, split to separate commits)
 - Refine changes (hunk-level)
-- Consolidated Diff (set start, diff to here, diff HEAD to here, git difftool)
+- Consolidated Diff (set start, diff to here, from here till HEAD, git difftool)
 - Browse file log
 
 In the file-wise diff viewer and blame viewer, right-clicking a file also shows:
@@ -218,6 +218,7 @@ The **Repo** button in the main window's toolbar groups the repository-wide tool
 - **Cherry-pick 1 Commit** → Cherry-pick a single commit by SHA (see [Cherry-pick](#30-cherry-pick))
 - **Browse Branch** → Open a read-only window of another branch's history (see [Browse Branch](#22-browse-branch))
 - **Browse File Log** → Open a read-only window of a single file's history (see [Browse File Log](#23-browse-file-log))
+- **Blame a File** → Open a read-only blame viewer for a single file (see [Blame a file](#41-blame-a-file))
 - **Browse Log of a Commit** → Open a read-only history window for any commit SHA or ref, prompted with the number of commits to show (see [Browse Log of a Commit](#24-browse-log-of-a-commit))
 - **Browse Reflog** → Open a read-only window of the repository's HEAD reflog (see [Browse Reflog](#25-browse-reflog))
 - **Browse Stashes** → Open a read-only window of the repository's stash list (see [Browse Stashes](#26-browse-stashes))
@@ -774,7 +775,7 @@ View the complete history of a single file.
 
 ![Browse File Log](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/browse-file-log.webp)
 
-**Description:** Use **Repo → Browse File Log**, or right-click a file in the file-wise diff viewer and choose **Browse file log**. A read-only window opens showing the history of that file (following renames via `git log --follow`), with the diff pane scoped to that file. Like Browse Branch, it uses a dimmed grey "viewer" overlay to distinguish it from the main window. Right-click any commit to **View Commit** in a tabbed diff viewer, or copy SHA / message to the clipboard.
+**Description:** Use **Repo → Browse File Log**, or right-click a file in the file-wise diff viewer and choose **Browse file log**. A read-only window opens showing the history of that file (following renames via `git log --follow`), with the diff pane scoped to that file. Like Browse Branch, it uses a dimmed grey "viewer" overlay to distinguish it from the main window. Double-click or right-click any commit to **View Commit** in a tabbed diff viewer. The toolbar includes a **Blame File** button to open the blame viewer for the browsed file. Copy SHA / message to the clipboard via the context menu.
 
 ---
 
@@ -850,9 +851,9 @@ Diff any range of history in one combined view.
 
 - **Set start commit** → Mark the selected commit as the range start
 - **Diff to here** → Show the combined diff from the start commit to the selected commit
-- **Diff HEAD to here** → Show the combined diff from HEAD down to the selected commit
+- **From Here Till HEAD** → Show the combined diff from the selected commit up to HEAD
 - **Git Difftool from \<start\> to Here** → Run `git difftool` between the start commit and the selected commit (disabled if no start SHA is set)
-- **Git Difftool from HEAD to Here** → Run `git difftool` between HEAD and the selected commit
+- **Git Difftool from Here to HEAD** → Run `git difftool` between the selected commit and HEAD
 
 The result opens in a read-only combined view. You can also set the start commit by right-clicking **"Mark the selected from commit for consolidated diff"**.
 
