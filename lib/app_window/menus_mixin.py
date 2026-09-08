@@ -148,7 +148,7 @@ class MenusMixin:
             if not remote_sha:
                 print("[startup_check] network error or no response, skipping", flush=True)
                 return
-            if local_head and remote_sha == local_head:
+            if local_head and remote_sha and (remote_sha == local_head or remote_sha.startswith(local_head) or local_head.startswith(remote_sha)):
                 print(f"[startup_check] already latest ({remote_sha[:8]})", flush=True)
             else:
                 local_display = self.start_time_tool_head[:8] if self.start_time_tool_head else "pip"

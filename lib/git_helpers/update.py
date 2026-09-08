@@ -190,7 +190,7 @@ def perform_self_update(tool_dir):
         _log.info("perform_self_update: local=%s remote=%s match=%s",
                   old_sha[:8] if old_sha else "?", remote_sha[:8], old_sha == remote_sha)
 
-        if old_sha == remote_sha:
+        if old_sha and remote_sha and (old_sha == remote_sha or remote_sha.startswith(old_sha) or old_sha.startswith(remote_sha)):
             return True, f"You are already using the latest version. ({old_sha[:8]})"
 
         _log.info("perform_self_update: running pip install --force-reinstall --no-deps")
@@ -200,6 +200,13 @@ def perform_self_update(tool_dir):
             pip_cmd,
             timeout=300,  # pip installs can take longer
         )
+        if not ok and "externally-managed-environment" in stderr:
+            _log.info("perform_self_update: externally-managed environment detected, retrying with --break-system-packages")
+            ok, stdout, stderr = _run_capture(
+                tool_dir,
+                pip_cmd + ["--break-system-packages"],
+                timeout=300,
+            )
         _log.info("perform_self_update: pip install ok=%s", ok)
         if ok:
             # Clean stale .pyc files specifically from the tool's package subtree
@@ -224,8 +231,6 @@ def perform_self_update(tool_dir):
         return False, f"pip install failed:\n{stderr.strip() or stdout.strip() or 'unknown error'}"
 
     # git-clone install
-    git_remote, default_branch = _detect_default_branch(tool_dir)
-
     ok, stdout, stderr = _run_capture(tool_dir, ["git", "status", "--porcelain"])
     if not ok:
         return False, f"Could not check working tree status:\n{stderr.strip()}"
@@ -234,6 +239,10 @@ def perform_self_update(tool_dir):
             "The tool's local clone has uncommitted changes, so it was not updated.\n\n"
             "Please commit or stash them and try again."
         )
+
+    # Fetch first so branch detection has access to up-to-date remote refs
+    _run_capture(tool_dir, ["git", "fetch", "--all", "--prune"])
+    git_remote, default_branch = _detect_default_branch(tool_dir)
 
     print(f"[update] Fetching from {git_remote}...")
     ok, _, stderr = _run_capture(tool_dir, ["git", "fetch", git_remote])
@@ -255,7 +264,7 @@ def perform_self_update(tool_dir):
         )
     remote_sha = stdout.strip()
 
-    if local_sha and local_sha == remote_sha:
+    if local_sha and remote_sha and (local_sha == remote_sha or remote_sha.startswith(local_sha) or local_sha.startswith(remote_sha)):
         return True, f"You are already using the latest version. ({local_sha[:8]})"
 
     print(f"[update] Remote: {remote_sha[:8]}, updating...")
