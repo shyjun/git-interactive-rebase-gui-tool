@@ -950,6 +950,13 @@ class UIMixin:
 
     def _handle_restart(self):
         """Spawn a new process with the same args and quit this one."""
+        from PySide6.QtWidgets import QMessageBox
+        reply = QMessageBox.question(
+            self, "Restart",
+            "Restart the tool now?",
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if reply != QMessageBox.Yes:
+            return
         import sys
         from PySide6.QtCore import QProcess
         from PySide6.QtWidgets import QApplication
