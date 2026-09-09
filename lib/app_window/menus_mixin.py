@@ -342,11 +342,15 @@ class MenusMixin:
     def handle_show_only_till(self, item):
         """Pretend the app started with only the commits up to and including the clicked one."""
         row = self.list_widget.row(item)
-        next_row = row + 1
-        if next_row < self.list_widget.count():
-            next_item = self.list_widget.item(next_row)
-            next_sha = next_item.text().split()[0]
-            self.commit_sha = next_sha
+        count = row + 1
+        if self.browse_mode or self.browse_file:
+            self.browse_limit = count
+        else:
+            next_row = row + 1
+            if next_row < self.list_widget.count():
+                next_item = self.list_widget.item(next_row)
+                next_sha = next_item.text().split()[0]
+                self.commit_sha = next_sha
         self._load_more_offset = 0
         self.load_history()
 
