@@ -942,6 +942,10 @@ class UIMixin:
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         if reply != QMessageBox.Yes:
             return
+        self._handle_restart()
+
+    def _handle_restart(self):
+        """Spawn a new process with the same args and quit this one."""
         import sys
         from PySide6.QtCore import QProcess
         from PySide6.QtWidgets import QApplication
