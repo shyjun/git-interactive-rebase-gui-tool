@@ -114,6 +114,14 @@ class MenusMixin:
         menu.addSeparator()
         menu.addAction(self.auto_check_updates_action)
 
+        if getattr(self, 'is_running_from_repo', False):
+            menu.addSeparator()
+            self.restart_action = QAction("Restart", self)
+            self.restart_action.setToolTip("Restart the tool with the latest version from source.")
+            self.restart_action.setShortcut("F9")
+            self.restart_action.triggered.connect(self._handle_restart)
+            menu.addAction(self.restart_action)
+
         return menu
 
     def _show_configure_menu(self):
