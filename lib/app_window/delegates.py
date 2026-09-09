@@ -38,6 +38,14 @@ class CommitItemDelegate(QStyledItemDelegate):
             painter.fillRect(option.rect, marked_bg)
         painter.restore()
 
+        painter.save()
+        is_match = bool(index.data(MATCH_ROLE))
+        if is_match and not (opt.state & QStyle.State_Selected) and not is_marked:
+            is_dark = getattr(main_win, 'is_dark_theme', True) if main_win else True
+            match_bg = QColor("#2e4a60") if is_dark else QColor("#edf4fb")
+            painter.fillRect(option.rect, match_bg)
+        painter.restore()
+
         style = widget.style() if widget else QApplication.style()
         style.drawControl(QStyle.CE_ItemViewItem, opt, painter, widget)
 
