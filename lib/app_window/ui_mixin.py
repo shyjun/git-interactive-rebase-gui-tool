@@ -522,7 +522,7 @@ class UIMixin:
         self.browse_cherry_pick_btn.clicked.connect(self.handle_browse_cherry_pick)
         self.browse_cherry_pick_btn.setMinimumHeight(40)
         self.browse_cherry_pick_btn.setMinimumWidth(100)
-        self.browse_cherry_pick_btn.setVisible(bool(self.browse_branch))
+        self.browse_cherry_pick_btn.setVisible(bool(self.browse_branch) and not self.cli_mode)
         controls_layout.addWidget(self.browse_cherry_pick_btn)
         controls_layout.addWidget(self.rescan_btn)
         controls_layout.addWidget(self.undo_btn)
