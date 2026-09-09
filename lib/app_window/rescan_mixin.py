@@ -277,7 +277,6 @@ class RescanMixin:
 
     def load_history(self):
         """Fetches git history and populates the list widget."""
-        self._show_only_till_row = None
         # In browse mode, always reload via the async, limit-bounded loader so we
         # never block the GUI thread on an unlimited full-history scan (which hangs
         # on large repos like vim).
@@ -379,6 +378,12 @@ class RescanMixin:
         # Add "Load 100 more" item at the end if in fallback mode
         self._update_load_more_item()
 
+        # Re-apply "show only till here" if active (refresh/reload)
+        if getattr(self, '_show_only_till_row', None) is not None:
+            for i in range(self._show_only_till_row + 1, self.list_widget.count()):
+                self.list_widget.item(i).setHidden(True)
+            self._filter_controller._update_commit_counts()
+
         # If the list was rebuilt while multi-select mode is active, re-apply the
         # checkable flags so the UI stays consistent (tick boxes visible, etc.).
         if self.multi_select_mode:
@@ -463,7 +468,6 @@ class RescanMixin:
         self.total_commits_label.setText("Total: counting...")
         self._browse_load_done = False
         self._browse_load_result = None
-        self._show_only_till_row = None
 
         repo_path = self.repo_path
         branch = self.browse_branch
@@ -602,6 +606,8 @@ class RescanMixin:
             get_recent_history_start,
             get_root_commit,
         )
+        # Clear "show only till here" restriction when loading more
+        self._show_only_till_row = None
         # Count actual commits (exclude the load-more item itself)
         current_count = self.list_widget.count()
         for i in range(self.list_widget.count()):
@@ -632,11 +638,6 @@ class RescanMixin:
 
         shown = self.list_widget.count()
         total = getattr(self, '_total_commit_count', 0)
-
-        # If "show only till here" is active, hide load-more
-        if getattr(self, '_show_only_till_row', None) is not None:
-            self.load_more_btn.setVisible(False)
-            return
 
         # --- Browse / file mode: use total-vs-shown logic ---
         if getattr(self, 'browse_mode', False) or getattr(self, 'browse_file', None):
