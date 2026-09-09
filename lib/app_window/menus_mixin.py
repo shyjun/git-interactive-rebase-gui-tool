@@ -118,7 +118,6 @@ class MenusMixin:
             menu.addSeparator()
             self.restart_action = QAction("Restart", self)
             self.restart_action.setToolTip("Restart the tool with the latest version from source.")
-            self.restart_action.setShortcut("F9")
             self.restart_action.triggered.connect(self._handle_restart)
             menu.addAction(self.restart_action)
 

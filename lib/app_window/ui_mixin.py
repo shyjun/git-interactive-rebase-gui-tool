@@ -794,6 +794,10 @@ class UIMixin:
         if getattr(self, 'is_running_from_repo', False):
             print("[shortcut] Ctrl+Shift+F5 registered")
 
+        if getattr(self, 'is_running_from_repo', False):
+            self.f9_shortcut = QShortcut(QKeySequence("F9"), self)
+            self.f9_shortcut.activated.connect(self._handle_restart)
+
         # A grey veil over the whole browse window marks it as a read-only viewer.
         self._browse_overlay = None
         if self.browse_mode:
