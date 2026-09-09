@@ -340,15 +340,15 @@ class MenusMixin:
         menu.exec(self.list_widget.mapToGlobal(position))
 
     def handle_show_only_till(self, item):
-        """Hide all commits below the right-clicked one."""
+        """Pretend the app started with only the commits up to and including the clicked one."""
         row = self.list_widget.row(item)
-        self._show_only_till_row = row
-        count = self.list_widget.count()
-        for i in range(row + 1, count):
-            self.list_widget.item(i).setHidden(True)
-        self._filter_controller._update_commit_counts()
-        self._update_load_more_item()
-        self.list_widget.viewport().update()
+        next_row = row + 1
+        if next_row < self.list_widget.count():
+            next_item = self.list_widget.item(next_row)
+            next_sha = next_item.text().split()[0]
+            self.commit_sha = next_sha
+        self._load_more_offset = 0
+        self.load_history()
 
     def show_reflog_context_menu(self, position):
         """Read-only context menu for the reflog browser: copy SHA / show log."""

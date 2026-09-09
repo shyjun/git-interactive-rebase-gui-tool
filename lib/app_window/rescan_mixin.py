@@ -378,12 +378,6 @@ class RescanMixin:
         # Add "Load 100 more" item at the end if in fallback mode
         self._update_load_more_item()
 
-        # Re-apply "show only till here" if active (refresh/reload)
-        if getattr(self, '_show_only_till_row', None) is not None:
-            for i in range(self._show_only_till_row + 1, self.list_widget.count()):
-                self.list_widget.item(i).setHidden(True)
-            self._filter_controller._update_commit_counts()
-
         # If the list was rebuilt while multi-select mode is active, re-apply the
         # checkable flags so the UI stays consistent (tick boxes visible, etc.).
         if self.multi_select_mode:
@@ -606,8 +600,6 @@ class RescanMixin:
             get_recent_history_start,
             get_root_commit,
         )
-        # Clear "show only till here" restriction when loading more
-        self._show_only_till_row = None
         # Count actual commits (exclude the load-more item itself)
         current_count = self.list_widget.count()
         for i in range(self.list_widget.count()):

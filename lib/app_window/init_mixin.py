@@ -93,7 +93,6 @@ class InitMixin:
         self.viewer_windows = []
         self.app_managed_stash_sha = None
         self.consolidated_diff_start_sha = None
-        self._show_only_till_row = None
 
         # Search options (synced from the Search Options dropdown in setup_ui)
         # (state lives in CommitFilterController)
