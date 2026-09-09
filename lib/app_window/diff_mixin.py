@@ -66,16 +66,6 @@ class DiffMixin:
         if item.data(Qt.UserRole + 9) == "load_more":
             return
 
-        # Collapse file-wise and tree-wise file lists so they start fresh
-        if hasattr(self, 'filewise_file_list') and hasattr(self, '_filewise_tab_idx'):
-            self.filewise_file_list.setVisible(False)
-            self.filewise_splitter.setSizes([0, 1000])
-            self.diff_tab_widget.setTabText(self._filewise_tab_idx, "\u25B6 File-wise Diff")
-        if hasattr(self, 'treewise_tree') and hasattr(self, '_treewise_tab_idx'):
-            self.treewise_tree.setVisible(False)
-            self.treewise_splitter.setSizes([0, 1000])
-            self.diff_tab_widget.setTabText(self._treewise_tab_idx, "\u25B6 Tree-wise Diff")
-
         sha = item.text().split()[0]
 
         # Check cache
