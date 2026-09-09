@@ -333,7 +333,22 @@ class MenusMixin:
         menu.addAction(copy_sha_action)
         menu.addAction(copy_msg_action)
         menu.addAction(copy_sha_msg_action)
+        menu.addSeparator()
+        show_till_action = QAction("Show only till here", self)
+        show_till_action.triggered.connect(lambda: self.handle_show_only_till(item))
+        menu.addAction(show_till_action)
         menu.exec(self.list_widget.mapToGlobal(position))
+
+    def handle_show_only_till(self, item):
+        """Hide all commits below the right-clicked one."""
+        row = self.list_widget.row(item)
+        self._show_only_till_row = row
+        count = self.list_widget.count()
+        for i in range(row + 1, count):
+            self.list_widget.item(i).setHidden(True)
+        self._filter_controller._update_commit_counts()
+        self._update_load_more_item()
+        self.list_widget.viewport().update()
 
     def show_reflog_context_menu(self, position):
         """Read-only context menu for the reflog browser: copy SHA / show log."""
@@ -626,6 +641,10 @@ class MenusMixin:
         consolidated_menu.addAction(difftool_start_action)
         consolidated_menu.addAction(difftool_head_action)
 
+        menu.addSeparator()
+        show_till_action = QAction("Show only till here", self)
+        show_till_action.triggered.connect(lambda: self.handle_show_only_till(item))
+        menu.addAction(show_till_action)
         menu.addSeparator()
         menu.addAction(copy_sha_action)
         menu.addAction(copy_msg_action)
