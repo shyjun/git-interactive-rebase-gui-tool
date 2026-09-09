@@ -127,6 +127,7 @@ class ResetMixin:
 
         if success:
             QMessageBox.information(self, "Success", "Successfully ran 'git push --force'.")
+            self.load_history()
         else:
             QMessageBox.critical(self, "Push Failed", f"Could not perform git push --force.\n\nError: {stderr}")
 
