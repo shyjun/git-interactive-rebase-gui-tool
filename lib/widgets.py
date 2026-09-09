@@ -3,6 +3,7 @@ from PySide6.QtCore import (
     QRect,
     QSize,
     Qt,
+    QTimer,
 )
 from PySide6.QtGui import (
     QColor,
@@ -233,6 +234,13 @@ class DiffSearchBar(QWidget):
         self.target_view = target_view
         self.matches = []
         self.current_match_idx = -1
+        self._search_capped = False
+
+        # Debounce timer for search
+        self._search_timer = QTimer(self)
+        self._search_timer.setSingleShot(True)
+        self._search_timer.setInterval(300)
+        self._search_timer.timeout.connect(self._do_perform_search)
 
         # Colors for highlighting
         self.highlight_color = QColor("#ffeb3b") # yellow
@@ -295,7 +303,7 @@ class DiffSearchBar(QWidget):
 
     def _connect_signals(self):
         self.search_input.textChanged.connect(self._perform_search)
-        self.search_input.returnPressed.connect(self.next_match)
+        self.search_input.returnPressed.connect(self._trigger_search_now)
         self.match_case_cb.toggled.connect(self._perform_search)
         self.whole_word_cb.toggled.connect(self._perform_search)
         self.line_num_cb.toggled.connect(self.target_view.set_line_numbers_visible)
@@ -329,6 +337,15 @@ class DiffSearchBar(QWidget):
         self.target_view.setFocus()
 
     def _perform_search(self):
+        self._search_timer.start()
+
+    def _trigger_search_now(self):
+        self._search_timer.stop()
+        self._do_perform_search()
+        if self.matches:
+            self.next_match()
+
+    def _do_perform_search(self):
         query = self.search_input.text()
         if not query:
             self.clear_search()
@@ -337,15 +354,18 @@ class DiffSearchBar(QWidget):
         doc = self.target_view.document()
         self.matches.clear()
         self.current_match_idx = -1
+        self._search_capped = False
 
         cursor = QTextCursor(doc)
+
+        _MAX_MATCHES = 5000
 
         # Check available version of flag for case sensitivity
         find_flag_case = getattr(QTextDocument, 'FindCaseSensitively', None)
         if find_flag_case is None and hasattr(QTextDocument, 'FindFlag'):
             find_flag_case = QTextDocument.FindFlag.FindCaseSensitively
 
-        while True:
+        while len(self.matches) < _MAX_MATCHES:
             # doc.find default flags are case insensitive
             if self.match_case_cb.isChecked() and find_flag_case is not None:
                 cursor = doc.find(query, cursor, find_flag_case)
@@ -368,6 +388,9 @@ class DiffSearchBar(QWidget):
 
             self.matches.append(QTextCursor(cursor))
 
+        if len(self.matches) >= _MAX_MATCHES:
+            self._search_capped = True
+
         self.update_highlights()
 
     def update_highlights(self):
@@ -382,6 +405,7 @@ class DiffSearchBar(QWidget):
         self.target_view.setExtraSelections(selections)
 
         count = len(self.matches)
+        display_count = "5000+" if self._search_capped else str(count)
         if count == 0:
             self.lbl_counter.setText("0/0")
             # Clear native text selection to avoid ghost highlights
@@ -391,7 +415,7 @@ class DiffSearchBar(QWidget):
                 self.target_view.setTextCursor(cursor)
         else:
             idx = self.current_match_idx + 1 if self.current_match_idx >= 0 else 1
-            self.lbl_counter.setText(f"{idx}/{count}")
+            self.lbl_counter.setText(f"{idx}/{display_count}")
             # If no current match is selected but we have matches, auto-scroll to first
             if self.current_match_idx == -1 and count > 0:
                 self.current_match_idx = 0
@@ -417,6 +441,7 @@ class DiffSearchBar(QWidget):
     def clear_search(self):
         self.matches.clear()
         self.current_match_idx = -1
+        self._search_capped = False
         self.target_view.setExtraSelections([])
         self.lbl_counter.setText("0/0")
 
