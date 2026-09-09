@@ -411,6 +411,7 @@ class BranchDiffDialog(QDialog):
         self.filewise_file_list.blockSignals(True)
         for f in files:
             item = QListWidgetItem(f)
+            item.setToolTip(f)
             item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
             item.setCheckState(Qt.Unchecked)
             item.setData(Qt.UserRole, file_stats.get(f))
@@ -1141,6 +1142,7 @@ class SingleCommitViewDialog(QDialog):
             else:
                 display = path1
             item = QListWidgetItem(display)
+            item.setToolTip(path1)
             item.setData(Qt.UserRole, self._file_stats.get(path1))
             item.setData(FILE_ENTRY_ROLE, entry)
             item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
