@@ -303,8 +303,14 @@ class MenusMixin:
         if not item:
             return
 
+        sha = item.text().split()[0]
         menu = QMenu()
         menu.setFont(QFont("Monospace", max(8, self.current_font_size - 2)))
+
+        mark_action = QAction("Mark / Unmark", self)
+        mark_action.triggered.connect(lambda: self.toggle_mark_commit(item))
+        menu.addAction(mark_action)
+        menu.addSeparator()
 
         view_commit_action = QAction("View Commit", self)
         view_commit_action.triggered.connect(lambda: self.view_commit(item))
