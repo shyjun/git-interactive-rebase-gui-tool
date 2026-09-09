@@ -468,7 +468,7 @@ class UIMixin:
         for btn in [self.browse_select_btn, self.browse_cancel_select_btn]:
             btn.setMinimumHeight(40)
             btn.setMinimumWidth(100)
-            btn.setVisible(bool(self.browse_branch))
+            btn.setVisible(bool(self.browse_branch) and not self.cli_mode)
         controls_layout.addWidget(self.browse_select_btn)
         controls_layout.addWidget(self.browse_cancel_select_btn)
         self.reflog_copy_sha_btn = QPushButton("Copy SHA to clipboard")
