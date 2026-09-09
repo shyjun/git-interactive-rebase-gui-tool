@@ -66,10 +66,6 @@ class DiffMixin:
         if item.data(Qt.UserRole + 9) == "load_more":
             return
 
-        # Always switch to plain diff tab when selecting a commit
-        if self.diff_tab_widget.currentIndex() != 0:
-            self.diff_tab_widget.setCurrentIndex(0)
-
         # Collapse file-wise and tree-wise file lists so they start fresh
         if hasattr(self, 'filewise_file_list') and hasattr(self, '_filewise_tab_idx'):
             self.filewise_file_list.setVisible(False)
