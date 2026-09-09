@@ -134,6 +134,7 @@ class DiffMixin:
                 else:
                     display = path1
                 item = QListWidgetItem(display)
+                item.setToolTip(path1)
                 item.setData(Qt.UserRole, file_stats.get(path1))
                 item.setData(FILE_ENTRY_ROLE, entry)
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
@@ -570,6 +571,7 @@ class DiffMixin:
                 else:
                     display = name
                 item.setText(0, display)
+                item.setToolTip(0, entry[1])
                 item.setData(0, Qt.UserRole + 10, {"type": "file", "entry": entry})
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
                 item.setCheckState(0, Qt.Unchecked)
