@@ -4,7 +4,6 @@ from PySide6.QtCore import (
 )
 from PySide6.QtGui import (
     QAction,
-    QFont,
 )
 from PySide6.QtWidgets import (
     QApplication,
@@ -15,6 +14,7 @@ from lib.git_helpers import get_commit_files
 from lib.app_window.helpers import (
     add_open_with_system_default_action,
     MATCH_ROLE,
+    mono_font,
 )
 
 
@@ -324,7 +324,7 @@ class MenusMixin:
 
         sha = item.text().split()[0]
         menu = QMenu()
-        menu.setFont(QFont("Monospace", max(8, self.current_font_size - 2)))
+        menu.setFont(mono_font(max(8, self.current_font_size - 2)))
 
         mark_action = QAction("Mark / Unmark", self)
         mark_action.triggered.connect(lambda: self.toggle_mark_commit(item))
@@ -380,7 +380,7 @@ class MenusMixin:
             return
 
         menu = QMenu()
-        menu.setFont(QFont("Monospace", max(8, self.current_font_size - 2)))
+        menu.setFont(mono_font(max(8, self.current_font_size - 2)))
 
         copy_sha_action = QAction("Copy SHA to clipboard", self)
         show_log_action = QAction("Show log", self)
@@ -400,7 +400,7 @@ class MenusMixin:
             return
 
         menu = QMenu()
-        menu.setFont(QFont("Monospace", max(8, self.current_font_size - 2)))
+        menu.setFont(mono_font(max(8, self.current_font_size - 2)))
 
         copy_sha_action = QAction("Copy SHA to clipboard", self)
         copy_sha_action.triggered.connect(lambda: self.handle_copy_sha(item))
@@ -428,7 +428,7 @@ class MenusMixin:
 
         sha = item.text().split()[0]
         menu = QMenu()
-        menu_font = QFont("Monospace", max(8, self.current_font_size - 2))
+        menu_font = mono_font(max(8, self.current_font_size - 2))
         menu.setFont(menu_font)
 
         mark_action = QAction(f"Mark / Unmark commit {sha}", self)

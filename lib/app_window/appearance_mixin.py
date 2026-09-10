@@ -1,7 +1,6 @@
-from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QApplication
 
-from lib.app_window.helpers import get_theme_stylesheet
+from lib.app_window.helpers import get_theme_stylesheet, mono_font
 from lib.widgets import DiffHighlighter
 
 
@@ -76,7 +75,7 @@ class AppearanceMixin:
             self._browse_overlay.update()
 
     def update_font(self):
-        font = QFont("Monospace", self.current_font_size)
+        font = mono_font(self.current_font_size)
         self.list_widget.setFont(font)
         if hasattr(self, 'side_diff_view'):
             self.side_diff_view.setFont(font)

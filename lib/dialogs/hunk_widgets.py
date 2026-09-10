@@ -30,11 +30,11 @@ from PySide6.QtCore import (
 )
 # pyrefly: ignore [missing-import]
 from PySide6.QtGui import (
-    QFont,
     QFontMetrics,
     QAction,
 )
 
+from lib.app_window.helpers import mono_font
 from lib.widgets import (
     DiffHighlighter,
 )
@@ -76,7 +76,7 @@ class EditHunkDialog(QDialog):
         layout.addWidget(editor_label)
 
         self.editor = QTextEdit()
-        self.editor.setFont(QFont("Monospace", font_size))
+        self.editor.setFont(mono_font(font_size))
         self.editor.setPlainText(hunk_text)
         self.editor.setAcceptRichText(False)
         self.editor.setLineWrapMode(QTextEdit.NoWrap)
@@ -166,7 +166,7 @@ class DropHunkDialog(QDialog):
         layout.addWidget(viewer_label)
 
         self.viewer = QTextEdit()
-        self.viewer.setFont(QFont("Monospace", font_size))
+        self.viewer.setFont(mono_font(font_size))
         self.viewer.setPlainText(hunk_text)
         self.viewer.setReadOnly(True)
         self.viewer.setAcceptRichText(False)
@@ -296,7 +296,7 @@ class HunkWidget(QFrame):
 
         self.diff_view = QTextEdit()
         self.diff_view.setReadOnly(True)
-        self.diff_view.setFont(QFont("Monospace", font_size))
+        self.diff_view.setFont(mono_font(font_size))
         self.diff_view.setPlainText(hunk_text)
         self.diff_view.setLineWrapMode(QTextEdit.NoWrap)
 

@@ -1,5 +1,6 @@
 import pathlib
 import os
+import platform
 import shlex
 import subprocess
 import sys
@@ -13,6 +14,7 @@ from PySide6.QtCore import (
 from PySide6.QtGui import (
     QColor,
     QDesktopServices,
+    QFont,
 )
 from PySide6.QtWidgets import (
     QApplication,
@@ -29,6 +31,24 @@ PR_DIFF_SIZE_WARN_THRESHOLD = 200_000
 PLAIN_DIFF_LINE_CAP = 10_000
 
 MATCH_ROLE = Qt.UserRole + 7
+
+_MONOSPACE_CANDIDATES = {
+    "Windows": ["Consolas", "Courier New", "Lucida Console"],
+    "Darwin": ["Menlo", "Monaco", "Courier New"],
+    "Linux": ["Monospace"],
+}
+
+def mono_font(size):
+    """Return a QFont guaranteed to be monospace on all platforms."""
+    system = platform.system()
+    candidates = _MONOSPACE_CANDIDATES.get(system, ["Monospace"])
+    for name in candidates:
+        f = QFont(name, size)
+        if f.fixedPitch():
+            return f
+    f = QFont("Monospace", size)
+    f.setStyleHint(QFont.StyleHint.Monospace)
+    return f
 
 
 def clean_binary_diff_lines(diff_text):

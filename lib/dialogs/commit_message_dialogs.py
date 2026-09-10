@@ -9,10 +9,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
 )
-# pyrefly: ignore [missing-import]
-from PySide6.QtGui import (
-    QFont,
-)
+from lib.app_window.helpers import mono_font
 
 
 class NewCommitMessageDialog(QDialog):
@@ -30,7 +27,7 @@ class NewCommitMessageDialog(QDialog):
         layout.addWidget(self.label)
 
         self.message_edit = QTextEdit()
-        self.message_edit.setFont(QFont("Monospace", self.font_size))
+        self.message_edit.setFont(mono_font(self.font_size))
         self.message_edit.setPlainText(default_message)
         layout.addWidget(self.message_edit)
 
