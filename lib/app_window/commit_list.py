@@ -90,12 +90,20 @@ class CommitListWidget(QListWidget):
         if self._resizing:
             dx = int(event.position().x()) - self._resize_start_x
             mw = self.main_window
+            # Cap total right-side columns to half viewport so subject always has space
+            max_total = self.viewport().width() // 2
             if self._resize_col == 'author':
-                mw.col_width_author = max(60, self._resize_start_width - dx)
+                new_w = max(60, self._resize_start_width - dx)
+                other = getattr(mw, 'col_width_stats', 80) + getattr(mw, 'col_width_date', 100)
+                mw.col_width_author = min(new_w, max_total - other)
             elif self._resize_col == 'stats':
-                mw.col_width_stats = max(40, self._resize_start_width - dx)
+                new_w = max(40, self._resize_start_width - dx)
+                other = getattr(mw, 'col_width_author', 120) + getattr(mw, 'col_width_date', 100)
+                mw.col_width_stats = min(new_w, max_total - other)
             elif self._resize_col == 'date':
-                mw.col_width_date = max(40, self._resize_start_width - dx)
+                new_w = max(40, self._resize_start_width - dx)
+                other = getattr(mw, 'col_width_author', 120) + getattr(mw, 'col_width_stats', 80)
+                mw.col_width_date = min(new_w, max_total - other)
             self.viewport().update()
             event.accept()
             return
