@@ -1,9 +1,11 @@
 from PySide6.QtCore import (
+    QEvent,
     Qt,
     QTimer,
 )
 from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import (
+    QApplication,
     QListWidget,
     QMessageBox,
 )
@@ -24,52 +26,94 @@ class CommitListWidget(QListWidget):
         self.setUniformItemSizes(True)
         # Column resize state
         self._resizing = False
-        self._resize_col = None  # 'author', 'stats', 'date'
+        self._resize_col = None
         self._resize_start_x = 0
         self._resize_start_width = 0
+        self._cursor_override_active = False
 
     def _get_column_boundaries(self):
         """Return list of (boundary_x, column_name) for resizable columns.
 
-        Each entry is the x-coordinate of the LEFT edge of the column,
-        which is also the draggable resize handle for that column.
+        Uses the same text_rect.right() reference as the delegate so
+        separator lines and hit zones align.
         """
-        viewport = self.viewport()
-        right_edge = viewport.width() - 4
+        idx = self.model().index(0, 0)
+        item_rect = self.visualRect(idx)
+        rx = item_rect.right()
+
         boundaries = []
         mw = self.main_window
 
-        # Date column (rightmost)
         if getattr(mw, 'show_date', True):
-            date_w = getattr(mw, 'col_width_date', 100)
-            right_edge -= date_w
-            boundaries.append((right_edge, 'date'))
-            right_edge -= 8  # gap
+            rx -= getattr(mw, 'col_width_date', 100)
+            boundaries.append((rx, 'date'))
+            rx -= 8
 
-        # Stats column
         if getattr(mw, 'show_stats', True):
-            stats_w = getattr(mw, 'col_width_stats', 80)
-            right_edge -= stats_w
-            boundaries.append((right_edge, 'stats'))
-            right_edge -= 8  # gap
+            rx -= getattr(mw, 'col_width_stats', 80)
+            boundaries.append((rx, 'stats'))
+            rx -= 8
 
-        # Author column
         if getattr(mw, 'show_author', True):
-            author_w = getattr(mw, 'col_width_author', 120)
-            right_edge -= author_w
-            boundaries.append((right_edge, 'author'))
+            rx -= getattr(mw, 'col_width_author', 120)
+            boundaries.append((rx, 'author'))
 
         return boundaries
 
     def _hit_test_resize(self, x):
-        """Check if x is near a column boundary. Return column name or None."""
-        for bx, col in self._get_column_boundaries():
-            if abs(x - bx) <= 5:
+        boundaries = self._get_column_boundaries()
+        for bx, col in boundaries:
+            if abs(x - bx) <= 8:
                 return col
         return None
 
-    def mousePressEvent(self, event):
-        if event.button() == Qt.LeftButton:
+    def _restore_cursor(self):
+        if self._cursor_override_active:
+            QApplication.restoreOverrideCursor()
+            self._cursor_override_active = False
+
+    def viewportEvent(self, event):
+        etype = event.type()
+
+        if etype == QEvent.MouseMove:
+            x = int(event.position().x())
+
+            if self._resizing:
+                if not self._cursor_override_active:
+                    QApplication.setOverrideCursor(QCursor(Qt.SplitHCursor))
+                    self._cursor_override_active = True
+                dx = x - self._resize_start_x
+                mw = self.main_window
+                max_total = self.viewport().width() // 2
+                if self._resize_col == 'author':
+                    new_w = max(60, self._resize_start_width - dx)
+                    other = getattr(mw, 'col_width_stats', 80) + getattr(mw, 'col_width_date', 100)
+                    mw.col_width_author = min(new_w, max_total - other)
+                elif self._resize_col == 'stats':
+                    new_w = max(40, self._resize_start_width - dx)
+                    other = getattr(mw, 'col_width_author', 120) + getattr(mw, 'col_width_date', 100)
+                    mw.col_width_stats = min(new_w, max_total - other)
+                elif self._resize_col == 'date':
+                    new_w = max(40, self._resize_start_width - dx)
+                    other = getattr(mw, 'col_width_author', 120) + getattr(mw, 'col_width_stats', 80)
+                    mw.col_width_date = min(new_w, max_total - other)
+                self.viewport().update()
+                event.accept()
+                return True
+
+            col = self._hit_test_resize(x)
+            if col:
+                if not self._cursor_override_active:
+                    QApplication.setOverrideCursor(QCursor(Qt.SplitHCursor))
+                    self._cursor_override_active = True
+                event.accept()
+                return True
+            else:
+                if self._cursor_override_active:
+                    QApplication.restoreOverrideCursor()
+                    self._cursor_override_active = False
+
+        elif etype == QEvent.MouseButtonPress and event.button() == Qt.LeftButton:
             col = self._hit_test_resize(int(event.position().x()))
             if col:
                 self._resizing = True
@@ -82,47 +126,21 @@ class CommitListWidget(QListWidget):
                     self._resize_start_width = getattr(mw, 'col_width_stats', 80)
                 elif col == 'date':
                     self._resize_start_width = getattr(mw, 'col_width_date', 100)
+                if not self._cursor_override_active:
+                    QApplication.setOverrideCursor(QCursor(Qt.SplitHCursor))
+                    self._cursor_override_active = True
                 event.accept()
-                return
-        super().mousePressEvent(event)
+                return True
 
-    def mouseMoveEvent(self, event):
-        if self._resizing:
-            dx = int(event.position().x()) - self._resize_start_x
-            mw = self.main_window
-            # Cap total right-side columns to half viewport so subject always has space
-            max_total = self.viewport().width() // 2
-            if self._resize_col == 'author':
-                new_w = max(60, self._resize_start_width - dx)
-                other = getattr(mw, 'col_width_stats', 80) + getattr(mw, 'col_width_date', 100)
-                mw.col_width_author = min(new_w, max_total - other)
-            elif self._resize_col == 'stats':
-                new_w = max(40, self._resize_start_width - dx)
-                other = getattr(mw, 'col_width_author', 120) + getattr(mw, 'col_width_date', 100)
-                mw.col_width_stats = min(new_w, max_total - other)
-            elif self._resize_col == 'date':
-                new_w = max(40, self._resize_start_width - dx)
-                other = getattr(mw, 'col_width_author', 120) + getattr(mw, 'col_width_stats', 80)
-                mw.col_width_date = min(new_w, max_total - other)
-            self.viewport().update()
-            event.accept()
-            return
-        # Resize cursor near boundaries
-        col = self._hit_test_resize(int(event.position().x()))
-        if col:
-            self.setCursor(QCursor(Qt.SplitHCursor))
-        else:
-            self.setCursor(QCursor(Qt.ArrowCursor))
-        super().mouseMoveEvent(event)
+        elif etype == QEvent.MouseButtonRelease:
+            if self._resizing:
+                self._resizing = False
+                self._resize_col = None
+                self._restore_cursor()
+                event.accept()
+                return True
 
-    def mouseReleaseEvent(self, event):
-        if self._resizing:
-            self._resizing = False
-            self._resize_col = None
-            self.setCursor(QCursor(Qt.ArrowCursor))
-            event.accept()
-            return
-        super().mouseReleaseEvent(event)
+        return super().viewportEvent(event)
 
     def dropEvent(self, event):
         try:
@@ -258,8 +276,6 @@ class CommitListWidget(QListWidget):
             event.ignore()
             return
 
-        # Build SHA map and identify affected range BEFORE the visual reorder.
-        # Only the block + displaced commits need rebasing — not all 420.
         sha_map = {}
         for i in range(count):
             item = self.item(i)
@@ -271,10 +287,8 @@ class CommitListWidget(QListWidget):
         affected_start = min(start, insert_pos)
         affected_end = max(end, insert_pos + block_len - 1)
 
-        # Original SHAs for affected range (newest-first, same as list order)
         original_affected = [sha_map[i] for i in range(affected_start, affected_end + 1) if i in sha_map]
 
-        # Upstream: first unaffected commit AFTER the affected range (= parent of oldest affected commit)
         upstream = None
         for i in range(affected_end + 1, count):
             if i in sha_map:
@@ -283,20 +297,14 @@ class CommitListWidget(QListWidget):
         if upstream is None:
             upstream = self.commit_sha
 
-        # Do the visual reorder synchronously so the user sees it immediately.
         items = [self.takeItem(0) for _ in range(count)]
         self.blockSignals(True)
         for idx in new_order:
             self.addItem(items[idx])
         self.blockSignals(False)
 
-        # Compute the new order of affected SHAs after the visual reorder.
         new_affected = [sha_map[idx] for idx in new_order if affected_start <= idx <= affected_end and idx in sha_map]
 
-        # Defer perform_move + cleanup to the next event loop iteration.
-        # Calling perform_move / load_history inside dropEvent prevents Qt
-        # from repainting the viewport — the data is correct but the user
-        # sees stale items until they press Refresh.
         def _deferred(new_s, orig_s, upstream_sha):
             self.main_window.perform_move(new_s, orig_s, upstream_override=upstream_sha)
             self.main_window.exit_multi_select_mode()
