@@ -14,6 +14,7 @@ from PySide6.QtGui import (
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
+    QFrame,
     QGroupBox,
     QHBoxLayout,
     QHeaderView,
@@ -531,7 +532,15 @@ class UIMixin:
         self.blame_file_btn.clicked.connect(self._blame_browse_file)
         controls_layout.addWidget(self.blame_file_btn)
 
+        sep = QFrame()
+        sep.setFrameShape(QFrame.VLine)
+        sep.setFrameShadow(QFrame.Sunken)
+        controls_layout.addWidget(sep)
+
+        bold_font = QFont()
+        bold_font.setBold(True)
         self.follow_cb = QCheckBox("Use --follow (git log --follow <file>)")
+        self.follow_cb.setFont(bold_font)
         self.follow_cb.setToolTip("Include --follow in git log (tracks renames).")
         self.follow_cb.setChecked(False)
         self.follow_cb.setVisible(bool(self.browse_file))
