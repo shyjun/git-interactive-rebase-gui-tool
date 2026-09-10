@@ -215,7 +215,26 @@ class UIMixin:
         self.plain_diff_search = DiffSearchBar(target_view=self.side_diff_view, parent=plain_diff_widget)
         # Search bar is visible by default now as requested
 
+        # Truncation banner (hidden by default, shown when diff is capped)
+        self._diff_truncation_banner = QWidget()
+        truncation_layout = QHBoxLayout(self._diff_truncation_banner)
+        truncation_layout.setContentsMargins(6, 2, 6, 2)
+        truncation_layout.setSpacing(6)
+        self._diff_truncation_label = QLabel()
+        self._diff_truncation_label.setStyleSheet("color: #888; font-size: 11px;")
+        self._btn_show_full_diff = QPushButton("Show Full Diff")
+        self._btn_show_full_diff.setFlat(True)
+        self._btn_show_full_diff.setStyleSheet(
+            "color: #5599cc; font-size: 11px; border: none; text-decoration: underline;")
+        self._btn_show_full_diff.setCursor(Qt.PointingHandCursor)
+        self._btn_show_full_diff.clicked.connect(self._show_full_diff)
+        truncation_layout.addWidget(self._diff_truncation_label)
+        truncation_layout.addStretch()
+        truncation_layout.addWidget(self._btn_show_full_diff)
+        self._diff_truncation_banner.setVisible(False)
+
         plain_diff_layout.addWidget(self.plain_diff_search)
+        plain_diff_layout.addWidget(self._diff_truncation_banner)
         plain_diff_layout.addWidget(self.side_diff_view)
 
         self.diff_tab_widget.addTab(plain_diff_widget, "Plain Diff")

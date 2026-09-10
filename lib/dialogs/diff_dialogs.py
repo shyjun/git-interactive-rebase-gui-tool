@@ -92,6 +92,7 @@ from lib.git_helpers import (
     get_unstaged_file_stats,
 )
 from lib.utils import get_theme_colors
+from lib.app_window.helpers import PLAIN_DIFF_LINE_CAP, clean_binary_diff_lines
 from lib.widgets import (
     BrowseDimOverlay,
     DiffHighlighter,
@@ -140,7 +141,17 @@ class DiffViewerDialog(QDialog):
         self.diff_view = DiffView()
         self.diff_view.setReadOnly(True)
         self.diff_view.setFont(QFont("Monospace", self.font_size))
-        self.diff_view.setPlainText(diff_text)
+        self._full_diff_text = clean_binary_diff_lines(diff_text)
+        lines = self._full_diff_text.split('\n')
+        total_lines = len(lines)
+        if total_lines > PLAIN_DIFF_LINE_CAP:
+            truncated = '\n'.join(lines[:PLAIN_DIFF_LINE_CAP])
+            self.diff_view.setPlainText(truncated)
+            self._truncation_label.setText(
+                f"Diff truncated \u2014 {total_lines:,} lines. Showing first {PLAIN_DIFF_LINE_CAP:,}.")
+            self._truncation_banner.setVisible(True)
+        else:
+            self.diff_view.setPlainText(self._full_diff_text)
 
         # Determine highlighting colors based on parent theme or default to dark
         app = QApplication.instance()
@@ -167,6 +178,25 @@ class DiffViewerDialog(QDialog):
         self.search_bar = DiffSearchBar(target_view=self.diff_view, parent=diff_container)
         diff_container_layout.addWidget(self.search_bar)
 
+        # Truncation banner
+        self._truncation_banner = QWidget()
+        trunc_layout = QHBoxLayout(self._truncation_banner)
+        trunc_layout.setContentsMargins(6, 2, 6, 2)
+        trunc_layout.setSpacing(6)
+        self._truncation_label = QLabel()
+        self._truncation_label.setStyleSheet("color: #888; font-size: 11px;")
+        self._btn_show_full = QPushButton("Show Full Diff")
+        self._btn_show_full.setFlat(True)
+        self._btn_show_full.setStyleSheet(
+            "color: #5599cc; font-size: 11px; border: none; text-decoration: underline;")
+        self._btn_show_full.setCursor(Qt.PointingHandCursor)
+        self._btn_show_full.clicked.connect(self._show_full_diff)
+        trunc_layout.addWidget(self._truncation_label)
+        trunc_layout.addStretch()
+        trunc_layout.addWidget(self._btn_show_full)
+        self._truncation_banner.setVisible(False)
+        diff_container_layout.addWidget(self._truncation_banner)
+
         diff_container_layout.addWidget(self.diff_view)
 
         self.layout.addWidget(diff_container)
@@ -188,6 +218,12 @@ class DiffViewerDialog(QDialog):
     def setup_buttons(self):
         pass # To be overridden
 
+    def _show_full_diff(self):
+        self.diff_view.setPlainText(self._full_diff_text)
+        self._truncation_banner.setVisible(False)
+        self.diff_view.viewport().update()
+        if self.search_bar.isVisible():
+            self.search_bar._perform_search()
 
 class ViewCommitDialog(DiffViewerDialog):
     def __init__(self, sha, commit_message, commit_meta, diff_text, font_size=10, parent=None):
@@ -1008,8 +1044,46 @@ class SingleCommitViewDialog(QDialog):
         )
         self.side_diff_view.set_separator_color(colors.get("separator", "#444444"))
         self.plain_diff_search = DiffSearchBar(target_view=self.side_diff_view, parent=plain_widget)
+
+        # Truncation banner
+        self._truncation_banner = QWidget()
+        trunc_layout = QHBoxLayout(self._truncation_banner)
+        trunc_layout.setContentsMargins(6, 2, 6, 2)
+        trunc_layout.setSpacing(6)
+        self._truncation_label = QLabel()
+        self._truncation_label.setStyleSheet("color: #888; font-size: 11px;")
+        self._btn_show_full = QPushButton("Show Full Diff")
+        self._btn_show_full.setFlat(True)
+        self._btn_show_full.setStyleSheet(
+            "color: #5599cc; font-size: 11px; border: none; text-decoration: underline;")
+        self._btn_show_full.setCursor(Qt.PointingHandCursor)
+        self._btn_show_full.clicked.connect(self._show_full_diff)
+        trunc_layout.addWidget(self._truncation_label)
+        trunc_layout.addStretch()
+        trunc_layout.addWidget(self._btn_show_full)
+        self._truncation_banner.setVisible(False)
+
         plain_layout.addWidget(self.plain_diff_search)
+        plain_layout.addWidget(self._truncation_banner)
         plain_layout.addWidget(self.side_diff_view)
+
+        # Apply truncation to initial diff
+        try:
+            raw_diff = get_commit_diff(repo_path, sha)
+            self._full_diff_text = clean_binary_diff_lines(raw_diff)
+            lines = self._full_diff_text.split('\n')
+            total_lines = len(lines)
+            if total_lines > PLAIN_DIFF_LINE_CAP:
+                truncated = '\n'.join(lines[:PLAIN_DIFF_LINE_CAP])
+                self.side_diff_view.setPlainText(truncated)
+                self._truncation_label.setText(
+                    f"Diff truncated \u2014 {total_lines:,} lines. Showing first {PLAIN_DIFF_LINE_CAP:,}.")
+                self._truncation_banner.setVisible(True)
+            else:
+                self.side_diff_view.setPlainText(self._full_diff_text)
+        except Exception as e:
+            self.side_diff_view.setPlainText(f"Error loading diff: {e}")
+            self._full_diff_text = ""
         self.tab_widget.addTab(plain_widget, "Plain Diff")
 
         filewise_widget = QWidget()
@@ -1199,6 +1273,13 @@ class SingleCommitViewDialog(QDialog):
             splitter.setSizes([header_height, 1000])
             self._splitter_filter = CollapsibleSplitterFilter(splitter)
             handle.installEventFilter(self._splitter_filter)
+
+    def _show_full_diff(self):
+        self.side_diff_view.setPlainText(self._full_diff_text)
+        self._truncation_banner.setVisible(False)
+        self.side_diff_view.set_separator_color(self.colors.get("separator", "#444444"))
+        if self.plain_diff_search.isVisible():
+            self.plain_diff_search._perform_search()
 
     def _on_tab_changed(self, idx):
         """Refresh diff pane when switching tabs."""
