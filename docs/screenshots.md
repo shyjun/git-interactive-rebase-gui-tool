@@ -351,6 +351,7 @@ Search supports:
 - **Previous / Next navigation (`<` / `>`)** → Jump between matches
 - **Match counter** → Shows current match position (e.g., `2/10`)
 - **Line-Num** → Highlight matching line numbers
+- **Match highlighting** → Matching text gets a blue background wash and bold text for easy visibility
 
 Press `Esc` to clear the search.
 
