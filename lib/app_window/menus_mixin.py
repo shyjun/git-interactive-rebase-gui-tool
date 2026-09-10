@@ -68,6 +68,12 @@ class MenusMixin:
         self.show_date_action.setToolTip("Show commit dates.")
         self.show_date_action.toggled.connect(self._on_date_toggled)
 
+        self.show_author_action = QAction("Show Author", self)
+        self.show_author_action.setCheckable(True)
+        self.show_author_action.setChecked(self.show_author)
+        self.show_author_action.setToolTip("Show commit author names.")
+        self.show_author_action.toggled.connect(self._on_author_toggled)
+
         self.show_diffs_action = QAction("Show Diffs", self)
         self.show_diffs_action.setCheckable(True)
         self.show_diffs_action.setChecked(self.show_diffs)
@@ -83,8 +89,14 @@ class MenusMixin:
         show_hide.addSeparator()
         show_hide.addAction(self.show_stats_action)
         show_hide.addAction(self.show_date_action)
+        show_hide.addAction(self.show_author_action)
         show_hide.addSeparator()
         show_hide.addAction(self.show_diffs_action)
+        show_hide.addSeparator()
+        self.reset_columns_action = QAction("Reset Column Widths", self)
+        self.reset_columns_action.setToolTip("Reset author, stats, and date column widths to defaults.")
+        self.reset_columns_action.triggered.connect(self._reset_column_widths)
+        show_hide.addAction(self.reset_columns_action)
 
         menu.addSeparator()
 

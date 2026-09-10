@@ -2,6 +2,7 @@ from PySide6.QtCore import (
     Qt,
     QTimer,
 )
+from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import (
     QListWidget,
     QMessageBox,
@@ -21,6 +22,99 @@ class CommitListWidget(QListWidget):
             self.setDropIndicatorShown(True)
             self.setDragDropMode(QListWidget.InternalMove)
         self.setUniformItemSizes(True)
+        # Column resize state
+        self._resizing = False
+        self._resize_col = None  # 'author', 'stats', 'date'
+        self._resize_start_x = 0
+        self._resize_start_width = 0
+
+    def _get_column_boundaries(self):
+        """Return list of (boundary_x, column_name) for resizable columns.
+
+        Each entry is the x-coordinate of the LEFT edge of the column,
+        which is also the draggable resize handle for that column.
+        """
+        viewport = self.viewport()
+        right_edge = viewport.width() - 4
+        boundaries = []
+        mw = self.main_window
+
+        # Date column (rightmost)
+        if getattr(mw, 'show_date', True):
+            date_w = getattr(mw, 'col_width_date', 100)
+            right_edge -= date_w
+            boundaries.append((right_edge, 'date'))
+            right_edge -= 8  # gap
+
+        # Stats column
+        if getattr(mw, 'show_stats', True):
+            stats_w = getattr(mw, 'col_width_stats', 80)
+            right_edge -= stats_w
+            boundaries.append((right_edge, 'stats'))
+            right_edge -= 8  # gap
+
+        # Author column
+        if getattr(mw, 'show_author', True):
+            author_w = getattr(mw, 'col_width_author', 120)
+            right_edge -= author_w
+            boundaries.append((right_edge, 'author'))
+
+        return boundaries
+
+    def _hit_test_resize(self, x):
+        """Check if x is near a column boundary. Return column name or None."""
+        for bx, col in self._get_column_boundaries():
+            if abs(x - bx) <= 5:
+                return col
+        return None
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            col = self._hit_test_resize(int(event.position().x()))
+            if col:
+                self._resizing = True
+                self._resize_col = col
+                self._resize_start_x = int(event.position().x())
+                mw = self.main_window
+                if col == 'author':
+                    self._resize_start_width = getattr(mw, 'col_width_author', 120)
+                elif col == 'stats':
+                    self._resize_start_width = getattr(mw, 'col_width_stats', 80)
+                elif col == 'date':
+                    self._resize_start_width = getattr(mw, 'col_width_date', 100)
+                event.accept()
+                return
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):
+        if self._resizing:
+            dx = int(event.position().x()) - self._resize_start_x
+            mw = self.main_window
+            if self._resize_col == 'author':
+                mw.col_width_author = max(60, self._resize_start_width - dx)
+            elif self._resize_col == 'stats':
+                mw.col_width_stats = max(40, self._resize_start_width - dx)
+            elif self._resize_col == 'date':
+                mw.col_width_date = max(40, self._resize_start_width - dx)
+            self.viewport().update()
+            event.accept()
+            return
+        # Resize cursor near boundaries
+        col = self._hit_test_resize(int(event.position().x()))
+        if col:
+            self.setCursor(QCursor(Qt.SplitHCursor))
+        else:
+            self.setCursor(QCursor(Qt.ArrowCursor))
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        if self._resizing:
+            self._resizing = False
+            self._resize_col = None
+            self.setCursor(QCursor(Qt.ArrowCursor))
+            event.accept()
+            return
+        super().mouseReleaseEvent(event)
 
     def dropEvent(self, event):
         try:

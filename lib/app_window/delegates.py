@@ -143,39 +143,59 @@ class CommitItemDelegate(QStyledItemDelegate):
 
         show_stats = getattr(main_win, "show_stats", True)
         show_date = getattr(main_win, "show_date", True)
+        show_author = getattr(main_win, "show_author", True)
         date_str = index.data(Qt.UserRole + 2)
         stats = index.data(Qt.UserRole + 3)
+        author_str = index.data(Qt.UserRole + 4) if show_author else None
         right_boundary = text_rect.right()
 
         if show_date and date_str:
-            date_w = fm_normal.horizontalAdvance(date_str)
+            date_w = getattr(main_win, 'col_width_date', 100)
             date_rect = QRect(right_boundary - date_w, text_rect.top(), date_w, text_rect.height())
             painter.save()
             painter.setPen(QColor("#888888") if not (opt.state & QStyle.State_Selected) else opt.palette.highlightedText().color())
-            painter.drawText(date_rect, Qt.AlignRight | Qt.AlignVCenter, date_str)
+            elided_date = fm_normal.elidedText(date_str, Qt.ElideRight, date_w - 4)
+            painter.drawText(date_rect, Qt.AlignRight | Qt.AlignVCenter, elided_date)
             painter.restore()
             right_boundary -= (date_w + 8)
 
         if show_stats and stats and isinstance(stats, tuple) and len(stats) == 2:
             added, deleted = stats
-            added_str = f"+{added}"
-            deleted_str = f" -{deleted}"
-            deleted_w = fm_normal.horizontalAdvance(deleted_str)
-            added_w = fm_normal.horizontalAdvance(added_str)
+            stats_w = getattr(main_win, 'col_width_stats', 80)
+            stats_text = f"+{added} -{deleted}"
 
             painter.save()
             is_dark = getattr(main_win, 'is_dark_theme', True) if main_win else True
             green_col = QColor("#81c784") if is_dark else QColor("#22863a")
             red_col = QColor("#e57373") if is_dark else QColor("#cb2431")
 
-            painter.setPen(QColor("white") if (opt.state & QStyle.State_Selected) else red_col)
-            painter.drawText(QRect(right_boundary - deleted_w, text_rect.top(), deleted_w, text_rect.height()), Qt.AlignLeft | Qt.AlignVCenter, deleted_str)
-            right_boundary -= deleted_w
+            stats_rect = QRect(right_boundary - stats_w, text_rect.top(), stats_w, text_rect.height())
+            # Draw as colored segments within the column
+            added_str = f"+{added}"
+            deleted_str = f" -{deleted}"
+            added_w = fm_normal.horizontalAdvance(added_str)
+            deleted_w = fm_normal.horizontalAdvance(deleted_str)
+            total_w = added_w + deleted_w
+            x_start = stats_rect.right() - total_w
 
             painter.setPen(QColor("white") if (opt.state & QStyle.State_Selected) else green_col)
-            painter.drawText(QRect(right_boundary - added_w, text_rect.top(), added_w, text_rect.height()), Qt.AlignLeft | Qt.AlignVCenter, added_str)
-            right_boundary -= (added_w + 8)
+            painter.drawText(QRect(x_start, text_rect.top(), added_w, text_rect.height()),
+                             Qt.AlignLeft | Qt.AlignVCenter, added_str)
+            painter.setPen(QColor("white") if (opt.state & QStyle.State_Selected) else red_col)
+            painter.drawText(QRect(x_start + added_w, text_rect.top(), deleted_w, text_rect.height()),
+                             Qt.AlignLeft | Qt.AlignVCenter, deleted_str)
+            right_boundary -= (stats_w + 8)
             painter.restore()
+
+        if author_str:
+            author_w = getattr(main_win, 'col_width_author', 120)
+            author_rect = QRect(right_boundary - author_w, text_rect.top(), author_w, text_rect.height())
+            painter.save()
+            painter.setPen(QColor("#888888") if not (opt.state & QStyle.State_Selected) else opt.palette.highlightedText().color())
+            elided_author = fm_normal.elidedText(author_str, Qt.ElideRight, author_w - 4)
+            painter.drawText(author_rect, Qt.AlignRight | Qt.AlignVCenter, elided_author)
+            painter.restore()
+            right_boundary -= (author_w + 8)
 
         left_boundary = current_x
         painter.save()
@@ -195,6 +215,25 @@ class CommitItemDelegate(QStyledItemDelegate):
         main_rect = text_rect.adjusted(left_boundary - text_rect.left(), 0, right_boundary - text_rect.right() - 8, 0)
         elided_main = painter.fontMetrics().elidedText(main_text, Qt.ElideRight, main_rect.width())
         painter.drawText(main_rect, Qt.AlignLeft | Qt.AlignVCenter, elided_main)
+        painter.restore()
+
+        # Draw thin separator lines at column boundaries (resize handles)
+        is_dark = getattr(main_win, 'is_dark_theme', True) if main_win else True
+        sep_color = QColor("#444444") if is_dark else QColor("#cccccc")
+        painter.save()
+        painter.setPen(QPen(sep_color, 1))
+        rx = text_rect.right()
+        if show_date:
+            rx -= getattr(main_win, 'col_width_date', 100)
+            painter.drawLine(rx, text_rect.top(), rx, text_rect.bottom())
+            rx -= 8
+        if show_stats:
+            rx -= getattr(main_win, 'col_width_stats', 80)
+            painter.drawLine(rx, text_rect.top(), rx, text_rect.bottom())
+            rx -= 8
+        if show_author:
+            rx -= getattr(main_win, 'col_width_author', 120)
+            painter.drawLine(rx, text_rect.top(), rx, text_rect.bottom())
         painter.restore()
 
         painter.restore()

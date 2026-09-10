@@ -113,6 +113,12 @@ class InitMixin:
         self.show_tags = self.settings.value(self._sk("show_tags"), False, type=bool)
         self.show_stats = self.settings.value(self._sk("show_stats"), True, type=bool)
         self.show_date = self.settings.value(self._sk("show_date"), True, type=bool)
+        self.show_author = self.settings.value(self._sk("show_author"), True, type=bool)
+
+        # Column widths for commit list (None = use defaults)
+        self.col_width_author = self.settings.value(self._sk("col_width_author"), 120, type=int)
+        self.col_width_stats = self.settings.value(self._sk("col_width_stats"), 80, type=int)
+        self.col_width_date = self.settings.value(self._sk("col_width_date"), 100, type=int)
 
         # Browse mode is a strict read-only history viewer: force-hide the
         # mutating groups so the user only sees the commit list + diffs.
@@ -225,6 +231,10 @@ class InitMixin:
         self.settings.setValue(self._sk("isMaximized"), self.isMaximized())
         self.settings.setValue(self._sk("show_stats"), self.show_stats)
         self.settings.setValue(self._sk("show_date"), self.show_date)
+        self.settings.setValue(self._sk("show_author"), self.show_author)
+        self.settings.setValue(self._sk("col_width_author"), self.col_width_author)
+        self.settings.setValue(self._sk("col_width_stats"), self.col_width_stats)
+        self.settings.setValue(self._sk("col_width_date"), self.col_width_date)
         for viewer in list(self.browse_windows):
             try:
                 viewer.close()
