@@ -168,6 +168,17 @@ class AppearanceMixin:
         self.settings.setValue(self._sk("show_date"), self.show_date)
         self.list_widget.viewport().update()
 
+    def _on_author_toggled(self, visible):
+        self.show_author = visible
+        self.settings.setValue(self._sk("show_author"), self.show_author)
+        self.list_widget.viewport().update()
+
+    def _reset_column_widths(self):
+        self.col_width_author = 120
+        self.col_width_stats = 80
+        self.col_width_date = 100
+        self.list_widget.viewport().update()
+
     def on_diffs_visibility_toggled(self, visible):
         self.show_diffs = visible
         self.right_panel.setVisible(visible)
