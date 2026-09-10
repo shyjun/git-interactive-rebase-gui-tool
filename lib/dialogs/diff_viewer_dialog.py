@@ -11,11 +11,11 @@ from PySide6.QtWidgets import (
 )
 # pyrefly: ignore [missing-import]
 from PySide6.QtGui import (
-    QFont,
     QShortcut,
     QKeySequence,
 )
 
+from lib.app_window.helpers import mono_font
 from lib.widgets import (
     DiffHighlighter,
     DiffSearchBar,
@@ -39,7 +39,7 @@ class DiffViewerDialog(QDialog):
         # Full diff view
         self.diff_view = DiffView()
         self.diff_view.setReadOnly(True)
-        self.diff_view.setFont(QFont("Monospace", self.font_size))
+        self.diff_view.setFont(mono_font(self.font_size))
         self.diff_view.setPlainText(diff_text)
 
         # Determine highlighting colors based on parent theme or default to dark

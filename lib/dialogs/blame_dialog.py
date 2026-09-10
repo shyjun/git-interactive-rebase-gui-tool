@@ -35,12 +35,12 @@ from PySide6.QtCore import (
 )
 # pyrefly: ignore [missing-import]
 from PySide6.QtGui import (
-    QFont,
     QFontMetrics,
     QColor,
     QAction,
 )
 
+from lib.app_window.helpers import mono_font
 from lib.widgets import (
     BrowseDimOverlay,
     DiffHighlighter,
@@ -159,7 +159,7 @@ class BlameDialog(QDialog):
     def update_font(self):
         """Called when the parent window zooms in/out — updates table font."""
         self.font_size = self.current_font_size
-        font = QFont("Monospace", self.current_font_size)
+        font = mono_font(self.current_font_size)
         self.table.setFont(font)
         self.table.horizontalHeader().setFont(font)
         self._refresh_table()
@@ -253,7 +253,7 @@ class BlameDialog(QDialog):
         self.table.setAlternatingRowColors(True)
         self.table.setSortingEnabled(False)
         self.table.setWordWrap(False)
-        font = QFont("Monospace", self.current_font_size)
+        font = mono_font(self.current_font_size)
         self.table.setFont(font)
         self.table.horizontalHeader().setFont(font)
         self.table.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -609,7 +609,7 @@ class BlameDialog(QDialog):
             self.table.setItem(row_idx, 4, li)
 
             ci = QTableWidgetItem(code)
-            ci.setFont(QFont("Monospace", self.current_font_size))
+            ci.setFont(mono_font(self.current_font_size))
             self.table.setItem(row_idx, 5, ci)
 
         self.table.setColumnHidden(1, not self.show_author_cb.isChecked())
