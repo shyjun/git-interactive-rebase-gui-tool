@@ -168,13 +168,17 @@ def get_branch_history(repo_path, branch, limit=None):
     except subprocess.CalledProcessError as e:
         raise Exception(f"Failed to fetch branch history: {e.stderr}")
 
-def get_file_history(repo_path, filepath, limit=None, ref=None):
+def get_file_history(repo_path, filepath, limit=None, ref=None, follow=False):
     """Fetches the history of a single file (commits that touched it).
 
     Returns (commits, tag_map) like get_git_history."""
     try:
         log_cmd = [
-            "git", "log", "--follow",
+            "git", "log"
+        ]
+        if follow:
+            log_cmd.append("--follow")
+        log_cmd += [
             "--format=%h%x1f%cd%x1f%an <%ae>%x1f%s%x1f%P%x1f%B%x1f%D%x1e",
             "--date=format:%d %b %Y",
             "--shortstat"

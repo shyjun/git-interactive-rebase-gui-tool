@@ -530,6 +530,14 @@ class UIMixin:
         self.blame_file_btn.setVisible(bool(self.browse_file))
         self.blame_file_btn.clicked.connect(self._blame_browse_file)
         controls_layout.addWidget(self.blame_file_btn)
+
+        self.follow_cb = QCheckBox("Use --follow (git log --follow <file>)")
+        self.follow_cb.setToolTip("Include --follow in git log (tracks renames).")
+        self.follow_cb.setChecked(False)
+        self.follow_cb.setVisible(bool(self.browse_file))
+        self.follow_cb.toggled.connect(self._on_follow_toggled)
+        controls_layout.addWidget(self.follow_cb)
+
         controls_layout.addStretch()
         controls_layout.addWidget(self.pop_stash_btn)
         controls_layout.addWidget(self.repo_btn)
@@ -832,6 +840,10 @@ class UIMixin:
             self.showing_commits_label, self.sep_merge, self.merge_commits_label,
             MATCH_ROLE, _diff_search_matches, get_commit_files_with_status,
             get_commit_diff, self.settings, self._sk)
+
+    def _on_follow_toggled(self, checked):
+        if hasattr(self, 'load_history'):
+            self.load_history()
 
     def _on_side_commit_header_toggled(self, expanded):
         splitter = self.right_splitter

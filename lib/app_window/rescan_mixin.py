@@ -471,14 +471,16 @@ class RescanMixin:
         stash = self.browse_stash
         tags = self.browse_tags
         browse_limit = self.browse_limit + getattr(self, '_load_more_offset', 0)
+        use_follow = getattr(self, 'follow_cb', None)
+        use_follow = use_follow.isChecked() if use_follow else False
 
         mode = "file" if filepath else "stash" if stash else "reflog" if reflog else "tags" if tags else "branch"
-        print(f"[browse] Async load started: mode={mode}, branch='{branch}', file='{filepath}', limit={browse_limit}")
+        print(f"[browse] Async load started: mode={mode}, branch='{branch}', file='{filepath}', limit={browse_limit}, follow={use_follow}")
 
         def worker():
             try:
                 if filepath:
-                    history, tag_map = get_file_history(repo_path, filepath, limit=browse_limit, ref=file_ref)
+                    history, tag_map = get_file_history(repo_path, filepath, limit=browse_limit, ref=file_ref, follow=use_follow)
                 elif stash:
                     history = get_stash_history(repo_path, limit=browse_limit)
                     self._browse_load_result = (True, history, {}, {})
