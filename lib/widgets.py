@@ -98,6 +98,7 @@ class DiffView(QPlainTextEdit):
     """A QPlainTextEdit that draws subtle 1px separators before file diffs."""
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
         self.separator_color = QColor("#CCCCCC")
         self.draw_separators = True
 
@@ -111,6 +112,12 @@ class DiffView(QPlainTextEdit):
     def set_line_numbers_visible(self, visible):
         self.show_line_numbers = visible
         self.update_line_number_area_width(self.blockCount())
+
+    def set_line_wrap_enabled(self, enabled):
+        self.setLineWrapMode(
+            QPlainTextEdit.LineWrapMode.WidgetWidth if enabled
+            else QPlainTextEdit.LineWrapMode.NoWrap
+        )
 
     def line_number_area_width(self):
         if not self.show_line_numbers:
@@ -292,6 +299,9 @@ class DiffSearchBar(QWidget):
         self.line_num_cb = QCheckBox("Line-Num")
         self.line_num_cb.setToolTip("Highlight line numbers.")
 
+        self.wrap_cb = QCheckBox("Wrap")
+        self.wrap_cb.setToolTip("Wrap long lines to fit the view width.")
+
         layout.addWidget(self.search_input)
         layout.addWidget(self.match_case_cb)
         layout.addWidget(self.whole_word_cb)
@@ -300,6 +310,7 @@ class DiffSearchBar(QWidget):
         layout.addWidget(self.lbl_counter)
         layout.addWidget(self.separator)
         layout.addWidget(self.line_num_cb)
+        layout.addWidget(self.wrap_cb)
 
     def _connect_signals(self):
         self.search_input.textChanged.connect(self._perform_search)
@@ -307,6 +318,7 @@ class DiffSearchBar(QWidget):
         self.match_case_cb.toggled.connect(self._perform_search)
         self.whole_word_cb.toggled.connect(self._perform_search)
         self.line_num_cb.toggled.connect(self.target_view.set_line_numbers_visible)
+        self.wrap_cb.toggled.connect(self.target_view.set_line_wrap_enabled)
         self.btn_next.clicked.connect(self.next_match)
         self.btn_prev.clicked.connect(self.prev_match)
 
