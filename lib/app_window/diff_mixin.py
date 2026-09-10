@@ -26,7 +26,7 @@ from lib.tree_utils import (
     update_folder_check_state,
 )
 from lib.dialogs import open_blame_window
-from lib.app_window.helpers import add_open_with_system_default_action
+from lib.app_window.helpers import add_open_with_system_default_action, PLAIN_DIFF_LINE_CAP, clean_binary_diff_lines
 
 
 class DiffMixin:
@@ -57,6 +57,8 @@ class DiffMixin:
                 self.side_commit_label.setText("Select a commit to view details")
                 self.side_commit_msg.clear()
             self.side_diff_view.clear()
+            if hasattr(self, '_diff_truncation_banner'):
+                self._hide_truncation_banner()
             if hasattr(self, 'filewise_file_list'):
                 self.filewise_file_list.clear()
                 self.filewise_diff_view.clear()
@@ -97,7 +99,19 @@ class DiffMixin:
                         cache_entry['diff'] = get_commit_diff(self.repo_path, sha)
                         self.commit_cache[sha] = cache_entry
                     diff_text = cache_entry['diff']
-                self.side_diff_view.setPlainText(diff_text)
+                # Clean up binary file noise
+                diff_text = clean_binary_diff_lines(diff_text)
+                # Truncate if too large
+                lines = diff_text.split('\n')
+                total_lines = len(lines)
+                if total_lines > PLAIN_DIFF_LINE_CAP:
+                    truncated = '\n'.join(lines[:PLAIN_DIFF_LINE_CAP])
+                    self.side_diff_view.setPlainText(truncated)
+                    self._show_truncation_banner(total_lines)
+                else:
+                    self.side_diff_view.setPlainText(diff_text)
+                    self._hide_truncation_banner()
+                self._current_diff_sha = sha
                 self.side_diff_view.set_separator_color(self.current_theme_colors.get("separator", "#444444"))
                 # Re-evaluate search if the search bar is visible
                 if self.plain_diff_search.isVisible():
@@ -159,6 +173,31 @@ class DiffMixin:
             if hasattr(self, 'filewise_diff_view'):
                 self.filewise_diff_view.setPlainText(f"Error loading diff: {e}")
 
+    def _show_truncation_banner(self, total_lines):
+        cap = PLAIN_DIFF_LINE_CAP
+        self._diff_truncation_label.setText(
+            f"Diff truncated \u2014 {total_lines:,} lines. Showing first {cap:,}.")
+        self._diff_truncation_banner.setVisible(True)
+
+    def _hide_truncation_banner(self):
+        self._diff_truncation_banner.setVisible(False)
+
+    def _show_full_diff(self):
+        item = self.list_widget.currentItem()
+        if not item:
+            return
+        sha = item.text().split()[0]
+        cache_entry = self.commit_cache.get(sha, {})
+        diff_text = cache_entry.get('diff', '')
+        if not diff_text:
+            return
+        diff_text = clean_binary_diff_lines(diff_text)
+        self.side_diff_view.setPlainText(diff_text)
+        self._hide_truncation_banner()
+        self.side_diff_view.set_separator_color(self.current_theme_colors.get("separator", "#444444"))
+        if self.plain_diff_search.isVisible():
+            self.plain_diff_search._perform_search()
+
     def on_diff_tab_changed(self, index):
         self.settings.setValue(self._sk("diff_tab_index"), index)
         if index == 0:
@@ -178,7 +217,17 @@ class DiffMixin:
                     except Exception:
                         pass
                 if 'diff' in cache_entry:
-                    self.side_diff_view.setPlainText(cache_entry['diff'])
+                    diff_text = clean_binary_diff_lines(cache_entry['diff'])
+                    lines = diff_text.split('\n')
+                    total_lines = len(lines)
+                    if total_lines > PLAIN_DIFF_LINE_CAP:
+                        truncated = '\n'.join(lines[:PLAIN_DIFF_LINE_CAP])
+                        self.side_diff_view.setPlainText(truncated)
+                        self._show_truncation_banner(total_lines)
+                    else:
+                        self.side_diff_view.setPlainText(diff_text)
+                        self._hide_truncation_banner()
+                    self._current_diff_sha = sha
                     self.side_diff_view.set_separator_color(self.current_theme_colors.get("separator", "#444444"))
                     if self.plain_diff_search.isVisible():
                         self.plain_diff_search._perform_search()

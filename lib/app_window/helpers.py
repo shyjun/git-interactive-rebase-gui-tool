@@ -26,7 +26,21 @@ import shutil
 
 PR_DIFF_SIZE_WARN_THRESHOLD = 200_000
 
+PLAIN_DIFF_LINE_CAP = 10_000
+
 MATCH_ROLE = Qt.UserRole + 7
+
+
+def clean_binary_diff_lines(diff_text):
+    """Replace verbose 'Binary files ... differ' lines with compact markers."""
+    lines = diff_text.split('\n')
+    cleaned = []
+    for line in lines:
+        if line.startswith('Binary files ') and line.endswith(' differ'):
+            cleaned.append('[binary file]')
+        else:
+            cleaned.append(line)
+    return '\n'.join(cleaned)
 
 _CREATED_TEMP_DIRS = set()
 
