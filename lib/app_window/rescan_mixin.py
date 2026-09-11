@@ -133,7 +133,18 @@ class RescanMixin:
                     )
             elif result == UnstagedChangesDialog.BulkCommitResult:
                 self.save_undo_state()
-                msg = f"bulk commit (Number of modified files: {len(unstaged_files)})"
+                default_msg = f"bulk commit (Number of modified files: {len(unstaged_files)})"
+                from lib.dialogs.commit_message_dialogs import NewCommitMessageDialog
+                msg_dlg = NewCommitMessageDialog(
+                    "Bulk Commit",
+                    f"Committing all {len(unstaged_files)} modified file(s) into a single commit.",
+                    default_msg, self.current_font_size, self,
+                )
+                if msg_dlg.exec() != QDialog.Accepted:
+                    return
+                msg = msg_dlg.get_message()
+                if not msg:
+                    return
 
                 success, detail = bulk_commit_all(self.repo_path, msg)
 
