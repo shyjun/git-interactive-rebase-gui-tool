@@ -1245,7 +1245,7 @@ class StageFilesDialog(QDialog):
                     item.setText(1, stats_text)
                     item.setTextAlignment(1, Qt.AlignRight | Qt.AlignVCenter)
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
-                item.setCheckState(0, Qt.Checked)
+                item.setCheckState(0, Qt.Unchecked)
                 if parent_item:
                     parent_item.addChild(item)
                 else:
@@ -1261,7 +1261,7 @@ class StageFilesDialog(QDialog):
                     item.setText(1, stats_text)
                     item.setTextAlignment(1, Qt.AlignRight | Qt.AlignVCenter)
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
-                item.setCheckState(0, Qt.Checked)
+                item.setCheckState(0, Qt.Unchecked)
                 if parent_item:
                     parent_item.addChild(item)
                 else:

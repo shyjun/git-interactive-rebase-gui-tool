@@ -241,10 +241,31 @@ def get_staged_file_stats(repo_path):
 
 
 def get_unstaged_file_diff(repo_path, filepath):
-    """Returns the diff for a single file's unstaged changes."""
-    return _pad_diff_separators(
-        _git_capture(repo_path, ["git", "diff", "--", filepath],
-                     "Failed to get unstaged file diff"))
+    """Returns the diff for a single file's unstaged changes.
+    For untracked files (not in the index), uses --no-index against /dev/null
+    so the full file content is shown as added lines."""
+    try:
+        result = subprocess.run(
+            ["git", "ls-files", "--error-unmatch", "--", filepath],
+            cwd=repo_path, capture_output=True, text=True, timeout=5)
+        is_tracked = result.returncode == 0
+    except Exception:
+        is_tracked = False
+
+    if is_tracked:
+        return _pad_diff_separators(
+            _git_capture(repo_path, ["git", "diff", "--", filepath],
+                         "Failed to get unstaged file diff"))
+    else:
+        # git diff --no-index exits 1 when differences exist — that's normal
+        try:
+            result = subprocess.run(
+                ["git", "diff", "--no-index", "--", "/dev/null", filepath],
+                cwd=repo_path, capture_output=True, text=True, timeout=15,
+                encoding='utf-8', errors='replace')
+            return _pad_diff_separators(result.stdout)
+        except subprocess.TimeoutExpired:
+            return ""
 
 
 def get_staged_file_diff(repo_path, filepath):
