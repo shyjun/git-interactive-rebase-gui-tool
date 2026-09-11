@@ -86,7 +86,7 @@ class CommitListWidget(QListWidget):
     def _hit_test_resize(self, x):
         boundaries = self._get_column_boundaries()
         for bx, col in boundaries:
-            if abs(x - bx) <= 10:
+            if abs(x - bx) <= 5:
                 return col
         return None
 
