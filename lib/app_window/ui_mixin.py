@@ -440,6 +440,9 @@ class UIMixin:
         self.undo_btn.setToolTip("Undo the last operation (Ctrl+Z).")
         self._set_undo_icon(self.undo_btn)
         self.undo_btn.setEnabled(False)
+        self.redo_btn = QPushButton("Redo")
+        self.redo_btn.setToolTip("Redo the last undone operation (Ctrl+Y).")
+        self.redo_btn.setEnabled(False)
         self.refresh_btn = QPushButton("Refresh")
         self.refresh_btn.setToolTip("Reload the commit history from git.")
         self._set_refresh_icon(self.refresh_btn)
@@ -459,7 +462,7 @@ class UIMixin:
         self.custom_reset_btn = QPushButton("Enter commit id to reset hard to")
         self.custom_reset_btn.setToolTip("Reset hard to a commit id you enter.")
 
-        for btn in [self.exit_viewer_mode_btn, self.rescan_btn, self.repo_btn, self.pop_stash_btn, self.undo_btn, self.refresh_btn, self.exit_btn, self.theme_menu_btn]:
+        for btn in [self.exit_viewer_mode_btn, self.rescan_btn, self.repo_btn, self.pop_stash_btn, self.undo_btn, self.redo_btn, self.refresh_btn, self.exit_btn, self.theme_menu_btn]:
             btn.setMinimumHeight(40)
             btn.setMinimumWidth(100)
         self.failsafe_btn.setMinimumHeight(40)
@@ -470,6 +473,7 @@ class UIMixin:
         self.rescan_btn.clicked.connect(self.handle_rescan_repo)
         self.pop_stash_btn.clicked.connect(self.handle_pop_managed_stash)
         self.undo_btn.clicked.connect(self.handle_undo)
+        self.redo_btn.clicked.connect(self.handle_redo)
         self.refresh_btn.clicked.connect(self.handle_manual_refresh)
         self.failsafe_btn.clicked.connect(self.handle_failsafe_reset)
         self.best_commit_btn.clicked.connect(self.handle_best_commit_reset)
@@ -562,11 +566,12 @@ class UIMixin:
         controls_layout.addWidget(self.browse_cherry_pick_btn)
         controls_layout.addWidget(self.rescan_btn)
         controls_layout.addWidget(self.undo_btn)
+        controls_layout.addWidget(self.redo_btn)
         controls_layout.addWidget(self.refresh_btn)
         controls_layout.addWidget(self.exit_btn)
 
         if self.browse_mode:
-            for btn in [self.theme_menu_btn, self.repo_btn, self.rescan_btn, self.undo_btn]:
+            for btn in [self.theme_menu_btn, self.repo_btn, self.rescan_btn, self.undo_btn, self.redo_btn]:
                 btn.setVisible(False)
 
         layout.addLayout(controls_layout)
@@ -824,6 +829,9 @@ class UIMixin:
 
         self.ctrl_z_shortcut = QShortcut(QKeySequence.Undo, self)
         self.ctrl_z_shortcut.activated.connect(self.handle_undo_shortcut)
+
+        self.ctrl_y_shortcut = QShortcut(QKeySequence("Ctrl+Y"), self)
+        self.ctrl_y_shortcut.activated.connect(self.handle_redo_shortcut)
 
         self.ctrl_alt_f5_shortcut = QShortcut(QKeySequence("Ctrl+Shift+F5"), self)
         self.ctrl_alt_f5_shortcut.activated.connect(self._handle_restart_if_updated)

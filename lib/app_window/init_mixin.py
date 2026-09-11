@@ -86,6 +86,7 @@ class InitMixin:
         self.cached_current_head_full_sha = self.start_time_full_head
         self.cached_has_uncommitted = False
         self.last_head = None
+        self.redo_head = None
         self.best_commit_sha = None
         self.marked_shas = set()
         self.browse_limit = browse_limit
