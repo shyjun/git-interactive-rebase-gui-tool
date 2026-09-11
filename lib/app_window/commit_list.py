@@ -24,6 +24,7 @@ class CommitListWidget(QListWidget):
             self.setDropIndicatorShown(True)
             self.setDragDropMode(QListWidget.InternalMove)
         self.setUniformItemSizes(True)
+        self.viewport().setMouseTracking(True)
         # Column resize state
         self._resizing = False
         self._resize_col = None
