@@ -57,9 +57,12 @@ class UndoMixin:
             print(f"[undo] Cancelled failsafe reset to {self.start_time_head[:8]}.")
 
     def save_undo_state(self):
-        """Saves current HEAD to last_head and enables Undo button."""
+        """Saves current HEAD to last_head and enables Undo button.
+        Clears any pending redo since a new operation invalidates it."""
         self.last_head = get_full_head_sha(self.repo_path)
         self.undo_btn.setEnabled(True)
+        self.redo_head = None
+        self.redo_btn.setEnabled(False)
 
     def handle_undo_shortcut(self):
         """Handles the Ctrl+Z shortcut for undoing the last operation.
@@ -118,6 +121,8 @@ class UndoMixin:
                     new_head = self.get_head_sha()
                     self.log_action(self.last_head, "undid last operation (reset hard to)", old_head, new_head)
                     QMessageBox.information(self, "Success", f"Successfully undid the last operation (reset to {self.last_head[:8]}).")
+                    self.redo_head = old_head
+                    self.redo_btn.setEnabled(True)
                     self.last_head = None
                     self.undo_btn.setEnabled(False)
                 else:
@@ -130,3 +135,56 @@ class UndoMixin:
             self.progress_dialog.exec()
         else:
             print(f"Cancelled undo (reset to {self.last_head[:8]}).")
+
+    def handle_redo_shortcut(self):
+        """Handles Ctrl+Y for redo. Defers when a text field has focus."""
+        if not self._undo_focus_guard():
+            return
+        if not self.redo_head:
+            return
+        self.handle_redo()
+
+    def handle_redo(self):
+        """Handles the Redo action by resetting hard to redo_head."""
+        if not self._check_not_viewer_mode():
+            return
+        if not self.redo_head:
+            return
+
+        print(f"[undo] Redo requested: reset to {self.redo_head[:10]}")
+        reply = QMessageBox.question(
+            self,
+            "Confirm Redo",
+            f"Are you sure you want to <b>reset --hard</b> to the redone state (<b>{self.redo_head[:8]}</b>)?<br><br>"
+            "This will discard all uncommitted changes and move your branch to this state.",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+        if reply == QMessageBox.Yes:
+            print("[undo] Redo confirmed")
+            old_head = self.get_head_sha()
+
+            self.progress_dialog = ProgressDialog("Redoing", f"Resetting hard to {self.redo_head[:8]}...", self)
+            self.worker = GitWorker(["git", "reset", "--hard", self.redo_head], self.repo_path)
+
+            def on_redo_finished(success, stdout, stderr):
+                if hasattr(self, 'progress_dialog'):
+                    self.progress_dialog.close()
+
+                if success:
+                    self.load_history()
+                    new_head = self.get_head_sha()
+                    self.log_action(self.redo_head, "redid last operation (reset hard to)", old_head, new_head)
+                    QMessageBox.information(self, "Success", f"Successfully redid the last operation (reset to {self.redo_head[:8]}).")
+                    self.redo_head = None
+                    self.redo_btn.setEnabled(False)
+                else:
+                    QMessageBox.critical(self, "Redo Failed", f"Could not perform redo.\n\nError: {stderr}")
+                    self.load_history()
+
+            self.worker.finished.connect(on_redo_finished)
+            print("[thread] redo GitWorker.start()")
+            self.worker.start()
+            self.progress_dialog.exec()
+        else:
+            print(f"Cancelled redo (reset to {self.redo_head[:8]}).")
