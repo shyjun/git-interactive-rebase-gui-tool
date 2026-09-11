@@ -695,22 +695,36 @@ class StashMixin:
         QMessageBox.information(self, "Changes Stashed", f"Changes stashed as {stash_sha[:8]}.")
 
     def handle_stage_files(self):
-        """Open a dialog to select unstaged/untracked files to stage (git add)."""
+        """Open a dialog to select untracked files to add (git add)."""
         unstaged_files = get_unstaged_files(self.repo_path, ignore_submodules=True)
+        if unstaged_files:
+            QMessageBox.warning(
+                self, "Unstaged Changes in Tracked Files",
+                f"There are unstaged changes in {len(unstaged_files)} tracked file(s).\n\n"
+                "Please commit or stash them before adding untracked files."
+            )
+            return
         untracked_files = get_untracked_files(self.repo_path, ignore_submodules=True)
-        all_files = unstaged_files + untracked_files
-        if not all_files:
-            QMessageBox.information(self, "No Files to Stage", "There are no unstaged or untracked files to stage.")
+        if not untracked_files:
+            QMessageBox.information(self, "No Untracked Files", "There are no untracked files to add.")
             return
         file_stats = get_unstaged_file_stats(self.repo_path, ignore_submodules=True)
         from lib.dialogs import StageFilesDialog
         dialog = StageFilesDialog(
-            self.repo_path, all_files, file_stats,
+            self.repo_path, untracked_files, file_stats,
             font_size=self.current_font_size, parent=self,
         )
         if dialog.exec() == QDialog.Accepted:
             self.load_history()
-            QMessageBox.information(
-                self, "Files Staged",
-                f"Successfully staged {len(dialog.selected_files)} file(s)."
+            from lib.app_window.helpers import highlight_button_temporarily
+            highlight_button_temporarily(self.repo_btn, blinks=5)
+            box = QMessageBox(self)
+            box.setIcon(QMessageBox.Information)
+            box.setWindowTitle("Files Added")
+            box.setTextFormat(Qt.RichText)
+            box.setText(
+                f"Successfully added/staged {len(dialog.selected_files)} file(s).<br><br>"
+                "Please go to<br><b>Repo -> Handle Staged Changes</b><br><br>"
+                "to handle the files."
             )
+            box.exec()
