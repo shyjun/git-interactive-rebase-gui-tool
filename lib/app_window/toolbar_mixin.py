@@ -72,6 +72,9 @@ class ToolbarMixin:
     def _set_undo_icon(self, button):
         self._apply_toolbar_icon(button, self._draw_undo)
 
+    def _set_redo_icon(self, button):
+        self._apply_toolbar_icon(button, self._draw_redo)
+
     def _set_refresh_icon(self, button):
         self._apply_toolbar_icon(button, self._draw_refresh)
 
@@ -91,6 +94,7 @@ class ToolbarMixin:
         self._set_theme_icon(self.theme_menu_btn)
         self._set_rescan_icon(self.rescan_btn)
         self._set_undo_icon(self.undo_btn)
+        self._set_redo_icon(self.redo_btn)
         self._set_refresh_icon(self.refresh_btn)
         self._set_exit_icon(self.exit_btn)
         self._set_exit_viewer_mode_icon(self.exit_viewer_mode_btn)
@@ -133,6 +137,21 @@ class ToolbarMixin:
         path.moveTo(3.2, 7.4)
         path.lineTo(9.4, 7.4)
         path.cubicTo(12.0, 7.4, 13.4, 8.9, 13.4, 11.5)
+        painter.drawPath(path)
+
+    def _draw_redo(self, painter, color):
+        pen = QPen(color, 1.8)
+        pen.setCapStyle(Qt.RoundCap)
+        pen.setJoinStyle(Qt.RoundJoin)
+        painter.setPen(pen)
+        painter.setBrush(Qt.NoBrush)
+
+        painter.drawLine(9.4, 4.0, 13.2, 7.4)
+        painter.drawLine(13.2, 7.4, 9.4, 10.8)
+        path = QPainterPath()
+        path.moveTo(12.8, 7.4)
+        path.lineTo(6.6, 7.4)
+        path.cubicTo(4.0, 7.4, 2.6, 8.9, 2.6, 11.5)
         painter.drawPath(path)
 
     def _draw_refresh(self, painter, color):
