@@ -341,7 +341,8 @@ def main():
             print(f"Successfully committed {success_count} files.")
         elif result == UnstagedChangesDialog.BulkCommitResult:
             startup_undo_sha = get_head_sha(repo_path)
-            default_msg = f"bulk commit (Number of modified files: {len(unstaged_files)})"
+            file_list = "\n".join(unstaged_files)
+            default_msg = f"bulk commit (Number of modified files: {len(unstaged_files)})\n\nfiles:\n{file_list}"
             _font_size = int(QSettings("shyjun", "GitInteractiveRebase").value("font_size", 10))
             from lib.dialogs.commit_message_dialogs import NewCommitMessageDialog
             msg_dlg = NewCommitMessageDialog(
