@@ -99,6 +99,7 @@ class RescanMixin:
                     QMessageBox.critical(self, "Error", f"Failed to stash changes. Please stash or commit manually.{detail}")
                     return
             elif result == UnstagedChangesDialog.CommitEachResult:
+                self.save_undo_state()
                 progress = ProgressDialog("Committing Changes", f"Committing {len(unstaged_files)} files individually...", self)
                 progress.show()
                 for _ in range(3): QApplication.processEvents()
@@ -131,6 +132,7 @@ class RescanMixin:
                         f"Failed to commit {len(failed_files)} of {len(unstaged_files)} file(s):\n\n{fail_lines}"
                     )
             elif result == UnstagedChangesDialog.BulkCommitResult:
+                self.save_undo_state()
                 msg = f"bulk commit (Number of modified files: {len(unstaged_files)})"
 
                 success, detail = bulk_commit_all(self.repo_path, msg)
@@ -144,6 +146,7 @@ class RescanMixin:
                     QMessageBox.critical(self, "Error", f"Bulk commit failed.\n\n{detail}")
                     return
             elif result == UnstagedChangesDialog.AmendResult:
+                self.save_undo_state()
                 old_head = self.get_head_sha()
                 success, detail = amend_with_head(self.repo_path)
 
@@ -157,6 +160,7 @@ class RescanMixin:
                     QMessageBox.critical(self, "Error", f"Amend failed.\n\n{detail}")
                     return
             elif result == UnstagedChangesDialog.DiscardResult:
+                self.save_undo_state()
                 success, detail = discard_changes(self.repo_path)
 
                 if success:

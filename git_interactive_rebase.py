@@ -285,6 +285,7 @@ def main():
     created_stash_sha = None
     ack_messages = []  # (kind, title, text) shown after the main window appears
     deferred_selective_commit = False
+    startup_undo_sha = None  # HEAD before a startup amend/bulk/commit-each so undo can restore it
     unstaged_files = get_unstaged_files(repo_path, ignore_submodules=True)
     if unstaged_files and not args.viewer_mode:
         dialog = UnstagedChangesDialog(len(unstaged_files), repo_path=repo_path, unstaged_files=unstaged_files)
@@ -308,6 +309,7 @@ def main():
                 QMessageBox.critical(None, "Error", f"Failed to stash changes. Please stash or commit manually.{detail}")
                 sys.exit(1)
         elif result == UnstagedChangesDialog.CommitEachResult:
+            startup_undo_sha = get_head_sha(repo_path)
             # We already have the files list
             progress = ProgressDialog("Committing Changes", f"Committing {len(unstaged_files)} files individually...", None)
             progress.show()
@@ -338,6 +340,7 @@ def main():
                                      f"Failed to commit {len(failed_files)} of {len(unstaged_files)} file(s):\n\n{fail_lines}"))
             print(f"Successfully committed {success_count} files.")
         elif result == UnstagedChangesDialog.BulkCommitResult:
+            startup_undo_sha = get_head_sha(repo_path)
             msg = f"bulk commit (Number of modified files: {len(unstaged_files)})"
 
             ok, detail = bulk_commit_all(repo_path, msg)
@@ -350,6 +353,7 @@ def main():
                 ack_messages.append(("critical", "Error", f"Bulk commit failed.\n\n{detail}"))
 
         elif result == UnstagedChangesDialog.AmendResult:
+            startup_undo_sha = get_head_sha(repo_path)
             old_head = get_head_sha(repo_path)
             ok, detail = amend_with_head(repo_path)
             if ok:
@@ -362,6 +366,7 @@ def main():
                 ack_messages.append(("critical", "Error", f"Amend failed.\n\n{detail}"))
 
         elif result == UnstagedChangesDialog.DiscardResult:
+            startup_undo_sha = get_head_sha(repo_path)
             ok, detail = discard_changes(repo_path)
             if ok:
                 print("Unstaged changes discarded.")
@@ -395,6 +400,9 @@ def main():
         auto_detect_base=detect_base,
     )
     window.show()
+    if startup_undo_sha:
+        window.last_head = startup_undo_sha
+        window.undo_btn.setEnabled(True)
     if created_stash_sha:
         window.app_managed_stash_sha = created_stash_sha
         window._update_stash_btn_visibility()
