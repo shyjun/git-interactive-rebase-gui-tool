@@ -341,7 +341,22 @@ def main():
             print(f"Successfully committed {success_count} files.")
         elif result == UnstagedChangesDialog.BulkCommitResult:
             startup_undo_sha = get_head_sha(repo_path)
-            msg = f"bulk commit (Number of modified files: {len(unstaged_files)})"
+            default_msg = f"bulk commit (Number of modified files: {len(unstaged_files)})"
+            from lib.dialogs.commit_message_dialogs import NewCommitMessageDialog
+            msg_dlg = NewCommitMessageDialog(
+                "Bulk Commit",
+                f"Committing all {len(unstaged_files)} modified file(s) into a single commit.",
+                default_msg, 10, None,
+            )
+            if msg_dlg.exec() != 1:
+                print("Bulk commit cancelled by user.")
+                ack_messages = []
+                sys.exit(0)
+            msg = msg_dlg.get_message()
+            if not msg:
+                print("Bulk commit cancelled (empty message).")
+                ack_messages = []
+                sys.exit(0)
 
             ok, detail = bulk_commit_all(repo_path, msg)
             if ok:
