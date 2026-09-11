@@ -65,7 +65,7 @@ Visual documentation for the Git Interactive Rebase GUI Tool. Each section showc
 44. [Keyboard Shortcuts](#44-keyboard-shortcuts)
 45. [Handle Staged Changes](#45-handle-staged-changes)
 46. [Commit Staged Changes Selectively](#46-commit-staged-changes-selectively)
-47. [Add Unstaged Files Dialog](#47-add-unstaged-files-dialog)
+47. [Add Untracked Files Dialog](#47-add-untracked-files-dialog)
 48. [Staged Changes Warning at Startup](#48-staged-changes-warning-at-startup)
 49. [Auto-background on Launch](#49-auto-background-on-launch)
 
@@ -636,7 +636,7 @@ Available options include:
 - **Stash and proceed to app** → Temporarily stash current changes and launch the application. When exiting the app, if it was launched this way, you are prompted to directly **stash pop** and restore the changes. A **Pop Managed Stash** button appears in the toolbar while a stash exists.
 - **Commit Selectively** → Choose which files (or diff hunks) to commit before starting the app (see [Commit Selectively](#commit-selectively))
 - **Commit each file changes separately and start app** → Automatically create one commit per modified file before launch
-- **Commit all unsaved changes to a single "bulk" commit** → Save all current changes into one temporary commit and continue
+- **Commit all unstaged changes to a single "bulk" commit** → Opens a commit message dialog (pre-filled with file list) and saves all current changes into one commit
 - **Amend all changes to the current `HEAD` commit** → Amend HEAD commit with the unstaged changes
 - **Discard changes** → Discard the unstaged changes
 - **Start in Viewer Mode** → Start the app in viewer mode. No history modifying operations will be allowed (see [Viewer Mode](#33-viewer-mode))
@@ -657,7 +657,7 @@ When changes are detected, the tool provides the same safe handling options avai
 - Stash changes and continue
 - Commit Selectively (choose which files / hunks to commit)
 - Commit each file separately
-- Commit all changes into a single bulk commit
+- Commit all unstaged changes into a single bulk commit (with editable message)
 - Amend all changes to the current `HEAD` commit
 - Discard the changes
 - Switch to Viewer Mode
@@ -1082,6 +1082,7 @@ Keyboard shortcuts for faster navigation and workflow.
 | `Ctrl+F` | Focus the diff search bar (available in every diff view) |
 | `Ctrl+Q` | Exit the application |
 | `Ctrl+Z` | Undo the last operation (disabled while editing text) |
+| `Ctrl+Y` | Redo the last undone operation |
 | `F5` | Refresh commit list |
 | `Ctrl+Shift+F5` | Restart with latest code (cloned repos only, when update detected) |
 
@@ -1107,7 +1108,7 @@ Actions available:
 - **Stash Changes** — stashes all changes (staged and unstaged)
 - **Close** — closes the dialog
 
-Buttons are disabled when no staged files remain.
+Buttons are disabled when no staged files remain. All history-modifying operations (commit, unstage, discard, amend, stash) save undo state, so you can reverse them with **Undo** (`Ctrl+Z`).
 
 ---
 
@@ -1128,15 +1129,15 @@ Features:
 
 ---
 
-## 47. Add Unstaged Files Dialog
+## 47. Add Untracked Files Dialog
 
 **Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/add-unstaged-files.webp`
 
-![Add Unstaged Files Dialog](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/add-unstaged-files.webp)
+![Add Untracked Files Dialog](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/add-unstaged-files.webp)
 - **File List tab** — checkboxes with per-file stats
 - **Tree View tab** — folder/file hierarchy with checkboxes
 
-Select files and click **Stage Selected Files** to run `git add` on them.
+Select files and click **Add/Stage Selected Files** to run `git add` on them. If unstaged changes exist in tracked files, the tool warns and blocks this operation.
 
 ---
 
