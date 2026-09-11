@@ -476,6 +476,7 @@ class StashMixin:
             return
 
         if result == CommitStagedSelectivelyDialog.UnstageSelectedResult:
+            self.save_undo_state()
             if unstage_files(self.repo_path, checked):
                 self.load_history()
                 QMessageBox.information(self, "Unstaged", f"Unstaged {len(checked)} file(s).")
@@ -511,6 +512,7 @@ class StashMixin:
             return
 
         from lib.git_helpers.commit_ops import commit_staged
+        self.save_undo_state()
         if result == CommitStagedSelectivelyDialog.AmendSelectedResult:
             from lib.git_helpers.commit_ops import amend_staged
             ok = amend_staged(self.repo_path, message)
@@ -564,6 +566,7 @@ class StashMixin:
             return
 
         from lib.git_helpers.commit_ops import commit_staged
+        self.save_undo_state()
         if commit_staged(self.repo_path, message):
             self.load_history()
             QMessageBox.information(self, "Committed", f"Committed {len(staged)} file(s).")
@@ -586,6 +589,7 @@ class StashMixin:
         if reply != QMessageBox.Yes:
             return
         from lib.git_helpers.status import unstage_all
+        self.save_undo_state()
         if unstage_all(self.repo_path):
             self.load_history()
             QMessageBox.information(self, "Unstaged", f"Unstaged {len(staged)} file(s).")
@@ -637,6 +641,7 @@ class StashMixin:
         if reply != QMessageBox.Yes:
             return
         from lib.git_helpers.status import discard_staged
+        self.save_undo_state()
         if discard_staged(self.repo_path):
             self.load_history()
             QMessageBox.information(self, "Discarded", f"Discarded {len(staged)} staged file(s).")
@@ -672,6 +677,7 @@ class StashMixin:
         if not message:
             return
         from lib.git_helpers.commit_ops import amend_staged
+        self.save_undo_state()
         if amend_staged(self.repo_path, message):
             self.load_history()
             QMessageBox.information(self, "Amended", f"Amended last commit with {len(staged)} file(s).")
@@ -684,6 +690,7 @@ class StashMixin:
             stash_changes,
             STASH_NOTHING_STASHED,
         )
+        self.save_undo_state()
         stash_sha, err = stash_changes(self.repo_path, message=None)
         if stash_sha is None:
             QMessageBox.critical(self, "Stash Failed", f"Failed to stash changes:\n{err}")

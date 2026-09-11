@@ -120,7 +120,7 @@ class UnstagedChangesDialog(QDialog):
         self.commit_each_btn = QPushButton(commit_each_text)
         self.commit_each_btn.setToolTip("Commit each file's changes as its own commit, then start the app.")
 
-        bulk_commit_text = f"Commit all unsaved changes to a single 'bulk' commit (Number of modified files: {num_files})"
+        bulk_commit_text = f"Commit all unstaged changes to a single 'bulk' commit (Number of modified files: {num_files})"
         self.bulk_commit_btn = QPushButton(bulk_commit_text)
         self.bulk_commit_btn.setToolTip("Commit all changes into a single 'bulk' commit, then start the app.")
 
