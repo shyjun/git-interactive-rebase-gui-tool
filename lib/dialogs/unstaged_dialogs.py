@@ -1075,7 +1075,7 @@ class StageFilesDialog(QDialog):
                 colors = {"added": "#a6e22e", "removed": "#f92672"}
         self.colors = colors
 
-        self.setWindowTitle("Stage Unstaged Files")
+        self.setWindowTitle("Add Untracked File(s)")
         self.setMinimumSize(700, 500)
 
         layout = QVBoxLayout(self)
@@ -1084,8 +1084,8 @@ class StageFilesDialog(QDialog):
 
         branch = get_current_branch(repo_path) or "HEAD"
         header = QLabel(
-            f"Unstaged Changes: <b>{branch}</b> - {len(self.files)} file{'s' if len(self.files) != 1 else ''}<br>"
-            "Select files to stage (<code>git add</code>)."
+            f"Untracked Files: <b>{branch}</b> - {len(self.files)} file{'s' if len(self.files) != 1 else ''}<br>"
+            "Select files to add (<code>git add</code>)."
         )
         header.setTextFormat(Qt.RichText)
         header.setWordWrap(True)
@@ -1159,7 +1159,7 @@ class StageFilesDialog(QDialog):
         self.diff_view = DiffView()
         self.diff_view.setReadOnly(True)
         self.diff_view.setFont(mono_font(font_size))
-        self.diff_view.setPlaceholderText("Check files to preview their combined diff...")
+        self.diff_view.setPlaceholderText("Check files to preview their content...")
         self.highlighter = DiffHighlighter(
             self.diff_view.document(),
             added_color=colors.get("added", "#22863a"),
@@ -1189,7 +1189,7 @@ class StageFilesDialog(QDialog):
         bot_row = QHBoxLayout()
         bot_row.setSpacing(10)
 
-        stage_btn = QPushButton("Stage Selected Files")
+        stage_btn = QPushButton("Add/Stage Selected Files")
         stage_btn.setDefault(True)
         stage_btn.setToolTip("Run 'git add' on the checked files.")
         stage_btn.setStyleSheet(
@@ -1199,7 +1199,7 @@ class StageFilesDialog(QDialog):
         )
 
         cancel_btn = QPushButton("Cancel")
-        cancel_btn.setToolTip("Close without staging anything.")
+        cancel_btn.setToolTip("Close without adding anything.")
         cancel_btn.setStyleSheet(
             "QPushButton { color: #555; border: 2px solid #555; padding: 10px 18px; "
             "border-radius: 6px; font-weight: bold; } "
@@ -1398,13 +1398,13 @@ class StageFilesDialog(QDialog):
     def _on_stage(self):
         self.selected_files = self.checked_files()
         if not self.selected_files:
-            QMessageBox.information(self, "No Files Selected", "Please check at least one file to stage.")
+            QMessageBox.information(self, "No Files Selected", "Please check at least one file to add.")
             return
         from lib.git_helpers import stage_files
         if stage_files(self.repo_path, self.selected_files):
             self.accept()
         else:
-            QMessageBox.critical(self, "Stage Failed", "Failed to stage the selected files.")
+            QMessageBox.critical(self, "Add Failed", "Failed to add the selected files.")
 
     def _set_all(self, state):
         for i in range(self.file_list.count()):
