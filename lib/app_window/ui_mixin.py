@@ -442,6 +442,7 @@ class UIMixin:
         self.undo_btn.setEnabled(False)
         self.redo_btn = QPushButton("Redo")
         self.redo_btn.setToolTip("Redo the last undone operation (Ctrl+Y).")
+        self._set_redo_icon(self.redo_btn)
         self.redo_btn.setEnabled(False)
         self.refresh_btn = QPushButton("Refresh")
         self.refresh_btn.setToolTip("Reload the commit history from git.")
