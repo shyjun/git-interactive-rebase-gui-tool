@@ -8,6 +8,8 @@ from PySide6.QtWidgets import (
     QApplication,
     QListWidget,
     QMessageBox,
+    QStyle,
+    QStyleOptionViewItem,
 )
 
 
@@ -32,16 +34,36 @@ class CommitListWidget(QListWidget):
         self._resize_start_width = 0
         self._cursor_override_active = False
 
+    def _get_text_rect_right(self):
+        """Return text_rect.right() matching the delegate's coordinate origin.
+
+        The delegate paints separators relative to text_rect.right(), not
+        item_rect.right().  Using item_rect caused the hit zone to be shifted
+        right, making the cursor appear late (from the left) and linger too
+        long (to the right).
+        """
+        idx = self.model().index(0, 0)
+        item = self.item(0)
+        if item is None:
+            return self.viewport().width()
+
+        opt = QStyleOptionViewItem()
+        opt.initFrom(self.viewport())
+        opt.rect = self.visualRect(idx)
+        style = self.style()
+        text_rect = style.subElementRect(QStyle.SE_ItemViewItemText, opt, self)
+        return text_rect.right()
+
     def _get_column_boundaries(self):
         """Return list of (boundary_x, column_name) for resizable columns.
 
         Uses the same text_rect.right() reference as the delegate so
-        separator lines and hit zones align.
+        separator lines and hit zones align perfectly.
         """
-        idx = self.model().index(0, 0)
-        item_rect = self.visualRect(idx)
-        rx = item_rect.right()
+        if self.count() == 0:
+            return []
 
+        rx = self._get_text_rect_right()
         boundaries = []
         mw = self.main_window
 
@@ -64,7 +86,7 @@ class CommitListWidget(QListWidget):
     def _hit_test_resize(self, x):
         boundaries = self._get_column_boundaries()
         for bx, col in boundaries:
-            if abs(x - bx) <= 8:
+            if abs(x - bx) <= 10:
                 return col
         return None
 
