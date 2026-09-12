@@ -33,7 +33,7 @@ Visual documentation for the Git Interactive Rebase GUI Tool. Each section showc
     - [18.2 Keep Only Selected Changes / Hunks](#182-keep-only-selected-changes--hunks)
     - [18.3 Move Selected Changes to a Separate Commit](#183-move-selected-changes-to-a-separate-commit)
     - [18.4 Edit Hunk](#184-edit-hunk)
-19. [Unstaged / Uncommitted Changes Handling](#19-unstaged--uncommitted-changes-handling)
+19. [Uncommitted Changes Handling](#19-uncommitted-changes-handling)
     - [19.1 At Startup](#at-startup)
     - [19.2 During a Session: Rescan Repository](#during-a-session-rescan-repository)
     - [19.3 Commit Selectively](#commit-selectively)
@@ -622,11 +622,22 @@ Useful for quickly cleaning up accidental changes, temporary code, debug prints,
 
 ---
 
-## 19. Unstaged / Uncommitted Changes Handling
+## 19. Uncommitted Changes Handling
 
-Safely handle unstaged or uncommitted changes — both when launching the app and while it is already running.
+Safely handle uncommitted changes (both staged and unstaged) — both when launching the app and while it is already running.
 
-When unstaged changes are detected, the tool pauses and provides multiple safe options before continuing.
+When uncommitted changes are detected, the tool pauses and provides multiple safe options before continuing.
+
+### Repository State Requirements
+
+History-rewriting operations (rephrase, drop, squash, split, reorder, refine) require a **clean working tree and index** — no staged or unstaged changes. If the repository contains:
+
+- unstaged changes, or
+- staged changes
+
+these operations are disabled with a warning directing you to handle them first.
+
+**`git commit --amend` is different:** staged changes can be intentionally included in the amended HEAD commit, so amend remains available when appropriate. Interactive rebase is different: Git requires the index to be clean before starting the rebase.
 
 ### At Startup
 
