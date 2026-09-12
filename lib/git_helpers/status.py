@@ -40,14 +40,14 @@ def unstage_files(repo_path, files):
 
 
 def discard_staged(repo_path):
-    """Discard all staged changes (git checkout -- .). Returns True on success."""
+    """Discard all staged changes by resetting the index (git reset HEAD). Returns True on success."""
     try:
-        subprocess.run(["git", "checkout", "--", "."], cwd=repo_path,
+        subprocess.run(["git", "reset", "HEAD"], cwd=repo_path,
                        check=True, capture_output=True)
         return True
     except subprocess.CalledProcessError as exc:
         err = exc.stderr.decode('utf-8') if exc.stderr else str(exc)
-        print(f"[git_helpers] discard_staged: git checkout -- . failed: {err}")
+        print(f"[git_helpers] discard_staged: git reset HEAD failed: {err}")
         return False
 
 
