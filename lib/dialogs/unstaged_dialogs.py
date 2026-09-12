@@ -1493,10 +1493,13 @@ class StagedChangesDialog(QDialog):
         self._refresh_staged_files()
 
     def _refresh_staged_files(self):
-        """Refresh the staged files list and update header."""
+        """Refresh the staged files list and update header. Auto-closes if no staged files remain."""
         from lib.git_helpers.status import get_staged_files
         self.staged_files = get_staged_files(self.repo_path)
         n = len(self.staged_files)
+        if n == 0:
+            self.accept()
+            return
         self.header_label.setText(
             f"<b>You have {n} staged file(s).</b><br><br>"
             "Choose an action to perform on the staged changes."
