@@ -110,12 +110,22 @@ def _diff_search_matches(haystack, term, match_case, whole_word):
 def highlight_button_temporarily(button, duration_ms=3000, blinks=0, color=None):
     if color is None:
         color = QColor(255, 140, 0)
-    original_stylesheet = button.styleSheet()
+
+    # Use saved original if available (handles re-entrant calls without corrupting)
+    original_stylesheet = getattr(button, '_original_stylesheet', button.styleSheet())
+    if not hasattr(button, '_original_stylesheet'):
+        button._original_stylesheet = original_stylesheet
+
     highlight = (
         f"border: 3px solid {color.name()}; "
         f"background-color: rgba({color.red()}, {color.green()}, {color.blue()}, 90); "
         f"font-weight: bold; {original_stylesheet}"
     )
+
+    # Cancel any pending highlight timer from a previous call
+    old_timer = getattr(button, '_highlight_timer', None)
+    if old_timer is not None:
+        old_timer.stop()
 
     def set_stylesheet(sheet):
         try:
@@ -125,7 +135,14 @@ def highlight_button_temporarily(button, duration_ms=3000, blinks=0, color=None)
 
     if blinks <= 0:
         set_stylesheet(highlight)
-        QTimer.singleShot(duration_ms, lambda: set_stylesheet(original_stylesheet))
+        timer = QTimer()
+        timer.setSingleShot(True)
+        timer.timeout.connect(lambda: (
+            set_stylesheet(original_stylesheet),
+            setattr(button, '_highlight_timer', None),
+        ))
+        timer.start(duration_ms)
+        button._highlight_timer = timer
         return
 
     total_ticks = blinks * 2
@@ -135,12 +152,21 @@ def highlight_button_temporarily(button, duration_ms=3000, blinks=0, color=None)
         state["tick"] += 1
         if state["tick"] >= total_ticks:
             set_stylesheet(original_stylesheet)
+            button._highlight_timer = None
             return
         set_stylesheet(original_stylesheet if state["tick"] % 2 == 1 else highlight)
-        QTimer.singleShot(400, toggle)
+        timer = QTimer()
+        timer.setSingleShot(True)
+        timer.timeout.connect(toggle)
+        timer.start(400)
+        button._highlight_timer = timer
 
     set_stylesheet(highlight)
-    QTimer.singleShot(400, toggle)
+    timer = QTimer()
+    timer.setSingleShot(True)
+    timer.timeout.connect(toggle)
+    timer.start(400)
+    button._highlight_timer = timer
 
 
 def add_open_with_system_default_action(menu, target_path, parent, sha=None, repo_path=None, is_head=False):
