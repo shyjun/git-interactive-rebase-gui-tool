@@ -66,6 +66,8 @@ class SplitBulkMixin:
             return
         if not self._check_no_unstaged_changes():
             return
+        if not self._check_staged_changes():
+            return
         old_head = self.get_head_sha()
         self.save_undo_state()
         action_path = None
@@ -274,6 +276,8 @@ for i, hunk in enumerate(hunks):
         if not self._check_head_unchanged():
             return
         if not self._check_no_unstaged_changes():
+            return
+        if not self._check_staged_changes():
             return
         old_head = self.get_head_sha()
         self.save_undo_state()

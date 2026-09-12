@@ -717,6 +717,8 @@ class MenusMixin:
             return
         if not self._check_no_unstaged_changes():
             return
+        if not self._check_staged_changes():
+            return
 
         old_head = self.get_head_sha()
         current_shas = [self.list_widget.item(i).text().split()[0] for i in range(self.list_widget.count())]
@@ -757,6 +759,8 @@ class MenusMixin:
         if not self._check_head_unchanged():
             return
         if not self._check_no_unstaged_changes():
+            return
+        if not self._check_staged_changes():
             return
 
         old_head = self.get_head_sha()

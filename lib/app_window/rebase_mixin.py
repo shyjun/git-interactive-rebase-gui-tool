@@ -27,6 +27,8 @@ class RebaseMixin:
             return
         if not self._check_no_unstaged_changes():
             return
+        if not self._check_staged_changes():
+            return
         old_head = self.get_head_sha()
         print(f"[rebase] Commit reorder: {len(new_shas)} commits")
         result = self.run_interactive_rebase(new_shas, original_shas=original_shas, upstream_override=upstream_override, progress_title="Moving Commits", progress_text="Reordering commits. Please wait...")

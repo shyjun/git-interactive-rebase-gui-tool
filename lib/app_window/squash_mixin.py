@@ -83,6 +83,8 @@ class SquashMixin:
             return
         if not self._check_no_unstaged_changes():
             return
+        if not self._check_staged_changes():
+            return
         old_head = self.get_head_sha()
         try:
             # Current list of SHAs in UI
@@ -329,6 +331,8 @@ class SquashMixin:
             return
         if not self._check_no_unstaged_changes():
             return
+        if not self._check_staged_changes():
+            return
 
         selected_shas = [self.list_widget.item(i).text().split()[0]
                          for i in range(self.list_widget.count())
@@ -430,6 +434,8 @@ class SquashMixin:
             return False
         if not self._check_no_unstaged_changes():
             return False
+        if not self._check_staged_changes():
+            return False
         try:
             current_shas = [self.list_widget.item(i).text().split()[0]
                             for i in range(self.list_widget.count())]
@@ -456,6 +462,8 @@ class SquashMixin:
         if not self._check_head_unchanged():
             return
         if not self._check_no_unstaged_changes():
+            return
+        if not self._check_staged_changes():
             return
         try:
             # Collect (sha, message) pairs preserving order
@@ -524,6 +532,8 @@ class SquashMixin:
         if not self._check_head_unchanged():
             return
         if not self._check_no_unstaged_changes():
+            return
+        if not self._check_staged_changes():
             return
         self.save_undo_state()
         old_head = self.get_head_sha()

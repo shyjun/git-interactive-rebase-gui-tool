@@ -64,6 +64,8 @@ class SplitFileMixin:
             return
         if not self._check_no_unstaged_changes():
             return
+        if not self._check_staged_changes():
+            return
         old_head = self.get_head_sha()
         self.save_undo_state()
         action_path = None
@@ -244,6 +246,8 @@ finally:
             return
         if not self._check_no_unstaged_changes():
             return
+        if not self._check_staged_changes():
+            return
         old_head = self.get_head_sha()
         self.save_undo_state()
         action_path = None
@@ -377,6 +381,8 @@ subprocess.check_call(['git', 'clean', '-fd', '--', filepath])
         if not self._check_head_unchanged():
             return
         if not self._check_no_unstaged_changes():
+            return
+        if not self._check_staged_changes():
             return
         print(f"[{time.strftime('%H:%M:%S')}] Remove file onwards: starting for file='{filepath}' commit={sha}")
         old_head = self.get_head_sha()

@@ -205,6 +205,9 @@ class CommitListWidget(QListWidget):
                 if not self.main_window._check_no_unstaged_changes():
                     event.ignore()
                     return
+                if not self.main_window._check_staged_changes():
+                    event.ignore()
+                    return
 
                 original_shas = [self.item(i).text().split()[0] for i in range(self.count())]
 
@@ -296,6 +299,9 @@ class CommitListWidget(QListWidget):
             event.ignore()
             return
         if not self.main_window._check_no_unstaged_changes():
+            event.ignore()
+            return
+        if not self.main_window._check_staged_changes():
             event.ignore()
             return
 
