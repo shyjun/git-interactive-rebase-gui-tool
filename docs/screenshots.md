@@ -66,8 +66,13 @@ Visual documentation for the Git Interactive Rebase GUI Tool. Each section showc
 45. [Handle Staged Changes](#45-handle-staged-changes)
 46. [Commit Staged Changes Selectively](#46-commit-staged-changes-selectively)
 47. [Add Untracked Files Dialog](#47-add-untracked-files-dialog)
-48. [Staged Changes Warning at Startup](#48-staged-changes-warning-at-startup)
-49. [Auto-background on Launch](#49-auto-background-on-launch)
+48. [Staged Changes Warning at Startup / Rescan](#48-staged-changes-warning-at-startup--rescan)
+49. [Destructive Operations Blocked When Staged Changes Exist](#49-destructive-operations-blocked-when-staged-changes-exist)
+50. [Auto-background on Launch](#50-auto-background-on-launch)
+51. [Full Height Diff View](#51-full-height-diff-view)
+52. [Collapsible Commit Details Header](#52-collapsible-commit-details-header)
+53. [Collapsible File List in Diff Tabs](#53-collapsible-file-list-in-diff-tabs)
+54. [Collapsible File List in Branch/Commit Dialogs](#54-collapsible-file-list-in-branchcommit-dialogs)
 
 ---
 
@@ -652,7 +657,7 @@ Available options include:
 
 **Description:** The application can remain open while you continue working in your editor or terminal. If new unstaged or uncommitted changes are introduced outside the tool, use **Rescan Repository** to re-evaluate the repository state.
 
-When changes are detected, the tool provides the same safe handling options available during startup, allowing you to:
+When unstaged changes are detected, the tool provides the same safe handling options available during startup (see [Staged Changes Warning at Startup / Rescan](#48-staged-changes-warning-at-startup--rescan)). When only staged changes are present (no unstaged changes), a warning dialog appears with the **Repo** button highlighted, directing you to **Repo → Handle Staged Changes**.
 
 - Stash changes and continue
 - Commit Selectively (choose which files / hunks to commit)
@@ -1097,7 +1102,7 @@ Keyboard shortcuts for faster navigation and workflow.
 
 **Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/handle-staged-changes.webp`
 
-![Handle Staged Changes](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/handle-staged-changes.webp) The dialog stays open after each action and refreshes the staged files list automatically.
+![Handle Staged Changes](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/handle-staged-changes.webp) The dialog stays open after each action and refreshes the staged files list automatically. When no staged files remain, the dialog closes automatically.
 
 Actions available:
 - **Commit / Unstage Staged Changes Selectively** — opens a file picker with checkboxes, tree view, and diff preview
@@ -1141,21 +1146,42 @@ Select files and click **Add/Stage Selected Files** to run `git add` on them. If
 
 ---
 
-## 48. Staged Changes Warning at Startup
+## 48. Staged Changes Warning at Startup / Rescan
 
 **Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/staged-changes-warning.webp`
 
-![Staged Changes Warning](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/staged-changes-warning.webp) The **Repo** button is also highlighted with an orange blink to draw attention.
+![Staged Changes Warning](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/staged-changes-warning.webp) The **Repo** button is also highlighted with an orange blink to draw attention. This warning appears both at startup and when **Rescan Repository** finds staged changes (with no unstaged changes).
 
 ---
 
-## 49. Auto-background on Launch
+## 49. Destructive Operations Blocked When Staged Changes Exist
+
+**Description:** When staged changes are present in the repository, history-modifying (destructive) operations are blocked with a warning dialog. The **Repo** button is highlighted to guide you to **Repo → Handle Staged Changes**.
+
+Blocked operations include:
+- Rebase onto / Commit reorder
+- Squash / Fixup / Autosquash
+- Split Commit (file-wise and bulk)
+- Refine Changes in File
+- Rephrase Commit
+- Revert Commit
+- Reset Hard / Remove Commit
+- Move Commit Up / Down
+- Drag-and-drop reorder
+
+**Cherry-pick** is not blocked — it can proceed with staged changes present.
+
+This prevents accidental data loss when the staging area contains changes that could be overwritten by history-modifying operations.
+
+---
+
+## 50. Auto-background on Launch
 
 **Description:** When run from a terminal, the tool automatically detaches and runs in the background. The terminal returns immediately with a message like `Tool started in background (PID xxx)`. This works on both Linux (`os.fork`) and Windows (`subprocess.Popen` with `DETACHED_PROCESS`). The `--version` and `--update` flags skip auto-background to keep terminal output.
 
 ---
 
-## 50. Full Height Diff View
+## 51. Full Height Diff View
 
 **Description:** A **▼ Full Height ▼** toggle button sits below the commit list and diff pane, spanning the full window width. Clicking it collapses the commit message header and hides all bottom control groups (failsafe, origin, multi-select, rebase) to maximize the diff viewing area. The button text changes to **▲ Show buttons ▲**.
 
@@ -1165,7 +1191,7 @@ This is useful when reviewing large diffs where you need maximum vertical space.
 
 ---
 
-## 51. Collapsible Commit Details Header
+## 52. Collapsible Commit Details Header
 
 **Description:** The commit details header in the right-side pane (and in the Single Commit View dialog) has a clickable disclosure arrow (▼/▶). Clicking the arrow collapses the commit message, leaving only the compact metadata header visible. This gives more space to the diff pane without using the Full Height toggle. Click again to expand.
 
@@ -1173,7 +1199,7 @@ The splitter handle is locked when collapsed to prevent accidental resizing. Dra
 
 ---
 
-## 52. Collapsible File List in Diff Tabs
+## 53. Collapsible File List in Diff Tabs
 
 **Description:** The **File-wise Diff** and **Tree-wise Diff** tab titles act as toggle buttons. Each tab title shows a ▼ or ▶ prefix indicating whether the file list is visible. Clicking the active tab toggles the file list visibility:
 
@@ -1184,6 +1210,6 @@ Clicking a different tab switches normally without toggling. This works in the m
 
 ---
 
-## 53. Collapsible File List in Branch/Commit Dialogs
+## 54. Collapsible File List in Branch/Commit Dialogs
 
-**Description:** The Branch Diff dialog and Single Commit View dialog also support the collapsible file list toggle on their File-wise Diff and Tree-wise Diff tabs, identical to the main window behavior described in [Collapsible File List in Diff Tabs](#52-collapsible-file-list-in-diff-tabs).
+**Description:** The Branch Diff dialog and Single Commit View dialog also support the collapsible file list toggle on their File-wise Diff and Tree-wise Diff tabs, identical to the main window behavior described in [Collapsible File List in Diff Tabs](#53-collapsible-file-list-in-diff-tabs).
