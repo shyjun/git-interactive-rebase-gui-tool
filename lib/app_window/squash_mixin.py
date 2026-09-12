@@ -34,6 +34,11 @@ class SquashMixin:
         index = self.list_widget.row(item)
         if index <= 0: return
 
+        if not self._check_no_unstaged_changes():
+            return
+        if not self._check_staged_changes():
+            return
+
         above_item = self.list_widget.item(index - 1)
         sha_above = above_item.text().split()[0]
         sha_current = item.text().split()[0]
@@ -56,6 +61,11 @@ class SquashMixin:
         """Squashes the current commit with the one below it (older)."""
         index = self.list_widget.row(item)
         if index >= self.list_widget.count() - 1: return
+
+        if not self._check_no_unstaged_changes():
+            return
+        if not self._check_staged_changes():
+            return
 
         sha_current = item.text().split()[0]
         below_item = self.list_widget.item(index + 1)
@@ -193,6 +203,10 @@ class SquashMixin:
 
     def handle_squash_selected(self):
         """Collects checked commits, validates contiguity, confirms, then squashes."""
+        if not self._check_no_unstaged_changes():
+            return
+        if not self._check_staged_changes():
+            return
         # Collect selected indices and SHAs in list order (newest → oldest)
         selected_indices = []
         for i in range(self.list_widget.count()):
@@ -499,6 +513,11 @@ class SquashMixin:
     def handle_drop(self, item):
         sha = item.text().split()[0]
         print(f"Preparing to drop {sha}...")
+
+        if not self._check_no_unstaged_changes():
+            return
+        if not self._check_staged_changes():
+            return
 
         # Guard: if this is the only commit in the list and we're in branch-detection
         # mode, dropping it is equivalent to a hard-reset to the base — not supported.

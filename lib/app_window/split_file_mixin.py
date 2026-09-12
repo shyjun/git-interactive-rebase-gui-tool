@@ -35,6 +35,10 @@ class SplitFileMixin:
     def handle_split_commit(self, item):
         """Opens SplitCommitDialog to allow moving a file out of a commit."""
         sha = item.text().split()[0]
+        if not self._check_no_unstaged_changes():
+            return
+        if not self._check_staged_changes():
+            return
         try:
             files = get_commit_files(self.repo_path, sha)
             if not files:
@@ -217,6 +221,10 @@ finally:
     def handle_split_drop_file(self, item):
         """Opens DropFileFromCommitDialog to allow dropping a file from a commit."""
         sha = item.text().split()[0]
+        if not self._check_no_unstaged_changes():
+            return
+        if not self._check_staged_changes():
+            return
         try:
             files = get_commit_files(self.repo_path, sha)
             if not files:
