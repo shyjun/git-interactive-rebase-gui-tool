@@ -34,6 +34,7 @@ from lib.git_helpers import (
     get_local_branches_map,
     get_merge_base,
     get_reflog_history,
+    get_staged_files,
     get_stash_history,
     get_tags_history,
     get_unstaged_files,
@@ -48,7 +49,10 @@ from lib.dialogs import (
     UnstagedChangesDialog,
 )
 from lib.commit_filter_controller import CommitFilterController
-from lib.app_window.helpers import PR_DIFF_SIZE_WARN_THRESHOLD
+from lib.app_window.helpers import (
+    PR_DIFF_SIZE_WARN_THRESHOLD,
+    highlight_button_temporarily,
+)
 
 
 class RescanMixin:
@@ -188,6 +192,18 @@ class RescanMixin:
             else:
                 # Cancel/Rejected: Just return successfully and quietly drop the window.
                 return
+
+        # Check for staged changes even when there are no unstaged changes
+        if not unstaged_files:
+            staged_files = get_staged_files(self.repo_path)
+            if staged_files:
+                highlight_button_temporarily(self.repo_btn, blinks=5)
+                QMessageBox.information(
+                    self,
+                    "Staged Changes Detected",
+                    "There are staged changes in the repository.\n\n"
+                    "Please use Repo -> 'Handle Staged Changes' to process them first."
+                )
 
         # Finally, we reload the tree to correctly align matching local state
         if self.browse_mode:
