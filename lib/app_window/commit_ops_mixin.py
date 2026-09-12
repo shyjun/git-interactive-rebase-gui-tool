@@ -82,6 +82,10 @@ class CommitOpsMixin:
     def handle_rephrase(self, item):
         """Handles the rephrase action."""
         sha = item.text().split()[0]
+        if not self._check_no_unstaged_changes():
+            return
+        if not self._check_staged_changes():
+            return
         print(f"Preparing to rephrase {sha}...")
         try:
             current_message = get_full_commit_message(self.repo_path, sha)
@@ -127,6 +131,10 @@ class CommitOpsMixin:
     def handle_revert_commit(self, item):
         """Handles the 'Revert this commit' context menu action."""
         sha = item.text().split()[0]
+        if not self._check_no_unstaged_changes():
+            return
+        if not self._check_staged_changes():
+            return
         print(f"[commit] Preparing to revert {sha[:10]}...")
         try:
             default_message = get_revert_commit_message(self.repo_path, sha)

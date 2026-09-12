@@ -36,6 +36,10 @@ class RefineMixin:
     def handle_refine_changes(self, item):
         """Opens RefineFileSelectDialog to let user pick a file to refine."""
         sha = item.text().split()[0]
+        if not self._check_no_unstaged_changes():
+            return
+        if not self._check_staged_changes():
+            return
         try:
             files = get_commit_files(self.repo_path, sha)
             if not files:

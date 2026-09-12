@@ -25,6 +25,10 @@ class SplitBulkMixin:
 
     def handle_split_all_commits(self, item):
         sha = item.text().split()[0]
+        if not self._check_no_unstaged_changes():
+            return
+        if not self._check_staged_changes():
+            return
         try:
             files = get_commit_files(self.repo_path, sha)
             if len(files) != 1:
@@ -241,6 +245,10 @@ for i, hunk in enumerate(hunks):
     def handle_split_per_file(self, item):
         """Splits each file in a commit into its own separate commit."""
         sha = item.text().split()[0]
+        if not self._check_no_unstaged_changes():
+            return
+        if not self._check_staged_changes():
+            return
         try:
             files = get_commit_files(self.repo_path, sha)
             if not files:
