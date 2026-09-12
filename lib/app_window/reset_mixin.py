@@ -168,6 +168,8 @@ class ResetMixin:
                 return
             if not self._check_no_unstaged_changes():
                 return
+            if not self._check_staged_changes():
+                return
             self.save_undo_state()
             old_head = self.get_head_sha()
             print(f"Rebasing onto {target}...")
@@ -249,6 +251,8 @@ class ResetMixin:
         if not self._check_head_unchanged():
             return
         if not self._check_no_unstaged_changes():
+            return
+        if not self._check_staged_changes():
             return
 
         # Edge case: the selected commit is already HEAD, nothing to remove.

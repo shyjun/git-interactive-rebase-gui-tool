@@ -66,6 +66,8 @@ class RefineMixin:
             return
         if not self._check_no_unstaged_changes():
             return
+        if not self._check_staged_changes():
+            return
         while True:
             try:
                 raw_diff = get_file_diff_only_in_commit(self.repo_path, sha, filepath)

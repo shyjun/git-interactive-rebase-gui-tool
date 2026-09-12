@@ -103,6 +103,8 @@ class CommitOpsMixin:
             return
         if not self._check_no_unstaged_changes():
             return
+        if not self._check_staged_changes():
+            return
         old_head = self.get_head_sha()
         try:
             # Current list of SHAs in UI
@@ -145,6 +147,8 @@ class CommitOpsMixin:
         if not self._check_head_unchanged():
             return
         if not self._check_no_unstaged_changes():
+            return
+        if not self._check_staged_changes():
             return
         self.save_undo_state()
         old_head = self.get_head_sha()

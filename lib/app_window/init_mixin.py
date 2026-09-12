@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 
 from lib.git_helpers import (
     _is_git_install,
+    classify_tracked_changes,
     get_current_branch,
     get_full_head_sha,
     get_head_sha,
@@ -338,7 +339,8 @@ class InitMixin:
         informational dialog (OK-only) and returns False so every caller can
         abort immediately without performing any history-modifying operation.
         """
-        if not has_uncommitted_changes(self.repo_path):
+        has_staged, has_unstaged = classify_tracked_changes(self.repo_path)
+        if not has_unstaged:
             return True
         highlight_button_temporarily(self.rescan_btn, blinks=5)
         QMessageBox.information(
@@ -346,6 +348,28 @@ class InitMixin:
             "Unstaged Changes Detected",
             "There are unstaged changes in the repository.\n\n"
             "Please use 'Rescan Repo' to handle the unstaged changes."
+        )
+        return False
+
+    def _check_staged_changes(self):
+        """
+        Checks that the repository has no staged changes before performing
+        a history-modifying operation. Returns True if safe to proceed,
+        False otherwise.
+
+        When staged changes are present this method shows a user-friendly
+        informational dialog (OK-only) and returns False so every caller can
+        abort immediately without performing any history-modifying operation.
+        """
+        has_staged, has_unstaged = classify_tracked_changes(self.repo_path)
+        if not has_staged:
+            return True
+        highlight_button_temporarily(self.repo_btn, blinks=5)
+        QMessageBox.information(
+            self,
+            "Staged Changes Detected",
+            "There are staged changes in the repository.\n\n"
+            "Please use Repo -> 'Handle Staged Changes' to process them first."
         )
         return False
 
