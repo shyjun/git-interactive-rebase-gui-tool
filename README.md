@@ -53,7 +53,7 @@ A Python-based Git Interactive Rebase GUI tool to visually manage commit history
   * **Unstage Selected** — unstage only the checked files (`git reset HEAD -- <files>`)
 * **View Staged Diff**: 3-tab diff viewer (Plain, File-wise, Tree-wise) for all staged changes.
 * **Unstage All**: Unstage all staged changes (`git reset HEAD`).
-* **Discard Staged Changes**: Discard all staged changes with confirmation (`git checkout -- .`).
+* **Discard Staged Changes**: Discard all staged changes with confirmation (`git reset HEAD`).
 * **Amend HEAD Commit**: Amend staged changes into HEAD with the commit message pre-filled from HEAD (editable).
 * **Stash Changes**: Stash all changes (staged and unstaged).
 * **Staged changes warning**: If staged changes exist at startup, the Repo button is highlighted and an info dialog suggests using **Handle Staged Changes**.
@@ -86,8 +86,10 @@ A Python-based Git Interactive Rebase GUI tool to visually manage commit history
   * Per-file **checkboxes** with `+N -M` stats; the bottom pane previews the **combined diff** of the checked files, with separator lines between files (like the main diff pane)
   * **Commit Selected Files** — a single commit containing only the checked files
   * **commit --amend selected files** — amend only the checked files into the HEAD commit, with the message pre-filled from HEAD (editable)
-  * **git add -p** — interactive **hunk-by-hunk** selection: pick individual hunks of the checked files, grouped per file with `Select All / Deselect All` and a live counter, then finish with `git commit` or `git commit --amend`. Unchecked hunks stay untouched in the working tree (see the full walkthrough in [docs/screenshots.md](docs/screenshots.md#18-unstaged--uncommitted-changes-handling))
+  * **git add -p** — interactive **hunk-by-hunk** selection: pick individual hunks of the checked files, grouped per file with `Select All / Deselect All` and a live counter, then finish with `git commit` or `git commit --amend`. Unchecked hunks stay untouched in the working tree (see the full walkthrough in [docs/screenshots.md](docs/screenshots.md#18-refine-changes-in-file))
   * Unchecked files stay completely untouched, and cancelling at any point leaves the repository unchanged
+
+> **Note:** History-rewriting operations (rephrase, drop, squash, split, reorder, refine) require a **clean working tree and index** — no staged or unstaged changes. `git commit --amend` is different: staged changes can be intentionally included in the amended commit, so amend remains available when appropriate.
 
 ### 🎨 Premium User Experience
 
