@@ -63,3 +63,7 @@ from .unstaged_dialogs import (
 from .configure_dialogs import (
     ConfigureDiffToolDialog,
 )
+
+from .font_dialog import (
+    FontDialog,
+)

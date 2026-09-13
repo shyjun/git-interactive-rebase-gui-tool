@@ -73,6 +73,7 @@ class BrowseMixin:
         )
         # The browse viewer inherits the main window's current zoom and theme.
         viewer.current_font_size = self.current_font_size
+        viewer.current_font_family = self.current_font_family
         if viewer.is_dark_theme != self.is_dark_theme:
             viewer.is_dark_theme = self.is_dark_theme
             viewer.apply_theme("dark" if self.is_dark_theme else "light")
@@ -109,6 +110,7 @@ class BrowseMixin:
         )
         # The browse viewer inherits the main window's current zoom and theme.
         viewer.current_font_size = self.current_font_size
+        viewer.current_font_family = self.current_font_family
         if viewer.is_dark_theme != self.is_dark_theme:
             viewer.is_dark_theme = self.is_dark_theme
             viewer.apply_theme("dark" if self.is_dark_theme else "light")
@@ -132,6 +134,7 @@ class BrowseMixin:
         )
         # The browse viewer inherits the main window's current zoom and theme.
         viewer.current_font_size = self.current_font_size
+        viewer.current_font_family = self.current_font_family
         if viewer.is_dark_theme != self.is_dark_theme:
             viewer.is_dark_theme = self.is_dark_theme
             viewer.apply_theme("dark" if self.is_dark_theme else "light")
@@ -154,6 +157,7 @@ class BrowseMixin:
         )
         # The browse viewer inherits the main window's current zoom and theme.
         viewer.current_font_size = self.current_font_size
+        viewer.current_font_family = self.current_font_family
         if viewer.is_dark_theme != self.is_dark_theme:
             viewer.is_dark_theme = self.is_dark_theme
             viewer.apply_theme("dark" if self.is_dark_theme else "light")
@@ -190,6 +194,7 @@ class BrowseMixin:
         )
         # The browse viewer inherits the main window's current zoom and theme.
         viewer.current_font_size = self.current_font_size
+        viewer.current_font_family = self.current_font_family
         if viewer.is_dark_theme != self.is_dark_theme:
             viewer.is_dark_theme = self.is_dark_theme
             viewer.apply_theme("dark" if self.is_dark_theme else "light")
@@ -211,6 +216,7 @@ class BrowseMixin:
         )
         # The browse viewer inherits the main window's current zoom and theme.
         viewer.current_font_size = self.current_font_size
+        viewer.current_font_family = self.current_font_family
         if viewer.is_dark_theme != self.is_dark_theme:
             viewer.is_dark_theme = self.is_dark_theme
             viewer.apply_theme("dark" if self.is_dark_theme else "light")
@@ -238,6 +244,7 @@ class BrowseMixin:
             browse_limit=50,
         )
         viewer.current_font_size = self.current_font_size
+        viewer.current_font_family = self.current_font_family
         if viewer.is_dark_theme != self.is_dark_theme:
             viewer.is_dark_theme = self.is_dark_theme
             viewer.apply_theme("dark" if self.is_dark_theme else "light")
@@ -265,6 +272,7 @@ class BrowseMixin:
         )
         # The browse viewer inherits the main window's current zoom and theme.
         viewer.current_font_size = self.current_font_size
+        viewer.current_font_family = self.current_font_family
         if viewer.is_dark_theme != self.is_dark_theme:
             viewer.is_dark_theme = self.is_dark_theme
             viewer.apply_theme("dark" if self.is_dark_theme else "light")
@@ -311,6 +319,7 @@ class BrowseMixin:
         )
         # The browse viewer inherits the main window's current zoom and theme.
         viewer.current_font_size = self.current_font_size
+        viewer.current_font_family = self.current_font_family
         if viewer.is_dark_theme != self.is_dark_theme:
             viewer.is_dark_theme = self.is_dark_theme
             viewer.apply_theme("dark" if self.is_dark_theme else "light")
@@ -526,6 +535,7 @@ class BrowseMixin:
         )
         # The browse viewer inherits the main window's current zoom and theme.
         viewer.current_font_size = self.current_font_size
+        viewer.current_font_family = self.current_font_family
         if viewer.is_dark_theme != self.is_dark_theme:
             viewer.is_dark_theme = self.is_dark_theme
             viewer.apply_theme("dark" if self.is_dark_theme else "light")
