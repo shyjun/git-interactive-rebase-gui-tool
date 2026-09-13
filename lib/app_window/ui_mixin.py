@@ -380,7 +380,7 @@ class UIMixin:
         self.full_view_btn.setStyleSheet("QPushButton { font-size: 10px; padding: 0px; }")
         self.full_view_btn.setToolTip("Expand diff pane to full height, hiding the commit message.")
         self.full_view_btn.clicked.connect(self._toggle_full_diff_view)
-        self.full_view_btn.setVisible(not self.browse_mode)
+        self.full_view_btn.setVisible(not self.browse_mode and self.show_diffs)
         layout.addWidget(self.full_view_btn)
 
         # In browse (read-only) mode use only the right-side pane for details;
