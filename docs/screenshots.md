@@ -354,12 +354,15 @@ Quickly search for text inside any displayed diff.
 
 Search supports:
 
-- **Match Case** → Match exact letter case
-- **Whole Word** → Match complete words only
 - **Previous / Next navigation (`<` / `>`)** → Jump between matches
 - **Match counter** → Shows current match position (e.g., `2/10`)
-- **Line-Num** → Highlight matching line numbers
 - **Match highlighting** → Matching text gets a blue background wash and bold text for easy visibility
+- **⚙ Gear menu** (right side) → additional options:
+  - **Match Case** → Match exact letter case
+  - **Whole Word** → Match complete words only
+  - **Regular Expression** → Use regex patterns for search
+  - **Line Numbers** → Highlight matching line numbers
+  - **Line Wrap** → Wrap long lines to fit the view width
 
 Press `Esc` to clear the search.
 
@@ -415,7 +418,7 @@ A diff viewer is docked at the right side of the main window.
 
 **Description:** A diff viewer is docked towards the main window's right-side pane. Click any commit to view its diff there — added lines in green, removed lines in red, with line numbers. The pane offers three modes: **Plain Diff**, **File-wise Diff**, and **Tree-wise Diff** (see [10](#10-diff-viewer)).
 
-- **Configure → Show/Hide → Show Diffs** toggles the right-side diff pane; the choice is remembered across sessions.
+- **Configure → Show/Hide → Show Diffs** toggles the right-side diff pane; the choice is remembered across sessions. The diff pane is **visible by default**.
 
 ---
 
@@ -974,7 +977,7 @@ Mark commits for easy identification.
 ## 37. Show Local Branches
 Display local and remote branch names alongside commits.
 
-**Description:** Toggle the "show local branches" option (via **Configure → Show/Hide → Show Local Branches** in the main window, see [2. Main Interface](#2-main-interface)) to display branch names next to commits. Local branches are shown in green, and remote branches (e.g., origin/main, origin/master) are shown in orange. This helps you identify which branch a commit belongs to or originated from, making it easier to understand the commit's context and lineage.
+**Description:** Toggle the "show local branches" option (via **Configure → Show/Hide → Show Local Branches** in the main window, see [2. Main Interface](#2-main-interface)) to display branch names next to commits. Local branches are shown in green, and remote branches (e.g., origin/main, origin/master) are shown in orange. This helps you identify which branch a commit belongs to or originated from, making it easier to understand the commit's context and lineage. This option is **enabled by default**.
 
 **Note:** In the screenshot, local branches feat1, master, and memleak_fix are visible.
 
@@ -1197,7 +1200,7 @@ This prevents accidental data loss when the staging area contains changes that c
 
 ## 51. Full Height Diff View
 
-**Description:** A **▼ Full Height ▼** toggle button sits below the commit list and diff pane, spanning the full window width. Clicking it collapses the commit message header and hides all bottom control groups (failsafe, origin, multi-select, rebase) to maximize the diff viewing area. The button text changes to **▲ Show buttons ▲**.
+**Description:** A **▼ Full Height ▼** toggle button sits below the commit list and diff pane, spanning the full window width. The button is **always visible** in the main window (regardless of diff pane visibility). Clicking it collapses the commit message header and hides all bottom control groups (failsafe, origin, multi-select, rebase) to maximize the diff viewing area. The button text changes to **▲ Show buttons ▲**.
 
 Clicking **▲ Show buttons ▲** restores the normal layout — the commit message expands and only the control groups that were enabled via the Configure menu reappear.
 
