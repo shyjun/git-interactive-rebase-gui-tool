@@ -73,10 +73,11 @@ class BrowseMixin:
         )
         # The browse viewer inherits the main window's current zoom and theme.
         viewer.current_font_size = self.current_font_size
-        viewer.update_font()
         if viewer.is_dark_theme != self.is_dark_theme:
             viewer.is_dark_theme = self.is_dark_theme
             viewer.apply_theme("dark" if self.is_dark_theme else "light")
+        # Set font AFTER theme to avoid stylesheet resetting widget fonts
+        viewer.update_font()
         self.browse_windows.append(viewer)
         viewer.setWindowFlags(viewer.windowFlags() | Qt.Window)
         viewer.show()
@@ -108,10 +109,11 @@ class BrowseMixin:
         )
         # The browse viewer inherits the main window's current zoom and theme.
         viewer.current_font_size = self.current_font_size
-        viewer.update_font()
         if viewer.is_dark_theme != self.is_dark_theme:
             viewer.is_dark_theme = self.is_dark_theme
             viewer.apply_theme("dark" if self.is_dark_theme else "light")
+        # Set font AFTER theme to avoid stylesheet resetting widget fonts
+        viewer.update_font()
         self.browse_windows.append(viewer)
         viewer.setWindowFlags(viewer.windowFlags() | Qt.Window)
         viewer.show()
@@ -130,10 +132,11 @@ class BrowseMixin:
         )
         # The browse viewer inherits the main window's current zoom and theme.
         viewer.current_font_size = self.current_font_size
-        viewer.update_font()
         if viewer.is_dark_theme != self.is_dark_theme:
             viewer.is_dark_theme = self.is_dark_theme
             viewer.apply_theme("dark" if self.is_dark_theme else "light")
+        # Set font AFTER theme to avoid stylesheet resetting widget fonts
+        viewer.update_font()
         self.browse_windows.append(viewer)
         viewer.setWindowFlags(viewer.windowFlags() | Qt.Window)
         viewer.show()
@@ -172,10 +175,11 @@ class BrowseMixin:
         )
         # The browse viewer inherits the main window's current zoom and theme.
         viewer.current_font_size = self.current_font_size
-        viewer.update_font()
         if viewer.is_dark_theme != self.is_dark_theme:
             viewer.is_dark_theme = self.is_dark_theme
             viewer.apply_theme("dark" if self.is_dark_theme else "light")
+        # Set font AFTER theme to avoid stylesheet resetting widget fonts
+        viewer.update_font()
         self.browse_windows.append(viewer)
         viewer.setWindowFlags(viewer.windowFlags() | Qt.Window)
         viewer.show()
@@ -207,10 +211,11 @@ class BrowseMixin:
         )
         # The browse viewer inherits the main window's current zoom and theme.
         viewer.current_font_size = self.current_font_size
-        viewer.update_font()
         if viewer.is_dark_theme != self.is_dark_theme:
             viewer.is_dark_theme = self.is_dark_theme
             viewer.apply_theme("dark" if self.is_dark_theme else "light")
+        # Set font AFTER theme to avoid stylesheet resetting widget fonts
+        viewer.update_font()
         self.browse_windows.append(viewer)
         viewer.setWindowFlags(viewer.windowFlags() | Qt.Window)
         viewer.show()
@@ -227,10 +232,11 @@ class BrowseMixin:
         )
         # The browse viewer inherits the main window's current zoom and theme.
         viewer.current_font_size = self.current_font_size
-        viewer.update_font()
         if viewer.is_dark_theme != self.is_dark_theme:
             viewer.is_dark_theme = self.is_dark_theme
             viewer.apply_theme("dark" if self.is_dark_theme else "light")
+        # Set font AFTER theme to avoid stylesheet resetting widget fonts
+        viewer.update_font()
         self.browse_windows.append(viewer)
         viewer.setWindowFlags(viewer.windowFlags() | Qt.Window)
         viewer.show()
@@ -279,10 +285,11 @@ class BrowseMixin:
         )
         # The browse viewer inherits the main window's current zoom and theme.
         viewer.current_font_size = self.current_font_size
-        viewer.update_font()
         if viewer.is_dark_theme != self.is_dark_theme:
             viewer.is_dark_theme = self.is_dark_theme
             viewer.apply_theme("dark" if self.is_dark_theme else "light")
+        # Set font AFTER theme to avoid stylesheet resetting widget fonts
+        viewer.update_font()
         self.browse_windows.append(viewer)
         viewer.setWindowFlags(viewer.windowFlags() | Qt.Window)
         viewer.show()
@@ -324,10 +331,11 @@ class BrowseMixin:
         )
         # The browse viewer inherits the main window's current zoom and theme.
         viewer.current_font_size = self.current_font_size
-        viewer.update_font()
         if viewer.is_dark_theme != self.is_dark_theme:
             viewer.is_dark_theme = self.is_dark_theme
             viewer.apply_theme("dark" if self.is_dark_theme else "light")
+        # Set font AFTER theme to avoid stylesheet resetting widget fonts
+        viewer.update_font()
         self.browse_windows.append(viewer)
         viewer.setWindowFlags(viewer.windowFlags() | Qt.Window)
         viewer.show()
@@ -538,10 +546,11 @@ class BrowseMixin:
         )
         # The browse viewer inherits the main window's current zoom and theme.
         viewer.current_font_size = self.current_font_size
-        viewer.update_font()
         if viewer.is_dark_theme != self.is_dark_theme:
             viewer.is_dark_theme = self.is_dark_theme
             viewer.apply_theme("dark" if self.is_dark_theme else "light")
+        # Set font AFTER theme to avoid stylesheet resetting widget fonts
+        viewer.update_font()
         self.browse_windows.append(viewer)
         viewer.setWindowFlags(viewer.windowFlags() | Qt.Window)
         viewer.show()
