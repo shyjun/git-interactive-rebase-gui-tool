@@ -130,6 +130,11 @@ class MenusMixin:
         menu.addAction(self.check_updates_action)
         menu.addSeparator()
         menu.addAction(self.auto_check_updates_action)
+        menu.addSeparator()
+        self.reset_prefs_action = QAction("Reset Preferences", self)
+        self.reset_prefs_action.setToolTip("Reset all preferences to defaults and restart.")
+        self.reset_prefs_action.triggered.connect(lambda *_: self._reset_preferences())
+        menu.addAction(self.reset_prefs_action)
 
         if getattr(self, 'is_running_from_repo', False):
             menu.addSeparator()
@@ -232,6 +237,26 @@ class MenusMixin:
             self.current_font_size = size
             self.update_font()
             self._propagate_browse_font()
+
+    def _reset_preferences(self):
+        """Clear all QSettings and restart with defaults."""
+        from PySide6.QtWidgets import QMessageBox
+        reply = QMessageBox.warning(
+            self, "Reset Preferences",
+            "This will reset all preferences to defaults and restart the app.\nContinue?",
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
+        )
+        if reply != QMessageBox.Yes:
+            return
+        from PySide6.QtCore import QSettings
+        QSettings("shyjun", "GitInteractiveRebase").clear()
+        QSettings("git-interactive-rebase-gui-tool", "config").clear()
+        QSettings("git-interactive-rebase-gui-tool", "settings").clear()
+        import sys
+        from PySide6.QtCore import QProcess
+        from PySide6.QtWidgets import QApplication
+        QProcess.startDetached(sys.executable, sys.argv)
+        QApplication.quit()
 
     def _build_repo_menu(self):
         """Builds the Repo button's menu: View PR Diff / View a Commit /
