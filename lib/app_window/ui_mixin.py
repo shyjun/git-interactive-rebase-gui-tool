@@ -923,7 +923,7 @@ class UIMixin:
             if not self.browse_mode:
                 self.failsafe_group.setVisible(True)
             self.origin_group.setVisible(self.show_origin_options)
-            self.squash_group.setVisible(self.show_squash_options)
+            self.squash_group.setVisible(self.show_multiselect_options)
             self.rebase_group.setVisible(self.show_rebase_options)
             self.full_view_btn.setText("\u25BC Full Height \u25BC")
             self.full_view_btn.setToolTip("Expand diff pane to full height, hiding the commit message.")
