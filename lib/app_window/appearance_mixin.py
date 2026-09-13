@@ -75,7 +75,8 @@ class AppearanceMixin:
             self._browse_overlay.update()
 
     def update_font(self):
-        font = mono_font(self.current_font_size)
+        family = getattr(self, 'current_font_family', None)
+        font = mono_font(self.current_font_size, family=family)
         self.list_widget.setFont(font)
         if hasattr(self, 'side_diff_view'):
             self.side_diff_view.setFont(font)
@@ -89,8 +90,10 @@ class AppearanceMixin:
             self.treewise_diff_view.setFont(font)
         if hasattr(self, 'treewise_tree'):
             self.treewise_tree.setFont(font)
-        # Save persistence (font size is app-wide, not window-scoped)
+        # Save persistence (font size and family are app-wide, not window-scoped)
         self.settings.setValue("font_size", self.current_font_size)
+        if family is not None:
+            self.settings.setValue("font_family", family)
         # Update status bar zoom label
         if hasattr(self, 'zoom_percent_label'):
             default_size = 10
@@ -127,6 +130,7 @@ class AppearanceMixin:
     def _propagate_browse_font(self):
         for viewer in list(self.browse_windows):
             viewer.current_font_size = self.current_font_size
+            viewer.current_font_family = self.current_font_family
             viewer.update_font()
 
     def on_origin_visibility_toggled(self, visible):

@@ -39,17 +39,21 @@ _MONOSPACE_CANDIDATES = {
     "Linux": ["Monospace"],
 }
 
-def mono_font(size):
-    """Return a QFont guaranteed to be monospace on all platforms."""
+def default_mono_family():
+    """Return the first available monospace font on this platform."""
     system = platform.system()
     candidates = _MONOSPACE_CANDIDATES.get(system, ["Monospace"])
     available = QFontDatabase.families()
     for name in candidates:
         if name in available:
-            f = QFont(name, size)
-            f.setStyleHint(QFont.StyleHint.Monospace)
-            return f
-    f = QFont("Monospace", size)
+            return name
+    return "Monospace"
+
+def mono_font(size, family=None):
+    """Return a QFont guaranteed to be monospace on all platforms."""
+    if family is None:
+        family = default_mono_family()
+    f = QFont(family, size)
     f.setStyleHint(QFont.StyleHint.Monospace)
     return f
 

@@ -100,6 +100,10 @@ class MenusMixin:
 
         menu.addSeparator()
 
+        self.fonts_action = QAction("Fonts", self)
+        self.fonts_action.setToolTip("Choose the monospace font and size.")
+        self.fonts_action.triggered.connect(lambda *_: self._configure_fonts())
+
         self.external_tools_action = QAction("External tools integration", self)
         self.external_tools_action.setToolTip("Configure external tool integrations.")
         self.external_tools_action.triggered.connect(lambda *_: self._configure_external_tools())
@@ -120,6 +124,7 @@ class MenusMixin:
         self.auto_check_updates_action.setToolTip("Automatically check for updates when the tool starts.")
         self.auto_check_updates_action.toggled.connect(self._on_auto_check_updates_toggled)
 
+        menu.addAction(self.fonts_action)
         menu.addAction(self.external_tools_action)
         menu.addAction(self.help_action)
         menu.addAction(self.check_updates_action)
@@ -210,6 +215,23 @@ class MenusMixin:
         from lib.dialogs.configure_dialogs import ConfigureDiffToolDialog
         dlg = ConfigureDiffToolDialog(self.repo_path, parent=self)
         dlg.exec()
+
+    def _configure_fonts(self):
+        """Opens the Font selection dialog."""
+        from lib.dialogs.font_dialog import FontDialog
+        from lib.app_window.helpers import default_mono_family
+        current = getattr(self, 'current_font_family', None) or default_mono_family()
+        dlg = FontDialog(
+            current_family=current,
+            current_size=self.current_font_size,
+            parent=self,
+        )
+        if dlg.exec():
+            family, size = dlg.selected_font()
+            self.current_font_family = family
+            self.current_font_size = size
+            self.update_font()
+            self._propagate_browse_font()
 
     def _build_repo_menu(self):
         """Builds the Repo button's menu: View PR Diff / View a Commit /
