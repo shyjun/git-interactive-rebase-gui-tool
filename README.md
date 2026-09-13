@@ -95,7 +95,7 @@ A Python-based Git Interactive Rebase GUI tool to visually manage commit history
 
 * **Adaptive Themes**: Toggle between a refined **Dark Theme** (VS Code-inspired charcoal palette) and a clean **Light Theme**.
 * **Global consistency**: Every button, scrollbar, and dialog follows the chosen theme.
-* **Persistent settings**: Theme, font size, and UI preferences are saved across sessions.
+* **Persistent settings**: Theme, font family, font size, and UI preferences are saved across sessions.
 * **Per-window font zoom**: Adjust the code font-size with the **+/- (zoom)** buttons in the status bar.
 * **Visual feedback**: Instant "Copied" notifications for clipboard actions (SHA, message, or both).
 * **Resizable dialogs**: Long result/confirmation dialogs can be resized to read all the details.
