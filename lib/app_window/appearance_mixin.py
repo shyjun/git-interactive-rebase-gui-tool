@@ -146,9 +146,9 @@ class AppearanceMixin:
         # self.force_window_resize()  # intentionally disabled: window keeps its size instead of auto-collapsing
 
     def on_squash_visibility_toggled(self, visible):
-        self.show_squash_options = visible
+        self.show_multiselect_options = visible
         self.squash_group.setVisible(visible)
-        self.settings.setValue(self._sk("show_squash_options"), visible)
+        self.settings.setValue(self._sk("show_multiselect_options"), visible)
         # self.force_window_resize()  # intentionally disabled: window keeps its size instead of auto-collapsing
 
     def on_local_branches_visibility_toggled(self, visible):
