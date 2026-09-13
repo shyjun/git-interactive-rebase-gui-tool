@@ -316,6 +316,12 @@ class DiffSearchBar(QWidget):
         self.line_wrap_action.setToolTip("Wrap long lines to fit the view width.")
         self.options_menu.addAction(self.line_num_action)
         self.options_menu.addAction(self.line_wrap_action)
+        self.options_menu.addSeparator()
+        self.regex_action = QAction("Regular Expression", self)
+        self.regex_action.setCheckable(True)
+        self.regex_action.setChecked(False)
+        self.regex_action.setToolTip("Use regular expression for search.")
+        self.options_menu.addAction(self.regex_action)
         self.options_btn.setMenu(self.options_menu)
 
         layout.addWidget(self.search_input)
@@ -332,6 +338,7 @@ class DiffSearchBar(QWidget):
         self.search_input.returnPressed.connect(self._trigger_search_now)
         self.match_case_cb.toggled.connect(self._perform_search)
         self.whole_word_cb.toggled.connect(self._perform_search)
+        self.regex_action.toggled.connect(self._perform_search)
         self.line_num_action.toggled.connect(self.target_view.set_line_numbers_visible)
         self.line_wrap_action.toggled.connect(self.target_view.set_line_wrap_enabled)
         self.btn_next.clicked.connect(self.next_match)
@@ -392,11 +399,22 @@ class DiffSearchBar(QWidget):
         if find_flag_case is None and hasattr(QTextDocument, 'FindFlag'):
             find_flag_case = QTextDocument.FindFlag.FindCaseSensitively
 
+        use_regex = self.regex_action.isChecked()
+
         while len(self.matches) < _MAX_MATCHES:
-            if self.match_case_cb.isChecked() and find_flag_case is not None:
-                cursor = doc.find(query, cursor, find_flag_case)
+            if use_regex:
+                pattern_options = QRegularExpression.NoPatternOption
+                if not self.match_case_cb.isChecked():
+                    pattern_options = QRegularExpression.CaseInsensitiveOption
+                regex = QRegularExpression(query, pattern_options)
+                if not regex.isValid():
+                    break
+                cursor = doc.find(regex, cursor)
             else:
-                cursor = doc.find(query, cursor)
+                if self.match_case_cb.isChecked() and find_flag_case is not None:
+                    cursor = doc.find(query, cursor, find_flag_case)
+                else:
+                    cursor = doc.find(query, cursor)
 
             if cursor.isNull():
                 break
