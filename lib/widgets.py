@@ -275,9 +275,6 @@ class DiffSearchBar(QWidget):
         self.search_input.setMinimumHeight(28)
         self.search_input.setClearButtonEnabled(True)
 
-        self.match_case_cb = QCheckBox("Match Case")
-        self.match_case_cb.setToolTip("Match case.")
-
         self.btn_prev = QToolButton()
         self.btn_prev.setText("<")
         self.btn_next = QToolButton()
@@ -292,20 +289,35 @@ class DiffSearchBar(QWidget):
         self.lbl_counter.setMinimumWidth(40)
         self.lbl_counter.setAlignment(Qt.AlignCenter)
 
-        self.whole_word_cb = QCheckBox("Whole word")
-        self.whole_word_cb.setToolTip("Match whole words only.")
-
         self.separator = QFrame()
         self.separator.setFrameShape(QFrame.VLine)
         self.separator.setFrameShadow(QFrame.Sunken)
 
         self.options_btn = QToolButton()
         self.options_btn.setText("\u2699")  # ⚙ gear
-        self.options_btn.setToolTip("Diff view options: Line Numbers, Line Wrap")
+        self.options_btn.setToolTip("Search and diff view options")
         self.options_btn.setPopupMode(QToolButton.InstantPopup)
         self.options_btn.setFixedSize(28, 28)
         self.options_btn.setStyleSheet("QToolButton::menu-indicator { image: none; width: 0px; }")
         self.options_menu = QMenu(self)
+
+        self.match_case_action = QAction("Match Case", self)
+        self.match_case_action.setCheckable(True)
+        self.match_case_action.setChecked(False)
+        self.match_case_action.setToolTip("Make search case-sensitive.")
+        self.whole_word_action = QAction("Whole Word", self)
+        self.whole_word_action.setCheckable(True)
+        self.whole_word_action.setChecked(False)
+        self.whole_word_action.setToolTip("Match whole words only.")
+        self.regex_action = QAction("Regular Expression", self)
+        self.regex_action.setCheckable(True)
+        self.regex_action.setChecked(False)
+        self.regex_action.setToolTip("Use regular expression for search.")
+        self.options_menu.addAction(self.match_case_action)
+        self.options_menu.addAction(self.whole_word_action)
+        self.options_menu.addAction(self.regex_action)
+        self.options_menu.addSeparator()
+
         self.line_num_action = QAction("Line Numbers", self)
         self.line_num_action.setCheckable(True)
         self.line_num_action.setChecked(False)
@@ -316,17 +328,9 @@ class DiffSearchBar(QWidget):
         self.line_wrap_action.setToolTip("Wrap long lines to fit the view width.")
         self.options_menu.addAction(self.line_num_action)
         self.options_menu.addAction(self.line_wrap_action)
-        self.options_menu.addSeparator()
-        self.regex_action = QAction("Regular Expression", self)
-        self.regex_action.setCheckable(True)
-        self.regex_action.setChecked(False)
-        self.regex_action.setToolTip("Use regular expression for search.")
-        self.options_menu.addAction(self.regex_action)
         self.options_btn.setMenu(self.options_menu)
 
         layout.addWidget(self.search_input)
-        layout.addWidget(self.match_case_cb)
-        layout.addWidget(self.whole_word_cb)
         layout.addWidget(self.btn_prev)
         layout.addWidget(self.btn_next)
         layout.addWidget(self.lbl_counter)
@@ -336,8 +340,8 @@ class DiffSearchBar(QWidget):
     def _connect_signals(self):
         self.search_input.textChanged.connect(self._perform_search)
         self.search_input.returnPressed.connect(self._trigger_search_now)
-        self.match_case_cb.toggled.connect(self._perform_search)
-        self.whole_word_cb.toggled.connect(self._perform_search)
+        self.match_case_action.toggled.connect(self._perform_search)
+        self.whole_word_action.toggled.connect(self._perform_search)
         self.regex_action.toggled.connect(self._perform_search)
         self.line_num_action.toggled.connect(self.target_view.set_line_numbers_visible)
         self.line_wrap_action.toggled.connect(self.target_view.set_line_wrap_enabled)
@@ -404,14 +408,14 @@ class DiffSearchBar(QWidget):
         while len(self.matches) < _MAX_MATCHES:
             if use_regex:
                 pattern_options = QRegularExpression.NoPatternOption
-                if not self.match_case_cb.isChecked():
+                if not self.match_case_action.isChecked():
                     pattern_options = QRegularExpression.CaseInsensitiveOption
                 regex = QRegularExpression(query, pattern_options)
                 if not regex.isValid():
                     break
                 cursor = doc.find(regex, cursor)
             else:
-                if self.match_case_cb.isChecked() and find_flag_case is not None:
+                if self.match_case_action.isChecked() and find_flag_case is not None:
                     cursor = doc.find(query, cursor, find_flag_case)
                 else:
                     cursor = doc.find(query, cursor)
@@ -420,7 +424,7 @@ class DiffSearchBar(QWidget):
                 break
 
             # When whole-word is enabled, skip matches not on word boundaries
-            if self.whole_word_cb.isChecked():
+            if self.whole_word_action.isChecked():
                 start = cursor.selectionStart()
                 end = cursor.selectionEnd()
                 before = doc.characterAt(start - 1) if start > 0 else None
