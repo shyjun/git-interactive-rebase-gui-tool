@@ -112,7 +112,7 @@ class InitMixin:
         self.show_origin_options = self.settings.value(self._sk("show_origin_options"), False, type=bool)
         self.show_rebase_options = self.settings.value(self._sk("show_rebase_options"), False, type=bool)
         self.show_squash_options = self.settings.value(self._sk("show_squash_options"), True, type=bool)
-        self.show_local_branches = self.settings.value(self._sk("show_local_branches"), False, type=bool)
+        self.show_local_branches = self.settings.value(self._sk("show_local_branches"), True, type=bool)
         self.show_tags = self.settings.value(self._sk("show_tags"), False, type=bool)
         self.show_stats = self.settings.value(self._sk("show_stats"), True, type=bool)
         self.show_date = self.settings.value(self._sk("show_date"), True, type=bool)
