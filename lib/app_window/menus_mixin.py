@@ -252,11 +252,8 @@ class MenusMixin:
         QSettings("shyjun", "GitInteractiveRebase").clear()
         QSettings("git-interactive-rebase-gui-tool", "config").clear()
         QSettings("git-interactive-rebase-gui-tool", "settings").clear()
-        import sys
-        from PySide6.QtCore import QProcess
-        from PySide6.QtWidgets import QApplication
-        QProcess.startDetached(sys.executable, sys.argv)
-        QApplication.quit()
+        from lib.app_window.helpers import _relaunch
+        _relaunch()
 
     def _build_repo_menu(self):
         """Builds the Repo button's menu: View PR Diff / View a Commit /
