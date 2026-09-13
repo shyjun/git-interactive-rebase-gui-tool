@@ -182,11 +182,13 @@ def main():
         if root_res.stdout.strip():
             repo_path = root_res.stdout.strip()
     except FileNotFoundError:
+        print("[error] git is not installed or not in your PATH.")
         QMessageBox.critical(None, "Git not found",
             "git is not installed or not in your PATH.\n\n"
             "Install git and try again.")
         sys.exit(1)
     except Exception:
+        print(f"[error] Not a Git Repository: {repo_path}")
         QMessageBox.critical(None, "Not a Git Repository",
             f"The directory '{repo_path}' is not a valid git repository.\n\n"
             "Please run this tool inside a git repository.")
