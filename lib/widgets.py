@@ -1,11 +1,13 @@
 from PySide6.QtCore import (
     QEvent,
+    QRegularExpression,
     QRect,
     QSize,
     Qt,
     QTimer,
 )
 from PySide6.QtGui import (
+    QAction,
     QColor,
     QFontMetrics,
     QKeySequence,
@@ -22,6 +24,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMenu,
     QPlainTextEdit,
     QSizePolicy,
     QStyle,
@@ -296,11 +299,24 @@ class DiffSearchBar(QWidget):
         self.separator.setFrameShape(QFrame.VLine)
         self.separator.setFrameShadow(QFrame.Sunken)
 
-        self.line_num_cb = QCheckBox("Line-Num")
-        self.line_num_cb.setToolTip("Highlight line numbers.")
-
-        self.wrap_cb = QCheckBox("Wrap")
-        self.wrap_cb.setToolTip("Wrap long lines to fit the view width.")
+        self.options_btn = QToolButton()
+        self.options_btn.setText("\u2699")  # ⚙ gear
+        self.options_btn.setToolTip("Diff view options: Line Numbers, Line Wrap")
+        self.options_btn.setPopupMode(QToolButton.InstantPopup)
+        self.options_btn.setFixedSize(28, 28)
+        self.options_btn.setStyleSheet("QToolButton::menu-indicator { image: none; width: 0px; }")
+        self.options_menu = QMenu(self)
+        self.line_num_action = QAction("Line Numbers", self)
+        self.line_num_action.setCheckable(True)
+        self.line_num_action.setChecked(False)
+        self.line_num_action.setToolTip("Highlight line numbers in the diff.")
+        self.line_wrap_action = QAction("Line Wrap", self)
+        self.line_wrap_action.setCheckable(True)
+        self.line_wrap_action.setChecked(False)
+        self.line_wrap_action.setToolTip("Wrap long lines to fit the view width.")
+        self.options_menu.addAction(self.line_num_action)
+        self.options_menu.addAction(self.line_wrap_action)
+        self.options_btn.setMenu(self.options_menu)
 
         layout.addWidget(self.search_input)
         layout.addWidget(self.match_case_cb)
@@ -309,16 +325,15 @@ class DiffSearchBar(QWidget):
         layout.addWidget(self.btn_next)
         layout.addWidget(self.lbl_counter)
         layout.addWidget(self.separator)
-        layout.addWidget(self.line_num_cb)
-        layout.addWidget(self.wrap_cb)
+        layout.addWidget(self.options_btn)
 
     def _connect_signals(self):
         self.search_input.textChanged.connect(self._perform_search)
         self.search_input.returnPressed.connect(self._trigger_search_now)
         self.match_case_cb.toggled.connect(self._perform_search)
         self.whole_word_cb.toggled.connect(self._perform_search)
-        self.line_num_cb.toggled.connect(self.target_view.set_line_numbers_visible)
-        self.wrap_cb.toggled.connect(self.target_view.set_line_wrap_enabled)
+        self.line_num_action.toggled.connect(self.target_view.set_line_numbers_visible)
+        self.line_wrap_action.toggled.connect(self.target_view.set_line_wrap_enabled)
         self.btn_next.clicked.connect(self.next_match)
         self.btn_prev.clicked.connect(self.prev_match)
 
@@ -378,7 +393,6 @@ class DiffSearchBar(QWidget):
             find_flag_case = QTextDocument.FindFlag.FindCaseSensitively
 
         while len(self.matches) < _MAX_MATCHES:
-            # doc.find default flags are case insensitive
             if self.match_case_cb.isChecked() and find_flag_case is not None:
                 cursor = doc.find(query, cursor, find_flag_case)
             else:
