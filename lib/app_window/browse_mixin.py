@@ -238,10 +238,11 @@ class BrowseMixin:
             browse_limit=50,
         )
         viewer.current_font_size = self.current_font_size
-        viewer.update_font()
         if viewer.is_dark_theme != self.is_dark_theme:
             viewer.is_dark_theme = self.is_dark_theme
             viewer.apply_theme("dark" if self.is_dark_theme else "light")
+        # Set font AFTER theme to avoid stylesheet resetting widget fonts
+        viewer.update_font()
         self.browse_windows.append(viewer)
         viewer.setWindowFlags(viewer.windowFlags() | Qt.Window)
         viewer.show()
