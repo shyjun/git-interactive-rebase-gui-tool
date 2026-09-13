@@ -15,6 +15,7 @@ from PySide6.QtGui import (
     QColor,
     QDesktopServices,
     QFont,
+    QFontDatabase,
 )
 from PySide6.QtWidgets import (
     QApplication,
@@ -33,7 +34,7 @@ PLAIN_DIFF_LINE_CAP = 10_000
 MATCH_ROLE = Qt.UserRole + 7
 
 _MONOSPACE_CANDIDATES = {
-    "Windows": ["Consolas", "Courier New", "Lucida Console"],
+    "Windows": ["Cascadia Code", "Consolas", "Courier New", "Lucida Console"],
     "Darwin": ["Menlo", "Monaco", "Courier New"],
     "Linux": ["Monospace"],
 }
@@ -42,9 +43,11 @@ def mono_font(size):
     """Return a QFont guaranteed to be monospace on all platforms."""
     system = platform.system()
     candidates = _MONOSPACE_CANDIDATES.get(system, ["Monospace"])
+    available = QFontDatabase.families()
     for name in candidates:
-        f = QFont(name, size)
-        if f.fixedPitch():
+        if name in available:
+            f = QFont(name, size)
+            f.setStyleHint(QFont.StyleHint.Monospace)
             return f
     f = QFont("Monospace", size)
     f.setStyleHint(QFont.StyleHint.Monospace)
