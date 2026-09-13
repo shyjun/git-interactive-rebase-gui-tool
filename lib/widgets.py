@@ -413,7 +413,8 @@ class DiffSearchBar(QWidget):
                 regex = QRegularExpression(query, pattern_options)
                 if not regex.isValid():
                     break
-                cursor = doc.find(regex, cursor)
+                flags = find_flag_case if (self.match_case_action.isChecked() and find_flag_case is not None) else QTextDocument.FindFlags(0)
+                cursor = doc.find(regex, cursor, flags)
             else:
                 if self.match_case_action.isChecked() and find_flag_case is not None:
                     cursor = doc.find(query, cursor, find_flag_case)
