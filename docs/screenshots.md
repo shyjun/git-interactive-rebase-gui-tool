@@ -73,6 +73,7 @@ Visual documentation for the Git Interactive Rebase GUI Tool. Each section showc
 52. [Collapsible Commit Details Header](#52-collapsible-commit-details-header)
 53. [Collapsible File List in Diff Tabs](#53-collapsible-file-list-in-diff-tabs)
 54. [Collapsible File List in Branch/Commit Dialogs](#54-collapsible-file-list-in-branchcommit-dialogs)
+55. [Font Selection Dialog](#55-font-selection-dialog)
 
 ---
 
@@ -254,10 +255,12 @@ The **Configure** button in the status bar controls which markers, columns, and 
 
 The menu also includes:
 
+- **Fonts** → Choose the monospace font family and size (see [Font Selection Dialog](#55-font-selection-dialog))
 - **External tools integration** → Configure diff tool (Not configured / Git configured / Custom command)
 - **Help** → links to the demo video, README, and contact
 - **Check for updates** → compares the running version against the remote
 - **Check for updates at startup** → tickable option to auto-check on launch (default: enabled)
+- **Reset Preferences** → reset all preferences (theme, font, UI toggles) to defaults and restart
 
 ---
 
@@ -1224,3 +1227,17 @@ Clicking a different tab switches normally without toggling. This works in the m
 ## 54. Collapsible File List in Branch/Commit Dialogs
 
 **Description:** The Branch Diff dialog and Single Commit View dialog also support the collapsible file list toggle on their File-wise Diff and Tree-wise Diff tabs, identical to the main window behavior described in [Collapsible File List in Diff Tabs](#53-collapsible-file-list-in-diff-tabs).
+
+---
+
+## 55. Font Selection Dialog
+
+**Description:** Open via **Configure → Fonts** in the status bar. A minimal dialog lets you pick a monospace font family and size:
+
+- **Font** → dropdown listing only monospaced fonts from the system (via `QFontComboBox.MonospacedFonts`)
+- **Size** → spinner with range 6–32 (default: 10)
+- **Preview** → live preview with git/code-oriented sample text
+- **OK** → applies the selected font and size, saved across sessions
+- **Cancel** → discards changes
+
+The selected font is used across the main window and all browse/viewer windows. Font preferences persist across sessions.
