@@ -108,7 +108,7 @@ class InitMixin:
         self.settings_scope = "browse" if self.browse_mode else "main"
         self.current_font_size = int(self.settings.value("font_size", 10))
         self.current_font_family = self.settings.value("font_family", None)
-        self.show_diffs = self.settings.value(self._sk("show_diffs"), False, type=bool)
+        self.show_diffs = self.settings.value(self._sk("show_diffs"), True, type=bool)
         self.show_origin_options = self.settings.value(self._sk("show_origin_options"), False, type=bool)
         self.show_rebase_options = self.settings.value(self._sk("show_rebase_options"), False, type=bool)
         self.show_squash_options = self.settings.value(self._sk("show_squash_options"), True, type=bool)
