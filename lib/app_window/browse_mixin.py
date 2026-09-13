@@ -142,27 +142,6 @@ class BrowseMixin:
         viewer.show()
         print(f"[browse] Reflog viewer shown ({len(self.browse_windows)} browse windows open)")
 
-    def handle_browse_tags(self):
-        """Opens a read-only viewer window showing all tags in the repository
-        (most recent first), with the diff pane hidden and a minimal
-        copy-SHA / show-log toolbar."""
-        print("[browse] Opening tags browser, limit=50")
-        AppClass = _get_app_class()
-        viewer = AppClass(
-            self.repo_path, self.commit_sha, self.app_start_time,
-            viewer_mode=True, browse_tags=True, parent=self,
-            browse_limit=50,
-        )
-        viewer.current_font_size = self.current_font_size
-        viewer.update_font()
-        if viewer.is_dark_theme != self.is_dark_theme:
-            viewer.is_dark_theme = self.is_dark_theme
-            viewer.apply_theme("dark" if self.is_dark_theme else "light")
-        self.browse_windows.append(viewer)
-        viewer.setWindowFlags(viewer.windowFlags() | Qt.Window)
-        viewer.show()
-        print(f"[browse] Tags browser shown ({len(self.browse_windows)} browse windows open)")
-
     def handle_browse_stash(self):
         """Opens a read-only viewer window showing the repository's stash list
         (most recent first), with the diff pane always visible."""
