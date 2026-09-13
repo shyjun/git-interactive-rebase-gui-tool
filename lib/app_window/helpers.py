@@ -58,6 +58,34 @@ def mono_font(size, family=None):
     return f
 
 
+def _relaunch():
+    """Relaunch the application. Handles both source and pip-installed modes."""
+    import sys
+    import os
+    import platform
+    from PySide6.QtCore import QProcess
+    from PySide6.QtWidgets import QApplication
+
+    script = os.path.abspath(sys.argv[0])
+
+    if platform.system() == "Windows" and not os.path.isfile(script):
+        # Pip install on Windows: sys.argv[0] may be a generated wrapper.
+        # Try running the .exe entry point directly.
+        exe_path = script + ".exe"
+        if os.path.isfile(exe_path):
+            QProcess.startDetached(exe_path, sys.argv[1:])
+            QApplication.quit()
+            return
+        # Fallback: re-run via python -m
+        module = os.path.splitext(os.path.basename(script))[0]
+        QProcess.startDetached(sys.executable, ["-m", module] + sys.argv[1:])
+        QApplication.quit()
+        return
+
+    QProcess.startDetached(sys.executable, [script] + sys.argv[1:])
+    QApplication.quit()
+
+
 def clean_binary_diff_lines(diff_text):
     """Replace verbose 'Binary files ... differ' lines with compact markers."""
     lines = diff_text.split('\n')

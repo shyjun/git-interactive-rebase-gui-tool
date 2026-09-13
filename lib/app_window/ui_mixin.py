@@ -1004,11 +1004,8 @@ class UIMixin:
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         if reply != QMessageBox.Yes:
             return
-        import sys
-        from PySide6.QtCore import QProcess
-        from PySide6.QtWidgets import QApplication
-        QProcess.startDetached(sys.executable, sys.argv)
-        QApplication.quit()
+        from lib.app_window.helpers import _relaunch
+        _relaunch()
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
