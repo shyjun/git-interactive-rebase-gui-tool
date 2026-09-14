@@ -718,9 +718,9 @@ class DiffMixin:
 
     def handle_slash_shortcut(self):
         """Focus search bar when / is pressed."""
-        if not self.search_edit.hasFocus():
-            self.search_edit.setFocus()
-            self.search_edit.selectAll()
+        if not self.commit_search_edit.hasFocus():
+            self.commit_search_edit.setFocus()
+            self.commit_search_edit.selectAll()
 
     def handle_esc_shortcut(self):
         """Clear filter and focus when Esc is pressed."""
@@ -745,20 +745,20 @@ class DiffMixin:
             return
 
         # 3. Fallback to commit history search filter
-        if self.search_edit.text() or self.search_edit.hasFocus():
-            self.search_edit.clear()
-            self.search_edit.clearFocus()
+        if self.commit_search_edit.text() or self.commit_search_edit.hasFocus():
+            self.commit_search_edit.clear()
+            self.commit_search_edit.clearFocus()
             self.list_widget.setFocus()
 
     def _on_search_option_changed(self):
         """Persist the three search options and immediately re-run the active search."""
-        mc = self.search_match_case_action.isChecked()
-        ww = self.search_whole_word_action.isChecked()
-        do = self.search_display_only_action.isChecked()
+        mc = self.commit_search_match_case_action.isChecked()
+        ww = self.commit_search_whole_word_action.isChecked()
+        do = self.commit_search_display_only_action.isChecked()
         self._filter_controller.set_search_options(mc, ww, do)
         self.settings.setValue(self._sk("search_match_case"), mc)
         self.settings.setValue(self._sk("search_display_only"), do)
-        self._filter_controller.filter_commits(self.search_edit.text())
+        self._filter_controller.filter_commits(self.commit_search_edit.text())
 
     def filter_commits(self, text):
         """Live-filters commits.  Delegates to CommitFilterController."""

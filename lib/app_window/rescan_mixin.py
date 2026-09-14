@@ -473,8 +473,8 @@ class RescanMixin:
         self._filter_controller._update_commit_counts()
 
         # Re-apply the active search/filter so it isn't silently dropped after a reload
-        if hasattr(self, 'search_edit'):
-            self.filter_commits(self.search_edit.text())
+        if hasattr(self, 'commit_search_edit'):
+            self.filter_commits(self.commit_search_edit.text())
 
         if current_head == self.start_time_head[:8] and not uncommitted:
             self.failsafe_btn.setEnabled(False)
