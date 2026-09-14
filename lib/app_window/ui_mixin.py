@@ -95,69 +95,69 @@ class UIMixin:
         search_row_layout.setContentsMargins(0, 0, 0, 0)
         search_row_layout.setSpacing(4)
 
-        self.search_edit = QLineEdit()
-        self.search_edit.setPlaceholderText("Search commits (SHA or Message)...")
-        self.search_edit.setToolTip("Search commits by SHA or message.")
-        self.search_edit.setClearButtonEnabled(True)
-        self.search_edit.textChanged.connect(self.filter_commits)
-        search_row_layout.addWidget(self.search_edit, 1)  # stretch to fill
+        self.commit_search_edit = QLineEdit()
+        self.commit_search_edit.setPlaceholderText("Search commits (SHA or Message)...")
+        self.commit_search_edit.setToolTip("Search commits by SHA or message.")
+        self.commit_search_edit.setClearButtonEnabled(True)
+        self.commit_search_edit.textChanged.connect(self.filter_commits)
+        search_row_layout.addWidget(self.commit_search_edit, 1)  # stretch to fill
 
         # Search Options dropdown (HOW to search: Match Case / Whole Word / Display Only Matching)
-        self.search_options_btn = QToolButton()
-        self.search_options_btn.setText("Search Options ▼")
-        self.search_options_btn.setToolTip("Search options: Match Case, Whole Word, Display Only Matching")
-        self.search_options_btn.setPopupMode(QToolButton.InstantPopup)
-        self.search_options_btn.setMinimumHeight(28)
+        self.commit_search_options_btn = QToolButton()
+        self.commit_search_options_btn.setText("Search Options ▼")
+        self.commit_search_options_btn.setToolTip("Search options: Match Case, Whole Word, Display Only Matching")
+        self.commit_search_options_btn.setPopupMode(QToolButton.InstantPopup)
+        self.commit_search_options_btn.setMinimumHeight(28)
         # The text already carries a "▼", so hide Qt's extra menu indicator at
         # the bottom-right of the button.
-        self.search_options_btn.setStyleSheet("QToolButton::menu-indicator { image: none; width: 0px; }")
-        self.search_options_menu = QMenu(self)
-        self.search_match_case_action = QAction("Match Case", self)
-        self.search_match_case_action.setCheckable(True)
-        self.search_match_case_action.setToolTip("Make search case-sensitive")
-        self.search_whole_word_action = QAction("Whole Word", self)
-        self.search_whole_word_action.setCheckable(True)
-        self.search_whole_word_action.setToolTip("Match whole words only")
-        self.search_display_only_action = QAction("Display Only Matching", self)
-        self.search_display_only_action.setCheckable(True)
-        self.search_display_only_action.setToolTip("Hide commits that do not match the search")
-        self.search_options_menu.addAction(self.search_match_case_action)
-        self.search_options_menu.addAction(self.search_whole_word_action)
-        self.search_options_menu.addAction(self.search_display_only_action)
-        self.search_options_btn.setMenu(self.search_options_menu)
-        self.search_match_case_action.toggled.connect(self._on_search_option_changed)
-        self.search_whole_word_action.toggled.connect(self._on_search_option_changed)
-        self.search_display_only_action.toggled.connect(self._on_search_option_changed)
-        search_row_layout.addWidget(self.search_options_btn)
+        self.commit_search_options_btn.setStyleSheet("QToolButton::menu-indicator { image: none; width: 0px; }")
+        self.commit_search_options_menu = QMenu(self)
+        self.commit_search_match_case_action = QAction("Match Case", self)
+        self.commit_search_match_case_action.setCheckable(True)
+        self.commit_search_match_case_action.setToolTip("Make search case-sensitive")
+        self.commit_search_whole_word_action = QAction("Whole Word", self)
+        self.commit_search_whole_word_action.setCheckable(True)
+        self.commit_search_whole_word_action.setToolTip("Match whole words only")
+        self.commit_search_display_only_action = QAction("Display Only Matching", self)
+        self.commit_search_display_only_action.setCheckable(True)
+        self.commit_search_display_only_action.setToolTip("Hide commits that do not match the search")
+        self.commit_search_options_menu.addAction(self.commit_search_match_case_action)
+        self.commit_search_options_menu.addAction(self.commit_search_whole_word_action)
+        self.commit_search_options_menu.addAction(self.commit_search_display_only_action)
+        self.commit_search_options_btn.setMenu(self.commit_search_options_menu)
+        self.commit_search_match_case_action.toggled.connect(self._on_search_option_changed)
+        self.commit_search_whole_word_action.toggled.connect(self._on_search_option_changed)
+        self.commit_search_display_only_action.toggled.connect(self._on_search_option_changed)
+        search_row_layout.addWidget(self.commit_search_options_btn)
 
         # Compact filter controls: "Filter:" label + three checkboxes
         filter_label = QLabel("Filter:")
         filter_label.setStyleSheet("font-size: 11px; color: gray;")
         search_row_layout.addWidget(filter_label)
 
-        self.filter_by_files_cb = QCheckBox("Filenames")
-        self.filter_by_files_cb.setChecked(False)
-        self.filter_by_files_cb.setToolTip("Filter commits by modified filenames")
-        self.filter_by_files_cb.stateChanged.connect(lambda: self.filter_commits(self.search_edit.text()))
-        search_row_layout.addWidget(self.filter_by_files_cb)
+        self.commit_filter_by_files_cb = QCheckBox("Filenames")
+        self.commit_filter_by_files_cb.setChecked(False)
+        self.commit_filter_by_files_cb.setToolTip("Filter commits by modified filenames")
+        self.commit_filter_by_files_cb.stateChanged.connect(lambda: self.filter_commits(self.commit_search_edit.text()))
+        search_row_layout.addWidget(self.commit_filter_by_files_cb)
 
-        self.filter_by_diff_cb = QCheckBox("Diff")
-        self.filter_by_diff_cb.setChecked(False)
-        self.filter_by_diff_cb.setToolTip("Filter commits by diff content (min 3 chars, debounced)")
-        self.filter_by_diff_cb.stateChanged.connect(lambda: self.filter_commits(self.search_edit.text()))
-        search_row_layout.addWidget(self.filter_by_diff_cb)
+        self.commit_filter_by_diff_cb = QCheckBox("Diff")
+        self.commit_filter_by_diff_cb.setChecked(False)
+        self.commit_filter_by_diff_cb.setToolTip("Filter commits by diff content (min 3 chars, debounced)")
+        self.commit_filter_by_diff_cb.stateChanged.connect(lambda: self.filter_commits(self.commit_search_edit.text()))
+        search_row_layout.addWidget(self.commit_filter_by_diff_cb)
 
-        self.filter_by_author_cb = QCheckBox("Author")
-        self.filter_by_author_cb.setChecked(False)
-        self.filter_by_author_cb.setToolTip("Filter commits by author name or email")
-        self.filter_by_author_cb.stateChanged.connect(lambda: self.filter_commits(self.search_edit.text()))
-        search_row_layout.addWidget(self.filter_by_author_cb)
+        self.commit_filter_by_author_cb = QCheckBox("Author")
+        self.commit_filter_by_author_cb.setChecked(False)
+        self.commit_filter_by_author_cb.setToolTip("Filter commits by author name or email")
+        self.commit_filter_by_author_cb.stateChanged.connect(lambda: self.filter_commits(self.commit_search_edit.text()))
+        search_row_layout.addWidget(self.commit_filter_by_author_cb)
 
         # Inline status label shown during diff search (timer and style constants
         # live in CommitFilterController).
-        self._diff_status_label = QLabel("Searching diffs...")
-        self._diff_status_label.setVisible(False)
-        search_row_layout.addWidget(self._diff_status_label)
+        self.commit_filter_status_label = QLabel("Searching diffs...")
+        self.commit_filter_status_label.setVisible(False)
+        search_row_layout.addWidget(self.commit_filter_status_label)
 
         layout.addWidget(search_row_widget)
 
@@ -853,8 +853,8 @@ class UIMixin:
         from lib.commit_filter_controller import CommitFilterController
         self._filter_controller = CommitFilterController(
             self, self.list_widget, self.commit_cache, self.repo_path,
-            self.search_edit, self.filter_by_files_cb, self.filter_by_diff_cb,
-            self.filter_by_author_cb, self._diff_status_label,
+            self.commit_search_edit, self.commit_filter_by_files_cb, self.commit_filter_by_diff_cb,
+            self.commit_filter_by_author_cb, self.commit_filter_status_label,
             self.showing_commits_label, self.sep_merge, self.merge_commits_label,
             MATCH_ROLE, _diff_search_matches, get_commit_files_with_status,
             get_commit_diff, self.settings, self._sk)

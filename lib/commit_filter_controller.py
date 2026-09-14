@@ -24,8 +24,9 @@ class CommitFilterController(QObject):
     is decoupled from the filtering details."""
 
     def __init__(self, parent, list_widget, commit_cache, repo_path,
-                 search_edit, filter_by_files_cb, filter_by_diff_cb,
-                 filter_by_author_cb, diff_status_label,
+                 commit_search_edit, commit_filter_by_files_cb,
+                 commit_filter_by_diff_cb, commit_filter_by_author_cb,
+                 commit_filter_status_label,
                  showing_commits_label, sep_merge, merge_commits_label,
                  MATCH_ROLE, diff_search_matches_func,
                  get_commit_files_with_status_func,
@@ -35,11 +36,11 @@ class CommitFilterController(QObject):
         self._list_widget = list_widget
         self._commit_cache = commit_cache
         self._repo_path = repo_path
-        self._search_edit = search_edit
-        self._filter_by_files_cb = filter_by_files_cb
-        self._filter_by_diff_cb = filter_by_diff_cb
-        self._filter_by_author_cb = filter_by_author_cb
-        self._diff_status_label = diff_status_label
+        self._commit_search_edit = commit_search_edit
+        self._commit_filter_by_files_cb = commit_filter_by_files_cb
+        self._commit_filter_by_diff_cb = commit_filter_by_diff_cb
+        self._commit_filter_by_author_cb = commit_filter_by_author_cb
+        self._commit_filter_status_label = commit_filter_status_label
         self._showing_commits_label = showing_commits_label
         self._sep_merge = sep_merge
         self._merge_commits_label = merge_commits_label
@@ -64,7 +65,7 @@ class CommitFilterController(QObject):
         self._diff_search_timer.setInterval(300)
         self._diff_search_timer.timeout.connect(self._run_filter_with_diff)
 
-        self._diff_status_label.setStyleSheet(self._DIFF_NEUTRAL_STYLE)
+        self._commit_filter_status_label.setStyleSheet(self._DIFF_NEUTRAL_STYLE)
 
     def set_search_options(self, match_case, whole_word, display_only):
         """Set the three search-option flags without triggering a re-filter."""
@@ -76,23 +77,23 @@ class CommitFilterController(QObject):
         """Live-filters commits. Diff search is debounced; msg/filename filtering is instant."""
         self._diff_search_gen += 1
         search_term = self._normalize_search_term(text.strip())
-        by_diff = self._filter_by_diff_cb.isChecked()
+        by_diff = self._commit_filter_by_diff_cb.isChecked()
 
         self._run_filter_no_diff(search_term)
 
         if by_diff and len(search_term) >= 3:
-            self._diff_status_label.setStyleSheet(self._DIFF_NEUTRAL_STYLE)
-            self._diff_status_label.setText("Searching diffs...")
-            self._diff_status_label.setVisible(True)
+            self._commit_filter_status_label.setStyleSheet(self._DIFF_NEUTRAL_STYLE)
+            self._commit_filter_status_label.setText("Searching diffs...")
+            self._commit_filter_status_label.setVisible(True)
             self._diff_search_timer.start()
         elif by_diff and search_term:
             self._diff_search_timer.stop()
-            self._diff_status_label.setStyleSheet(self._DIFF_HINT_STYLE)
-            self._diff_status_label.setText("Diff search needs ≥ 3 characters")
-            self._diff_status_label.setVisible(True)
+            self._commit_filter_status_label.setStyleSheet(self._DIFF_HINT_STYLE)
+            self._commit_filter_status_label.setText("Diff search needs ≥ 3 characters")
+            self._commit_filter_status_label.setVisible(True)
         else:
             self._diff_search_timer.stop()
-            self._diff_status_label.setVisible(False)
+            self._commit_filter_status_label.setVisible(False)
 
     def _normalize_search_term(self, term):
         """Resolve any 4-40 hex SHA prefix to the exact short form git displays."""
@@ -117,12 +118,12 @@ class CommitFilterController(QObject):
     def _run_filter_no_diff(self, search_term=None):
         """Instant filtering by commit message, filenames, and author."""
         search_term = self._normalize_search_term(
-            search_term if search_term is not None else self._search_edit.text().strip())
+            search_term if search_term is not None else self._commit_search_edit.text().strip())
 
         by_msg = True
-        by_files = self._filter_by_files_cb.isChecked()
-        by_diff = self._filter_by_diff_cb.isChecked()
-        by_author = self._filter_by_author_cb.isChecked()
+        by_files = self._commit_filter_by_files_cb.isChecked()
+        by_diff = self._commit_filter_by_diff_cb.isChecked()
+        by_author = self._commit_filter_by_author_cb.isChecked()
 
         if not search_term or (not by_msg and not by_files and not by_diff and not by_author):
             for i in range(self._list_widget.count()):
@@ -178,15 +179,15 @@ class CommitFilterController(QObject):
 
     def _run_filter_with_diff(self):
         """Debounced diff search."""
-        search_term = self._normalize_search_term(self._search_edit.text().strip())
-        if len(search_term) < 3 or not self._filter_by_diff_cb.isChecked():
-            self._diff_status_label.setVisible(False)
+        search_term = self._normalize_search_term(self._commit_search_edit.text().strip())
+        if len(search_term) < 3 or not self._commit_filter_by_diff_cb.isChecked():
+            self._commit_filter_status_label.setVisible(False)
             return
 
         gen = self._diff_search_gen
         by_msg = True
-        by_files = self._filter_by_files_cb.isChecked()
-        by_author = self._filter_by_author_cb.isChecked()
+        by_files = self._commit_filter_by_files_cb.isChecked()
+        by_author = self._commit_filter_by_author_cb.isChecked()
         display_only = self.search_display_only
         match_case = self.search_match_case
         whole_word = self.search_whole_word
@@ -276,7 +277,7 @@ class CommitFilterController(QObject):
 
             if error is not None:
                 print(f"[app_window] diff search failed: {error}")
-                self._diff_status_label.setVisible(False)
+                self._commit_filter_status_label.setVisible(False)
                 return
 
             display_only = self.search_display_only
@@ -290,7 +291,7 @@ class CommitFilterController(QObject):
                 elif entry["match_role"] and not display_only:
                     item.setData(self._MATCH_ROLE, True)
 
-            self._diff_status_label.setVisible(False)
+            self._commit_filter_status_label.setVisible(False)
             self._update_commit_counts()
             self._list_widget.viewport().update()
 

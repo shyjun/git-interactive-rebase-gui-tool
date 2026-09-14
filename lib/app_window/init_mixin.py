@@ -199,7 +199,7 @@ class InitMixin:
         self.apply_theme(theme)
 
         # Search options (Match Case / Whole Word / Display Only Matching)
-        if hasattr(self, 'search_match_case_action'):
+        if hasattr(self, 'commit_search_match_case_action'):
             mc = self.settings.value(self._sk("search_match_case"), False, type=bool)
             # Whole Word is intentionally not persisted: always start the tool with it off.
             ww = False
@@ -207,9 +207,9 @@ class InitMixin:
             do = self.settings.value(self._sk("search_display_only"), False, type=bool)
             self._filter_controller.set_search_options(mc, ww, do)
             # Apply without firing toggled (avoids re-running the search during startup)
-            for action, value in ((self.search_match_case_action, mc),
-                                  (self.search_whole_word_action, ww),
-                                  (self.search_display_only_action, do)):
+            for action, value in ((self.commit_search_match_case_action, mc),
+                                  (self.commit_search_whole_word_action, ww),
+                                  (self.commit_search_display_only_action, do)):
                 action.blockSignals(True)
                 action.setChecked(value)
                 action.blockSignals(False)
