@@ -125,7 +125,7 @@ class SquashMixin:
         self._apply_multi_select_flags()
         self.list_widget.itemChanged.connect(self.on_multi_select_changed)
         self.multi_select_btn.setEnabled(False)
-        self.perform_action_btn.setEnabled(False)
+        self.multiselect_menu_btn.setEnabled(False)
         self.cancel_multi_btn.setEnabled(True)
         # Give the commit list keyboard focus so Space toggles the current
         # item's checkbox instead of falling onto a toolbar button (e.g. zoom).
@@ -161,18 +161,18 @@ class SquashMixin:
             item.setData(Qt.CheckStateRole, None)
         self.list_widget.blockSignals(False)
         self.multi_select_btn.setEnabled(True)
-        self.perform_action_btn.setEnabled(False)
+        self.multiselect_menu_btn.setEnabled(False)
         self.cancel_multi_btn.setEnabled(False)
 
     def on_multi_select_changed(self, changed_item):
-        """Enables the 'Perform action' menu only when commits are checked."""
+        """Enables the 'Multi-select' menu only when commits are checked."""
         if not self.multi_select_mode:
             return
         checked_count = sum(
             1 for i in range(self.list_widget.count())
             if self.list_widget.item(i).checkState() == Qt.Checked
         )
-        self.perform_action_btn.setEnabled(checked_count >= 1)
+        self.multiselect_menu_btn.setEnabled(checked_count >= 1)
         self.squash_selected_action.setEnabled(checked_count >= 2)
         self.mark_selected_action.setEnabled(checked_count >= 1)
         self.drop_selected_action.setEnabled(checked_count >= 1)
