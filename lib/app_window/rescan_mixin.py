@@ -618,9 +618,6 @@ class RescanMixin:
         if not base_sha or commit_count > 200:
             if base_sha:
                 print(f"[detect_base] Range too large ({commit_count} > 200), keeping 200 fallback")
-                self.total_commits_label.setText(
-                    f"Branch '{branch_name}' has {commit_count} commits, showing 200"
-                )
             return
         self.commit_sha = base_sha
         self.base_branch = branch_name
