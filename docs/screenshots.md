@@ -1,6 +1,6 @@
 # Screenshots & Feature Guide
 
-Visual documentation for the Git Interactive Rebase GUI Tool. Each section showcases a feature with a screenshot and brief description.
+Visual documentation for the Git Interactive Rebase GUI Tool. Each section describes a feature, with screenshots where useful.
 
 **Note:** [Vim official repository](https://github.com/vim/vim) is used for demonstration purposes.
 
@@ -62,18 +62,18 @@ Visual documentation for the Git Interactive Rebase GUI Tool. Each section showc
 41. [Blame a file](#41-blame-a-file)
 42. [Browse Tags](#42-browse-tags)
 43. [External Tools Dialog](#43-external-tools-dialog)
-44. [Keyboard Shortcuts](#44-keyboard-shortcuts)
-45. [Handle Staged Changes](#45-handle-staged-changes)
-46. [Commit Staged Changes Selectively](#46-commit-staged-changes-selectively)
-47. [Add Untracked Files Dialog](#47-add-untracked-files-dialog)
-48. [Staged Changes Warning at Startup / Rescan](#48-staged-changes-warning-at-startup--rescan)
-49. [Destructive Operations Blocked When Staged Changes Exist](#49-destructive-operations-blocked-when-staged-changes-exist)
-50. [Auto-background on Launch](#50-auto-background-on-launch)
-51. [Full Height Diff View](#51-full-height-diff-view)
-52. [Collapsible Commit Details Header](#52-collapsible-commit-details-header)
-53. [Collapsible File List in Diff Tabs](#53-collapsible-file-list-in-diff-tabs)
-54. [Collapsible File List in Branch/Commit Dialogs](#54-collapsible-file-list-in-branchcommit-dialogs)
-55. [Font Selection Dialog](#55-font-selection-dialog)
+44. [Handle Staged Changes](#44-handle-staged-changes)
+45. [Commit Staged Changes Selectively](#45-commit-staged-changes-selectively)
+46. [Add Untracked Files Dialog](#46-add-untracked-files-dialog)
+47. [Staged / Unstaged Changes Warning at Startup / Rescan](#47-staged--unstaged-changes-warning-at-startup--rescan)
+48. [Destructive Operations Blocked When Staged Changes Exist](#48-destructive-operations-blocked-when-staged-changes-exist)
+49. [Auto-background on Launch](#49-auto-background-on-launch)
+50. [Full Height Diff View](#50-full-height-diff-view)
+51. [Collapsible Commit Details Header](#51-collapsible-commit-details-header)
+52. [Collapsible File List in Diff Tabs](#52-collapsible-file-list-in-diff-tabs)
+53. [Collapsible File List in Branch/Commit Dialogs](#53-collapsible-file-list-in-branchcommit-dialogs)
+54. [Font Selection Dialog](#54-font-selection-dialog)
+55. [Keyboard Shortcuts](#55-keyboard-shortcuts)
 
 ---
 
@@ -177,9 +177,9 @@ The status bar also shows the commit count. Right-click any commit to access the
 
 Access all commit actions via right-click menu.
 
-**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/context-menu.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/main-menus.webp`
 
-![Context Menu](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/context-menu.webp)
+![Context Menu](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/main-menus.webp)
 
 **Description:** Right-click any commit to see the context menu with all available actions:
 
@@ -213,11 +213,7 @@ In the file-wise diff viewer and blame viewer, right-clicking a file also shows:
 
 The **Repo** button in the main window's toolbar groups the repository-wide tools in one menu.
 
-**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/repo-menu.webp`
-
-![Repo Menu](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/repo-menu.webp)
-
-**Description:** Click **Repo** in the toolbar to open the menu. It offers:
+**Description:** Click **Repo** in the toolbar to open the menu (see [Context Menu](#3-context-menu) screenshot). It offers:
 
 - **View PR Diff** → Open a read-only **PR Preview** showing the combined branch diff versus its merge-base (see [PR Diff / PR Preview](#27-pr-diff--pr-preview))
 - **View a Commit…** → Open any commit by SHA in a read-only tabbed viewer (Plain / File-wise diff)
@@ -238,11 +234,7 @@ The **Repo** button in the main window's toolbar groups the repository-wide tool
 
 The **Configure** button in the status bar controls which markers, columns, and panels are visible.
 
-**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/configure-menu.webp`
-
-![Configure Menu](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/configure-menu.webp)
-
-**Description:** Click **Configure** in the status bar to open the menu. The **Show/Hide** submenu lets you toggle each item; the choices are remembered across sessions:
+**Description:** Click **Configure** in the status bar to open the menu (see [Context Menu](#3-context-menu) screenshot). The **Show/Hide** submenu lets you toggle each item; the choices are remembered across sessions:
 
 - **Show Origin** → origin markers
 - **Show Rebase** → rebase markers (see [Rebase Options](#21-rebase-options))
@@ -255,7 +247,7 @@ The **Configure** button in the status bar controls which markers, columns, and 
 
 The menu also includes:
 
-- **Fonts** → Choose the monospace font family and size (see [Font Selection Dialog](#55-font-selection-dialog))
+- **Fonts** → Choose the monospace font family and size (see [Font Selection Dialog](#54-font-selection-dialog))
 - **External tools integration** → Configure diff tool (Not configured / Git configured / Custom command)
 - **Help** → links to the demo video, README, and contact
 - **Check for updates** → compares the running version against the remote
@@ -268,9 +260,7 @@ The menu also includes:
 
 The **Perform action on selected commits** menu lists the actions that can be applied to the commits checked in multi-select mode.
 
-**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/multi-select-menu.webp`
-
-![Multi-Select Menu](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/multi-select-menu.webp)
+**Description:** (see [Context Menu](#3-context-menu) screenshot)
 
 **Description:** Enter multi-select mode with **Select multiple commits**, then open the **Perform action on selected commits** menu (next to the selection button). Each commit gets a tick box, and the menu offers the following actions based on how many commits are checked:
 
@@ -287,9 +277,9 @@ The actions are described in detail in [Multi-Select Actions](#15-multi-select-a
 
 Right-click a file in the **File-wise Diff** tab for per-file actions.
 
-**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/file-wise-diff-viewer.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/commit-viewer-and-file-operations-menu.webp`
 
-![File-Operations menu](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/file-wise-diff-viewer.webp)
+![File-Operations menu](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/commit-viewer-and-file-operations-menu.webp)
 
 **Description:** Right-click any file in the file-wise file list to open the context menu. The available actions depend on how the viewer was opened.
 
@@ -376,17 +366,17 @@ The commit diff can be viewed in three modes (tabs):
 - **File-wise Diff** → the commit's changes listed file by file (see [10.2](#102-file-wise-diff))
 - **Tree-wise Diff** → the commit's changes in a folder/file tree with stats (see [10.3](#103-tree-wise-diff))
 
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/plain-file-tree-diff.webp`
+
+![Plain / File-wise / Tree-wise Diff](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/plain-file-tree-diff.webp)
+
 ---
 
 ### 10.1 Plain Diff
 
 Browse a commit's diff as a single combined view.
 
-**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/plain-diff.webp`
-
-![Plain Diff](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/plain-diff.webp)
-
-**Description:** The **Plain Diff** tab shows the full commit diff in one scrollable, syntax-highlighted view with line numbers — useful for reviewing the complete change set at a glance.
+**Description:** The **Plain Diff** tab shows the full commit diff in one scrollable, syntax-highlighted view with line numbers — useful for reviewing the complete change set at a glance (see screenshot above).
 
 ---
 
@@ -394,7 +384,7 @@ Browse a commit's diff as a single combined view.
 
 Browse a commit's changes file by file.
 
-**Description:** Switch to the **File-wise Diff** tab (in the right panel, or in the commit viewer) to list all changed files for the selected commit. Select any file to view its specific diff. This makes it easy to understand what each file contributed to the commit. Renames are shown as one `old => new` row. Deleted files are marked as `filename (Deleted)` and new files as `filename (Added new file)`. (Screenshot: same as [File-Operations menu](#7-file-operations-menu).)
+**Description:** Switch to the **File-wise Diff** tab (in the right panel, or in the commit viewer) to list all changed files for the selected commit. Select any file to view its specific diff. This makes it easy to understand what each file contributed to the commit. Renames are shown as one `old => new` row. Deleted files are marked as `filename (Deleted)` and new files as `filename (Added new file)` (see screenshot above).
 
 Right-click a file in the file-wise file list for per-file actions — see [File-Operations menu](#7-file-operations-menu) for the full list of available actions.
 
@@ -404,7 +394,7 @@ Right-click a file in the file-wise file list for per-file actions — see [File
 
 Browse a commit's changes as a folder/file tree with per-file stats.
 
-**Description:** Switch to the **Tree-wise Diff** tab to view the commit's changes organized as a hierarchical folder tree. Each folder shows a combined `+N/-M` stat count, and each file shows its own `+N/-M` stats. Click a folder to expand/collapse it. Click a file to view its diff in the panel below. Click a folder to view a concatenated diff of all files inside. Right-click a file for the same actions as the File-wise Diff tab.
+**Description:** Switch to the **Tree-wise Diff** tab to view the commit's changes organized as a hierarchical folder tree. Each folder shows a combined `+N/-M` stat count, and each file shows its own `+N/-M` stats. Click a folder to expand/collapse it. Click a file to view its diff in the panel below. Click a folder to view a concatenated diff of all files inside. Right-click a file for the same actions as the File-wise Diff tab (see screenshot above).
 
 The tree supports zoom and theme colors — font size and colors follow the Plain Diff view settings. A search bar at the top filters files by name. Press **Esc** to clear the filter.
 
@@ -416,7 +406,7 @@ This tab is available in the main window, the Single Commit View dialog, and the
 
 A diff viewer is docked at the right side of the main window.
 
-**Description:** A diff viewer is docked towards the main window's right-side pane. Click any commit to view its diff there — added lines in green, removed lines in red, with line numbers. The pane offers three modes: **Plain Diff**, **File-wise Diff**, and **Tree-wise Diff** (see [10](#10-diff-viewer)).
+**Description:** A diff viewer is docked towards the main window's right-side pane (see [Main Interface](#2-main-interface) screenshot, right side highlighted). Click any commit to view its diff there — added lines in green, removed lines in red, with line numbers. The pane offers three modes: **Plain Diff**, **File-wise Diff**, and **Tree-wise Diff** (see [10](#10-diff-viewer)).
 
 - **Configure → Show/Hide → Show Diffs** toggles the right-side diff pane; the choice is remembered across sessions. The diff pane is **visible by default**.
 
@@ -425,9 +415,9 @@ A diff viewer is docked at the right side of the main window.
 ## 12. Rephrase Commit
 Update the commit message without changing the commit contents.
 
-**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/rephrase-commit.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/rephrase-and-drop-commit.webp`
 
-![Rephrase Commit](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/rephrase-commit.webp)
+![Rephrase Commit](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/rephrase-and-drop-commit.webp)
 
 **Description:** Right-click a commit and select "Rephrase" to open the rephrase dialog. Edit the commit message and click "Confirm" to apply the new message.
 
@@ -436,11 +426,7 @@ Update the commit message without changing the commit contents.
 ## 13. Drop Commit
 Remove a commit entirely from the history.
 
-**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/drop-commit.webp`
-
-![Drop Commit](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/drop-commit.webp)
-
-**Description:** Right-click a commit and select "Drop" to see a confirmation dialog. Confirm to remove the commit from the history. This action is irreversible without resetting.
+**Description:** Right-click a commit and select "Drop" to see a confirmation dialog. Confirm to remove the commit from the history. This action is irreversible without resetting. (See [Rephrase Commit](#12-rephrase-commit) screenshot for the dialog style.)
 
 ---
 
@@ -506,9 +492,9 @@ Squash a commit with its immediate neighbor (above or below).
 
 Squash multiple adjacent commits at once.
 
-**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/multi-squash.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/squash-dialogue.webp`
 
-![Multi Squash](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/multi-squash.webp)
+![Multi Squash](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/squash-dialogue.webp)
 
 **Description:** In multi-select mode (see [Multi-Select Actions](#15-multi-select-actions)), select multiple adjacent commits by clicking on them, then choose **Squash selected commits** from the **Perform action on selected commits** menu (or use the context menu) to open the squash dialog. Edit the combined commit message in the dialog and click "Confirm" to apply.
 
@@ -647,11 +633,7 @@ these operations are disabled with a warning directing you to handle them first.
 
 ### At Startup
 
-**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/unstaged-changes-warning.webp`
-
-![Unstaged Changes Handling](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/unstaged-changes-warning.webp)
-
-**Description:** If unstaged or uncommitted changes are detected during launch, the tool shows a warning dialog and provides multiple ways to safely proceed.
+**Description:** If unstaged or uncommitted changes are detected during launch, the tool shows a warning dialog and provides multiple ways to safely proceed. See [Staged / Unstaged Changes Warning at Startup / Rescan](#47-staged--unstaged-changes-warning-at-startup--rescan) for the screenshot.
 
 Available options include:
 
@@ -674,7 +656,7 @@ Available options include:
 
 **Description:** The application can remain open while you continue working in your editor or terminal. If new unstaged or uncommitted changes are introduced outside the tool, use **Rescan Repository** to re-evaluate the repository state.
 
-When unstaged changes are detected, the tool provides the same safe handling options available during startup (see [Staged Changes Warning at Startup / Rescan](#48-staged-changes-warning-at-startup--rescan)). When only staged changes are present (no unstaged changes), a warning dialog appears with the **Repo** button highlighted, directing you to **Repo → Handle Staged Changes**.
+When unstaged changes are detected, the tool provides the same safe handling options available during startup (see [Staged / Unstaged Changes Warning at Startup / Rescan](#47-staged--unstaged-changes-warning-at-startup--rescan)). When only staged changes are present (no unstaged changes), a warning dialog appears with the **Repo** button highlighted, directing you to **Repo → Handle Staged Changes**.
 
 - Stash changes and continue
 - Commit Selectively (choose which files / hunks to commit)
@@ -805,11 +787,7 @@ View the complete history of a single file.
 ## 24. Browse Log of a Commit
 Open a read-only history window for any commit.
 
-**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/browse-commit-log.webp`
-
-![Browse Log of a Commit](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/browse-commit-log.webp)
-
-**Description:** Use **Repo → Browse Log of a Commit**, enter a commit SHA (or ref like `HEAD` or a branch name), and choose how many of the most recent commits to show. The commit is validated before opening, and its history opens in a read-only window (same style as Browse Branch / Browse File Log). Right-click any commit to **View Commit** in a tabbed diff viewer, or copy SHA / message to the clipboard.
+**Description:** Use **Repo → Browse Log of a Commit**, enter a commit SHA (or ref like `HEAD` or a branch name), and choose how many of the most recent commits to show. The commit is validated before opening, and its history opens in a read-only window (same style as [Browse Branch](#22-browse-branch) / [Browse File Log](#23-browse-file-log)). Right-click any commit to **View Commit** in a tabbed diff viewer, or copy SHA / message to the clipboard.
 
 ---
 
@@ -957,7 +935,7 @@ Toggle between light and dark themes for comfortable viewing.
 ## 35. Zoom Controls
 Adjust the font size for better readability.
 
-**Description:** Use the zoom controls (+/- buttons) in the toolbar to increase or decrease the font size. Font size preference is automatically saved across sessions.
+**Description:** Use the zoom controls (+/- buttons) in the toolbar to increase or decrease the font size (see [Main Interface](#2-main-interface) screenshot). Font size preference is automatically saved across sessions.
 
 ---
 
@@ -986,11 +964,7 @@ Display local and remote branch names alongside commits.
 ## 38. Copy to Clipboard
 Quickly copy commit details for sharing, debugging, or reference.
 
-**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/copy-commit-details.webp`
-
-![Copy to Clipboard](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/copy-commit-details.webp)
-
-**Description:** Right-click any commit and select one of the following options:
+**Description:** Right-click any commit and select one of the following options (visible in [Main Menus](#3-context-menu)):
 
 - **Copy SHA** → Copy the commit SHA
 - **Copy Message** → Copy the commit message
@@ -1094,28 +1068,7 @@ Click **Refresh** to re-detect the Git difftool, **Save** to persist the choice,
 
 ---
 
-## 44. Keyboard Shortcuts
-Keyboard shortcuts for faster navigation and workflow.
-
-| Shortcut | Action |
-|----------|--------|
-| `/` | Focus the commit search bar |
-| `Esc` | Clear search, close dialogs, exit search mode, or exit multi-select mode |
-| `Ctrl+F` | Focus the diff search bar (available in every diff view) |
-| `Ctrl+Q` | Exit the application |
-| `Ctrl+Z` | Undo the last operation (disabled while editing text) |
-| `Ctrl+Y` | Redo the last undone operation |
-| `F5` | Refresh commit list |
-| `Ctrl+Shift+F5` | Restart with latest code (cloned repos only, when update detected) |
-
-**Notes:**
-
-- `Esc` behaves contextually and may close dialogs, clear filters, exit search, or exit multi-select mode depending on the active state.
-- `Ctrl+F` focuses the diff search bar, which is available in every diff view (see [Diff Search Bar](#9-diff-search-bar)).
-
----
-
-## 45. Handle Staged Changes
+## 44. Handle Staged Changes
 
 **Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/handle-staged-changes.webp`
 
@@ -1134,7 +1087,7 @@ Buttons are disabled when no staged files remain. All history-modifying operatio
 
 ---
 
-## 46. Commit Staged Changes Selectively
+## 45. Commit Staged Changes Selectively
 
 **Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/commit_or_unstage-staged-selectively.webp`
 
@@ -1151,11 +1104,11 @@ Features:
 
 ---
 
-## 47. Add Untracked Files Dialog
+## 46. Add Untracked Files Dialog
 
-**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/add-unstaged-files.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/add-untracked-files.webp`
 
-![Add Untracked Files Dialog](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/add-unstaged-files.webp)
+![Add Untracked Files Dialog](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/add-untracked-files.webp)
 - **File List tab** — checkboxes with per-file stats
 - **Tree View tab** — folder/file hierarchy with checkboxes
 
@@ -1163,15 +1116,17 @@ Select files and click **Add/Stage Selected Files** to run `git add` on them. If
 
 ---
 
-## 48. Staged Changes Warning at Startup / Rescan
+## 47. Staged / Unstaged Changes Warning at Startup / Rescan
 
-**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/staged-changes-warning.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/staged-unstaged-changes-warning.webp`
 
-![Staged Changes Warning](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/staged-changes-warning.webp) The **Repo** button is also highlighted with an orange blink to draw attention. This warning appears both at startup and when **Rescan Repository** finds staged changes (with no unstaged changes).
+![Staged / Unstaged Changes Warning](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/staged-unstaged-changes-warning.webp)
+
+The **Repo** button is also highlighted with an orange blink to draw attention. This warning appears both at startup and when **Rescan Repository** finds staged or unstaged changes.
 
 ---
 
-## 49. Destructive Operations Blocked When Staged Changes Exist
+## 48. Destructive Operations Blocked When Staged Changes Exist
 
 **Description:** When staged changes are present in the repository, history-modifying (destructive) operations are blocked with a warning dialog. The **Repo** button is highlighted to guide you to **Repo → Handle Staged Changes**.
 
@@ -1192,13 +1147,13 @@ This prevents accidental data loss when the staging area contains changes that c
 
 ---
 
-## 50. Auto-background on Launch
+## 49. Auto-background on Launch
 
 **Description:** When run from a terminal, the tool automatically detaches and runs in the background. The terminal returns immediately with a message like `Tool started in background (PID xxx)`. This works on both Linux (`os.fork`) and Windows (`subprocess.Popen` with `DETACHED_PROCESS`). The `--version` and `--update` flags skip auto-background to keep terminal output.
 
 ---
 
-## 51. Full Height Diff View
+## 50. Full Height Diff View
 
 **Description:** A **▼ Full Height ▼** toggle button sits below the commit list and diff pane, spanning the full window width. The button is **always visible** in the main window (regardless of diff pane visibility). Clicking it collapses the commit message header and hides all bottom control groups (failsafe, origin, multi-select, rebase) to maximize the diff viewing area. The button text changes to **▲ Show buttons ▲**.
 
@@ -1208,7 +1163,7 @@ This is useful when reviewing large diffs where you need maximum vertical space.
 
 ---
 
-## 52. Collapsible Commit Details Header
+## 51. Collapsible Commit Details Header
 
 **Description:** The commit details header in the right-side pane (and in the Single Commit View dialog) has a clickable disclosure arrow (▼/▶). Clicking the arrow collapses the commit message, leaving only the compact metadata header visible. This gives more space to the diff pane without using the Full Height toggle. Click again to expand.
 
@@ -1216,7 +1171,7 @@ The splitter handle is locked when collapsed to prevent accidental resizing. Dra
 
 ---
 
-## 53. Collapsible File List in Diff Tabs
+## 52. Collapsible File List in Diff Tabs
 
 **Description:** The **File-wise Diff** and **Tree-wise Diff** tab titles act as toggle buttons. Each tab title shows a ▼ or ▶ prefix indicating whether the file list is visible. Clicking the active tab toggles the file list visibility:
 
@@ -1227,13 +1182,17 @@ Clicking a different tab switches normally without toggling. This works in the m
 
 ---
 
-## 54. Collapsible File List in Branch/Commit Dialogs
+## 53. Collapsible File List in Branch/Commit Dialogs
 
-**Description:** The Branch Diff dialog and Single Commit View dialog also support the collapsible file list toggle on their File-wise Diff and Tree-wise Diff tabs, identical to the main window behavior described in [Collapsible File List in Diff Tabs](#53-collapsible-file-list-in-diff-tabs).
+**Description:** The Branch Diff dialog and Single Commit View dialog also support the collapsible file list toggle on their File-wise Diff and Tree-wise Diff tabs, identically to the main window behavior described in [Collapsible File List in Diff Tabs](#52-collapsible-file-list-in-diff-tabs).
 
 ---
 
-## 55. Font Selection Dialog
+## 54. Font Selection Dialog
+
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/font-selection-dialog.webp`
+
+![Font Selection Dialog](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/font-selection-dialog.webp)
 
 **Description:** Open via **Configure → Fonts** in the status bar. A minimal dialog lets you pick a monospace font family and size:
 
@@ -1244,3 +1203,24 @@ Clicking a different tab switches normally without toggling. This works in the m
 - **Cancel** → discards changes
 
 The selected font is used across the main window and all browse/viewer windows. Font preferences persist across sessions.
+
+---
+
+## 55. Keyboard Shortcuts
+Keyboard shortcuts for faster navigation and workflow.
+
+| Shortcut | Action |
+|----------|--------|
+| `/` | Focus the commit search bar |
+| `Esc` | Clear search, close dialogs, exit search mode, or exit multi-select mode |
+| `Ctrl+F` | Focus the diff search bar (available in every diff view) |
+| `Ctrl+Q` | Exit the application |
+| `Ctrl+Z` | Undo the last operation (disabled while editing text) |
+| `Ctrl+Y` | Redo the last undone operation |
+| `F5` | Refresh commit list |
+| `Ctrl+Shift+F5` | Restart with latest code (cloned repos only, when update detected) |
+
+**Notes:**
+
+- `Esc` behaves contextually and may close dialogs, clear filters, exit search, or exit multi-select mode depending on the active state.
+- `Ctrl+F` focuses the diff search bar, which is available in every diff view (see [Diff Search Bar](#9-diff-search-bar)).
