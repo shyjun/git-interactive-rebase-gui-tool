@@ -48,9 +48,11 @@ def _format_bytes(size_bytes):
 
 
 def get_commit_diff(repo_path, commit_sha):
-    """Fetches the diff for a specific commit."""
+    """Fetches the diff for a specific commit.
+    Uses -m so merge commits show diffs against each parent
+    (without -m, git show produces no diff for merge commits)."""
     try:
-        cmd = ["git", "show", commit_sha, "--format="]
+        cmd = ["git", "show", "-m", commit_sha, "--format="]
         result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
 
         # Inject a newline before every 'diff --git' block (except the very first if it's at start)
@@ -121,7 +123,7 @@ def get_commit_file_stats(repo_path, commit_sha):
     Uses git show --numstat. Binary files have '-' for added/deleted.
     """
     try:
-        cmd = ["git", "show", "--numstat", "--format=", commit_sha]
+        cmd = ["git", "show", "-m", "--numstat", "--format=", commit_sha]
         result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
         stats = {}
         binary_files = []
@@ -187,7 +189,7 @@ def get_commit_files_with_status(repo_path, commit_sha, stash=False):
         if stash:
             cmd = ["git", "diff-tree", "--no-commit-id", "-r", "-M", "--name-status", f"{commit_sha}^1", commit_sha]
         else:
-            cmd = ["git", "diff-tree", "--no-commit-id", "--root", "-r", "-M", "--name-status", commit_sha]
+            cmd = ["git", "diff-tree", "-m", "--no-commit-id", "--root", "-r", "-M", "--name-status", commit_sha]
         result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
         entries = []
         for line in result.stdout.strip().split('\n'):
@@ -209,7 +211,7 @@ def get_rename_diff_in_commit(repo_path, commit_sha, old_path, new_path):
     headers ('similarity index', 'rename from'/'rename to') are preserved;
     a path-filtered diff would force git to show an add/delete instead."""
     try:
-        cmd = ["git", "show", "--format=", commit_sha]
+        cmd = ["git", "show", "-m", "--format=", commit_sha]
         result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
         diff_text = result.stdout
         chunks = re.split(r'(?m)^(?=diff --git )', diff_text)
