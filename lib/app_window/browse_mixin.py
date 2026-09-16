@@ -84,6 +84,67 @@ class BrowseMixin:
         viewer.show()
         print(f"[browse] Branch viewer shown ({len(self.browse_windows)} browse windows open)")
 
+    def view_merge_commits(self, item):
+        """Open a browse-style window showing commits from the merged branch."""
+        parents = item.data(Qt.UserRole + 10) if item else None
+        if not parents or " " not in parents:
+            return
+        sha = item.text().split()[0]
+        parent_shas = parents.split()
+        second_parent = parent_shas[1]
+
+        # Find the merge-base between the two parents
+        from lib.git_helpers import commit_exists
+        try:
+            import subprocess
+            result = subprocess.run(
+                ["git", "merge-base", parent_shas[0], second_parent],
+                cwd=self.repo_path, capture_output=True, text=True,
+                encoding='utf-8', errors='replace',
+            )
+            merge_base = result.stdout.strip() if result.returncode == 0 else None
+        except Exception:
+            merge_base = None
+
+        if not merge_base:
+            QMessageBox.critical(self, "Error",
+                                 "Could not find the merge-base between the two parents.")
+            return
+
+        AppClass = _get_app_class()
+
+        if merge_base == second_parent:
+            # Second parent is an ancestor of first — no unique commits to show
+            QMessageBox.information(self, "No merged commits",
+                                    "The second parent is an ancestor of the first parent.\nNo unique commits to display.")
+            return
+
+        # Use git log <merge_base>..<second_parent> to get only the merged commits
+        from lib.git_helpers.history import get_git_history_fast
+        history, tag_map = get_git_history_fast(self.repo_path, merge_base, second_parent)
+        if not history:
+            QMessageBox.information(self, "No merged commits",
+                                    "No commits found between the merge-base and the second parent.")
+            return
+
+        # Create a minimal viewer showing just the merged range
+        viewer = AppClass(
+            self.repo_path, self.commit_sha, self.app_start_time,
+            viewer_mode=True, browse_branch=second_parent, parent=self,
+            preloaded_history=(history, tag_map),
+        )
+        viewer.setWindowTitle(f"Merged commits into {sha[:8]} — {second_parent[:8]}")
+        viewer.current_font_size = self.current_font_size
+        viewer.current_font_family = self.current_font_family
+        if viewer.is_dark_theme != self.is_dark_theme:
+            viewer.is_dark_theme = self.is_dark_theme
+            viewer.apply_theme("dark" if self.is_dark_theme else "light")
+        viewer.update_font()
+
+        self.browse_windows.append(viewer)
+        viewer.setWindowFlags(viewer.windowFlags() | Qt.Window)
+        viewer.show()
+
     def handle_browse_commit_log(self):
         """Opens a read-only viewer window showing a commit's recent history.
         Prompts for a commit SHA (or ref) and the number of commits to load,

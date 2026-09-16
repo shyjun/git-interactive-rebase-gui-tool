@@ -336,7 +336,12 @@ class RescanMixin:
         self.list_widget.setUpdatesEnabled(False)
         self.list_widget.blockSignals(True)
         try:
-            if self.browse_branch:
+            if getattr(self, '_merged_range_history', None):
+                # Pre-fetched merged range (from "View commits in merge")
+                history, tag_map = self._merged_range_history, self._merged_range_tag_map
+                self._merged_range_history = None  # consume once
+                self._stats_range = None
+            elif self.browse_branch:
                 history, tag_map = get_branch_history(self.repo_path, self.browse_branch)
                 self._stats_range = None
             else:
@@ -386,6 +391,7 @@ class RescanMixin:
                 item.setData(Qt.UserRole + 6, entry.get("message", ""))
                 parents = entry.get("parents", "")
                 item.setData(Qt.UserRole + 5, " " in parents)
+                item.setData(Qt.UserRole + 10, parents)
             else:
                 line = entry
                 sha = line.split()[0]
@@ -511,6 +517,13 @@ class RescanMixin:
 
         def worker():
             try:
+                # Pre-fetched merged range (from "View commits in merge")
+                merged = getattr(self, '_merged_range_history', None)
+                if merged is not None:
+                    tag_map = getattr(self, '_merged_range_tag_map', {})
+                    self._merged_range_history = None  # consume once
+                    self._browse_load_result = (True, merged, {}, tag_map)
+                    return
                 if filepath:
                     history, tag_map = get_file_history(repo_path, filepath, limit=browse_limit, ref=file_ref, follow=use_follow)
                 elif stash:

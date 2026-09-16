@@ -379,6 +379,12 @@ class MenusMixin:
         view_commit_action.triggered.connect(lambda: self.view_commit(item))
         menu.addAction(view_commit_action)
 
+        is_merge = item.data(Qt.UserRole + 5)
+        if is_merge:
+            merge_view_action = QAction(f"View commits in merge ({sha})", self)
+            merge_view_action.triggered.connect(lambda: self.view_merge_commits(item))
+            menu.addAction(merge_view_action)
+
         if self.browse_file:
             menu.addSeparator()
             sha = item.text().split()[0]
@@ -476,6 +482,8 @@ class MenusMixin:
         menu.setFont(menu_font)
 
         mark_action = QAction(f"Mark / Unmark commit {sha}", self)
+        is_merge = item.data(Qt.UserRole + 5)
+        merge_view_action = QAction(f"View commits in merge ({sha})", self) if is_merge else None
         view_action = QAction(f"Show / View commit {sha}", self)
         create_patch_action = QAction("Create Patch", self)
         create_patch_action.setToolTip("Save this commit as a patch file (re-appliable via Repo → Apply Patch…).")
@@ -540,6 +548,8 @@ class MenusMixin:
         if self.multi_select_mode:
             mark_action.setEnabled(False)
             view_action.setEnabled(False)
+            if merge_view_action:
+                merge_view_action.setEnabled(False)
             create_patch_action.setEnabled(False)
             reset_action.setEnabled(False)
             reset_here_action.setEnabled(False)
@@ -556,6 +566,9 @@ class MenusMixin:
 
         menu.addAction(mark_action)
         menu.addSeparator()
+        if merge_view_action:
+            merge_view_action.triggered.connect(lambda: self.view_merge_commits(item))
+            menu.addAction(merge_view_action)
         menu.addAction(view_action)
         menu.addAction(create_patch_action)
         menu.addAction(tag_action)
