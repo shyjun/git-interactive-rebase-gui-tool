@@ -184,6 +184,7 @@ Access all commit actions via right-click menu.
 **Description:** Right-click any commit to see the context menu with all available actions:
 
 - Show / View commit {sha} (opens the tabbed Plain + File-wise viewer)
+- View commits in merge (for merge commits only — opens a browse-style window showing the commits from the merged branch)
 - Create Patch (save the commit as a format-patch file, re-appliable via Apply Patch)
 - Tag (create a lightweight or annotated git tag on the commit)
 - Mark / Unmark commit
@@ -447,7 +448,7 @@ Available options include:
 
 A visual indicator shows where the commit will be placed before confirming the reorder.
 
-In multi-select mode you can also drag a whole block of adjacent (contiguous) checked commits to a new position together (see [Multi-Select Actions](#15-multi-select-actions)).
+Merge commits are supported — when reordering merge commits, the tool uses `--rebase-merges` to preserve the branch topology. In multi-select mode you can also drag a whole block of adjacent (contiguous) checked commits to a new position together (see [Multi-Select Actions](#15-multi-select-actions)).
 
 ---
 

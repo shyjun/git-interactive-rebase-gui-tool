@@ -159,23 +159,144 @@ class RebaseMixin:
                     # (which only imports sys) can embed them in exec todo lines.
                     msg_f_args = {sha: shlex.quote(_posix_path(p)) for sha, p in msg_files.items()}
 
-                    # Build a sequence editor script that writes the rebase todo
-                    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.py') as f:
-                        f.write("#!/usr/bin/env python3\n")
-                        f.write("import sys\n")
-                        f.write(f"new_order = {todo_shas}\n")
-                        f.write(f"msg_files = {repr(msg_files)}\n")
-                        f.write(f"msg_f_args = {repr(msg_f_args)}\n")
-                        f.write(f"squash_shas = {squash_shas or []}\n")
-                        f.write("todo_path = sys.argv[1]\n")
-                        f.write("with open(todo_path, 'w') as f:\n")
-                        f.write("    for sha in new_order:\n")
-                        f.write("        op = 'squash' if sha in squash_shas else 'pick'\n")
-                        f.write("        f.write(f'{op} {sha}\\n')\n")
-                        f.write("        if sha in msg_files:\n")
-                        f.write("            f.write(f'exec git commit --amend -F {msg_f_args[sha]}\\n')\n")
-                        editor_script = f.name
+                    # Detect merge commits — they need --rebase-merges
+                    merge_shas = set()
+                    for sha in todo_shas:
+                        try:
+                            cat = subprocess.run(
+                                ["git", "cat-file", "-p", sha],
+                                cwd=self.repo_path, capture_output=True, text=True,
+                                encoding='utf-8', errors='replace',
+                            )
+                            parents = [l for l in cat.stdout.splitlines() if l.startswith("parent ")]
+                            if len(parents) > 1:
+                                merge_shas.add(sha)
+                        except Exception:
+                            pass
 
+                    has_merges = bool(merge_shas)
+
+                    # Build a sequence editor script
+                    if has_merges:
+                        # --rebase-merges: git generates a complex todo with
+                        # reset/# Branch/merge -C lines.  Our script must READ
+                        # that todo, parse it into reorderable blocks, and
+                        # rewrite it in the desired order.
+                        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.py') as f:
+                            f.write("#!/usr/bin/env python3\n")
+                            f.write("import sys, re\n")
+                            f.write(f"new_order = {todo_shas}\n")
+                            f.write(f"squash_shas = {squash_shas or []}\n")
+                            f.write(f"msg_files = {repr(msg_files)}\n")
+                            f.write(f"msg_f_args = {repr(msg_f_args)}\n")
+                            f.write("todo_path = sys.argv[1]\n")
+                            f.write("with open(todo_path) as tf:\n")
+                            f.write("    lines = tf.readlines()\n")
+                            # Parse into blocks: each block is identified by a SHA.
+                        # --rebase-merges todo format:
+                        #   reset onto <sha>          (line 0, always present)
+                        #   pick <sha> <msg>          (standalone commit)
+                        #   # Branch <ref>            (start of merge block)
+                        #   reset <parent-sha>
+                        #   pick <sha> <msg> ...      (branch commits)
+                        #   merge -C <sha> <ref> # <msg>  (end of merge block)
+                            f.write("blocks = []  # list of (sha, [lines])\n")
+                            f.write("current = []\n")
+                            f.write("in_merge = False\n")
+                            f.write("onto_line = lines[0] if lines else ''\n")
+                            f.write("for line in lines[1:]:\n")
+                            f.write("    s = line.strip()\n")
+                            f.write("    if s.startswith('# Branch'):\n")
+                            f.write("        if current:\n")
+                            f.write("            blocks.append(current)\n")
+                            f.write("        current = [line]\n")
+                            f.write("        in_merge = True\n")
+                            f.write("    elif s.startswith('merge -C') or s.startswith('merge -c'):\n")
+                            f.write("        current.append(line)\n")
+                            f.write("        blocks.append(current)\n")
+                            f.write("        current = []\n")
+                            f.write("        in_merge = False\n")
+                            f.write("    elif in_merge:\n")
+                            f.write("        current.append(line)\n")
+                            f.write("    elif s.startswith('pick '):\n")
+                            f.write("        if current:\n")
+                            f.write("            blocks.append(current)\n")
+                            f.write("        current = [line]\n")
+                            f.write("    elif s.startswith('reset onto'):\n")
+                            f.write("        pass  # handled separately\n")
+                            f.write("    else:\n")
+                            f.write("        if current:\n")
+                            f.write("            current.append(line)\n")
+                            f.write("        else:\n")
+                            f.write("            current = [line]\n")
+                            f.write("if current:\n")
+                            f.write("    blocks.append(current)\n")
+                            # Extract SHA from each block
+                            f.write("def block_sha(bl):\n")
+                            f.write("    first = bl[0].strip()\n")
+                            f.write("    if first.startswith('pick '):\n")
+                            f.write("        return first.split()[1]\n")
+                            f.write("    # merge block — find merge -C line\n")
+                            f.write("    for bl in bl:\n")
+                            f.write("        s = bl.strip()\n")
+                            f.write("        if s.startswith('merge -C') or s.startswith('merge -c'):\n")
+                            f.write("            parts = s.split()\n")
+                            f.write("            if '-C' in parts:\n")
+                            f.write("                return parts[parts.index('-C') + 1]\n")
+                            f.write("            elif '-c' in parts:\n")
+                            f.write("                return parts[parts.index('-c') + 1]\n")
+                            f.write("    return None\n")
+                            # Map SHA -> block
+                            f.write("block_map = {}\n")
+                            f.write("orphan = []\n")
+                            f.write("for bl in blocks:\n")
+                            f.write("    sha = block_sha(bl)\n")
+                            f.write("    if sha:\n")
+                            f.write("        block_map[sha] = bl\n")
+                            f.write("    else:\n")
+                            f.write("        orphan.append(bl)\n")
+                            # Reorder and write
+                            f.write("with open(todo_path, 'w') as f:\n")
+                            f.write("    f.write(onto_line)\n")
+                            f.write("    for sha in new_order:\n")
+                            f.write("        if sha in block_map:\n")
+                            f.write("            bl = block_map[sha]\n")
+                            f.write("            if sha in squash_shas:\n")
+                            f.write("                # Change first pick to squash; for merge use 'merge -c' with -m\n")
+                            f.write("                first = bl[0]\n")
+                            f.write("                if first.strip().startswith('pick '):\n")
+                            f.write("                    bl = [first.replace('pick ', 'squash ', 1)] + bl[1:]\n")
+                            f.write("                elif first.strip().startswith('merge -C'):\n")
+                            f.write("                    bl = [first.replace('merge -C', 'merge -c', 1)] + bl[1:]\n")
+                            f.write("            for bline in bl:\n")
+                            f.write("                f.write(bline)\n")
+                            f.write("            if sha in msg_files:\n")
+                            f.write("                f.write(f'exec git commit --amend -F {msg_f_args[sha]}\\n')\n")
+                            f.write("        else:\n")
+                            f.write("            f.write(f'pick {sha}\\n')\n")
+                            f.write("            if sha in msg_files:\n")
+                            f.write("                f.write(f'exec git commit --amend -F {msg_f_args[sha]}\\n')\n")
+                            f.write("    for bl in orphan:\n")
+                            f.write("        for bline in bl:\n")
+                            f.write("            f.write(bline)\n")
+                            editor_script = f.name
+                    else:
+                        # Simple case: no merge commits, write pick/squash lines
+                        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.py') as f:
+                            f.write("#!/usr/bin/env python3\n")
+                            f.write("import sys\n")
+                            f.write(f"new_order = {todo_shas}\n")
+                            f.write(f"msg_files = {repr(msg_files)}\n")
+                            f.write(f"msg_f_args = {repr(msg_f_args)}\n")
+                            f.write(f"squash_shas = {squash_shas or []}\n")
+                            f.write("todo_path = sys.argv[1]\n")
+                            f.write("with open(todo_path, 'w') as f:\n")
+                            f.write("    for sha in new_order:\n")
+                            f.write("        op = 'squash' if sha in squash_shas else 'pick'\n")
+                            f.write("        f.write(f'{op} {sha}\\n')\n")
+                            f.write("        if sha in msg_files:\n")
+                            f.write("            f.write(f'exec git commit --amend -F {msg_f_args[sha]}\\n')\n")
+                            editor_script = f.name
 
                     env = os.environ.copy()
                     env["GIT_SEQUENCE_EDITOR"] = _script_command(editor_script)
@@ -185,6 +306,9 @@ class RebaseMixin:
                         cmd = ["git", "rebase", "-i", "--autosquash", "--root"]
                     else:
                         cmd = ["git", "rebase", "-i", "--autosquash", upstream]
+
+                    if has_merges:
+                        cmd.insert(cmd.index("-i") + 1, "--rebase-merges")
 
                     process = subprocess.Popen(cmd, cwd=self.repo_path, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
                     out_chunks, err_chunks = [], []
