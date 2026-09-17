@@ -34,11 +34,13 @@ class RebaseMixin:
         result = self.run_interactive_rebase(new_shas, original_shas=original_shas, upstream_override=upstream_override, progress_title="Moving Commits", progress_text="Reordering commits. Please wait...")
         if result:
             self.load_history()
+            self._notify_browse_windows()
             new_head = self.get_head_sha()
             self.log_action("N/A", "reordered commits", old_head, new_head)
             QMessageBox.information(self, "Success", "Commits reordered successfully!")
             return
         self.load_history()
+        self._notify_browse_windows()
 
     def run_interactive_rebase(self, new_shas, rephrase_map=None, squash_shas=None, original_shas=None, upstream_override=None, progress_title="Rebasing", progress_text="Executing interactive rebase. Please wait...\nThis might take a few moments.", suppress_failure_box=False, progress_dialog=None):
         """

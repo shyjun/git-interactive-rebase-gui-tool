@@ -56,6 +56,7 @@ class CherryPickMixin:
             )
             if result.returncode == 0:
                 self.load_history()
+                self._notify_browse_windows()
                 if no_commit:
                     QMessageBox.information(
                         self, "Success",
@@ -73,6 +74,7 @@ class CherryPickMixin:
             except Exception:
                 pass
             self.load_history()
+            self._notify_browse_windows()
             from lib.git_helpers.status import classify_cherry_pick_failure
             kind, _ = classify_cherry_pick_failure(self.repo_path, result.stderr or "")
             if kind == "empty":
@@ -281,6 +283,21 @@ class CherryPickMixin:
         parent.cached_current_head_full_sha = get_full_head_sha(self.repo_path)
         parent.cached_has_uncommitted = has_uncommitted_changes(self.repo_path)
         parent.load_history()
+        parent._notify_browse_windows()
+
+    def _notify_browse_windows(self):
+        """Refresh all open browse windows owned by this window (main only).
+        Updates each window's cached HEAD and triggers a history reload so
+        sibling browse windows stay in sync after state-changing operations."""
+        for viewer in list(self.browse_windows):
+            if viewer is self:
+                continue
+            try:
+                viewer.cached_current_head_full_sha = get_full_head_sha(self.repo_path)
+                viewer.cached_has_uncommitted = has_uncommitted_changes(self.repo_path)
+                viewer.load_history()
+            except Exception:
+                pass
 
     def _sync_cached_head(self):
         """Refreshes this window's cached HEAD/status synchronously so that
