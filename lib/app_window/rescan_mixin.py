@@ -524,6 +524,13 @@ class RescanMixin:
                     self._merged_range_history = None  # consume once
                     self._browse_load_result = (True, merged, {}, tag_map)
                     return
+                # Re-fetch merge range on subsequent reloads (e.g. after cherry-pick)
+                merge_base = getattr(self, '_merge_range_base', None)
+                merge_head = getattr(self, '_merge_range_head', None)
+                if merge_base and merge_head:
+                    history, tag_map = get_git_history_fast(repo_path, merge_base, merge_head)
+                    self._browse_load_result = (True, history, {}, tag_map)
+                    return
                 if filepath:
                     history, tag_map = get_file_history(repo_path, filepath, limit=browse_limit, ref=file_ref, follow=use_follow)
                 elif stash:

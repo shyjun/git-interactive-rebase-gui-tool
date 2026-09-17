@@ -134,6 +134,8 @@ class BrowseMixin:
             preloaded_history=(history, tag_map),
         )
         viewer.setWindowTitle(f"Merged commits into {sha[:8]} — {second_parent[:8]}")
+        viewer._merge_range_base = merge_base
+        viewer._merge_range_head = second_parent
         viewer.current_font_size = self.current_font_size
         viewer.current_font_family = self.current_font_family
         if viewer.is_dark_theme != self.is_dark_theme:
