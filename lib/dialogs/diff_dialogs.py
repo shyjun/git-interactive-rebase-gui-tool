@@ -1213,6 +1213,10 @@ class SingleCommitViewDialog(QDialog):
             status, path1, path2 = entry
             if status == 'R':
                 display = f"{path1} => {path2}"
+            elif status == 'D':
+                display = f"{path1} (Deleted)"
+            elif status == 'A':
+                display = f"{path1} (Added new file)"
             else:
                 display = path1
             item = QListWidgetItem(display)
