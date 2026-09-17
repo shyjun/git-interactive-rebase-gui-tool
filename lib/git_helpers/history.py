@@ -153,10 +153,12 @@ def _parse_stats_only(stdout):
 def get_branch_history(repo_path, branch, limit=None):
     """Fetches a branch's history (commits reachable from its tip).
 
+    Uses --first-parent so merged branch commits are not shown,
+    consistent with get_git_history_fast in the main window.
     Returns (commits, tag_map) like get_git_history."""
     try:
         log_cmd = [
-            "git", "log", branch,
+            "git", "log", "--first-parent", branch,
             "--format=%h%x1f%cd%x1f%an <%ae>%x1f%s%x1f%P%x1f%B%x1f%D%x1e",
             "--date=format:%d %b %Y",
             "--shortstat"
