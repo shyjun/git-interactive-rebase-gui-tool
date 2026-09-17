@@ -156,6 +156,13 @@ class CherryPickMixin:
                 f"<p>Conflicting files:<br/>{files}</p>"
             )
         if kind == "empty":
+            from lib.git_helpers.status import find_equivalent_commit
+            equiv = find_equivalent_commit(self.repo_path, sha)
+            if equiv:
+                return (
+                    f"<p>Cherry-pick: <b>{short}</b> is already present in the "
+                    f"branch with commit id: <b>{equiv[:10]}</b>. No changes were made.</p>"
+                )
             return (
                 f"<p>Cherry-pick of <b>{short}</b> failed - the commit is already "
                 f"present in this branch or produces no change here.</p>"

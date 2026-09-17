@@ -143,6 +143,35 @@ def classify_cherry_pick_failure(repo_path, stderr):
                 return "other", stripped
     return "other", "unknown error"
 
+def find_equivalent_commit(repo_path, sha):
+    """Find a commit on the current branch with the same tree as sha.
+
+    Returns the matching SHA (full) or None if no equivalent found.
+    """
+    try:
+        tree_result = subprocess.run(
+            ["git", "rev-parse", f"{sha}^{{tree}}"],
+            cwd=repo_path, capture_output=True, text=True,
+            encoding='utf-8', errors='replace',
+        )
+        if tree_result.returncode != 0:
+            return None
+        target_tree = tree_result.stdout.strip()
+        log_result = subprocess.run(
+            ["git", "log", "--format=%H %T", "HEAD"],
+            cwd=repo_path, capture_output=True, text=True,
+            encoding='utf-8', errors='replace',
+        )
+        if log_result.returncode != 0:
+            return None
+        for line in log_result.stdout.splitlines():
+            parts = line.split()
+            if len(parts) == 2 and parts[1] == target_tree:
+                return parts[0]
+    except Exception:
+        pass
+    return None
+
 def classify_tracked_changes(repo_path):
     """Returns (has_staged, has_unstaged) for tracked changes.
 
