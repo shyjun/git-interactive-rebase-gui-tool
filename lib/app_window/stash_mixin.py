@@ -30,7 +30,7 @@ from lib.dialogs import (
     SelectiveHunkDialog,
     StashNoticeDialog,
 )
-from lib.app_window.helpers import highlight_button_temporarily
+from lib.app_window.helpers import highlight_button_temporarily, _log
 from lib.app_window.split_utils import (
     parse_hunks as _parse_hunks,
     rebuild_patch as _rebuild_patch,
@@ -68,7 +68,7 @@ class StashMixin:
         """Pop the app-created managed stash after a confirmation showing stash details."""
         if not self.app_managed_stash_sha:
             return
-        print(f"[stash] Pop managed stash: {self.app_managed_stash_sha[:10]}")
+        _log(f"[stash] Pop managed stash: {self.app_managed_stash_sha[:10]}")
         status, _ = get_stash_status(self.repo_path, self.app_managed_stash_sha)
         if status == "ERROR":
             QMessageBox.critical(
@@ -121,7 +121,7 @@ class StashMixin:
         old_sha = self.app_managed_stash_sha
         if not old_sha:
             return
-        print(f"[stash] Merging into managed stash: {old_sha[:10]}")
+        _log(f"[stash] Merging into managed stash: {old_sha[:10]}")
         progress = ProgressDialog("Merging Stash", "Merging changes into app-created stash...", self)
         progress.show()
         QApplication.processEvents()
@@ -166,7 +166,7 @@ class StashMixin:
         if not self._check_head_unchanged():
             return
 
-        print("[stash] Opening selective commit dialog")
+        _log("[stash] Opening selective commit dialog")
         try:
             unstaged_files = get_unstaged_files(self.repo_path, ignore_submodules=True)
             if not unstaged_files:
@@ -723,7 +723,7 @@ class StashMixin:
         )
         if dialog.exec() == QDialog.Accepted:
             self.load_history()
-            from lib.app_window.helpers import highlight_button_temporarily
+            from lib.app_window.helpers import highlight_button_temporarily, _log
             highlight_button_temporarily(self.repo_btn, blinks=5)
             box = QMessageBox(self)
             box.setIcon(QMessageBox.Information)

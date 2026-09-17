@@ -22,7 +22,7 @@ from lib.git_helpers import (
     has_uncommitted_changes,
 )
 from lib.widgets import BrowseDimOverlay
-from lib.app_window.helpers import highlight_button_temporarily
+from lib.app_window.helpers import highlight_button_temporarily, _log
 
 
 class InitMixin:
@@ -31,7 +31,7 @@ class InitMixin:
     def __init__(self, repo_path, commit_sha, app_start_time, base_branch=None, viewer_mode=False, browse_branch=None, parent=None, browse_limit=50, browse_file=None, browse_reflog=False, browse_stash=False, browse_file_ref=None, browse_tags=False, browse_tag=False, cli_mode=False, auto_detect_base=False, preloaded_history=None):
         super().__init__(parent)
         mode = "viewer" if viewer_mode else "browse" if (browse_branch or browse_file or browse_reflog or browse_stash or browse_tags) else "main"
-        print(f"[init] Creating window: mode={mode}, branch='{browse_branch}', file='{browse_file}', "
+        _log(f"[init] Creating window: mode={mode}, branch='{browse_branch}', file='{browse_file}', "
               f"reflog={browse_reflog}, stash={browse_stash}, tags={browse_tags}, limit={browse_limit}")
         self.repo_path = repo_path
         self.commit_sha = commit_sha
@@ -170,7 +170,7 @@ class InitMixin:
         if _s.value("startup/auto_check_updates", True, type=bool):
             QTimer.singleShot(500, self._check_updates_on_startup)
         else:
-            print("[startup_check] auto-check updates disabled")
+            _log("[startup_check] auto-check updates disabled")
 
     def _sk(self, key):
         """Scopes a settings key by window type so main and browse windows keep
@@ -312,7 +312,7 @@ class InitMixin:
         s_old = old_head[:8] if len(old_head) > 8 else old_head
         s_new = new_head[:8] if len(new_head) > 8 else new_head
 
-        print(f"[{time.strftime('%H:%M:%S')}] {s_sha} {action}, HEAD before={s_old}, HEAD after={s_new}")
+        _log(f"[{time.strftime('%H:%M:%S')}] {s_sha} {action}, HEAD before={s_old}, HEAD after={s_new}")
 
     def _check_head_unchanged(self):
         """

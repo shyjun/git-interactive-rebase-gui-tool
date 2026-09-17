@@ -20,6 +20,7 @@ from lib.dialogs import (
     RefineFileSelectDialog,
 )
 from lib.app_window.helpers import (
+    _log,
     _safe_unlink,
     _script_command,
 )
@@ -54,7 +55,7 @@ class RefineMixin:
                 if selected_file:
                     self.perform_refine_changes(sha, selected_file)
             else:
-                print(f"Cancelled refine {sha}.")
+                _log(f"Cancelled refine {sha}.")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not open refine dialog: {str(e)}")
 
@@ -201,8 +202,8 @@ if partial_patch.strip():
         subprocess.check_call(['git', 'apply', '--ignore-whitespace', patch_path])
         subprocess.check_call(['git', 'add', '--', filepath])
     except subprocess.CalledProcessError as e:
-        print(f"FAILED to apply refinement patch for {{filepath}} in {{sha}}")
-        print(f"Error: {{e}}")
+        _log(f"FAILED to apply refinement patch for {{filepath}} in {{sha}}")
+        _log(f"Error: {{e}}")
         sys.exit(1)
     finally:
         try:
@@ -232,8 +233,8 @@ if result_action == "move" and move_patch.strip():
         subprocess.check_call(['git', 'apply', '--ignore-whitespace', patch_path])
         subprocess.check_call(['git', 'add', '--', filepath])
     except subprocess.CalledProcessError as e:
-        print(f"FAILED to apply move patch for {{filepath}} in {{sha}}")
-        print(f"Error: {{e}}")
+        _log(f"FAILED to apply move patch for {{filepath}} in {{sha}}")
+        _log(f"Error: {{e}}")
         sys.exit(1)
     finally:
         try:
@@ -348,7 +349,7 @@ if result_action == "move" and move_patch.strip():
                                         f"Successfully refined changes for '{filepath}' in commit {sha[:8]}.\n\n"
                                         "The Refine/Edit window will now refresh.")
             else:
-                print(f"Refine Changes: FAILED. {result.stderr}")
+                _log(f"Refine Changes: FAILED. {result.stderr}")
                 ok, detail = self._abort_rebase_safely()
                 if not ok:
                     self._warn_rebase_abort_failure(detail)

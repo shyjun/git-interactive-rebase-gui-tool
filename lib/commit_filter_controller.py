@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QListWidget,
     QWidget,
 )
+from lib.app_window.helpers import _log
 
 
 class CommitFilterController(QObject):
@@ -276,7 +277,7 @@ class CommitFilterController(QObject):
                 continue
 
             if error is not None:
-                print(f"[app_window] diff search failed: {error}")
+                _log(f"[app_window] diff search failed: {error}")
                 self._commit_filter_status_label.setVisible(False)
                 return
 

@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QStyle,
     QStyleOptionViewItem,
 )
+from lib.app_window.helpers import _log
 
 
 class CommitListWidget(QListWidget):
@@ -216,10 +217,10 @@ class CommitListWidget(QListWidget):
                 new_shas = [self.item(i).text().split()[0] for i in range(self.count())]
                 self.main_window.perform_move(new_shas, original_shas)
             else:
-                print(f"Cancelled reorder of {sha}.")
+                _log(f"Cancelled reorder of {sha}.")
                 event.ignore()
         except Exception as e:
-            print(f"[DRAG-DROP ERROR] {e}")
+            _log(f"[DRAG-DROP ERROR] {e}")
             import traceback
             traceback.print_exc()
 

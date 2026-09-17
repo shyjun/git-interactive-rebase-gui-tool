@@ -168,7 +168,7 @@ def perform_self_update(tool_dir):
         _log.info("perform_self_update: pip path, tool_dir=%s, old_sha=%s", tool_dir, old_sha)
         if not old_sha or old_sha.strip().lower() == "unknown":
             _log.info("perform_self_update: no version info, installing fresh")
-            print("[update] No version info found, installing fresh...")
+            _log.info("[update] No version info found, installing fresh...")
             ok, stdout, stderr = _run_capture(tool_dir, pip_cmd)
             if ok:
                 ls_url = GIT_REPO_URL.removeprefix("git+")
@@ -180,7 +180,7 @@ def perform_self_update(tool_dir):
 
         # Fetch remote SHA for up-to-date check
         ls_url = GIT_REPO_URL.removeprefix("git+")
-        print(f"[update] Local: {old_sha[:8]}, checking remote...")
+        _log.info("[update] Local: %s, checking remote...", old_sha[:8])
         _log.debug("perform_self_update: ls_url=%s", ls_url)
         ok, stdout, stderr = _run_capture(tool_dir, ["git", "ls-remote", ls_url, "HEAD"])
         _log.debug("perform_self_update: ls-remote ok=%s stdout=%s stderr=%s", ok, stdout.strip()[:80], stderr.strip()[:80])
@@ -194,7 +194,7 @@ def perform_self_update(tool_dir):
             return True, f"You are already using the latest version. ({old_sha[:8]})"
 
         _log.info("perform_self_update: running pip install --force-reinstall --no-deps")
-        print(f"[update] Remote: {remote_sha[:8]}, updating...")
+        _log.info("[update] Remote: %s, updating...", remote_sha[:8])
         ok, stdout, stderr = _run_capture(
             tool_dir,
             pip_cmd,
@@ -244,7 +244,7 @@ def perform_self_update(tool_dir):
     _run_capture(tool_dir, ["git", "fetch", "--all", "--prune"])
     git_remote, default_branch = _detect_default_branch(tool_dir)
 
-    print(f"[update] Fetching from {git_remote}...")
+    _log.info("[update] Fetching from %s...", git_remote)
     ok, _, stderr = _run_capture(tool_dir, ["git", "fetch", git_remote])
     if not ok:
         return False, f"git fetch failed:\n{stderr.strip()}"
@@ -252,7 +252,7 @@ def perform_self_update(tool_dir):
     ok, stdout, stderr = _run_capture(tool_dir, ["git", "rev-parse", "HEAD"])
     local_sha = stdout.strip() if ok else ""
 
-    print(f"[update] Local: {local_sha[:8] if local_sha else '?'}, checking remote...")
+    _log.info("[update] Local: %s, checking remote...", local_sha[:8] if local_sha else '?')
 
     # BUG-2 fix: validate remote_sha before allowing git reset --hard.
     ok, stdout, stderr = _run_capture(tool_dir, ["git", "rev-parse", f"{git_remote}/{default_branch}"])
@@ -267,7 +267,7 @@ def perform_self_update(tool_dir):
     if local_sha and remote_sha and (local_sha == remote_sha or remote_sha.startswith(local_sha) or local_sha.startswith(remote_sha)):
         return True, f"You are already using the latest version. ({local_sha[:8]})"
 
-    print(f"[update] Remote: {remote_sha[:8]}, updating...")
+    _log.info("[update] Remote: %s, updating...", remote_sha[:8])
     ok, _, stderr = _run_capture(tool_dir, ["git", "reset", "--hard", f"{git_remote}/{default_branch}"])
     if not ok:
         return False, f"git reset --hard failed:\n{stderr.strip()}"

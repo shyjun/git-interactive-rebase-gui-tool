@@ -24,6 +24,7 @@ from lib.dialogs import (
     SquashDialog,
 )
 from lib.app_window.workers import SplitWorker
+from lib.app_window.helpers import _log
 
 
 class SquashMixin:
@@ -50,10 +51,10 @@ class SquashMixin:
             dialog = SquashDialog(sha_above, msg_above, sha_current, msg_current, self.current_font_size, self)
             if dialog.exec() == QDialog.Accepted:
                 final_msg = dialog.get_message()
-                print(f"Preparing to squash {sha_above} into {sha_current}...")
+                _log(f"Preparing to squash {sha_above} into {sha_current}...")
                 self.perform_squash(sha_above, final_msg)
             else:
-                print(f"Cancelled squash {sha_above} into {sha_current}.")
+                _log(f"Cancelled squash {sha_above} into {sha_current}.")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not prepare squash: {str(e)}")
 
@@ -78,10 +79,10 @@ class SquashMixin:
             dialog = SquashDialog(sha_current, msg_current, sha_below, msg_below, self.current_font_size, self, default_radio=2)
             if dialog.exec() == QDialog.Accepted:
                 final_msg = dialog.get_message()
-                print(f"Preparing to squash {sha_current} into {sha_below}...")
+                _log(f"Preparing to squash {sha_current} into {sha_below}...")
                 self.perform_squash(sha_current, final_msg)
             else:
-                print(f"Cancelled squash {sha_current} into {sha_below}.")
+                _log(f"Cancelled squash {sha_current} into {sha_below}.")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not prepare squash: {str(e)}")
 
@@ -512,7 +513,7 @@ class SquashMixin:
 
     def handle_drop(self, item):
         sha = item.text().split()[0]
-        print(f"Preparing to drop {sha}...")
+        _log(f"Preparing to drop {sha}...")
 
         if not self._check_no_unstaged_changes():
             return
@@ -540,7 +541,7 @@ class SquashMixin:
             if dialog.exec() == QDialog.Accepted:
                 self.perform_drop(sha)
             else:
-                print(f"Cancelled drop {sha}.")
+                _log(f"Cancelled drop {sha}.")
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))
 

@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
 )
 from lib.dialogs import ProgressDialog
 from lib.app_window.helpers import (
+    _log,
     _posix_path,
     _safe_unlink,
     _script_command,
@@ -38,7 +39,7 @@ class RebaseMixin:
         if original_shas is not None and not self._validate_merge_crossing(new_shas, original_shas):
             return
         old_head = self.get_head_sha()
-        print(f"[rebase] Commit reorder: {len(new_shas)} commits")
+        _log(f"[rebase] Commit reorder: {len(new_shas)} commits")
         result = self.run_interactive_rebase(new_shas, original_shas=original_shas, upstream_override=upstream_override, progress_title="Moving Commits", progress_text="Reordering commits. Please wait...")
         if result:
             self.load_history()
@@ -105,7 +106,7 @@ class RebaseMixin:
                            these SHAs onto this upstream directly.
         """
         self.save_undo_state()
-        print("Starting interactive rebase...")
+        _log("Starting interactive rebase...")
         try:
             # If upstream is pre-computed (e.g. multi-drag with affected-only SHAs),
             # skip common-prefix detection entirely and rebase the provided SHAs
@@ -179,7 +180,7 @@ class RebaseMixin:
             try:
                 # Feature: Fast-track top-drops (reset --hard)
                 if not todo_shas and common_count > 0:
-                    print(f"Fast-tracking drop via reset --hard to {upstream}")
+                    _log(f"Fast-tracking drop via reset --hard to {upstream}")
                     process = subprocess.Popen(["git", "reset", "--hard", upstream],
                                                cwd=self.repo_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
                     while process.poll() is None:

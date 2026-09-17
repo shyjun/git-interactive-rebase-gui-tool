@@ -7,6 +7,7 @@ from .core import (
     _git_capture,
     _pad_diff_separators,
 )
+from lib.app_window.helpers import _log
 
 
 def _popen_no_window(cmd, cwd):
@@ -141,7 +142,7 @@ def get_file_stats_between(repo_path, start_sha, end_sha):
         return stats
     except subprocess.CalledProcessError as exc:
         err = exc.stderr.strip() if exc.stderr else str(exc)
-        print(f"[git_helpers] get_file_stats_between: git diff --numstat failed between {start_sha} and {end_sha}: {err}")
+        _log(f"[git_helpers] get_file_stats_between: git diff --numstat failed between {start_sha} and {end_sha}: {err}")
         return {}
 
 
@@ -204,7 +205,7 @@ def get_unstaged_file_stats(repo_path, ignore_submodules=False):
         return stats
     except subprocess.CalledProcessError as exc:
         err = exc.stderr.strip() if exc.stderr else str(exc)
-        print(f"[git_helpers] get_unstaged_file_stats: git diff --numstat failed: {err}")
+        _log(f"[git_helpers] get_unstaged_file_stats: git diff --numstat failed: {err}")
         return {}
 
 
@@ -236,7 +237,7 @@ def get_staged_file_stats(repo_path):
         return stats
     except subprocess.CalledProcessError as exc:
         err = exc.stderr.strip() if exc.stderr else str(exc)
-        print(f"[git_helpers] get_staged_file_stats: git diff --cached --numstat failed: {err}")
+        _log(f"[git_helpers] get_staged_file_stats: git diff --cached --numstat failed: {err}")
         return {}
 
 
@@ -346,7 +347,7 @@ def run_difftool_temp_files(repo_path, source_sha, source_file, dest_sha, dest_f
             cwd=repo_path, capture_output=True, text=True,
             encoding='utf-8', errors='replace')
         if result.returncode != 0:
-            print(f"[difftool] Failed to extract source: {result.stderr}")
+            _log(f"[difftool] Failed to extract source: {result.stderr}")
             return False, f"Could not extract source file: {result.stderr}"
         src_data = result.stdout
 
@@ -356,7 +357,7 @@ def run_difftool_temp_files(repo_path, source_sha, source_file, dest_sha, dest_f
             cwd=repo_path, capture_output=True, text=True,
             encoding='utf-8', errors='replace')
         if result.returncode != 0:
-            print(f"[difftool] Failed to extract dest: {result.stderr}")
+            _log(f"[difftool] Failed to extract dest: {result.stderr}")
             return False, f"Could not extract destination file: {result.stderr}"
         dst_data = result.stdout
 
@@ -372,11 +373,11 @@ def run_difftool_temp_files(repo_path, source_sha, source_file, dest_sha, dest_f
 
         # Run difftool
         cmd = ["git", "difftool", "--no-index", "--", src_path, dst_path]
-        print(f"[difftool] Running: {' '.join(cmd)}")
+        _log(f"[difftool] Running: {' '.join(cmd)}")
         _popen_no_window(cmd, repo_path)
         return True, ""
     except Exception as e:
-        print(f"[difftool] Exception: {e}")
+        _log(f"[difftool] Exception: {e}")
         return False, str(e)
 
 
@@ -420,11 +421,11 @@ def run_difftool_direct(repo_path, source_sha, source_file, dest_sha, dest_file,
                 cmd_parts = shlex.split(custom_cmd) + shlex.split(args_str)
             else:
                 cmd_parts = ["git", "difftool", "--no-index", "--", src_path, dst_path]
-            print(f"[direct] Running: {' '.join(cmd_parts)}")
+            _log(f"[direct] Running: {' '.join(cmd_parts)}")
             _popen_no_window(cmd_parts, repo_path)
         else:
             cmd = ["git", "difftool", source_sha, dest_sha, "--", source_file]
-            print(f"[direct] Running: {' '.join(cmd)}")
+            _log(f"[direct] Running: {' '.join(cmd)}")
             _popen_no_window(cmd, repo_path)
         return True, ""
     except Exception as e:
@@ -444,16 +445,16 @@ def run_configured_difftool(repo_path, source_sha, source_file, dest_sha, dest_f
     settings = QSettings("git-interactive-rebase-gui-tool", "config")
     mode = settings.value("difftool/mode", "none")
     command = settings.value("difftool/command", "")
-    print(f"[configured-difftool] mode={mode}, command={command!r}")
+    _log(f"[configured-difftool] mode={mode}, command={command!r}")
 
     if mode == "custom" and command:
-        print(f"[configured-difftool] using custom: {command}")
+        _log(f"[configured-difftool] using custom: {command}")
         return _run_custom_difftool(
             repo_path, command, settings.value("difftool/args", "{file1} {file2}"),
             source_sha, source_file, dest_sha, dest_file)
 
     # Fall back to git difftool
-    print("[configured-difftool] falling back to git difftool")
+    _log("[configured-difftool] falling back to git difftool")
     return run_difftool_temp_files(repo_path, source_sha, source_file, dest_sha, dest_file)
 
 
@@ -497,7 +498,7 @@ def _run_custom_difftool(repo_path, command, args_template,
             args_template = "{file1} {file2}"
         args_str = args_template.replace("{file1}", src_path).replace("{file2}", dst_path)
         cmd_parts = shlex.split(command) + shlex.split(args_str)
-        print(f"[custom-difftool] Running: {' '.join(cmd_parts)}")
+        _log(f"[custom-difftool] Running: {' '.join(cmd_parts)}")
         _popen_no_window(cmd_parts, repo_path)
         return True, ""
     except Exception as e:

@@ -15,6 +15,7 @@ from lib.git_helpers import (
 from lib.dialogs import ProgressDialog
 from lib.app_window.workers import SplitWorker
 from lib.app_window.helpers import (
+    _log,
     _safe_unlink,
     _script_command,
 )
@@ -234,7 +235,7 @@ for i, hunk in enumerate(hunks):
                     self.load_history()
 
             self.split_worker.finished.connect(on_split_finished)
-            print("[thread] split_bulk split_worker.start()")
+            _log("[thread] split_bulk split_worker.start()")
             self.split_worker.start()
             progress.exec()
         except Exception as e:
@@ -415,7 +416,7 @@ for i, filename in enumerate(files):
                     self.load_history()
 
             self.split_worker.finished.connect(on_split_finished)
-            print("[thread] split_bulk split_worker.start()")
+            _log("[thread] split_bulk split_worker.start()")
             self.split_worker.start()
             progress.exec()
         except Exception as e:

@@ -91,7 +91,7 @@ from lib.git_helpers import (
     get_unstaged_file_stats,
 )
 from lib.utils import get_theme_colors
-from lib.app_window.helpers import PLAIN_DIFF_LINE_CAP, clean_binary_diff_lines
+from lib.app_window.helpers import PLAIN_DIFF_LINE_CAP, clean_binary_diff_lines, _log
 from lib.widgets import (
     BrowseDimOverlay,
     DiffHighlighter,
@@ -725,11 +725,11 @@ class BranchDiffDialog(QDialog):
         source_sha = head_sha if dialog.src_head_radio.isChecked() else current_sha
         is_head_source = dialog.src_head_radio.isChecked() or source_sha == head_sha
         if dialog.use_direct:
-            print(f"[diff] Running direct: {source_sha[:8]} {ref_sha[:8]} -- {target_file} (head_src={is_head_source})")
+            _log(f"[diff] Running direct: {source_sha[:8]} {ref_sha[:8]} -- {target_file} (head_src={is_head_source})")
             ok, err = run_difftool_direct(self.repo_path, source_sha, target_file, ref_sha, target_file,
                                           source_is_head=is_head_source)
         else:
-            print(f"[diff] Running configured: difftool {source_sha[:8]} {ref_sha[:8]} -- {target_file}")
+            _log(f"[diff] Running configured: difftool {source_sha[:8]} {ref_sha[:8]} -- {target_file}")
             ok, err = run_configured_difftool(self.repo_path, source_sha, target_file, ref_sha, target_file)
         if not ok:
             QMessageBox.critical(self, "Difftool Failed", f"Could not run difftool: {err}")
@@ -1779,11 +1779,11 @@ class SingleCommitViewDialog(QDialog):
         source_sha = head_sha if dialog.src_head_radio.isChecked() else current_sha
         is_head_source = dialog.src_head_radio.isChecked() or source_sha == head_sha
         if dialog.use_direct:
-            print(f"[diff] Running direct: {source_sha[:8]} {ref_sha[:8]} -- {target_file} (head_src={is_head_source})")
+            _log(f"[diff] Running direct: {source_sha[:8]} {ref_sha[:8]} -- {target_file} (head_src={is_head_source})")
             ok, err = run_difftool_direct(self.repo_path, source_sha, target_file, ref_sha, target_file,
                                           source_is_head=is_head_source)
         else:
-            print(f"[diff] Running configured: difftool {source_sha[:8]} {ref_sha[:8]} -- {target_file}")
+            _log(f"[diff] Running configured: difftool {source_sha[:8]} {ref_sha[:8]} -- {target_file}")
             ok, err = run_configured_difftool(self.repo_path, source_sha, target_file, ref_sha, target_file)
         if not ok:
             QMessageBox.critical(self, "Difftool Failed", f"Could not run difftool: {err}")

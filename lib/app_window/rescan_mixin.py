@@ -50,6 +50,7 @@ from lib.dialogs import (
 )
 from lib.commit_filter_controller import CommitFilterController
 from lib.app_window.helpers import (
+    _log,
     PR_DIFF_SIZE_WARN_THRESHOLD,
     highlight_button_temporarily,
 )
@@ -60,9 +61,9 @@ class RescanMixin:
 
     def handle_rescan_repo(self):
         """Safely rescan repository state, prompting user for unstaged changes identically to app startup if found."""
-        print("[rescan] Rescanning repository...")
+        _log("[rescan] Rescanning repository...")
         unstaged_files = get_unstaged_files(self.repo_path, ignore_submodules=True)
-        print(f"[rescan] Found {len(unstaged_files)} unstaged files")
+        _log(f"[rescan] Found {len(unstaged_files)} unstaged files")
         if unstaged_files:
             dialog = UnstagedChangesDialog(len(unstaged_files), parent=self, from_rescan=True,
                                            repo_path=self.repo_path, unstaged_files=unstaged_files,
@@ -295,10 +296,10 @@ class RescanMixin:
     def handle_manual_refresh(self):
         """Shows a progress dialog during manual refresh."""
         if self.browse_mode:
-            print("[rescan] Manual refresh in browse mode — reloading browse history")
+            _log("[rescan] Manual refresh in browse mode — reloading browse history")
             self.load_browse_history_async()
             return
-        print("[rescan] Manual refresh — full history reload")
+        _log("[rescan] Manual refresh — full history reload")
         progress = ProgressDialog("Refreshing", "Refreshing git history. Please wait...", self)
         progress.show()
         QApplication.processEvents()
@@ -316,7 +317,7 @@ class RescanMixin:
             self.load_browse_history_async()
             return
 
-        print(f"[rescan] Loading full history (browse_branch={self.browse_branch})")
+        _log(f"[rescan] Loading full history (browse_branch={self.browse_branch})")
         # Invalidate cache as history might have changed
         self.commit_cache.clear()
 
@@ -354,7 +355,7 @@ class RescanMixin:
                 extra_remotes=[self.browse_branch] if self.browse_branch else None,
             )
 
-            print(f"[rescan] Loaded {len(history)} commits, {len(branch_map)} branches, {len(tag_map)} tags")
+            _log(f"[rescan] Loaded {len(history)} commits, {len(branch_map)} branches, {len(tag_map)} tags")
             self._populate_list_widget(history, branch_map, tag_map, old_row)
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))
@@ -435,10 +436,10 @@ class RescanMixin:
                 self._stats_result = stats
                 self._stats_done = True
             except Exception as e:
-                print(f"[stats] Error loading stats: {e}")
+                _log(f"[stats] Error loading stats: {e}")
                 self._stats_done = True
 
-        print("[stats] Loading commit stats in background...")
+        _log("[stats] Loading commit stats in background...")
         thread = threading.Thread(target=worker, daemon=True)
         thread.start()
         self._stats_timer = QTimer(self)
@@ -461,7 +462,7 @@ class RescanMixin:
                     added, deleted = stats[sha]
                     item.setData(Qt.UserRole + 3, (added, deleted))
                     count += 1
-            print(f"[stats] Applied stats to {count} commits")
+            _log(f"[stats] Applied stats to {count} commits")
         self._stats_result = None
 
     def _refresh_history_load(self):
@@ -513,7 +514,7 @@ class RescanMixin:
         use_follow = use_follow.isChecked() if use_follow else False
 
         mode = "file" if filepath else "stash" if stash else "reflog" if reflog else "tags" if tags else "branch"
-        print(f"[browse] Async load started: mode={mode}, branch='{branch}', file='{filepath}', limit={browse_limit}, follow={use_follow}")
+        _log(f"[browse] Async load started: mode={mode}, branch='{branch}', file='{filepath}', limit={browse_limit}, follow={use_follow}")
 
         def worker():
             try:
@@ -553,7 +554,7 @@ class RescanMixin:
                 )
                 self._browse_load_result = (True, history, branch_map, tag_map)
             except Exception as e:
-                print(f"[browse] Async load FAILED: {e}")
+                _log(f"[browse] Async load FAILED: {e}")
                 self._browse_load_result = (False, [], str(e), {})
             finally:
                 self._browse_load_done = True
@@ -571,10 +572,10 @@ class RescanMixin:
             return
         success, history, branch_map_or_error, tag_map = self._browse_load_result
         if not success:
-            print(f"[browse] Async load failed: {branch_map_or_error}")
+            _log(f"[browse] Async load failed: {branch_map_or_error}")
             QMessageBox.critical(self, "Error", branch_map_or_error)
             return
-        print(f"[browse] Async load complete: {len(history)} entries loaded")
+        _log(f"[browse] Async load complete: {len(history)} entries loaded")
         self.list_widget.setUpdatesEnabled(False)
         self.list_widget.blockSignals(True)
         try:
@@ -595,7 +596,7 @@ class RescanMixin:
                 from lib.git_helpers import get_branch_base_info
                 base_sha, branch_name = get_branch_base_info(repo_path)
                 if not base_sha:
-                    print("[detect_base] No base detected, keeping fallback range")
+                    _log("[detect_base] No base detected, keeping fallback range")
                     from PySide6.QtCore import (
                         Q_ARG,
                         QMetaObject,
@@ -614,7 +615,7 @@ class RescanMixin:
                     cwd=repo_path, encoding='utf-8', errors='replace'
                 ).strip()
                 count = int(count_out)
-                print(f"[detect_base] Detected base: {base_sha[:8]} (branch={branch_name}, {count} commits)")
+                _log(f"[detect_base] Detected base: {base_sha[:8]} (branch={branch_name}, {count} commits)")
                 from PySide6.QtCore import (
                     Q_ARG,
                     QMetaObject,
@@ -626,9 +627,9 @@ class RescanMixin:
                     Q_ARG(str, base_sha), Q_ARG(str, branch_name), Q_ARG(int, count)
                 )
             except Exception as e:
-                print(f"[detect_base] Error: {e}")
+                _log(f"[detect_base] Error: {e}")
 
-        print("[detect_base] Starting async branch-base detection...")
+        _log("[detect_base] Starting async branch-base detection...")
         thread = threading.Thread(target=worker, daemon=True)
         thread.start()
 
@@ -637,12 +638,12 @@ class RescanMixin:
         """Apply the detected branch base only if range <= 200 commits."""
         if not base_sha or commit_count > 200:
             if base_sha:
-                print(f"[detect_base] Range too large ({commit_count} > 200), keeping 200 fallback")
+                _log(f"[detect_base] Range too large ({commit_count} > 200), keeping 200 fallback")
             return
         self.commit_sha = base_sha
         self.base_branch = branch_name
         self._showing_fallback = False
-        print(f"[detect_base] Reloading history with base: {base_sha[:8]} (branch={branch_name})")
+        _log(f"[detect_base] Reloading history with base: {base_sha[:8]} (branch={branch_name})")
         self.load_history()
 
     def load_more(self):
@@ -667,7 +668,7 @@ class RescanMixin:
             return
         self.commit_sha = new_base
         self._load_more_offset += 100
-        print(f"[load_more] Loading more: offset={self._load_more_offset}, base={new_base[:8]}")
+        _log(f"[load_more] Loading more: offset={self._load_more_offset}, base={new_base[:8]}")
         self.load_history()
 
     def _update_load_more_item(self):
@@ -768,7 +769,7 @@ class RescanMixin:
                     Qt.QueuedConnection,
                     Q_ARG(str, "?")
                 )
-        print("Trying to find out total commit count ...")
+        _log("Trying to find out total commit count ...")
         thread = threading.Thread(target=worker, daemon=True)
         thread.start()
 

@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
 )
 from lib.git_helpers import get_commit_files
 from lib.app_window.helpers import (
+    _log,
     add_open_with_system_default_action,
     MATCH_ROLE,
     mono_font,
@@ -155,12 +156,12 @@ class MenusMixin:
         from PySide6.QtCore import QSettings
         settings = QSettings("git-interactive-rebase-gui-tool", "config")
         settings.setValue("startup/auto_check_updates", checked)
-        print(f"[startup_check] auto-check updates {'enabled' if checked else 'disabled'}")
+        _log(f"[startup_check] auto-check updates {'enabled' if checked else 'disabled'}")
 
     def _check_updates_on_startup(self):
         """Background check for updates on startup. Called from init if enabled."""
         if self.browse_mode:
-            print("[startup_check] browse mode, skipping")
+            _log("[startup_check] browse mode, skipping")
             return
         from PySide6.QtCore import (
             QThread,
@@ -191,20 +192,20 @@ class MenusMixin:
 
         def _on_finished(remote_sha):
             if not remote_sha:
-                print("[startup_check] network error or no response, skipping", flush=True)
+                _log("[startup_check] network error or no response, skipping", flush=True)
                 return
             if local_head and remote_sha and (remote_sha == local_head or remote_sha.startswith(local_head) or local_head.startswith(remote_sha)):
-                print(f"[startup_check] already latest ({remote_sha[:8]})", flush=True)
+                _log(f"[startup_check] already latest ({remote_sha[:8]})", flush=True)
             else:
                 local_display = self.start_time_tool_head[:8] if self.start_time_tool_head else "pip"
                 msg = f"Update available: {remote_sha[:8]} (current: {local_display})"
-                print(f"[startup_check] {msg}", flush=True)
+                _log(f"[startup_check] {msg}", flush=True)
                 self.update_label.setText(f"Update({remote_sha[:8]}) available")
                 self.update_label.setToolTip("Go to Configure > Check for updates")
                 self.update_label.setVisible(True)
 
         local_display = self.start_time_tool_head[:8] if self.start_time_tool_head else "pip"
-        print(f"[startup_check] checking remote (local={local_display})...", flush=True)
+        _log(f"[startup_check] checking remote (local={local_display})...", flush=True)
         self._startup_check_worker = _UpdateCheckWorker()
         self._startup_check_worker.finished.connect(_on_finished)
         # deleteLater() releases the QThread safely via the event loop after it
@@ -212,7 +213,7 @@ class MenusMixin:
         # (which can GC the QThread mid-emission and trigger
         # 'QThread: Destroyed while thread is still running').
         self._startup_check_worker.finished.connect(self._startup_check_worker.deleteLater)
-        print("[thread] startup check worker.start()", flush=True)
+        _log("[thread] startup check worker.start()", flush=True)
         self._startup_check_worker.start()
 
     def _configure_external_tools(self):
@@ -852,7 +853,7 @@ class MenusMixin:
 
         import subprocess
         import platform
-        print(f"[difftool] Running: git difftool {sha1[:8]} {sha2[:8]}")
+        _log(f"[difftool] Running: git difftool {sha1[:8]} {sha2[:8]}")
         try:
             kwargs = {"cwd": self.repo_path}
             if platform.system() == "Windows":

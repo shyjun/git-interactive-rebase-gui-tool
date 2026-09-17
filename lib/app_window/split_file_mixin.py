@@ -24,6 +24,7 @@ from lib.dialogs import (
 )
 from lib.app_window.workers import SplitWorker
 from lib.app_window.helpers import (
+    _log,
     _safe_unlink,
     _script_command,
 )
@@ -54,7 +55,7 @@ class SplitFileMixin:
                 if selected_file:
                     self.perform_move_file_out(sha, selected_file)
             else:
-                print(f"Cancelled split/move file from {sha}.")
+                _log(f"Cancelled split/move file from {sha}.")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not open split dialog: {str(e)}")
 
@@ -210,7 +211,7 @@ finally:
                     self.load_history()
 
             self.split_worker.finished.connect(on_split_finished)
-            print("[thread] split_file split_worker.start()")
+            _log("[thread] split_file split_worker.start()")
             self.split_worker.start()
             progress.exec()
         except Exception as e:
@@ -240,7 +241,7 @@ finally:
                 if selected_file:
                     self.perform_drop_file_from_commit(sha, selected_file)
             else:
-                print(f"Cancelled drop file from {sha}.")
+                _log(f"Cancelled drop file from {sha}.")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not open drop file dialog: {str(e)}")
 
@@ -392,9 +393,9 @@ subprocess.check_call(['git', 'clean', '-fd', '--', filepath])
             return
         if not self._check_staged_changes():
             return
-        print(f"[{time.strftime('%H:%M:%S')}] Remove file onwards: starting for file='{filepath}' commit={sha}")
+        _log(f"[{time.strftime('%H:%M:%S')}] Remove file onwards: starting for file='{filepath}' commit={sha}")
         old_head = self.get_head_sha()
-        print(f"[{time.strftime('%H:%M:%S')}] Remove file onwards: starting SHA={self.commit_sha}, selected commit={sha}, HEAD before={old_head}")
+        _log(f"[{time.strftime('%H:%M:%S')}] Remove file onwards: starting SHA={self.commit_sha}, selected commit={sha}, HEAD before={old_head}")
         self.save_undo_state()
         action_path = None
         editor_script = None
@@ -517,7 +518,7 @@ try:
         except:
             pass
 except Exception as e:
-    print("FAILED to replace commit:", e)
+    _log("FAILED to replace commit:", e)
     sys.exit(1)
 """
             action_fd, action_path = tempfile.mkstemp(prefix='git_remove_action_', suffix='.py', text=True)
@@ -538,7 +539,7 @@ try:
         subprocess.run(['git', 'rm', '-f', '--ignore-unmatch', '--', filepath], capture_output=True)
     subprocess.check_call(['git', 'commit', '-m', 'Remove {filepath}'])
 except Exception as e:
-    print("FAILED to create deletion commit:", e)
+    _log("FAILED to create deletion commit:", e)
     sys.exit(1)
 """
             deletion_fd, deletion_path = tempfile.mkstemp(prefix='git_delete_commit_', suffix='.py', text=True)

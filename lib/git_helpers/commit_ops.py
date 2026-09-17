@@ -1,6 +1,7 @@
 import os
 import subprocess
 import tempfile
+from lib.app_window.helpers import _log
 
 
 def commit_file(repo_path, filepath, message):
@@ -19,7 +20,7 @@ def commit_file(repo_path, filepath, message):
         return True, ""
     except subprocess.CalledProcessError as e:
         err = e.stderr.decode('utf-8') if e.stderr else str(e)
-        print(f"Git commit failed for {filepath}: {err}")
+        _log(f"Git commit failed for {filepath}: {err}")
         return False, err
 
 def get_revert_commit_message(repo_path, commit_sha):
@@ -67,7 +68,7 @@ def amend_with_head(repo_path):
         subprocess.run(["git", "add", "-u"], cwd=repo_path, check=True, capture_output=True)
         subprocess.run(["git", "commit", "--amend", "--no-edit"], cwd=repo_path, check=True, capture_output=True)
         after = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo_path, capture_output=True, text=True, check=True).stdout.strip()
-        print(f"Amended HEAD: {before[:8]} -> {after[:8]}")
+        _log(f"Amended HEAD: {before[:8]} -> {after[:8]}")
         return True, ""
     except subprocess.CalledProcessError as e:
         err = e.stderr.decode('utf-8', errors='replace') if e.stderr else str(e)
@@ -84,7 +85,7 @@ def stage_files(repo_path, files):
         return True
     except subprocess.CalledProcessError as e:
         err = e.stderr.decode('utf-8') if e.stderr else str(e)
-        print(f"git add failed: {err}")
+        _log(f"git add failed: {err}")
         return False
 
 
@@ -96,7 +97,7 @@ def commit_staged(repo_path, message):
         return True
     except subprocess.CalledProcessError as e:
         err = e.stderr.decode('utf-8') if e.stderr else str(e)
-        print(f"git commit failed: {err}")
+        _log(f"git commit failed: {err}")
         return False
 
 
@@ -114,7 +115,7 @@ def amend_staged(repo_path, message):
         return True
     except subprocess.CalledProcessError as e:
         err = e.stderr.decode('utf-8') if e.stderr else str(e)
-        print(f"git commit --amend failed: {err}")
+        _log(f"git commit --amend failed: {err}")
         return False
     finally:
         try:

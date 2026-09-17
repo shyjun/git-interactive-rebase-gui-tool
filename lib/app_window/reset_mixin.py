@@ -14,12 +14,13 @@ from lib.git_helpers import (
 )
 from lib.dialogs import ProgressDialog
 from lib.app_window.workers import GitWorker
+from lib.app_window.helpers import _log
 
 
 class ResetMixin:
     def handle_git_fetch(self):
         """Runs git fetch."""
-        print("Running git fetch...")
+        _log("Running git fetch...")
         self.progress_dialog = ProgressDialog("Git Fetching", "git fetch in progress...", self)
 
         if not hasattr(self, '_active_workers'):
@@ -30,7 +31,7 @@ class ResetMixin:
         worker.finished.connect(lambda *a: self._active_workers.discard(worker))
         worker.finished.connect(self.on_fetch_finished)
         self.worker = worker
-        print("[thread] GitWorker.start()")
+        _log("[thread] GitWorker.start()")
         worker.start()
 
         self.progress_dialog.exec()
@@ -73,7 +74,7 @@ class ResetMixin:
         )
         if reply == QMessageBox.Yes:
             self.save_undo_state()
-            print(f"Resetting hard to {origin_ref}...")
+            _log(f"Resetting hard to {origin_ref}...")
 
             self.progress_dialog = ProgressDialog("Resetting", f"Resetting hard to {origin_ref}...", self)
             self.worker = GitWorker(["git", "reset", "--hard", origin_ref], self.repo_path)
@@ -90,11 +91,11 @@ class ResetMixin:
                 self.load_history()
 
             self.worker.finished.connect(on_origin_reset_finished)
-            print("[thread] GitWorker.start()")
+            _log("[thread] GitWorker.start()")
             self.worker.start()
             self.progress_dialog.exec()
         else:
-            print(f"Cancelled reset hard to {origin_ref}.")
+            _log(f"Cancelled reset hard to {origin_ref}.")
 
     def handle_git_push_force(self):
         """Runs git push --force."""
@@ -109,17 +110,17 @@ class ResetMixin:
             QMessageBox.No
         )
         if reply == QMessageBox.Yes:
-            print("Performing git push --force...")
+            _log("Performing git push --force...")
             self.progress_dialog = ProgressDialog("Git Pushing", "git push --force in progress...", self)
 
             self.worker = GitWorker(["git", "push", "--force"], self.repo_path)
             self.worker.finished.connect(self.on_push_finished)
-            print("[thread] GitWorker.start()")
+            _log("[thread] GitWorker.start()")
             self.worker.start()
 
             self.progress_dialog.exec()
         else:
-            print("Cancelled force push.")
+            _log("Cancelled force push.")
 
     def on_push_finished(self, success, stdout, stderr):
         if hasattr(self, 'progress_dialog'):
@@ -172,7 +173,7 @@ class ResetMixin:
                 return
             self.save_undo_state()
             old_head = self.get_head_sha()
-            print(f"Rebasing onto {target}...")
+            _log(f"Rebasing onto {target}...")
             try:
                 subprocess.run(["git", "rebase", target], cwd=self.repo_path, check=True, capture_output=True, text=True)
                 self.load_history()
@@ -213,13 +214,13 @@ class ResetMixin:
         if reply == QMessageBox.Yes:
             self.perform_reset(sha)
         else:
-            print(f"Cancelled reset to {sha}.")
+            _log(f"Cancelled reset to {sha}.")
 
     def perform_reset(self, sha):
         if not self._check_not_viewer_mode():
             return
         old_head = self.get_head_sha()
-        print(f"Resetting hard to {sha}...")
+        _log(f"Resetting hard to {sha}...")
         self.save_undo_state()
 
         self.progress_dialog = ProgressDialog("Resetting", f"Resetting hard to {sha[:10]}...", self)
@@ -239,7 +240,7 @@ class ResetMixin:
                 QMessageBox.critical(self, "Reset Failed", f"Could not perform reset.\n\nError: {stderr}")
 
         self.worker.finished.connect(on_reset_finished)
-        print("[thread] GitWorker.start()")
+        _log("[thread] GitWorker.start()")
         self.worker.start()
         self.progress_dialog.exec()
 
@@ -298,12 +299,12 @@ class ResetMixin:
         box.exec()
 
         if box.clickedButton() != reset_btn:
-            print(f"Cancelled reset HEAD to here ({sha}).")
+            _log(f"Cancelled reset HEAD to here ({sha}).")
             return
 
         old_head = self.get_head_sha()
         self.save_undo_state()
-        print(f"Resetting HEAD (mixed) to {sha}...")
+        _log(f"Resetting HEAD (mixed) to {sha}...")
 
         self.progress_dialog = ProgressDialog("Resetting", f"Resetting HEAD to {sha[:10]}...", self)
         self.worker = GitWorker(["git", "reset", "--mixed", sha], self.repo_path)
@@ -327,7 +328,7 @@ class ResetMixin:
                 )
 
         self.worker.finished.connect(on_reset_here_finished)
-        print("[thread] GitWorker.start()")
+        _log("[thread] GitWorker.start()")
         self.worker.start()
         self.progress_dialog.exec()
 
@@ -346,4 +347,4 @@ class ResetMixin:
             if reply == QMessageBox.Yes:
                 self.perform_reset(sha)
             else:
-                print(f"Cancelled custom reset to {sha}.")
+                _log(f"Cancelled custom reset to {sha}.")

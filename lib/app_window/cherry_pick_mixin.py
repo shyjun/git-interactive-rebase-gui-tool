@@ -20,6 +20,7 @@ from lib.git_helpers import (
     rebase_in_progress,
 )
 from lib.dialogs import CherryPickDialog
+from lib.app_window.helpers import _log
 
 
 class CherryPickMixin:
@@ -27,7 +28,7 @@ class CherryPickMixin:
         """Cherry-picks a single commit entered by the user."""
         dialog = CherryPickDialog(self.current_font_size, self)
         if dialog.exec() != QDialog.Accepted:
-            print("Cancelled cherry-pick.")
+            _log("Cancelled cherry-pick.")
             return
 
         sha = dialog.get_sha()
@@ -43,7 +44,7 @@ class CherryPickMixin:
             return
 
         no_commit = dialog.chosen == "no_commit"
-        print(f"[cherry-pick] Cherry-picking {sha[:10]}, no_commit={no_commit}")
+        _log(f"[cherry-pick] Cherry-picking {sha[:10]}, no_commit={no_commit}")
         cmd = ["git", "cherry-pick"]
         if no_commit:
             cmd.append("--no-commit")

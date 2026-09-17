@@ -1,5 +1,6 @@
 import os
 import subprocess
+from lib.app_window.helpers import _log
 
 
 def get_staged_files(repo_path):
@@ -11,7 +12,7 @@ def get_staged_files(repo_path):
         return [f for f in result.stdout.strip().split('\n') if f]
     except subprocess.CalledProcessError as exc:
         err = exc.stderr.strip() if exc.stderr else str(exc)
-        print(f"[git_helpers] get_staged_files: git diff --cached failed: {err}")
+        _log(f"[git_helpers] get_staged_files: git diff --cached failed: {err}")
         return []
 
 
@@ -23,7 +24,7 @@ def unstage_all(repo_path):
         return True
     except subprocess.CalledProcessError as exc:
         err = exc.stderr.decode('utf-8') if exc.stderr else str(exc)
-        print(f"[git_helpers] unstage_all: git reset HEAD failed: {err}")
+        _log(f"[git_helpers] unstage_all: git reset HEAD failed: {err}")
         return False
 
 
@@ -35,7 +36,7 @@ def unstage_files(repo_path, files):
         return True
     except subprocess.CalledProcessError as exc:
         err = exc.stderr.decode('utf-8') if exc.stderr else str(exc)
-        print(f"[git_helpers] unstage_files: git reset HEAD failed: {err}")
+        _log(f"[git_helpers] unstage_files: git reset HEAD failed: {err}")
         return False
 
 
@@ -47,7 +48,7 @@ def discard_staged(repo_path):
         return True
     except subprocess.CalledProcessError as exc:
         err = exc.stderr.decode('utf-8') if exc.stderr else str(exc)
-        print(f"[git_helpers] discard_staged: git reset HEAD failed: {err}")
+        _log(f"[git_helpers] discard_staged: git reset HEAD failed: {err}")
         return False
 
 
@@ -60,7 +61,7 @@ def has_uncommitted_changes(repo_path):
         return bool(result.stdout.strip())
     except subprocess.CalledProcessError as exc:
         err = exc.stderr.strip() if exc.stderr else str(exc)
-        print(f"[git_helpers] has_uncommitted_changes: git status failed: {err}")
+        _log(f"[git_helpers] has_uncommitted_changes: git status failed: {err}")
         return True
 
 def cherry_pick_in_progress(repo_path):
@@ -186,7 +187,7 @@ def classify_tracked_changes(repo_path):
         )
     except subprocess.CalledProcessError as exc:
         err = exc.stderr.strip() if exc.stderr else str(exc)
-        print(f"[git_helpers] classify_tracked_changes: git status failed: {err}")
+        _log(f"[git_helpers] classify_tracked_changes: git status failed: {err}")
         return True, True
 
     has_staged = False
@@ -230,7 +231,7 @@ def get_unstaged_files(repo_path, ignore_submodules=False):
                 files.append(filepath)
         return files
     except Exception as exc:
-        print(f"[git_helpers] get_unstaged_files: git status failed: {exc}")
+        _log(f"[git_helpers] get_unstaged_files: git status failed: {exc}")
         return []
 
 
@@ -254,5 +255,5 @@ def get_untracked_files(repo_path, ignore_submodules=False):
                 files.append(filepath)
         return files
     except Exception as exc:
-        print(f"[git_helpers] get_untracked_files: git status failed: {exc}")
+        _log(f"[git_helpers] get_untracked_files: git status failed: {exc}")
         return []

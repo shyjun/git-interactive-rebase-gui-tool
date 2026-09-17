@@ -14,6 +14,7 @@ import subprocess
 import sys
 import os
 from datetime import datetime
+from lib.app_window.helpers import _log
 
 from PySide6.QtWidgets import (
     QApplication,
@@ -87,12 +88,12 @@ def main():
                         data = json.load(f)
                         short_sha = data.get("sha", "Unknown")
             except Exception as exc:
-                print(f"[tool version] could not read app_version.json: {exc}")
+                _log(f"[tool version] could not read app_version.json: {exc}")
         if not short_sha or short_sha == "Unknown":
             short_sha = "Unknown"
         else:
             short_sha = short_sha[:8]  # BUG-5 fix: always show abbreviated 8-char SHA
-        print(f"git-interactive-rebase-gui-tool {short_sha}")
+        _log(f"git-interactive-rebase-gui-tool {short_sha}")
         sys.exit(0)
 
     if args.update:
@@ -104,7 +105,7 @@ def main():
         import lib
         tool_dir = os.path.abspath(os.path.join(os.path.dirname(lib.__file__), ".."))
         ok, message = perform_self_update(tool_dir)
-        print(message)
+        _log(message)
         sys.exit(0 if ok else 1)
 
     repo_path = os.path.abspath(os.path.expanduser(args.location))
@@ -124,7 +125,7 @@ def main():
                 # stdout / stderr inherited → prints still appear in terminal
                 start_new_session=True,
             )
-            print(f"Tool started in background (PID {proc.pid})")
+            _log(f"Tool started in background (PID {proc.pid})")
             sys.exit(0)
 
     # Ignore SIGHUP so the app survives terminal close when launched with & (not available on Windows)
@@ -146,10 +147,10 @@ def main():
                 with open(vpath, encoding='utf-8') as f:  # BUG-12 fix
                     tool_sha = json.load(f).get("sha", "Unknown")
         except Exception as exc:
-            print(f"[tool version] could not read app_version.json: {exc}")
+            _log(f"[tool version] could not read app_version.json: {exc}")
     if not tool_sha:
         tool_sha = "Unknown"
-    print(f"App started at {app_start_time} | Tool version: {tool_sha} | HEAD commit: {head_sha}")
+    _log(f"App started at {app_start_time} | Tool version: {tool_sha} | HEAD commit: {head_sha}")
 
     app = QApplication(sys.argv)
 
@@ -173,7 +174,7 @@ def main():
         if os.path.exists(icon_path):
             app.setWindowIcon(QIcon(icon_path))
     except Exception as e:
-        print(f"Warning: Could not load application icon: {e}")
+        _log(f"Warning: Could not load application icon: {e}")
 
     # Check if we are inside a git repository
     try:
@@ -182,13 +183,13 @@ def main():
         if root_res.stdout.strip():
             repo_path = root_res.stdout.strip()
     except FileNotFoundError:
-        print("[error] git is not installed or not in your PATH.")
+        _log("[error] git is not installed or not in your PATH.")
         QMessageBox.critical(None, "Git not found",
             "git is not installed or not in your PATH.\n\n"
             "Install git and try again.")
         sys.exit(1)
     except Exception:
-        print(f"[error] Not a Git Repository: {repo_path}")
+        _log(f"[error] Not a Git Repository: {repo_path}")
         QMessageBox.critical(None, "Not a Git Repository",
             f"The directory '{repo_path}' is not a valid git repository.\n\n"
             "Please run this tool inside a git repository.")
@@ -230,27 +231,27 @@ def main():
 
     if len(positional) == 0:
         # No args: auto-detect base
-        print("No args provided. Will detect branch base after window opens.")
+        _log("No args provided. Will detect branch base after window opens.")
         base_sha = get_recent_history_start(repo_path, count=200)
         commit_sha = base_sha
         detect_base = True
     elif len(positional) == 1:
         arg = positional[0]
         if _is_file(repo_path, arg):
-            print(f"Arg '{arg}' is a file. Opening file log.")
+            _log(f"Arg '{arg}' is a file. Opening file log.")
             browse_file = arg
         elif _is_branch(repo_path, arg):
-            print(f"Arg '{arg}' is a branch. Browsing branch.")
+            _log(f"Arg '{arg}' is a branch. Browsing branch.")
             browse_branch = normalize_branch_ref(repo_path, arg)
         elif _is_tag(repo_path, arg):
-            print(f"Arg '{arg}' is a tag. Browsing from tag.")
+            _log(f"Arg '{arg}' is a tag. Browsing from tag.")
             browse_tag_name = arg
         elif _is_commit_ref(repo_path, arg):
-            print(f"Arg '{arg}' is a commit ref. Resolving...")
+            _log(f"Arg '{arg}' is a commit ref. Resolving...")
             res = subprocess.run(["git", "rev-parse", arg], cwd=repo_path, check=True,
                                  capture_output=True, encoding='utf-8', errors='replace')
             commit_sha = res.stdout.strip()
-            print(f"Resolved '{arg}' -> {commit_sha}")
+            _log(f"Resolved '{arg}' -> {commit_sha}")
         else:
             QMessageBox.critical(None, "Error", f"Cannot understand argument: '{arg}'\n\nNot a file, branch, tag, or commit reference.")
             sys.exit(1)
@@ -259,11 +260,11 @@ def main():
         ref_arg, file_arg = positional
         if _is_file(repo_path, file_arg):
             if _is_branch(repo_path, ref_arg):
-                print(f"Browsing branch '{ref_arg}', file '{file_arg}'")
+                _log(f"Browsing branch '{ref_arg}', file '{file_arg}'")
                 browse_branch = normalize_branch_ref(repo_path, ref_arg)
                 browse_file = file_arg
             elif _is_tag(repo_path, ref_arg):
-                print(f"Browsing tag '{ref_arg}', file '{file_arg}'")
+                _log(f"Browsing tag '{ref_arg}', file '{file_arg}'")
                 browse_tag_name = ref_arg
                 browse_file = file_arg
             else:
@@ -300,7 +301,7 @@ def main():
         elif result == UnstagedChangesDialog.Accepted:
             created_stash_sha, stash_err = stash_changes(repo_path)
             if created_stash_sha is not None and created_stash_sha is not STASH_NOTHING_STASHED:
-                print(f"Changes stashed successfully (SHA: {created_stash_sha}).")
+                _log(f"Changes stashed successfully (SHA: {created_stash_sha}).")
                 ack_messages.append(("info", "Stash Successful", f"Changes stashed successfully (SHA: {created_stash_sha[:8]})."))
             elif created_stash_sha is STASH_NOTHING_STASHED:
                 ack_messages.append(("info", "No Changes Stashed",
@@ -328,7 +329,7 @@ def main():
                     committed_shas.append(get_head_sha(repo_path)[:8])
                     success_count += 1
                 else:
-                    print(f"Failed to commit {f}")
+                    _log(f"Failed to commit {f}")
                     failed_files.append((f, err))
 
             progress.close()
@@ -340,7 +341,7 @@ def main():
                 fail_lines = "\n".join(f"  {name}: {err}".rstrip() for name, err in failed_files)
                 ack_messages.append(("critical", "Some Commits Failed",
                                      f"Failed to commit {len(failed_files)} of {len(unstaged_files)} file(s):\n\n{fail_lines}"))
-            print(f"Successfully committed {success_count} files.")
+            _log(f"Successfully committed {success_count} files.")
         elif result == UnstagedChangesDialog.BulkCommitResult:
             startup_undo_sha = get_head_sha(repo_path)
             file_list = "\n".join(unstaged_files)
@@ -353,22 +354,22 @@ def main():
                 default_msg, _font_size, None,
             )
             if msg_dlg.exec() != 1:
-                print("Bulk commit cancelled by user.")
+                _log("Bulk commit cancelled by user.")
                 ack_messages = []
                 sys.exit(0)
             msg = msg_dlg.get_message()
             if not msg:
-                print("Bulk commit cancelled (empty message).")
+                _log("Bulk commit cancelled (empty message).")
                 ack_messages = []
                 sys.exit(0)
 
             ok, detail = bulk_commit_all(repo_path, msg)
             if ok:
-                print("Bulk commit successful.")
+                _log("Bulk commit successful.")
                 ack_messages.append(("info", "Bulk Commit Successful",
                                      f"Done. Bulk commit successful.\n\nCommit ID:\n{get_head_sha(repo_path)[:8]}"))
             else:
-                print("Bulk commit failed.")
+                _log("Bulk commit failed.")
                 ack_messages.append(("critical", "Error", f"Bulk commit failed.\n\n{detail}"))
 
         elif result == UnstagedChangesDialog.AmendResult:
@@ -377,27 +378,27 @@ def main():
             ok, detail = amend_with_head(repo_path)
             if ok:
                 new_head = get_head_sha(repo_path)
-                print("Amend successful.")
+                _log("Amend successful.")
                 ack_messages.append(("info", "Amend Successful",
                                      f"Done. Changes amended into HEAD commit.\n\nOLD COMMIT: {old_head[:8]}\nNEW COMMIT: {new_head[:8]}"))
             else:
-                print("Amend failed.")
+                _log("Amend failed.")
                 ack_messages.append(("critical", "Error", f"Amend failed.\n\n{detail}"))
 
         elif result == UnstagedChangesDialog.DiscardResult:
             startup_undo_sha = get_head_sha(repo_path)
             ok, detail = discard_changes(repo_path)
             if ok:
-                print("Unstaged changes discarded.")
+                _log("Unstaged changes discarded.")
                 ack_messages.append(("info", "Discard Successful", "Done. Unstaged changes discarded (git checkout .)."))
             else:
-                print("Discard failed.")
+                _log("Discard failed.")
                 ack_messages.append(("critical", "Error", f"Discard failed.\n\n{detail}"))
 
         elif result == UnstagedChangesDialog.ViewerModeResult:
             args.viewer_mode = True
         else:
-            print("Exiting as requested by the user.")
+            _log("Exiting as requested by the user.")
             sys.exit(0)
 
     # Warn about staged changes (informational only)
@@ -498,7 +499,7 @@ def main():
                 else:
                     success, msg = stash_pop(repo_path, stash_sha)
                     if success:
-                        print(f"Stash {stash_sha[:8]}({msg}) popped successfully.")
+                        _log(f"Stash {stash_sha[:8]}({msg}) popped successfully.")
                         QMessageBox.information(None, "Success", f"Stash {stash_sha[:8]}({msg}) popped successfully.")
                     else:
                         detail = f"\n\n{msg}" if msg else ""

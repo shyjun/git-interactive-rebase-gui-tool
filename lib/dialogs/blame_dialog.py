@@ -40,7 +40,7 @@ from PySide6.QtGui import (
     QAction,
 )
 
-from lib.app_window.helpers import mono_font
+from lib.app_window.helpers import mono_font, _log
 from lib.widgets import (
     BrowseDimOverlay,
     DiffHighlighter,
@@ -59,10 +59,10 @@ def _find_main_window(widget):
 
 def open_blame_window(parent, filename, branch=None):
     ref = branch or "HEAD"
-    print(f"[blame] Opening blame viewer for '{filename}' at {ref}")
+    _log(f"[blame] Opening blame viewer for '{filename}' at {ref}")
     repo_path = getattr(parent, "repo_path", None)
     if not repo_path:
-        print("[blame] ERROR: Repository path not available on parent.")
+        _log("[blame] ERROR: Repository path not available on parent.")
         QMessageBox.critical(parent, "Error", "Repository path not available.")
         return
     main_win = _find_main_window(parent)
@@ -70,13 +70,13 @@ def open_blame_window(parent, filename, branch=None):
     is_dark = getattr(main_win, "is_dark_theme", None)
     if is_dark is None:
         is_dark = getattr(parent, "is_dark_theme", False)
-    print(f"[blame] font_size={font_size}, is_dark={is_dark}, parent_type={type(parent).__name__}")
+    _log(f"[blame] font_size={font_size}, is_dark={is_dark}, parent_type={type(parent).__name__}")
     dlg = BlameDialog(repo_path, filename, ref=branch, font_size=font_size, parent=parent, is_dark_theme=is_dark)
     dlg.setAttribute(Qt.WA_DeleteOnClose)
     if hasattr(parent, "browse_windows"):
         dlg._browse_windows_ref = parent.browse_windows
         parent.browse_windows.append(dlg)
-        print(f"[blame] Tracked via parent.browse_windows ({len(parent.browse_windows)} total)")
+        _log(f"[blame] Tracked via parent.browse_windows ({len(parent.browse_windows)} total)")
     else:
         root = parent
         while root.parent():
@@ -84,15 +84,15 @@ def open_blame_window(parent, filename, branch=None):
         if hasattr(root, "browse_windows"):
             dlg._browse_windows_ref = root.browse_windows
             root.browse_windows.append(dlg)
-            print(f"[blame] Tracked via root.browse_windows ({len(root.browse_windows)} total)")
+            _log(f"[blame] Tracked via root.browse_windows ({len(root.browse_windows)} total)")
         else:
             root.browse_windows = [dlg]
             dlg._browse_windows_ref = root.browse_windows
-            print("[blame] Created root.browse_windows list")
+            _log("[blame] Created root.browse_windows list")
     dlg.show()
     dlg.raise_()
     dlg.activateWindow()
-    print(f"[blame] Window shown: '{dlg.windowTitle()}'")
+    _log(f"[blame] Window shown: '{dlg.windowTitle()}'")
 
 
 class BlameDialog(QDialog):
@@ -130,7 +130,7 @@ class BlameDialog(QDialog):
 
         self.setWindowTitle(f"Blame: {filename} (blame at {ref or 'HEAD'})")
         self.setMinimumSize(1100, 650)
-        print(f"[blame] BlameDialog created: '{self.windowTitle()}', parent={type(parent).__name__ if parent else 'None'}")
+        _log(f"[blame] BlameDialog created: '{self.windowTitle()}', parent={type(parent).__name__ if parent else 'None'}")
 
         # Restore saved geometry
         self._settings = QSettings("shyjun", "GitInteractiveRebase")
@@ -322,13 +322,13 @@ class BlameDialog(QDialog):
         root.addLayout(bottom_bar)
 
     def closeEvent(self, event):
-        print(f"[blame] Closing: '{self.windowTitle()}'")
+        _log(f"[blame] Closing: '{self.windowTitle()}'")
         # Save geometry for next session
         self._settings.setValue("blame/geometry", self.saveGeometry())
         bw = getattr(self, "_browse_windows_ref", None)
         if bw is not None and self in bw:
             bw.remove(self)
-            print(f"[blame] Removed from browse_windows ({len(bw)} remaining)")
+            _log(f"[blame] Removed from browse_windows ({len(bw)} remaining)")
         super().closeEvent(event)
 
     def resizeEvent(self, event):
@@ -380,7 +380,7 @@ class BlameDialog(QDialog):
             return
         rec = self._get_filtered_records()[row]
         sha = rec["sha"]
-        print(f"[blame] Context menu on row {row}, SHA={sha[:10]}")
+        _log(f"[blame] Context menu on row {row}, SHA={sha[:10]}")
 
         menu = QMenu(self)
         view_action = QAction("View commit", self)
@@ -417,7 +417,7 @@ class BlameDialog(QDialog):
 
     def _open_view_commit(self, sha):
         import subprocess
-        print(f"[blame] View commit: {sha[:10]}")
+        _log(f"[blame] View commit: {sha[:10]}")
         try:
             res = subprocess.run(
                 ["git", "show", "--name-status", "--format=", sha],
@@ -425,7 +425,7 @@ class BlameDialog(QDialog):
                 encoding="utf-8", errors="replace"
             )
             if res.returncode != 0 or not res.stdout.strip():
-                print(f"[blame] No files changed in {sha[:10]}")
+                _log(f"[blame] No files changed in {sha[:10]}")
                 QMessageBox.information(self, "No Files", f"Commit {sha[:10]} has no file changes to view.")
                 return
             from lib.dialogs import SingleCommitViewDialog
@@ -444,14 +444,14 @@ class BlameDialog(QDialog):
             dlg.show()
             dlg.raise_()
             dlg.activateWindow()
-            print(f"[blame] SingleCommitViewDialog shown for {sha[:10]}")
+            _log(f"[blame] SingleCommitViewDialog shown for {sha[:10]}")
         except Exception as e:
-            print(f"[blame] ERROR: Could not open commit view: {e}")
+            _log(f"[blame] ERROR: Could not open commit view: {e}")
             QMessageBox.critical(self, "Error", f"Could not open commit view: {str(e)}")
 
     def _open_blame_before(self, sha):
         import subprocess
-        print(f"[blame] Blame before: {sha[:10]} for '{self.filename}'")
+        _log(f"[blame] Blame before: {sha[:10]} for '{self.filename}'")
         try:
             res = subprocess.run(
                 ["git", "rev-parse", f"{sha}^"],
@@ -459,14 +459,14 @@ class BlameDialog(QDialog):
                 encoding="utf-8", errors="replace"
             )
             if res.returncode != 0:
-                print(f"[blame] No parent for {sha[:8]} (root commit)")
+                _log(f"[blame] No parent for {sha[:8]} (root commit)")
                 QMessageBox.information(
                     self, "No parent",
                     f"Commit {sha[:8]} has no parent (root commit). Cannot blame before it."
                 )
                 return
             parent_sha = res.stdout.strip()
-            print(f"[blame] Parent SHA: {parent_sha[:10]}")
+            _log(f"[blame] Parent SHA: {parent_sha[:10]}")
 
             check = subprocess.run(
                 ["git", "show", f"{parent_sha}:{self.filename}"],
@@ -474,14 +474,14 @@ class BlameDialog(QDialog):
                 encoding="utf-8", errors="replace"
             )
             if check.returncode != 0:
-                print(f"[blame] File '{self.filename}' did not exist at {parent_sha[:8]}")
+                _log(f"[blame] File '{self.filename}' did not exist at {parent_sha[:8]}")
                 QMessageBox.information(
                     self, "File not found",
                     f"'{self.filename}' did not exist before {sha[:8]}."
                 )
                 return
 
-            print(f"[blame] Creating new BlameDialog for '{self.filename}' at {parent_sha[:10]}")
+            _log(f"[blame] Creating new BlameDialog for '{self.filename}' at {parent_sha[:10]}")
             dlg = BlameDialog(self.repo_path, self.filename, ref=parent_sha,
                               font_size=self.current_font_size, parent=self)
             dlg.setAttribute(Qt.WA_DeleteOnClose)
@@ -518,11 +518,11 @@ class BlameDialog(QDialog):
         source_sha = head_sha if dialog.src_head_radio.isChecked() else sha
         is_head_source = dialog.src_head_radio.isChecked() or source_sha == head_sha
         if dialog.use_direct:
-            print(f"[blame] Running direct: {source_sha[:8]} {ref_sha[:8]} -- {target_file} (head_src={is_head_source})")
+            _log(f"[blame] Running direct: {source_sha[:8]} {ref_sha[:8]} -- {target_file} (head_src={is_head_source})")
             ok, err = run_difftool_direct(self.repo_path, source_sha, target_file, ref_sha, target_file,
                                           source_is_head=is_head_source)
         else:
-            print(f"[blame] Running configured: difftool {source_sha[:8]} {ref_sha[:8]} -- {target_file}")
+            _log(f"[blame] Running configured: difftool {source_sha[:8]} {ref_sha[:8]} -- {target_file}")
             ok, err = run_configured_difftool(self.repo_path, source_sha, target_file, ref_sha, target_file)
         if not ok:
             QMessageBox.critical(self, "Difftool Failed", f"Could not run difftool: {err}")
@@ -538,16 +538,16 @@ class BlameDialog(QDialog):
 
     def _load(self):
         ref_str = self.ref or "HEAD"
-        print(f"[blame] Loading blame for '{self.filename}' at {ref_str} ...")
+        _log(f"[blame] Loading blame for '{self.filename}' at {ref_str} ...")
         self._progress_bar.show()
         self._progress_bar.setFormat(f"Loading blame for {self.filename} …")
         QApplication.processEvents()
         from lib.git_helpers import get_git_blame
         try:
             self._records = get_git_blame(self.repo_path, self.filename, self.ref)
-            print(f"[blame] Loaded {len(self._records)} blame lines for '{self.filename}' at {ref_str}")
+            _log(f"[blame] Loaded {len(self._records)} blame lines for '{self.filename}' at {ref_str}")
         except Exception as e:
-            print(f"[blame] Failed: {e}")
+            _log(f"[blame] Failed: {e}")
             QMessageBox.critical(self, "Blame failed", str(e))
             self._records = []
         self._progress_bar.hide()
@@ -571,7 +571,7 @@ class BlameDialog(QDialog):
         self.table.setRowCount(0)
         filtered = self._get_filtered_records()
         total = len(self._records) if hasattr(self, '_records') else 0
-        print(f"[blame] Refreshing table: {len(filtered)}/{total} rows")
+        _log(f"[blame] Refreshing table: {len(filtered)}/{total} rows")
         self.table.setRowCount(len(filtered))
 
         for row_idx, rec in enumerate(filtered):
@@ -664,5 +664,5 @@ class BlameDialog(QDialog):
             author = self.filter_by_author_cb.isChecked()
             subject = self.filter_by_subject_cb.isChecked()
             code = self.filter_by_code_cb.isChecked()
-            print(f"[blame] Filter: '{query}' case={case} whole_word={whole} commit={commit} author={author} subject={subject} code={code}")
+            _log(f"[blame] Filter: '{query}' case={case} whole_word={whole} commit={commit} author={author} subject={subject} code={code}")
         self._refresh_table()

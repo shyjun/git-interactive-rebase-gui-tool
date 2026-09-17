@@ -46,6 +46,7 @@ from lib.dialogs.diff_dialogs import (
 )
 from lib.app_window.delegates import CommitItemDelegate
 from lib.app_window.helpers import (
+    _log,
     _diff_search_matches,
     MATCH_ROLE,
 )
@@ -841,7 +842,7 @@ class UIMixin:
         if not self.browse_mode and getattr(self, 'is_running_from_repo', False):
             self.ctrl_alt_f5_shortcut = QShortcut(QKeySequence("Ctrl+F9"), self)
             self.ctrl_alt_f5_shortcut.activated.connect(self._handle_restart_if_updated)
-            print("[shortcut] Ctrl+F9 registered")
+            _log("[shortcut] Ctrl+F9 registered")
 
         if not self.browse_mode and getattr(self, 'is_running_from_repo', False):
             self.f9_shortcut = QShortcut(QKeySequence("F9"), self)
@@ -977,13 +978,13 @@ class UIMixin:
     def _handle_restart_if_updated(self):
         """Hidden shortcut (Ctrl+Shift+F5): check if the tool's repo has new commits
         and optionally restart with the latest version."""
-        print("[restart] shortcut triggered")
+        _log("[restart] shortcut triggered")
         if not getattr(self, 'is_running_from_repo', False):
-            print("[restart] not running from repo, skipping")
+            _log("[restart] not running from repo, skipping")
             return
         from lib.git_helpers import get_head_sha
         current_head = get_head_sha(self._tool_repo_path)
-        print(f"[restart] tool_repo={self._tool_repo_path}, start_head={self.start_time_tool_head}, current_head={current_head}")
+        _log(f"[restart] tool_repo={self._tool_repo_path}, start_head={self.start_time_tool_head}, current_head={current_head}")
         if current_head == self.start_time_tool_head:
             QMessageBox.information(self, "No Update",
                                     "Tool repository is already at the latest version.")

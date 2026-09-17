@@ -29,6 +29,8 @@ from lib.dialogs import (
     StashNoticeDialog,
 )
 
+from lib.app_window.helpers import _log
+
 # Lazy import to avoid circular dependency - GitInteractiveRebaseApp
 # is defined in the module that uses this mixin.
 _GitInteractiveRebaseApp = None
@@ -63,7 +65,7 @@ class BrowseMixin:
         # Normalise so remote-only branches (e.g. 'feature' living only at
         # 'origin/feature') are loaded explicitly instead of by DWIM guess.
         browse_ref = normalize_branch_ref(self.repo_path, branch_name)
-        print(f"[browse] Opening branch: '{branch_name}' → ref='{browse_ref}', limit={commit_limit}")
+        _log(f"[browse] Opening branch: '{branch_name}' → ref='{browse_ref}', limit={commit_limit}")
 
         AppClass = _get_app_class()
         viewer = AppClass(
@@ -82,7 +84,7 @@ class BrowseMixin:
         self.browse_windows.append(viewer)
         viewer.setWindowFlags(viewer.windowFlags() | Qt.Window)
         viewer.show()
-        print(f"[browse] Branch viewer shown ({len(self.browse_windows)} browse windows open)")
+        _log(f"[browse] Branch viewer shown ({len(self.browse_windows)} browse windows open)")
 
     def view_merge_commits(self, item):
         """Open a browse-style window showing commits from the merged branch."""
@@ -164,7 +166,7 @@ class BrowseMixin:
             QMessageBox.critical(self, "Commit does not exist",
                                  f"'{commit_id}' does not resolve to a commit.")
 
-        print(f"[browse] Opening commit log: '{commit_id}', limit={commit_limit}")
+        _log(f"[browse] Opening commit log: '{commit_id}', limit={commit_limit}")
         AppClass = _get_app_class()
         viewer = AppClass(
             self.repo_path, self.commit_sha, self.app_start_time,
@@ -182,13 +184,13 @@ class BrowseMixin:
         self.browse_windows.append(viewer)
         viewer.setWindowFlags(viewer.windowFlags() | Qt.Window)
         viewer.show()
-        print(f"[browse] Commit log viewer shown ({len(self.browse_windows)} browse windows open)")
+        _log(f"[browse] Commit log viewer shown ({len(self.browse_windows)} browse windows open)")
 
     def handle_browse_reflog(self):
         """Opens a read-only viewer window showing the repository's HEAD reflog
         (most recent entries first), with the diff pane hidden and a minimal
         copy-SHA / show-log toolbar."""
-        print("[browse] Opening reflog viewer, limit=50")
+        _log("[browse] Opening reflog viewer, limit=50")
         AppClass = _get_app_class()
         viewer = AppClass(
             self.repo_path, self.commit_sha, self.app_start_time,
@@ -206,12 +208,12 @@ class BrowseMixin:
         self.browse_windows.append(viewer)
         viewer.setWindowFlags(viewer.windowFlags() | Qt.Window)
         viewer.show()
-        print(f"[browse] Reflog viewer shown ({len(self.browse_windows)} browse windows open)")
+        _log(f"[browse] Reflog viewer shown ({len(self.browse_windows)} browse windows open)")
 
     def handle_browse_stash(self):
         """Opens a read-only viewer window showing the repository's stash list
         (most recent first), with the diff pane always visible."""
-        print("[browse] Opening stash browser, limit=50")
+        _log("[browse] Opening stash browser, limit=50")
         AppClass = _get_app_class()
         viewer = AppClass(
             self.repo_path, self.commit_sha, self.app_start_time,
@@ -229,7 +231,7 @@ class BrowseMixin:
         self.browse_windows.append(viewer)
         viewer.setWindowFlags(viewer.windowFlags() | Qt.Window)
         viewer.show()
-        print(f"[browse] Stash browser shown ({len(self.browse_windows)} browse windows open)")
+        _log(f"[browse] Stash browser shown ({len(self.browse_windows)} browse windows open)")
 
     def handle_browse_commit_log(self):
         """Opens a read-only viewer window showing a commit's recent history.
@@ -373,7 +375,7 @@ class BrowseMixin:
         if not ok:
             return
         sha = item.text().split()[0]
-        print(f"[browse] Reflog show-log: SHA={sha[:10]}, limit={commit_limit}")
+        _log(f"[browse] Reflog show-log: SHA={sha[:10]}, limit={commit_limit}")
         AppClass = _get_app_class()
         viewer = AppClass(
             self.repo_path, self.commit_sha, self.app_start_time,
@@ -433,7 +435,7 @@ class BrowseMixin:
         if not item:
             return
         sha = item.text().split()[0]
-        print(f"[browse] Stash apply: SHA={sha[:10]}, drop_after={drop_after}")
+        _log(f"[browse] Stash apply: SHA={sha[:10]}, drop_after={drop_after}")
         confirm = QMessageBox.question(
             self, "Apply Stash",
             f"Apply stash {sha[:8]}?\n\n"
@@ -442,11 +444,11 @@ class BrowseMixin:
                else "The stash will be KEPT after the apply."),
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         if confirm != QMessageBox.Yes:
-            print("[browse] Stash apply cancelled")
+            _log("[browse] Stash apply cancelled")
             return
         success, err = stash_apply(self.repo_path, sha)
         if not success:
-            print(f"[browse] Stash apply FAILED: {err}")
+            _log(f"[browse] Stash apply FAILED: {err}")
             QMessageBox.critical(
                 self, "Apply Failed",
                 f"Failed to apply stash {sha[:8]}.\n\n"
@@ -458,7 +460,7 @@ class BrowseMixin:
         dropped = False
         if drop_after:
             dropped = stash_drop(self.repo_path, sha)
-            print(f"[browse] Stash drop after apply: success={dropped}")
+            _log(f"[browse] Stash drop after apply: success={dropped}")
 
         msg = ("Apply success. Use 'Rescan Repo' to handle the unstaged changes.")
         if drop_after:
@@ -472,21 +474,21 @@ class BrowseMixin:
         if not item:
             return
         sha = item.text().split()[0]
-        print(f"[browse] Stash drop: SHA={sha[:10]}")
+        _log(f"[browse] Stash drop: SHA={sha[:10]}")
         confirm = QMessageBox.question(
             self, "Drop Stash",
             f"Drop stash {sha[:8]}? This cannot be undone.",
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         if confirm != QMessageBox.Yes:
-            print("[browse] Stash drop cancelled")
+            _log("[browse] Stash drop cancelled")
             return
         dropped = stash_drop(self.repo_path, sha)
         if dropped:
-            print("[browse] Stash dropped successfully")
+            _log("[browse] Stash dropped successfully")
             QMessageBox.information(self, "Stash Dropped",
                                     f"Stash {sha[:8]} was dropped.")
         else:
-            print("[browse] Stash drop FAILED")
+            _log("[browse] Stash drop FAILED")
             QMessageBox.critical(self, "Drop Failed",
                                  f"Failed to drop stash {sha[:8]}.")
         self._reload_stash_list()
@@ -503,7 +505,7 @@ class BrowseMixin:
                                 "Please choose a branch to compare against.")
             return
         current_branch = get_current_branch(self.repo_path) or "HEAD (detached)"
-        print(f"[browse] Finding merge-base: current='{current_branch}' vs '{other_branch}'")
+        _log(f"[browse] Finding merge-base: current='{current_branch}' vs '{other_branch}'")
         if not branch_exists(self.repo_path, other_branch):
             QMessageBox.critical(self, "Branch does not exist",
                                  f"The branch '{other_branch}' does not exist.")
@@ -513,11 +515,11 @@ class BrowseMixin:
         try:
             base_sha = get_merge_base(self.repo_path, ref)
         except Exception as e:
-            print(f"[browse] Merge-base error: {e}")
+            _log(f"[browse] Merge-base error: {e}")
             QMessageBox.critical(self, "Merge Base Error", f"Could not find the merge base.\n\nError: {e}")
             return
         if not base_sha:
-            print("[browse] No common ancestor found")
+            _log("[browse] No common ancestor found")
             QMessageBox.warning(
                 self, "No common ancestor",
                 f"No merge-base found between '{current_branch}' and '{other_branch}'.\n\n"
@@ -526,7 +528,7 @@ class BrowseMixin:
 
         short_sha = base_sha[:8]
         subject = get_commit_subject(self.repo_path, base_sha) or ""
-        print(f"[browse] Merge-base found: {short_sha} — {subject}")
+        _log(f"[browse] Merge-base found: {short_sha} — {subject}")
         text = (f"Merge-base of <b>{current_branch}</b> and <b>{other_branch}</b>:\n\n"
                 f"{base_sha}\n({short_sha}) {subject}\n\n"
                 "Copy the SHA to the clipboard, or click OK to close.")
@@ -549,7 +551,7 @@ class BrowseMixin:
             QMessageBox.critical(self, "File does not exist",
                                  f"The file '{file_path}' does not exist.")
             return
-        print(f"[browse] Opening file log: '{file_path}', limit={commit_limit}")
+        _log(f"[browse] Opening file log: '{file_path}', limit={commit_limit}")
         self._open_file_log_viewer(file_path, commit_limit)
 
     def open_file_log_for(self, file_path, commit_limit=None):
@@ -557,7 +559,7 @@ class BrowseMixin:
         without prompting (used by file-wise context menus)."""
         if commit_limit is None:
             commit_limit = self.browse_limit
-        print(f"[browse] File log for: '{file_path}', limit={commit_limit}")
+        _log(f"[browse] File log for: '{file_path}', limit={commit_limit}")
         self._open_file_log_viewer(file_path, commit_limit)
 
     def handle_blame_file(self):
@@ -576,7 +578,7 @@ class BrowseMixin:
             QMessageBox.critical(self, "File does not exist",
                                  f"The file '{file_path}' does not exist.")
             return
-        print(f"[browse] Opening blame: '{file_path}'")
+        _log(f"[browse] Opening blame: '{file_path}'")
         from lib.dialogs.blame_dialog import open_blame_window
         open_blame_window(self, file_path)
 
@@ -589,7 +591,7 @@ class BrowseMixin:
 
     def _open_file_log_viewer(self, file_path, commit_limit):
         file_ref = self.browse_branch if self.browse_branch else None
-        print(f"[browse] Creating file-log viewer: '{file_path}', ref={file_ref}, limit={commit_limit}")
+        _log(f"[browse] Creating file-log viewer: '{file_path}', ref={file_ref}, limit={commit_limit}")
         AppClass = _get_app_class()
         viewer = AppClass(
             self.repo_path, self.commit_sha, self.app_start_time,
@@ -619,7 +621,7 @@ class BrowseMixin:
         if not filepath or not sha:
             return
 
-        print(f"[browse] Open file at ref: '{filepath}' at {sha[:8]}")
+        _log(f"[browse] Open file at ref: '{filepath}' at {sha[:8]}")
 
         try:
             import subprocess
@@ -643,7 +645,7 @@ class BrowseMixin:
             with open(tmp_path, 'w', encoding='utf-8') as f:
                 f.write(result.stdout)
             QDesktopServices.openUrl(QUrl.fromLocalFile(tmp_path))
-            print(f"[browse] Opened '{filepath}' from {sha[:8]} via {tmp_path}")
+            _log(f"[browse] Opened '{filepath}' from {sha[:8]} via {tmp_path}")
         except Exception as e:
             QMessageBox.critical(self, "Open Failed", f"Could not open file: {e}")
 
@@ -666,11 +668,11 @@ class BrowseMixin:
         source_sha = head_sha if dialog.src_head_radio.isChecked() else current_sha
         is_head_source = dialog.src_head_radio.isChecked() or source_sha == head_sha
         if dialog.use_direct:
-            print(f"[diff] Running direct: {source_sha[:8]} {ref_sha[:8]} -- {target_file} (head_src={is_head_source})")
+            _log(f"[diff] Running direct: {source_sha[:8]} {ref_sha[:8]} -- {target_file} (head_src={is_head_source})")
             ok, err = run_difftool_direct(self.repo_path, source_sha, target_file, ref_sha, target_file,
                                           source_is_head=is_head_source)
         else:
-            print(f"[diff] Running configured: difftool {source_sha[:8]} {ref_sha[:8]} -- {target_file}")
+            _log(f"[diff] Running configured: difftool {source_sha[:8]} {ref_sha[:8]} -- {target_file}")
             ok, err = run_configured_difftool(self.repo_path, source_sha, target_file, ref_sha, target_file)
         if not ok:
             QMessageBox.critical(self, "Difftool Failed", f"Could not run difftool: {err}")

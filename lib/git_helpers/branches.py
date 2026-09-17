@@ -1,5 +1,6 @@
 import os
 import subprocess
+from lib.app_window.helpers import _log
 
 
 def get_current_branch(repo_path):
@@ -46,7 +47,7 @@ def get_local_branches_map(repo_path, current_branch=None, extra_remotes=None):
         return branch_map
     except subprocess.CalledProcessError as exc:
         err = exc.stderr.strip() if exc.stderr else str(exc)
-        print(f"[git_helpers] get_local_branches_map: git for-each-ref failed: {err}")
+        _log(f"[git_helpers] get_local_branches_map: git for-each-ref failed: {err}")
         return {}
 
 
@@ -136,10 +137,10 @@ def get_branch_base_info(repo_path):
     """
     try:
         current = get_current_branch(repo_path)
-        print(f"[get_branch_base_info] Current branch: {current}")
+        _log(f"[get_branch_base_info] Current branch: {current}")
 
         if not current or current == "DETACHED":
-            print("[get_branch_base_info] DETACHED HEAD state, cannot detect base")
+            _log("[get_branch_base_info] DETACHED HEAD state, cannot detect base")
             return None, None
 
         # Collect all local branches with their tip SHAs
@@ -155,14 +156,14 @@ def get_branch_base_info(repo_path):
                 if branch == current:
                     continue
                 if tip_sha == head_sha:
-                    print(f"[get_branch_base_info] Skipping sibling branch '{branch}' (same tip as HEAD)")
+                    _log(f"[get_branch_base_info] Skipping sibling branch '{branch}' (same tip as HEAD)")
                     continue
                 others.append(branch)
 
-        print(f"[get_branch_base_info] Found {len(others)} candidate upstream branch(es)")
+        _log(f"[get_branch_base_info] Found {len(others)} candidate upstream branch(es)")
 
         if not others:
-            print("[get_branch_base_info] No other branches found to compare against")
+            _log("[get_branch_base_info] No other branches found to compare against")
             return None, None
 
         # Try candidates in priority order: master > main > anything else
@@ -179,16 +180,16 @@ def get_branch_base_info(repo_path):
                     cmd_check = ["git", "rev-list", f"{base_sha}..HEAD"]
                     res_check = subprocess.run(cmd_check, cwd=repo_path, capture_output=True, text=True, encoding='utf-8', errors='replace')
                     unique = [c for c in res_check.stdout.strip().split('\n') if c.strip()]
-                    print(f"[get_branch_base_info] merge-base with '{upstream}': {base_sha[:8]}, unique commits: {len(unique)}")
+                    _log(f"[get_branch_base_info] merge-base with '{upstream}': {base_sha[:8]}, unique commits: {len(unique)}")
                     if unique:
-                        print(f"[get_branch_base_info] Detected base: SHA={base_sha[:8]}..., branch={upstream}")
+                        _log(f"[get_branch_base_info] Detected base: SHA={base_sha[:8]}..., branch={upstream}")
                         return base_sha, upstream
 
-        print("[get_branch_base_info] No diverging base found against any candidate upstream")
+        _log("[get_branch_base_info] No diverging base found against any candidate upstream")
         return None, None
 
     except Exception as exc:
-        print(f"[git_helpers] get_branch_base_info raised: {exc}")
+        _log(f"[git_helpers] get_branch_base_info raised: {exc}")
         return None, None
 
 def commit_exists(repo_path, commit_id):
@@ -267,7 +268,7 @@ def get_branch_names(repo_path, include_remote=True):
         return names
     except subprocess.CalledProcessError as exc:
         err = exc.stderr.strip() if exc.stderr else str(exc)
-        print(f"[git_helpers] get_branch_names: git for-each-ref failed: {err}")
+        _log(f"[git_helpers] get_branch_names: git for-each-ref failed: {err}")
         return []
 
 def resolve_ref(repo_path, ref):

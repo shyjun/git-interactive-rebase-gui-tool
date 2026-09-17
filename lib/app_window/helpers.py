@@ -6,6 +6,7 @@ import subprocess
 import sys
 import tempfile
 import re
+import time
 from PySide6.QtCore import (
     Qt,
     QTimer,
@@ -32,6 +33,12 @@ PR_DIFF_SIZE_WARN_THRESHOLD = 200_000
 PLAIN_DIFF_LINE_CAP = 10_000
 
 MATCH_ROLE = Qt.UserRole + 7
+
+
+def _log(msg, **_kw):
+    """Log a message with a millisecond-precision timestamp."""
+    print(f"[{time.strftime('%H:%M:%S')}.{time.time_ns() % 1000:03d}] {msg}")
+
 
 _MONOSPACE_CANDIDATES = {
     "Windows": ["Cascadia Code", "Consolas", "Courier New", "Lucida Console"],

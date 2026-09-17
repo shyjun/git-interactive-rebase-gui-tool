@@ -26,6 +26,7 @@ from lib.dialogs import (
     TagCommitDialog,
 )
 from lib.app_window.help_dialog import HelpDialog
+from lib.app_window.helpers import _log
 
 
 class CommitOpsMixin:
@@ -52,7 +53,7 @@ class CommitOpsMixin:
                                  f"The file '{patch_path}' does not exist.")
             return
 
-        print(f"[commit] Applying patch: '{patch_path}', commit={commit_wanted}")
+        _log(f"[commit] Applying patch: '{patch_path}', commit={commit_wanted}")
         progress = ProgressDialog("Apply Patch", "Applying patch...", self)
         progress.show()
         QApplication.processEvents()
@@ -62,7 +63,7 @@ class CommitOpsMixin:
             progress.close()
 
         if not ok:
-            print(f"[commit] Patch apply FAILED: {detail}")
+            _log(f"[commit] Patch apply FAILED: {detail}")
             QMessageBox.critical(
                 self, "Apply Patch Failed",
                 f"Patch could not be applied.\n\n{detail}\n\n"
@@ -70,7 +71,7 @@ class CommitOpsMixin:
             )
             return
 
-        print("[commit] Patch applied successfully")
+        _log("[commit] Patch applied successfully")
         self.load_history()
         QMessageBox.information(
             self, "Patch Applied",
@@ -86,7 +87,7 @@ class CommitOpsMixin:
             return
         if not self._check_staged_changes():
             return
-        print(f"Preparing to rephrase {sha}...")
+        _log(f"Preparing to rephrase {sha}...")
         try:
             current_message = get_full_commit_message(self.repo_path, sha)
             dialog = RephraseDialog(sha, current_message, self.current_font_size, self)
@@ -95,7 +96,7 @@ class CommitOpsMixin:
                 if new_message != current_message:
                     self.perform_rephrase(sha, new_message)
             else:
-                print(f"Cancelled rephrase {sha}.")
+                _log(f"Cancelled rephrase {sha}.")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not fetch commit message: {str(e)}")
 
@@ -135,7 +136,7 @@ class CommitOpsMixin:
             return
         if not self._check_staged_changes():
             return
-        print(f"[commit] Preparing to revert {sha[:10]}...")
+        _log(f"[commit] Preparing to revert {sha[:10]}...")
         try:
             default_message = get_revert_commit_message(self.repo_path, sha)
             dialog = RevertCommitDialog(sha, default_message, self.current_font_size, self)
@@ -143,9 +144,9 @@ class CommitOpsMixin:
                 revert_message = dialog.get_message()
                 self.perform_revert_commit(sha, revert_message)
             else:
-                print(f"[commit] Cancelled revert {sha[:10]}.")
+                _log(f"[commit] Cancelled revert {sha[:10]}.")
         except Exception as e:
-            print(f"[commit] Revert prepare FAILED: {e}")
+            _log(f"[commit] Revert prepare FAILED: {e}")
             QMessageBox.critical(self, "Error", f"Could not prepare revert: {str(e)}")
 
     def perform_revert_commit(self, sha, revert_message):
@@ -191,13 +192,13 @@ class CommitOpsMixin:
 
     def handle_copy_sha(self, item):
         sha = item.text().split()[0]
-        print(f"Copying SHA {sha} to clipboard...")
+        _log(f"Copying SHA {sha} to clipboard...")
         QApplication.clipboard().setText(sha)
         QMessageBox.information(self, "Copied", f"Copied {sha} to clipboard.")
 
     def handle_copy_message(self, item):
         sha = item.text().split()[0]
-        print(f"Copying message of {sha} to clipboard...")
+        _log(f"Copying message of {sha} to clipboard...")
         try:
             msg = get_full_commit_message(self.repo_path, sha)
             QApplication.clipboard().setText(msg)
@@ -207,7 +208,7 @@ class CommitOpsMixin:
 
     def handle_copy_sha_and_message(self, item):
         sha = item.text().split()[0]
-        print(f"Copying SHA and message of {sha} to clipboard...")
+        _log(f"Copying SHA and message of {sha} to clipboard...")
         try:
             msg = get_full_commit_message(self.repo_path, sha)
             combined = f"{sha} {msg}"
@@ -240,12 +241,12 @@ class CommitOpsMixin:
         if not item:
             return
         sha = item.text().split()[0]
-        print(f"[commit] Viewing commit: {sha[:10]}")
+        _log(f"[commit] Viewing commit: {sha[:10]}")
         try:
             dialog = SingleCommitViewDialog(self.repo_path, sha, self.current_font_size, self, editable=True)
             self._open_viewer(dialog)
         except Exception as e:
-            print(f"[commit] View commit FAILED: {e}")
+            _log(f"[commit] View commit FAILED: {e}")
             QMessageBox.critical(self, "Error", f"Could not fetch commit diff: {str(e)}")
 
     def handle_create_patch(self, item):
@@ -255,7 +256,7 @@ class CommitOpsMixin:
         if not item:
             return
         sha = item.text().split()[0]
-        print(f"[commit] Creating patch for {sha[:10]}")
+        _log(f"[commit] Creating patch for {sha[:10]}")
         subject = get_commit_subject(self.repo_path, sha) or ""
         slug = re.sub(r'[^A-Za-z0-9._-]+', '-', subject).strip('-').lower()[:40]
         default_name = f"{sha[:8]}-{slug}.patch" if slug else f"{sha[:8]}.patch"
@@ -263,7 +264,7 @@ class CommitOpsMixin:
             self, "Create Patch", default_name,
             "Patch files (*.patch);;All files (*)")
         if not save_path:
-            print("[commit] Patch creation cancelled")
+            _log("[commit] Patch creation cancelled")
             return
 
         try:
@@ -299,10 +300,10 @@ class CommitOpsMixin:
         if not item:
             return
         sha = item.text().split()[0]
-        print(f"[commit] Tagging commit: {sha[:10]}")
+        _log(f"[commit] Tagging commit: {sha[:10]}")
         dlg = TagCommitDialog(sha, self)
         if dlg.exec() != QDialog.Accepted:
-            print("[commit] Tag creation cancelled")
+            _log("[commit] Tag creation cancelled")
             return
         tag_name = dlg.tag_name
         if not tag_name:
@@ -347,7 +348,7 @@ class CommitOpsMixin:
         if not sha:
             QMessageBox.critical(self, "Commit not found", f"'{ref}' is not a valid SHA or ref in this repository.")
             return
-        print(f"[commit] Viewing commit by SHA: {ref} → {sha[:10]}")
+        _log(f"[commit] Viewing commit by SHA: {ref} → {sha[:10]}")
         try:
             files = get_commit_files_with_status(self.repo_path, sha)
             if not files:

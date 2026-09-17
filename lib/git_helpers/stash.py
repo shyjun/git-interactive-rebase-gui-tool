@@ -1,6 +1,7 @@
 import os
 import subprocess
 from datetime import datetime
+from lib.app_window.helpers import _log
 
 
 # Sentinel returned by stash_changes when there was nothing to stash (a no-op),
@@ -43,7 +44,7 @@ def stash_changes(repo_path, message=None):
         return STASH_NOTHING_STASHED, ""
     except subprocess.CalledProcessError as exc:
         err = exc.stderr.strip() if exc.stderr else str(exc)
-        print(f"[git_helpers] git stash push failed: {err}")
+        _log(f"[git_helpers] git stash push failed: {err}")
         return None, err
 
 def discard_changes(repo_path):
@@ -162,7 +163,7 @@ def get_stash_status(repo_path, stash_sha):
         result = subprocess.run(["git", "log", "--format=%H", "-g", "refs/stash"],
                                 cwd=repo_path, capture_output=True, text=True, encoding='utf-8', errors='replace')
         if result.returncode != 0:
-            print(f"[git_helpers] get_stash_status: 'git log refs/stash' failed (rc={result.returncode}): {result.stderr.strip()}")
+            _log(f"[git_helpers] get_stash_status: 'git log refs/stash' failed (rc={result.returncode}): {result.stderr.strip()}")
             return ("ERROR", None)
         shas = result.stdout.strip().split('\n') if result.stdout.strip() else []
         if not shas:
@@ -175,7 +176,7 @@ def get_stash_status(repo_path, stash_sha):
             return ("AT_HEAD", 0)
         return ("NOT_HEAD", idx)
     except Exception as exc:
-        print(f"[git_helpers] get_stash_status raised: {exc}")
+        _log(f"[git_helpers] get_stash_status raised: {exc}")
         return ("ERROR", None)
 
 def _stash_index(repo_path, stash_sha):
@@ -200,20 +201,20 @@ def stash_apply(repo_path, stash_sha):
     try:
         target = _stash_index(repo_path, stash_sha)
         if target is None:
-            print(f"[stash-merge] FAILED: could not resolve stash {stash_sha[:8]} in stash list")
+            _log(f"[stash-merge] FAILED: could not resolve stash {stash_sha[:8]} in stash list")
             return False, f"Stash {stash_sha[:8]} not found in the stash list."
         cmd = ["git", "stash", "apply", target]
         result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, encoding='utf-8', errors='replace')
         if result.returncode == 0:
             return True, ""
-        print(f"[stash-merge] FAILED: {cmd[0]} {' '.join(cmd[1:])}")
-        print(f"[stash-merge] Command: {' '.join(cmd)}")
-        print(f"[stash-merge] Return code: {result.returncode}")
-        print(f"[stash-merge] stdout: {result.stdout.strip()}")
-        print(f"[stash-merge] stderr: {result.stderr.strip()}")
+        _log(f"[stash-merge] FAILED: {cmd[0]} {' '.join(cmd[1:])}")
+        _log(f"[stash-merge] Command: {' '.join(cmd)}")
+        _log(f"[stash-merge] Return code: {result.returncode}")
+        _log(f"[stash-merge] stdout: {result.stdout.strip()}")
+        _log(f"[stash-merge] stderr: {result.stderr.strip()}")
         return False, result.stderr.strip() or "git stash apply failed"
     except Exception as e:
-        print(f"[stash-merge] FAILED: git stash apply raised: {e}")
+        _log(f"[stash-merge] FAILED: git stash apply raised: {e}")
         return False, str(e)
 
 def stash_drop(repo_path, stash_sha):
@@ -221,31 +222,31 @@ def stash_drop(repo_path, stash_sha):
     try:
         target = _stash_index(repo_path, stash_sha)
         if target is None:
-            print(f"[stash-merge] FAILED: could not resolve stash {stash_sha[:8]} in stash list")
+            _log(f"[stash-merge] FAILED: could not resolve stash {stash_sha[:8]} in stash list")
             return False
         cmd = ["git", "stash", "drop", target]
         result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, encoding='utf-8', errors='replace')
         if result.returncode != 0:
-            print(f"[stash-merge] FAILED: {cmd[0]} {' '.join(cmd[1:])}")
-            print(f"[stash-merge] Command: {' '.join(cmd)}")
-            print(f"[stash-merge] Return code: {result.returncode}")
-            print(f"[stash-merge] stdout: {result.stdout.strip()}")
-            print(f"[stash-merge] stderr: {result.stderr.strip()}")
+            _log(f"[stash-merge] FAILED: {cmd[0]} {' '.join(cmd[1:])}")
+            _log(f"[stash-merge] Command: {' '.join(cmd)}")
+            _log(f"[stash-merge] Return code: {result.returncode}")
+            _log(f"[stash-merge] stdout: {result.stdout.strip()}")
+            _log(f"[stash-merge] stderr: {result.stderr.strip()}")
             return False
         return True
     except Exception as e:
-        print(f"[stash-merge] FAILED: git stash drop raised: {e}")
+        _log(f"[stash-merge] FAILED: git stash drop raised: {e}")
         return False
 
 def _rollback_merge(repo_path, temp_stash_sha):
     """Restores the repository after a failed stash merge. The working tree is reset
     and the original unstaged changes are recovered from the temporary stash, which is
     then dropped. The original app-created stash is left untouched."""
-    print("[stash-merge] Rolling back failed merge (git reset --hard HEAD)...")
+    _log("[stash-merge] Rolling back failed merge (git reset --hard HEAD)...")
     subprocess.run(["git", "reset", "--hard", "HEAD"], cwd=repo_path, capture_output=True, text=True, encoding='utf-8', errors='replace')
-    print("[stash-merge] Restoring changes from temporary stash...")
+    _log("[stash-merge] Restoring changes from temporary stash...")
     stash_apply(repo_path, temp_stash_sha)
-    print("[stash-merge] Dropping temporary stash...")
+    _log("[stash-merge] Dropping temporary stash...")
     stash_drop(repo_path, temp_stash_sha)
 
 def merge_into_stash(repo_path, existing_stash_sha):
@@ -258,7 +259,7 @@ def merge_into_stash(repo_path, existing_stash_sha):
 
     Returns the new app-created stash SHA on success, or None on failure."""
     def log(msg):
-        print(f"[stash-merge] {msg}")
+        _log(f"[stash-merge] {msg}")
 
     temp_stash_sha = None
     try:

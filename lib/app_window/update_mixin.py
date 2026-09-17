@@ -17,6 +17,7 @@ from lib.app_window.workers import (
     GitWorker,
     SelfUpdateWorker,
 )
+from lib.app_window.helpers import _log
 
 
 class UpdateMixin:
@@ -36,7 +37,7 @@ class UpdateMixin:
         tool_dir = os.path.abspath(os.path.join(os.path.dirname(lib.__file__), ".."))
         local_sha = "Unknown"
         is_git_install = _is_git_install(tool_dir)
-        print(f"[check_update] tool_dir={tool_dir}  is_git={is_git_install}")
+        _log(f"[check_update] tool_dir={tool_dir}  is_git={is_git_install}")
 
         # 2. Extract local SHA
         if is_git_install:
@@ -128,7 +129,7 @@ class UpdateMixin:
                     self._run_self_update(tool_dir)
 
         self.worker.finished.connect(on_check_finished)
-        print("[thread] update check worker.start()")
+        _log("[thread] update check worker.start()")
         self.worker.start()
         self.progress_dialog.exec()
 
@@ -153,6 +154,6 @@ class UpdateMixin:
                 QMessageBox.critical(self, "Update Failed", message)
 
         self.update_worker.finished.connect(on_update_finished)
-        print("[thread] update self-update worker.start()")
+        _log("[thread] update self-update worker.start()")
         self.update_worker.start()
         self.update_progress_dialog.exec()

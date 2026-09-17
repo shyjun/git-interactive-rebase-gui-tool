@@ -5,6 +5,7 @@ from .core import (
     _git_capture,
     _pad_diff_separators,
 )
+from lib.app_window.helpers import _log
 
 
 def format_tree_node_stats(node):
@@ -93,7 +94,7 @@ def get_commit_metadata_and_message(repo_path, commit_sha):
         msg = parts[1] if len(parts) > 1 else ""
         return meta, msg.strip()
     except Exception as exc:
-        print(f"[git_helpers] get_commit_metadata_and_message: git log failed for {commit_sha}: {exc}")
+        _log(f"[git_helpers] get_commit_metadata_and_message: git log failed for {commit_sha}: {exc}")
         return "Unknown author", ""
 
 def get_commit_metadata(repo_path, commit_sha):
@@ -147,7 +148,7 @@ def get_commit_file_stats(repo_path, commit_sha):
         return stats
     except subprocess.CalledProcessError as exc:
         err = exc.stderr.strip() if exc.stderr else str(exc)
-        print(f"[git_helpers] get_commit_file_stats: git show --numstat failed for {commit_sha}: {err}")
+        _log(f"[git_helpers] get_commit_file_stats: git show --numstat failed for {commit_sha}: {err}")
         return {}
 
 

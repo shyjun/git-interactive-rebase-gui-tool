@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QVBoxLayout,
 )
+from lib.app_window.helpers import _log
 
 
 class IconPushButton(QPushButton):
@@ -56,7 +57,7 @@ class HelpDialog(QDialog):
                 tool_sha = "unknown"
         if tool_sha and tool_sha != "unknown":
             tool_sha = tool_sha[:8]
-        print(f"[version] {tool_sha}")
+        _log(f"[version] {tool_sha}")
         self.setWindowTitle(f"Help — git-interactive-rebase-gui-tool ({tool_sha})")
         self.setMinimumWidth(450)
         self.setModal(True)

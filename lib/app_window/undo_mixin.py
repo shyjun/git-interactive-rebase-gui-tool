@@ -7,6 +7,7 @@ from PySide6.QtWidgets import (
 from lib.git_helpers import get_full_head_sha
 from lib.dialogs import ProgressDialog
 from lib.app_window.workers import GitWorker
+from lib.app_window.helpers import _log
 
 
 class UndoMixin:
@@ -19,7 +20,7 @@ class UndoMixin:
     def handle_best_commit_reset(self):
         if not self.best_commit_sha:
             return
-        print(f"[undo] Reset to BEST_COMMIT requested: {self.best_commit_sha[:10]}")
+        _log(f"[undo] Reset to BEST_COMMIT requested: {self.best_commit_sha[:10]}")
         reply = QMessageBox.question(
             self,
             "Confirm BEST_COMMITID Reset",
@@ -29,10 +30,10 @@ class UndoMixin:
             QMessageBox.No
         )
         if reply == QMessageBox.Yes:
-            print("[undo] Reset to BEST_COMMIT confirmed")
+            _log("[undo] Reset to BEST_COMMIT confirmed")
             self.perform_reset(self.best_commit_sha)
         else:
-            print(f"[undo] Cancelled reset to BEST_COMMITID ({self.best_commit_sha[:8]}).")
+            _log(f"[undo] Cancelled reset to BEST_COMMITID ({self.best_commit_sha[:8]}).")
 
     def handle_failsafe_reset(self):
         # We use cached values from load_history for performance.
@@ -40,7 +41,7 @@ class UndoMixin:
             QMessageBox.warning(self, "No Changes", "HEAD is already at START_TIME_HEAD and there are no uncommitted changes.")
             return
 
-        print(f"[undo] Failsafe reset requested: {self.start_time_head[:10]}")
+        _log(f"[undo] Failsafe reset requested: {self.start_time_head[:10]}")
         reply = QMessageBox.question(
             self,
             "Confirm Failsafe Reset",
@@ -50,11 +51,11 @@ class UndoMixin:
             QMessageBox.No
         )
         if reply == QMessageBox.Yes:
-            print("[undo] Failsafe reset confirmed")
+            _log("[undo] Failsafe reset confirmed")
             self.save_undo_state()
             self.perform_reset(self.start_time_head)
         else:
-            print(f"[undo] Cancelled failsafe reset to {self.start_time_head[:8]}.")
+            _log(f"[undo] Cancelled failsafe reset to {self.start_time_head[:8]}.")
 
     def save_undo_state(self):
         """Saves current HEAD to last_head and enables Undo button.
@@ -96,7 +97,7 @@ class UndoMixin:
         if not self.last_head:
             return
 
-        print(f"[undo] Undo requested: reset to {self.last_head[:10]}")
+        _log(f"[undo] Undo requested: reset to {self.last_head[:10]}")
         reply = QMessageBox.question(
             self,
             "Confirm Undo",
@@ -106,7 +107,7 @@ class UndoMixin:
             QMessageBox.No
         )
         if reply == QMessageBox.Yes:
-            print("[undo] Undo confirmed")
+            _log("[undo] Undo confirmed")
             old_head = self.get_head_sha()
 
             self.progress_dialog = ProgressDialog("Undoing", f"Resetting hard to {self.last_head[:8]}...", self)
@@ -130,11 +131,11 @@ class UndoMixin:
                     self.load_history()
 
             self.worker.finished.connect(on_undo_finished)
-            print("[thread] undo GitWorker.start()")
+            _log("[thread] undo GitWorker.start()")
             self.worker.start()
             self.progress_dialog.exec()
         else:
-            print(f"Cancelled undo (reset to {self.last_head[:8]}).")
+            _log(f"Cancelled undo (reset to {self.last_head[:8]}).")
 
     def handle_redo_shortcut(self):
         """Handles Ctrl+Y for redo. Defers when a text field has focus."""
@@ -151,7 +152,7 @@ class UndoMixin:
         if not self.redo_head:
             return
 
-        print(f"[undo] Redo requested: reset to {self.redo_head[:10]}")
+        _log(f"[undo] Redo requested: reset to {self.redo_head[:10]}")
         reply = QMessageBox.question(
             self,
             "Confirm Redo",
@@ -161,7 +162,7 @@ class UndoMixin:
             QMessageBox.No
         )
         if reply == QMessageBox.Yes:
-            print("[undo] Redo confirmed")
+            _log("[undo] Redo confirmed")
             old_head = self.get_head_sha()
 
             self.progress_dialog = ProgressDialog("Redoing", f"Resetting hard to {self.redo_head[:8]}...", self)
@@ -183,8 +184,8 @@ class UndoMixin:
                     self.load_history()
 
             self.worker.finished.connect(on_redo_finished)
-            print("[thread] redo GitWorker.start()")
+            _log("[thread] redo GitWorker.start()")
             self.worker.start()
             self.progress_dialog.exec()
         else:
-            print(f"Cancelled redo (reset to {self.redo_head[:8]}).")
+            _log(f"Cancelled redo (reset to {self.redo_head[:8]}).")
