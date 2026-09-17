@@ -374,6 +374,11 @@ class CherryPickMixin:
             # A cherry-pick failed. Offer recovery choices.
             remaining_after = cherry_picked_total - cherry_picked - skipped - 1
             kind, detail = classify_cherry_pick_failure(self.repo_path, err)
+            if kind == "empty":
+                ok, _ = self._run_abort_cherry_pick()
+                skipped += 1
+                skipped_shas.append(sha)
+                continue
             if kind == "conflict":
                 reason = "It conflicts with the current branch."
             elif kind == "empty":
