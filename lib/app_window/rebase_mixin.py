@@ -29,6 +29,14 @@ class RebaseMixin:
             return
         if not self._check_staged_changes():
             return
+        self._merge_shas_cached = set()
+        for i in range(self.list_widget.count()):
+            item = self.list_widget.item(i)
+            if item and item.data(Qt.UserRole + 5):
+                sha = item.text().split()[0]
+                self._merge_shas_cached.add(sha)
+        if original_shas is not None and not self._validate_merge_crossing(new_shas, original_shas):
+            return
         old_head = self.get_head_sha()
         print(f"[rebase] Commit reorder: {len(new_shas)} commits")
         result = self.run_interactive_rebase(new_shas, original_shas=original_shas, upstream_override=upstream_override, progress_title="Moving Commits", progress_text="Reordering commits. Please wait...")
@@ -41,6 +49,51 @@ class RebaseMixin:
             return
         self.load_history()
         self._notify_browse_windows()
+
+    def _validate_merge_crossing(self, new_shas, original_shas):
+        """Check that no non-merge commit crosses a merge boundary.
+
+        When a non-merge commit moves from one side of a merge to the other,
+        the merge block's ``reset`` line in the ``--rebase-merges`` sequence
+        editor silently discards the commit.  Both directions are unsafe:
+        moving *before* a merge to *after* it, or *after* to *before*.
+        """
+        old_order = list(reversed(original_shas))
+        new_order = list(reversed(new_shas))
+
+        merge_indices_old = [i for i, s in enumerate(old_order)
+                             if s in self._merge_shas_cached]
+
+        for mi in merge_indices_old:
+            merge_sha = old_order[mi]
+            if merge_sha not in new_order:
+                continue
+            new_merge_idx = new_order.index(merge_sha)
+
+            orig_before = {old_order[j] for j in range(mi)
+                           if old_order[j] not in self._merge_shas_cached}
+            orig_after  = {old_order[j] for j in range(mi + 1, len(old_order))
+                           if old_order[j] not in self._merge_shas_cached}
+
+            new_before = {new_order[j] for j in range(new_merge_idx)
+                          if new_order[j] not in self._merge_shas_cached}
+
+            moved_before_to_after = orig_before - new_before
+            moved_after_to_before = orig_after & new_before
+
+            if moved_before_to_after or moved_after_to_before:
+                merge_display = merge_sha[:7]
+                moving = moved_before_to_after | moved_after_to_before
+                moving_str = ", ".join(s[:7] for s in list(moving)[:5])
+                QMessageBox.critical(
+                    self, "Cannot Reorder Across Merge",
+                    f"Cannot move commit(s) <b>{moving_str}</b> across merge "
+                    f"<b>{merge_display}</b>.\n\n"
+                    "Commits that sit before or after a merge cannot cross "
+                    "its boundary — the merge block would silently discard them."
+                )
+                return False
+        return True
 
     def run_interactive_rebase(self, new_shas, rephrase_map=None, squash_shas=None, original_shas=None, upstream_override=None, progress_title="Rebasing", progress_text="Executing interactive rebase. Please wait...\nThis might take a few moments.", suppress_failure_box=False, progress_dialog=None):
         """
