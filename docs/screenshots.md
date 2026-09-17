@@ -1219,6 +1219,7 @@ Keyboard shortcuts for faster navigation and workflow.
 | `Ctrl+Z` | Undo the last operation (disabled while editing text) |
 | `Ctrl+Y` | Redo the last undone operation |
 | `F5` | Refresh commit list |
+| `Shift+F5` | Rescan repository (checks for unstaged changes) |
 | `Ctrl+Shift+F5` | Restart with latest code (cloned repos only, when update detected) |
 
 **Notes:**

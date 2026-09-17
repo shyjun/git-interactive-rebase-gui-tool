@@ -822,6 +822,9 @@ class UIMixin:
         self.f5_shortcut = QShortcut(QKeySequence("F5"), self)
         self.f5_shortcut.activated.connect(self.handle_manual_refresh)
 
+        self.shift_f5_shortcut = QShortcut(QKeySequence("Shift+F5"), self)
+        self.shift_f5_shortcut.activated.connect(self.handle_rescan_repo)
+
         self.ctrl_f_shortcut = QShortcut(QKeySequence.Find, self)
         self.ctrl_f_shortcut.activated.connect(self.show_search_bar)
 
