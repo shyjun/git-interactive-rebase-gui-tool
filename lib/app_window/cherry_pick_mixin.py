@@ -73,9 +73,16 @@ class CherryPickMixin:
             except Exception:
                 pass
             self.load_history()
-            QMessageBox.critical(
-                self, "Cherry-pick Failed", message
-            )
+            from lib.git_helpers.status import classify_cherry_pick_failure
+            kind, _ = classify_cherry_pick_failure(self.repo_path, result.stderr or "")
+            if kind == "empty":
+                QMessageBox.information(
+                    self, "Cherry-pick", message
+                )
+            else:
+                QMessageBox.critical(
+                    self, "Cherry-pick Failed", message
+                )
         except Exception as e:
             QMessageBox.critical(self, "Error", f"An error occurred while cherry-picking: {str(e)}")
 
@@ -298,11 +305,17 @@ class CherryPickMixin:
             self._sync_cached_head()
             self.load_history()
             self._refresh_parent_main_window()
+            from lib.git_helpers.status import classify_cherry_pick_failure
+            kind, _ = classify_cherry_pick_failure(self.repo_path, err)
             box = self._make_resizable_message_box(self)
-            box.setWindowTitle("Cherry-pick Failed")
+            if kind == "empty":
+                box.setWindowTitle("Cherry-pick")
+                box.setIcon(QMessageBox.Information)
+            else:
+                box.setWindowTitle("Cherry-pick Failed")
+                box.setIcon(QMessageBox.Critical)
             box.setTextFormat(Qt.RichText)
             box.setText(message)
-            box.setIcon(QMessageBox.Critical)
             box.addButton("OK", QMessageBox.AcceptRole)
             box.exec()
 
