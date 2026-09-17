@@ -837,10 +837,10 @@ class UIMixin:
         self.ctrl_y_shortcut = QShortcut(QKeySequence("Ctrl+Y"), self)
         self.ctrl_y_shortcut.activated.connect(self.handle_redo_shortcut)
 
-        self.ctrl_alt_f5_shortcut = QShortcut(QKeySequence("Ctrl+Shift+F5"), self)
+        self.ctrl_alt_f5_shortcut = QShortcut(QKeySequence("Ctrl+F9"), self)
         self.ctrl_alt_f5_shortcut.activated.connect(self._handle_restart_if_updated)
         if getattr(self, 'is_running_from_repo', False):
-            print("[shortcut] Ctrl+Shift+F5 registered")
+            print("[shortcut] Ctrl+F9 registered")
 
         if getattr(self, 'is_running_from_repo', False):
             self.f9_shortcut = QShortcut(QKeySequence("F9"), self)

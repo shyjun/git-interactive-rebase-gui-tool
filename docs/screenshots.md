@@ -993,7 +993,7 @@ For a cloned installation, the update refuses to run if the local clone has unco
 
 By default the tool automatically checks for updates in the background when it starts. If an update is available, an **Update(\<sha\>) available** label appears in the status bar next to the **Configure** button. Uncheck **Configure → Check for updates at startup** to disable this.
 
-When running from a cloned repository, press **Ctrl+Shift+F5** after updating to restart with the latest code.
+When running from a cloned repository, press **Ctrl+F9** after updating to restart with the latest code.
 
 ---
 
@@ -1220,7 +1220,7 @@ Keyboard shortcuts for faster navigation and workflow.
 | `Ctrl+Y` | Redo the last undone operation |
 | `F5` | Refresh commit list |
 | `Shift+F5` | Rescan repository (checks for unstaged changes) |
-| `Ctrl+Shift+F5` | Restart with latest code (cloned repos only, when update detected) |
+| `Ctrl+F9` | Restart with latest code (cloned repos only, when update detected) |
 
 **Notes:**
 
