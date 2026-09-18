@@ -1,5 +1,6 @@
 import subprocess
 import threading
+import time
 from datetime import datetime
 from PySide6.QtCore import (
     Q_ARG,
@@ -324,7 +325,7 @@ class RescanMixin:
         # Clear search when reloading history
         self.update_window_title()
 
-        current_branch = get_current_branch(self.repo_path)
+        _t = time.monotonic(); current_branch = get_current_branch(self.repo_path); _log(f"[perf] get_current_branch: {time.monotonic()-_t:.3f}s")
 
         # Update origin reset button label with current branch
         if hasattr(self, 'reset_origin_btn'):
@@ -347,16 +348,18 @@ class RescanMixin:
                 self._stats_range = None
             else:
                 # Fast path: load commits without --shortstat (~0.1s vs ~1s)
-                history, tag_map = get_git_history_fast(self.repo_path, self.commit_sha, self.get_head_sha())
+                _t = time.monotonic(); history, tag_map = get_git_history_fast(self.repo_path, self.commit_sha, self.get_head_sha()); _log(f"[perf] get_git_history_fast: {time.monotonic()-_t:.3f}s")
                 self._stats_range = (self.commit_sha, self.get_head_sha())
+            _t = time.monotonic()
             branch_map = get_local_branches_map(
                 self.repo_path,
                 current_branch=current_branch,
                 extra_remotes=[self.browse_branch] if self.browse_branch else None,
             )
+            _log(f"[perf] get_local_branches_map: {time.monotonic()-_t:.3f}s")
 
             _log(f"[rescan] Loaded {len(history)} commits, {len(branch_map)} branches, {len(tag_map)} tags")
-            self._populate_list_widget(history, branch_map, tag_map, old_row)
+            _t = time.monotonic(); self._populate_list_widget(history, branch_map, tag_map, old_row); _log(f"[perf] _populate_list_widget: {time.monotonic()-_t:.3f}s")
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))
         finally:
@@ -432,7 +435,9 @@ class RescanMixin:
         def worker():
             try:
                 # No limit — load stats for all commits shown
+                _t = time.monotonic()
                 stats = get_commit_stats(repo_path, start_sha, end_sha)
+                _log(f"[perf] stats load (background): {time.monotonic()-_t:.3f}s")
                 self._stats_result = stats
                 self._stats_done = True
             except Exception as e:
@@ -454,6 +459,7 @@ class RescanMixin:
         self._stats_timer.stop()
         stats = self._stats_result
         if stats:
+            _t = time.monotonic()
             count = 0
             for i in range(self.list_widget.count()):
                 item = self.list_widget.item(i)
@@ -462,17 +468,18 @@ class RescanMixin:
                     added, deleted = stats[sha]
                     item.setData(Qt.UserRole + 3, (added, deleted))
                     count += 1
+            _log(f"[perf] _poll_stats apply ({count} commits): {time.monotonic()-_t:.3f}s")
             _log(f"[stats] Applied stats to {count} commits")
         self._stats_result = None
 
     def _refresh_history_load(self):
         """Post-load updates shared by sync and async history loading."""
         # Update Failsafe button state
-        current_head = get_head_sha(self.repo_path)
-        uncommitted = has_uncommitted_changes(self.repo_path)
+        _t = time.monotonic(); current_head = get_head_sha(self.repo_path); _log(f"[perf] _refresh get_head_sha: {time.monotonic()-_t:.3f}s")
+        _t = time.monotonic(); uncommitted = has_uncommitted_changes(self.repo_path); _log(f"[perf] has_uncommitted_changes: {time.monotonic()-_t:.3f}s")
 
         # Update cache
-        self.cached_current_head_full_sha = get_full_head_sha(self.repo_path)
+        _t = time.monotonic(); self.cached_current_head_full_sha = get_full_head_sha(self.repo_path); _log(f"[perf] _refresh get_full_head_sha: {time.monotonic()-_t:.3f}s")
         self.cached_has_uncommitted = uncommitted
 
         self.total_commits_label.setText("Total: counting...")
