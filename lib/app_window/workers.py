@@ -34,6 +34,23 @@ class GitWorker(QThread):
             self.finished.emit(False, "", str(e))
 
 
+class NumstatWorker(QThread):
+    finished = Signal(str, dict)
+
+    def __init__(self, repo_path, commit_sha, parent=None):
+        super().__init__(parent)
+        self.repo_path = repo_path
+        self.commit_sha = commit_sha
+
+    def run(self):
+        from lib.git_helpers.commits import get_commit_file_stats
+        try:
+            stats = get_commit_file_stats(self.repo_path, self.commit_sha)
+        except Exception:
+            stats = {}
+        self.finished.emit(self.commit_sha, stats)
+
+
 class SelfUpdateWorker(QThread):
     finished = Signal(bool, str)
 
