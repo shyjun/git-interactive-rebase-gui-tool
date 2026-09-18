@@ -1,11 +1,14 @@
 import re
 import subprocess
+from subprocess import Popen, PIPE
 
 from .core import (
     _git_capture,
     _pad_diff_separators,
 )
 from lib.app_window.helpers import _log
+
+MAX_DIFF_BYTES = 2 * 1024 * 1024  # 2 MB cap for diff output
 
 
 def format_tree_node_stats(node):
@@ -51,20 +54,40 @@ def _format_bytes(size_bytes):
 def get_commit_diff(repo_path, commit_sha):
     """Fetches the diff for a specific commit.
     Uses -m so merge commits show diffs against each parent
-    (without -m, git show produces no diff for merge commits)."""
+    (without -m, git show produces no diff for merge commits).
+
+    Caps output at MAX_DIFF_BYTES to prevent hangs on large merges."""
     try:
         cmd = ["git", "show", "-m", commit_sha, "--format="]
-        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
+        proc = Popen(cmd, cwd=repo_path, stdout=PIPE, stderr=PIPE,
+                     encoding='utf-8', errors='replace')
+        data = proc.stdout.read(MAX_DIFF_BYTES)
+        truncated = proc.poll() is None
+        if truncated:
+            try:
+                proc.kill()
+            except OSError:
+                pass
+            proc.wait()
+        elif proc.returncode != 0:
+            stderr = proc.stderr.read()
+            proc.wait()
+            raise Exception(f"Failed to fetch diff: {stderr}")
 
-        # Inject a newline before every 'diff --git' block (except the very first if it's at start)
-        diff_text = result.stdout
+        diff_text = data
+        if truncated:
+            diff_text += f"\n\n[Truncated: merge commit diff exceeded {_format_bytes(MAX_DIFF_BYTES)} limit]"
+            _log(f"[git_helpers] get_commit_diff: truncated at {_format_bytes(MAX_DIFF_BYTES)} for {commit_sha[:11]}")
+
         # Inject a newline before every 'diff --git' block, but NOT if it's at the absolute start
         # This prevents an extra empty line at the top of the diff viewer.
         diff_text = re.sub(r'(\n)(diff --git )', r'\1\n\2', diff_text)
 
         return diff_text
-    except subprocess.CalledProcessError as e:
-        raise Exception(f"Failed to fetch diff: {e.stderr}")
+    except Exception as e:
+        if isinstance(e, Exception) and "Failed to fetch diff" in str(e):
+            raise
+        raise Exception(f"Failed to fetch diff: {e}")
 
 def get_full_commit_message(repo_path, commit_sha):
     """Fetches the full (multi-line) commit message."""
@@ -125,10 +148,21 @@ def get_commit_file_stats(repo_path, commit_sha):
     """
     try:
         cmd = ["git", "show", "-m", "--numstat", "--format=", commit_sha]
-        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
+        proc = Popen(cmd, cwd=repo_path, stdout=PIPE, stderr=PIPE,
+                     encoding='utf-8', errors='replace')
+        try:
+            stdout, stderr = proc.communicate(timeout=30)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait()
+            _log(f"[git_helpers] get_commit_file_stats: timed out for {commit_sha[:11]}")
+            return {}
+        if proc.returncode != 0:
+            _log(f"[git_helpers] get_commit_file_stats: git show --numstat failed for {commit_sha}: {stderr.strip()}")
+            return {}
         stats = {}
         binary_files = []
-        for line in result.stdout.strip().split('\n'):
+        for line in stdout.strip().split('\n'):
             if not line.strip():
                 continue
             parts = line.split('\t', 2)
@@ -146,9 +180,8 @@ def get_commit_file_stats(repo_path, commit_sha):
         if binary_files:
             _fill_binary_sizes(repo_path, commit_sha, binary_files, stats, is_commit=True)
         return stats
-    except subprocess.CalledProcessError as exc:
-        err = exc.stderr.strip() if exc.stderr else str(exc)
-        _log(f"[git_helpers] get_commit_file_stats: git show --numstat failed for {commit_sha}: {err}")
+    except Exception as exc:
+        _log(f"[git_helpers] get_commit_file_stats: failed for {commit_sha}: {exc}")
         return {}
 
 

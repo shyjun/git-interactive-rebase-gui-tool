@@ -91,7 +91,7 @@ class DiffMixin:
 
             self.side_commit_label.setText(f"Commit: <b>{sha}</b>  <span style='color:gray;'>({meta})</span>")
             self.side_commit_msg.setPlainText(msg)
-            _log(f"[diff] label+msg set")
+            _log("[diff] label+msg set")
 
             if self.diff_tab_widget.currentIndex() == 0:
                 if self.browse_file:
@@ -195,7 +195,7 @@ class DiffMixin:
                 _t = time.monotonic()
                 self._refresh_treewise_diff()
                 _log(f"[diff] _refresh_treewise_diff: {time.monotonic()-_t:.3f}s")
-            _log(f"[diff] end _do_update_side_diff")
+            _log("[diff] end _do_update_side_diff")
         except Exception as e:
             _log(f"[diff] EXCEPTION: {e}")
             self.side_diff_view.setPlainText(f"Error loading diff: {e}")
