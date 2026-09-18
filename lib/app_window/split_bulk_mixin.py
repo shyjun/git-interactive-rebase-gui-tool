@@ -234,7 +234,7 @@ for i, hunk in enumerate(hunks):
                 finally:
                     self.load_history()
 
-            self.split_worker.finished.connect(on_split_finished)
+            self.split_worker.split_finished.connect(on_split_finished)
             _log("[thread] split_bulk split_worker.start()")
             self.split_worker.start()
             progress.exec()
@@ -415,7 +415,7 @@ for i, filename in enumerate(files):
                 finally:
                     self.load_history()
 
-            self.split_worker.finished.connect(on_split_finished)
+            self.split_worker.split_finished.connect(on_split_finished)
             _log("[thread] split_bulk split_worker.start()")
             self.split_worker.start()
             progress.exec()

@@ -55,6 +55,24 @@ def _log(msg, **_kw):
     print(f"[{time.strftime('%H:%M:%S')}.{time.time_ns() % 1000:03d}] {msg}")
 
 
+def _wait_worker(worker, label='worker', timeout_ms=3000):
+    """Block until *worker* QThread finishes (or timeout).
+    Called from closeEvent to prevent 'QThread: Destroyed while thread is still
+    running' when the window is closed while a background thread is in-flight."""
+    if worker is None:
+        return
+    try:
+        if worker.isRunning():
+            _log(f"[thread] closeEvent: waiting for {label} to finish...")
+            finished = worker.wait(timeout_ms)
+            if not finished:
+                _log(f"[thread] closeEvent: {label} did not finish in {timeout_ms}ms, continuing")
+            else:
+                _log(f"[thread] closeEvent: {label} finished cleanly")
+    except RuntimeError:
+        pass  # C++ object already deleted
+
+
 
 _MONOSPACE_CANDIDATES = {
     "Windows": ["Cascadia Code", "Consolas", "Courier New", "Lucida Console"],

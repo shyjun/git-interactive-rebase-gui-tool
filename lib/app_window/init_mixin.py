@@ -22,7 +22,7 @@ from lib.git_helpers import (
     has_uncommitted_changes,
 )
 from lib.widgets import BrowseDimOverlay
-from lib.app_window.helpers import highlight_button_temporarily, _log
+from lib.app_window.helpers import highlight_button_temporarily, _log, _wait_worker
 
 
 class InitMixin:
@@ -261,6 +261,14 @@ class InitMixin:
             parent = self.parent()
             if hasattr(parent, 'browse_windows') and self in parent.browse_windows:
                 parent.browse_windows.remove(self)
+        # Wait for all in-flight background threads before destroying the window.
+        # Without this, Python GC drops QThread references while threads are still
+        # running, producing 'QThread: Destroyed while thread is still running'.
+        _wait_worker(getattr(self, '_startup_check_worker', None), 'startup_check')
+        for w in list(getattr(self, '_active_numstat_workers', set())):
+            _wait_worker(w, 'numstat')
+        for w in list(getattr(self, '_active_workers', set())):
+            _wait_worker(w, 'git')
         super().closeEvent(event)
 
     def update_window_title(self):
