@@ -142,10 +142,18 @@ class DiffMixin:
     def _launch_numstat_worker(self, sha, file_entries):
         """Launch async numstat computation for a commit."""
         _log(f"[diff] numstat started for {sha[:11]} ({len(file_entries)} files)")
-        worker = NumstatWorker(self.repo_path, sha, parent=self)
+        if not hasattr(self, '_active_numstat_workers'):
+            self._active_numstat_workers = set()
+
+        worker = NumstatWorker(self.repo_path, sha)
+        self._active_numstat_workers.add(worker)
+
+        def _cleanup():
+            self._active_numstat_workers.discard(worker)
+            worker.deleteLater()
+
         worker.finished.connect(self._on_numstat_ready)
-        worker.finished.connect(worker.deleteLater)
-        self._numstat_worker = worker
+        worker.finished.connect(_cleanup)
         worker.start()
 
     def _on_numstat_ready(self, commit_sha, file_stats):
