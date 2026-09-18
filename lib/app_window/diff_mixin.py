@@ -286,11 +286,17 @@ class DiffMixin:
                     self._current_diff_sha = sha
                     self.side_diff_view.set_separator_color(self.current_theme_colors.get("separator", "#444444"))
                     if self.plain_diff_search.isVisible():
+                        _log("[diff] tab0 performing search")
                         self.plain_diff_search._perform_search()
+                        _log("[diff] tab0 search done")
         elif index == 1:
+            _log("[diff] tab1 calling _refresh_filewise_diff")
             self._refresh_filewise_diff()
+            _log("[diff] tab1 _refresh_filewise_diff done")
         elif index == 2:
+            _log("[diff] tab2 calling _refresh_treewise_diff")
             self._refresh_treewise_diff()
+            _log("[diff] tab2 _refresh_treewise_diff done")
         _log("[diff] on_diff_tab_changed done")
 
     def show_filewise_context_menu(self, pos):
@@ -429,10 +435,12 @@ class DiffMixin:
             filepath = entry[2] if entry[0] == 'R' else entry[1]
         else:
             filepath = item.text()
+        _log(f"[diff] _on_filewise_item_changed {filepath[:40]} checked={checked}")
         for i in range(self.treewise_tree.topLevelItemCount()):
             self._sync_file_to_tree(self.treewise_tree.topLevelItem(i), filepath, checked)
         self._refresh_filewise_diff()
         self._refresh_treewise_diff()
+        _log("[diff] _on_filewise_item_changed done")
 
     def _sync_file_to_tree(self, parent_item, filepath, checked):
         """Recursively find and sync a file's check state in the tree."""
@@ -463,6 +471,7 @@ class DiffMixin:
             return
         checked = item.checkState(0) == Qt.Checked
         if item_data["type"] == "folder":
+            _log(f"[diff] _on_treewise_item_changed FOLDER checked={checked}")
             self._set_tree_children_checked(item, checked)
             p = item.parent()
             while p:
@@ -470,8 +479,10 @@ class DiffMixin:
                 p = p.parent()
         else:
             entry = item_data.get("entry")
+            filepath = ""
             if entry:
                 filepath = entry[2] if entry[0] == 'R' else entry[1]
+                _log(f"[diff] _on_treewise_item_changed FILE {filepath[:40]} checked={checked}")
                 for i in range(self.filewise_file_list.count()):
                     list_item = self.filewise_file_list.item(i)
                     list_entry = list_item.data(FILE_ENTRY_ROLE)
