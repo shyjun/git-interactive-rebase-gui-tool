@@ -58,8 +58,12 @@ class InitMixin:
         else:
             self.cli_mode = False
         self.is_dark_theme = False  # refined in load_settings/apply_theme
-        _t = time.monotonic(); self.start_time_full_head = get_full_head_sha(self.repo_path); _log(f"[perf] init get_full_head_sha: {time.monotonic()-_t:.3f}s")
-        _t = time.monotonic(); self.start_time_head = get_head_sha(self.repo_path); _log(f"[perf] init get_head_sha: {time.monotonic()-_t:.3f}s")
+        _t = time.monotonic()
+        self.start_time_full_head = get_full_head_sha(self.repo_path)
+        _log(f"[perf] init get_full_head_sha: {time.monotonic()-_t:.3f}s")
+        _t = time.monotonic()
+        self.start_time_head = get_head_sha(self.repo_path)
+        _log(f"[perf] init get_head_sha: {time.monotonic()-_t:.3f}s")
         # Detect if the tool itself is running from a source repo (not pip-installed)
         _tool_dir = os.path.dirname(os.path.abspath(__file__))
         while _tool_dir and _tool_dir != os.path.dirname(_tool_dir):
@@ -138,7 +142,9 @@ class InitMixin:
         # can be wired with a reference to it.
         self.commit_cache = {} # sha -> {'meta': str, 'msg': str, 'diff': str, 'files': list}
 
-        _t = time.monotonic(); self.setup_ui(); _log(f"[perf] setup_ui: {time.monotonic()-_t:.3f}s")
+        _t = time.monotonic()
+        self.setup_ui()
+        _log(f"[perf] setup_ui: {time.monotonic()-_t:.3f}s")
         self.restore_visibility_settings()
         self.load_settings()
 
@@ -155,7 +161,9 @@ class InitMixin:
                 self._merged_range_tag_map = tag_map
             self.load_browse_history_async()
         else:
-            _t = time.monotonic(); self.load_history(); _log(f"[perf] load_history (total): {time.monotonic()-_t:.3f}s")
+            _t = time.monotonic()
+            self.load_history()
+            _log(f"[perf] load_history (total): {time.monotonic()-_t:.3f}s")
             if self._auto_detect_base:
                 QTimer.singleShot(0, self._detect_base_async)
         self.update_rebase_buttons()
