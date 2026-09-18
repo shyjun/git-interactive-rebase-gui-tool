@@ -279,6 +279,7 @@ class DiffMixin:
             self._launch_numstat_worker(sha, file_entries)
 
         self._filewise_entries_map = {}
+        self._filewise_item_by_entry = {}
         self.filewise_file_list.blockSignals(True)
         self.filewise_file_list.clear()
         for entry in file_entries:
@@ -301,6 +302,7 @@ class DiffMixin:
             fitem.setFlags(fitem.flags() | Qt.ItemIsUserCheckable)
             fitem.setCheckState(Qt.Unchecked)
             self.filewise_file_list.addItem(fitem)
+            self._filewise_item_by_entry[entry] = fitem
         self.filewise_file_list.blockSignals(False)
 
         self._populate_treewise_tree(file_entries, file_stats)
@@ -533,13 +535,14 @@ class DiffMixin:
         """Sync all tree check states to the filewise list."""
         self.filewise_file_list.blockSignals(True)
 
-        # Pre-build lookup table mapping entry -> list item to achieve O(N + M) performance
-        entry_map = {}
-        for j in range(self.filewise_file_list.count()):
-            li = self.filewise_file_list.item(j)
-            li_entry = li.data(FILE_ENTRY_ROLE)
-            if li_entry:
-                entry_map[li_entry] = li
+        entry_map = getattr(self, '_filewise_item_by_entry', None)
+        if entry_map is None:
+            entry_map = {}
+            for j in range(self.filewise_file_list.count()):
+                li = self.filewise_file_list.item(j)
+                li_entry = li.data(FILE_ENTRY_ROLE)
+                if li_entry:
+                    entry_map[li_entry] = li
 
         def sync_item(parent_item):
             for i in range(parent_item.childCount()):
@@ -585,11 +588,24 @@ class DiffMixin:
             return
         try:
             parts = []
+            total_lines = 0
+            truncated = False
             for f in checked:
                 d = self._get_file_diff(f).rstrip("\n")
                 if d:
-                    parts.append(d)
-            text = "\n\n".join(parts) + ("\n" if parts else "")
+                    lines = d.split("\n")
+                    if total_lines + len(lines) > PLAIN_DIFF_LINE_CAP:
+                        remaining = PLAIN_DIFF_LINE_CAP - total_lines
+                        if remaining > 0:
+                            parts.append("\n".join(lines[:remaining]))
+                        truncated = True
+                        break
+                    else:
+                        parts.append(d)
+                        total_lines += len(lines)
+            text = "\n\n".join(parts)
+            if truncated:
+                text += f"\n\n... (Diff truncated at {PLAIN_DIFF_LINE_CAP} lines)"
             self.filewise_diff_view.setPlainText(text)
             self.filewise_diff_view.set_separator_color(self.current_theme_colors.get("separator", "#444444"))
             self.filewise_diff_search._perform_search()
@@ -604,11 +620,24 @@ class DiffMixin:
             return
         try:
             parts = []
+            total_lines = 0
+            truncated = False
             for f in checked:
                 d = self._get_file_diff(f).rstrip("\n")
                 if d:
-                    parts.append(d)
-            text = "\n\n".join(parts) + ("\n" if parts else "")
+                    lines = d.split("\n")
+                    if total_lines + len(lines) > PLAIN_DIFF_LINE_CAP:
+                        remaining = PLAIN_DIFF_LINE_CAP - total_lines
+                        if remaining > 0:
+                            parts.append("\n".join(lines[:remaining]))
+                        truncated = True
+                        break
+                    else:
+                        parts.append(d)
+                        total_lines += len(lines)
+            text = "\n\n".join(parts)
+            if truncated:
+                text += f"\n\n... (Diff truncated at {PLAIN_DIFF_LINE_CAP} lines)"
             self.treewise_diff_view.setPlainText(text)
             self.treewise_diff_view.set_separator_color(self.current_theme_colors.get("separator", "#444444"))
             self.treewise_diff_search._perform_search()
@@ -674,31 +703,21 @@ class DiffMixin:
     def _update_treewise_stats(self, parent_item, file_stats, added_color, removed_color):
         """Recursively update stats column on existing tree items without rebuilding the tree.
 
-        Bug 5 fix: called by _on_numstat_ready to inject stats after async numstat
-        completes, preserving existing check states set by the user.
+        Single-pass post-order bottom-up summation (O(N)), eliminating redundant generator traversals.
         """
+        folder_added = 0
+        folder_deleted = 0
         for i in range(parent_item.childCount()):
             child = parent_item.child(i)
             item_data = child.data(0, Qt.UserRole + 10)
             if not item_data:
                 continue
             if item_data["type"] == "folder":
-                # Recurse into folder, accumulate stats from children
-                self._update_treewise_stats(child, file_stats, added_color, removed_color)
-                # Re-compute folder totals from file_stats
-                node = item_data.get("node", {})
-                added = sum(
-                    file_stats[e[1]][0]
-                    for e in self._collect_folder_entries(node)
-                    if e[1] in file_stats and file_stats[e[1]]
-                )
-                deleted = sum(
-                    file_stats[e[1]][1]
-                    for e in self._collect_folder_entries(node)
-                    if e[1] in file_stats and file_stats[e[1]]
-                )
+                added, deleted = self._update_treewise_stats(child, file_stats, added_color, removed_color)
                 if added or deleted:
                     self._set_stats_column(child, added, deleted, added_color, removed_color)
+                folder_added += added
+                folder_deleted += deleted
             else:
                 entry = item_data.get("entry")
                 if entry:
@@ -706,6 +725,9 @@ class DiffMixin:
                     stats = file_stats.get(path1)
                     if stats:
                         self._set_stats_column(child, stats[0], stats[1], added_color, removed_color)
+                        folder_added += stats[0]
+                        folder_deleted += stats[1]
+        return folder_added, folder_deleted
 
     def _collect_folder_entries(self, node):
         """Recursively yield all file entries under a folder node (for stats accumulation)."""
