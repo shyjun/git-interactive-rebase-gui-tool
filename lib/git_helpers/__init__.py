@@ -45,6 +45,7 @@ from .commits import (
     get_commit_files_with_status,
     get_rename_diff_in_commit,
     get_file_diff_only_in_commit,
+    parse_commit_diff_into_files,
     build_file_tree,
 )
 

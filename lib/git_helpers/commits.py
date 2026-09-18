@@ -268,6 +268,36 @@ def get_file_diff_only_in_commit(repo_path, commit_sha, filepath):
                      "Failed to get file diff"))
 
 
+def parse_commit_diff_into_files(diff_text):
+    """Parses a full commit diff string into a dict mapping filepaths to diff text chunks.
+
+    Parses 'diff --git a/path1 b/path2' headers and returns a dictionary
+    mapping both path1 and path2 to the padded diff chunk.
+    """
+    if not diff_text:
+        return {}
+    file_map = {}
+    chunks = re.split(r'(?m)^(?=diff --git )', diff_text)
+    for chunk in chunks:
+        if not chunk.startswith('diff --git'):
+            continue
+        first_line = chunk.split('\n', 1)[0]
+        m = re.match(r'^diff --git a/(.*?) b/(.*?)$', first_line)
+        if m:
+            path1, path2 = m.group(1), m.group(2)
+            chunk_padded = re.sub(r'(\n)(diff --git )', r'\1\n\2', chunk)
+            file_map[path2] = chunk_padded
+            if path1 != path2:
+                file_map[path1] = chunk_padded
+        else:
+            for line in chunk.split('\n')[:5]:
+                if line.startswith('--- a/'):
+                    file_map[line[6:]] = chunk
+                elif line.startswith('+++ b/'):
+                    file_map[line[6:]] = chunk
+    return file_map
+
+
 def build_file_tree(files, file_stats):
     """Build a nested tree dict from flat file entries for the tree-wise diff tab.
 

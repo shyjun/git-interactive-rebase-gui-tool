@@ -17,6 +17,7 @@ from lib.git_helpers import (
     get_commit_metadata_and_message,
     get_file_diff_only_in_commit,
     get_rename_diff_in_commit,
+    parse_commit_diff_into_files,
 )
 from lib.widgets import FILE_ENTRY_ROLE
 from lib.tree_utils import (
@@ -277,10 +278,14 @@ class DiffMixin:
             file_stats = {}
             self._launch_numstat_worker(sha, file_entries)
 
+        self._filewise_entries_map = {}
         self.filewise_file_list.blockSignals(True)
         self.filewise_file_list.clear()
         for entry in file_entries:
             status, path1, path2 = entry
+            path = path2 if status == 'R' and path2 else path1
+            self._filewise_entries_map[path] = entry
+            self._filewise_entries_map[path1] = entry
             if status == 'R':
                 display = f"{path1} => {path2}"
             elif status == 'D':
@@ -402,8 +407,9 @@ class DiffMixin:
     def _get_file_diff(self, filepath):
         """Get diff for a single file in the current commit.
 
-        Bug 3 fix: results are cached in commit_cache under key 'file_diff:<sha>:<filepath>'
-        so repeated tab switches and checkbox toggles don't re-run git for the same file.
+        Uses in-memory file_diff_map cached in commit_cache for O(1) instant lookup.
+        Only falls back to a git subprocess call if the file is missing from file_diff_map
+        (e.g., if the main commit diff was truncated at 2MB).
         """
         list_item = self.list_widget.currentItem()
         if not list_item:
@@ -411,28 +417,38 @@ class DiffMixin:
         sha = list_item.text().split()[0]
         cache_key = f'file_diff:{filepath}'
         cache_entry = self.commit_cache.get(sha, {})
+
+        # 1. Check per-file cache first
         if cache_key in cache_entry:
             return cache_entry[cache_key]
+
+        # 2. Ensure file_diff_map is built from full commit diff
+        if 'file_diff_map' not in cache_entry:
+            if 'diff' not in cache_entry:
+                cache_entry['diff'] = get_commit_diff(self.repo_path, sha)
+            cache_entry['file_diff_map'] = parse_commit_diff_into_files(cache_entry.get('diff', ''))
+            self.commit_cache[sha] = cache_entry
+
+        file_diff_map = cache_entry.get('file_diff_map', {})
+        if filepath in file_diff_map:
+            result = file_diff_map[filepath]
+            cache_entry[cache_key] = result
+            self.commit_cache[sha] = cache_entry
+            return result
+
+        # 3. Fallback: single file git subprocess if not found in map
         try:
-            item = None
-            for i in range(self.filewise_file_list.count()):
-                li = self.filewise_file_list.item(i)
-                li_entry = li.data(FILE_ENTRY_ROLE)
-                if li_entry:
-                    li_path = li_entry[2] if li_entry[0] == 'R' else li_entry[1]
-                    if li_path == filepath:
-                        item = li
-                        break
-                elif li.text() == filepath:
-                    item = li
-                    break
-            entry = item.data(FILE_ENTRY_ROLE) if item else None
+            entry = None
+            if hasattr(self, '_filewise_entries_map'):
+                entry = self._filewise_entries_map.get(filepath)
+
             if entry and entry[0] == 'R':
                 result = get_rename_diff_in_commit(self.repo_path, sha, entry[1], entry[2])
             elif entry:
                 result = get_file_diff_only_in_commit(self.repo_path, sha, entry[1])
             else:
                 result = get_file_diff_only_in_commit(self.repo_path, sha, filepath)
+
             cache_entry[cache_key] = result
             self.commit_cache[sha] = cache_entry
             return result
