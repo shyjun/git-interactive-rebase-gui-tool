@@ -15,7 +15,7 @@ import sys
 import os
 import time
 from datetime import datetime
-from lib.app_window.helpers import _log
+from lib.app_window.helpers import _log, set_verbose
 
 from PySide6.QtWidgets import (
     QApplication,
@@ -72,8 +72,12 @@ def main():
     parser.add_argument("--update", action="store_true", help="Update the tool to the latest version and exit.")
     parser.add_argument("--version", action="store_true", help="Print the tool's version (short git id) and exit.")
     parser.add_argument("--no-fork", action="store_true", help=argparse.SUPPRESS)  # internal flag: already backgrounded
+    parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose logging (perf, ctx, diff, stats, thread)")
     parser.add_argument("positional", nargs="*", help="Branch, file, tag, or commit ref (auto-detected)")
     args = parser.parse_args()
+
+    if args.verbose:
+        set_verbose(True)
 
     if args.version:
         # BUG-1 / BUG-12 fix: anchor to lib package, not the console-script wrapper.
@@ -136,10 +140,14 @@ def main():
 
     now = datetime.now()
     app_start_time = f"{now.strftime('%I.%M%p').lower()} {now.day}-{now.strftime('%b-%Y')}"
-    _t = time.monotonic(); head_sha = get_full_head_sha(repo_path); _log(f"[perf] get_full_head_sha(repo): {time.monotonic()-_t:.3f}s")
+    _t = time.monotonic()
+    head_sha = get_full_head_sha(repo_path)
+    _log(f"[perf] get_full_head_sha(repo): {time.monotonic()-_t:.3f}s")
     import lib
     tool_dir = os.path.abspath(os.path.join(os.path.dirname(lib.__file__), ".."))
-    _t = time.monotonic(); tool_sha = get_head_sha(tool_dir); _log(f"[perf] get_head_sha(tool): {time.monotonic()-_t:.3f}s")
+    _t = time.monotonic()
+    tool_sha = get_head_sha(tool_dir)
+    _log(f"[perf] get_head_sha(tool): {time.monotonic()-_t:.3f}s")
     if tool_sha == "Unknown":
         try:
             assets_dir = get_assets_path()
@@ -233,7 +241,9 @@ def main():
     if len(positional) == 0:
         # No args: auto-detect base
         _log("No args provided. Will detect branch base after window opens.")
-        _t = time.monotonic(); base_sha = get_recent_history_start(repo_path, count=200); _log(f"[perf] get_recent_history_start: {time.monotonic()-_t:.3f}s")
+        _t = time.monotonic()
+        base_sha = get_recent_history_start(repo_path, count=200)
+        _log(f"[perf] get_recent_history_start: {time.monotonic()-_t:.3f}s")
         commit_sha = base_sha
         detect_base = True
     elif len(positional) == 1:
@@ -290,7 +300,9 @@ def main():
     ack_messages = []  # (kind, title, text) shown after the main window appears
     deferred_selective_commit = False
     startup_undo_sha = None  # HEAD before a startup amend/bulk/commit-each so undo can restore it
-    _t = time.monotonic(); unstaged_files = get_unstaged_files(repo_path, ignore_submodules=True); _log(f"[perf] get_unstaged_files: {time.monotonic()-_t:.3f}s")
+    _t = time.monotonic()
+    unstaged_files = get_unstaged_files(repo_path, ignore_submodules=True)
+    _log(f"[perf] get_unstaged_files: {time.monotonic()-_t:.3f}s")
     if unstaged_files and not args.viewer_mode:
         dialog = UnstagedChangesDialog(len(unstaged_files), repo_path=repo_path, unstaged_files=unstaged_files)
         result = dialog.exec()
@@ -403,7 +415,9 @@ def main():
             sys.exit(0)
 
     # Warn about staged changes (informational only)
-    _t = time.monotonic(); has_staged, _ = classify_tracked_changes(repo_path); _log(f"[perf] classify_tracked_changes: {time.monotonic()-_t:.3f}s")
+    _t = time.monotonic()
+    has_staged, _ = classify_tracked_changes(repo_path)
+    _log(f"[perf] classify_tracked_changes: {time.monotonic()-_t:.3f}s")
     if has_staged:
         ack_messages.append(("info", "Staged Changes",
                              "You have staged changes in the repository.\n\n"
@@ -422,7 +436,9 @@ def main():
         auto_detect_base=detect_base,
     )
     _log(f"[perf] GitInteractiveRebaseApp constructor: {time.monotonic()-_t:.3f}s")
-    _t = time.monotonic(); window.show(); _log(f"[perf] window.show(): {time.monotonic()-_t:.3f}s")
+    _t = time.monotonic()
+    window.show()
+    _log(f"[perf] window.show(): {time.monotonic()-_t:.3f}s")
     if startup_undo_sha:
         window.last_head = startup_undo_sha
         window.undo_btn.setEnabled(True)

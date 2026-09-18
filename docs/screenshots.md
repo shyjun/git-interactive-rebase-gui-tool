@@ -144,6 +144,15 @@ Print the tool's version (short git id) and exit:
 python3 git_interactive_rebase.py --version
 ```
 
+### Option 5: Verbose logging
+
+Enable verbose logging for debugging performance or UI issues. In normal mode, only errors and essential startup messages are shown. With `--verbose`, all internal timing and state logs (`[perf]`, `[ctx]`, `[diff]`, `[stats]`, `[thread]`, `[rescan]`) are printed.
+
+```bash
+python3 git_interactive_rebase.py --verbose
+python3 git_interactive_rebase.py -v
+```
+
 **Note:** If `git` is not installed or not in your PATH, the tool shows a "Git not found" dialog at startup and exits. If the current directory is not a valid git repository, a "Not a Git Repository" dialog is shown instead.
 
 ---

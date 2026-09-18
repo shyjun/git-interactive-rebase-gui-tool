@@ -962,6 +962,7 @@ class UIMixin:
             self.treewise_splitter.handle(1).setEnabled(True)
 
     def _on_tab_bar_clicked(self, idx):
+        _log(f"[diff] _on_tab_bar_clicked idx={idx} current={self.diff_tab_widget.currentIndex()}")
         if idx == self.diff_tab_widget.currentIndex():
             # Clicking the active tab toggles file list visibility
             if idx == getattr(self, '_filewise_tab_idx', -1):

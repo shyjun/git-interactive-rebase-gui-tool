@@ -245,14 +245,17 @@ class DiffMixin:
             self.plain_diff_search._perform_search()
 
     def on_diff_tab_changed(self, index):
+        _log(f"[diff] on_diff_tab_changed index={index}")
         self.settings.setValue(self._sk("diff_tab_index"), index)
         if index == 0:
             # Load plain diff if not cached yet
             item = self.list_widget.currentItem()
             if item and item.data(Qt.UserRole + 9) != "load_more":
                 sha = item.text().split()[0]
+                _log(f"[diff] tab0 sha={sha[:11]}")
                 cache_entry = self.commit_cache.get(sha, {})
                 if 'diff' not in cache_entry:
+                    _log("[diff] tab0 diff NOT cached, fetching synchronously...")
                     try:
                         if self.browse_file:
                             cache_entry['diff'] = get_file_diff_only_in_commit(
@@ -262,17 +265,24 @@ class DiffMixin:
                         self.commit_cache[sha] = cache_entry
                     except Exception:
                         pass
+                else:
+                    _log("[diff] tab0 diff cached")
                 if 'diff' in cache_entry:
+                    _log(f"[diff] tab0 diff size={len(cache_entry['diff'])} bytes")
                     diff_text = clean_binary_diff_lines(cache_entry['diff'])
                     lines = diff_text.split('\n')
                     total_lines = len(lines)
+                    _log(f"[diff] tab0 {total_lines} lines")
                     if total_lines > PLAIN_DIFF_LINE_CAP:
                         truncated = '\n'.join(lines[:PLAIN_DIFF_LINE_CAP])
+                        _log("[diff] tab0 setPlainText (truncated)")
                         self.side_diff_view.setPlainText(truncated)
                         self._show_truncation_banner(total_lines)
                     else:
+                        _log("[diff] tab0 setPlainText (full)")
                         self.side_diff_view.setPlainText(diff_text)
                         self._hide_truncation_banner()
+                    _log("[diff] tab0 setPlainText done")
                     self._current_diff_sha = sha
                     self.side_diff_view.set_separator_color(self.current_theme_colors.get("separator", "#444444"))
                     if self.plain_diff_search.isVisible():
@@ -281,6 +291,7 @@ class DiffMixin:
             self._refresh_filewise_diff()
         elif index == 2:
             self._refresh_treewise_diff()
+        _log("[diff] on_diff_tab_changed done")
 
     def show_filewise_context_menu(self, pos):
         item = self.filewise_file_list.itemAt(pos)
@@ -533,13 +544,16 @@ class DiffMixin:
 
     def _refresh_filewise_diff(self):
         """Show combined diff of all checked files in the filewise diff pane."""
+        _log("[diff] _refresh_filewise_diff start")
         checked = self._checked_filewise_files()
+        _log(f"[diff] _refresh_filewise_diff checked={len(checked)}")
         if not checked:
             self.filewise_diff_view.clear()
             return
         try:
             parts = []
             for f in checked:
+                _log(f"[diff] _get_file_diff for {f}")
                 d = self._get_file_diff(f).rstrip("\n")
                 if d:
                     parts.append(d)
@@ -548,6 +562,7 @@ class DiffMixin:
             self.filewise_diff_view.set_separator_color(self.current_theme_colors.get("separator", "#444444"))
             self.filewise_diff_search._perform_search()
         except Exception as e:
+            _log(f"[diff] _refresh_filewise_diff EXCEPTION: {e}")
             self.filewise_diff_view.setPlainText(f"Error loading diff: {e}")
 
     def _refresh_treewise_diff(self):
