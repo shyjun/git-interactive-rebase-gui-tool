@@ -247,11 +247,28 @@ class DiffMixin:
     def _debug_heartbeat(self, label):
         _log(f"[diff] HEARTBEAT {label}")
 
+    def _debug_dump_traceback(self):
+        import traceback
+        import sys
+        import threading
+        main_thread = threading.main_thread()
+        frame = sys._current_frames().get(main_thread.ident)
+        if frame:
+            _log("[diff] === MAIN THREAD TRACEBACK ===")
+            for line in traceback.format_stack(frame):
+                _log(line.rstrip())
+            _log("[diff] === END TRACEBACK ===")
+        else:
+            _log("[diff] Could not get main thread frame")
+
     def on_diff_tab_changed(self, index):
         _log(f"[diff] on_diff_tab_changed index={index}")
         self.settings.setValue(self._sk("diff_tab_index"), index)
-        for ms in (0, 10, 25, 50, 100, 200, 500, 1000):
-            QTimer.singleShot(ms, lambda m=ms: self._debug_heartbeat(f"deferred-{m}ms"))
+        import threading
+        self._debug_tb_timer = threading.Timer(3.0, self._debug_dump_traceback)
+        self._debug_tb_timer.daemon = True
+        self._debug_tb_timer.start()
+        QTimer.singleShot(500, lambda: self._cancel_debug_tb_timer())
         if index == 0:
             # Load plain diff if not cached yet
             item = self.list_widget.currentItem()
