@@ -648,10 +648,7 @@ class RescanMixin:
 
     def load_more(self):
         """Load 100 more commits by extending the base further back in history."""
-        from lib.git_helpers import (
-            get_recent_history_start,
-            get_root_commit,
-        )
+        from lib.git_helpers import get_recent_history_start
         # Count actual commits (exclude the load-more item itself)
         current_count = self.list_widget.count()
         for i in range(self.list_widget.count()):
@@ -660,7 +657,6 @@ class RescanMixin:
                 current_count -= 1
                 break
         new_base = get_recent_history_start(self.repo_path, count=current_count + 100)
-        root = get_root_commit(self.repo_path)
         if new_base == self.commit_sha:
             # Already at this base, no more to load
             self._showing_fallback = False
@@ -698,9 +694,14 @@ class RescanMixin:
             # Otherwise fall through to render the item.
         else:
             # --- Normal rebase mode: hide when we've reached the root commit ---
-            from lib.git_helpers import get_root_commit
-            root = get_root_commit(self.repo_path)
-            at_root = self.commit_sha == root
+            # Use the last loaded item's parents field (empty = root commit).
+            # Avoids get_root_commit() which traverses entire history (~18s on Linux).
+            at_root = False
+            if self.list_widget.count() > 0:
+                last_item = self.list_widget.item(self.list_widget.count() - 1)
+                if last_item:
+                    parents = last_item.data(Qt.UserRole + 10) or ""
+                    at_root = not parents.strip()
             if at_root:
                 self.load_more_btn.setVisible(False)
                 return
