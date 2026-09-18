@@ -472,15 +472,18 @@ class MenusMixin:
     def show_context_menu(self, position):
         # Allow context menu in multi-select mode, but we will restrict it later
         pass
+        _log(f"[ctx] start show_context_menu")
 
         item = self.list_widget.itemAt(position)
         if not item:
             return
 
         sha = item.text().split()[0]
+        _log(f"[ctx] sha={sha[:11]}")
         menu = QMenu()
         menu_font = mono_font(max(8, self.current_font_size - 2))
         menu.setFont(menu_font)
+        _log(f"[ctx] QMenu created")
 
         mark_action = QAction(f"Mark / Unmark commit {sha}", self)
         is_merge = item.data(Qt.UserRole + 5)
@@ -640,11 +643,14 @@ class MenusMixin:
         split_menu = menu.addMenu("Split Commit")
         split_menu.setFont(menu_font)
 
+        _log(f"[ctx] building submenus...")
         try:
             files_changed = get_commit_files(self.repo_path, sha)
             has_multiple_files = len(files_changed) > 1
-        except Exception:
+            _log(f"[ctx] get_commit_files: {len(files_changed)} files")
+        except Exception as e:
             has_multiple_files = False
+            _log(f"[ctx] get_commit_files FAILED: {e}")
 
         split_drop_file_action = QAction("drop changes from one file from this commit", self)
         split_drop_file_action.triggered.connect(lambda: self.handle_split_drop_file(item))
@@ -730,7 +736,9 @@ class MenusMixin:
         menu.addAction(copy_sha_action)
         menu.addAction(copy_msg_action)
         menu.addAction(copy_sha_msg_action)
+        _log(f"[ctx] menu.exec() — about to show")
         menu.exec(self.list_widget.mapToGlobal(position))
+        _log(f"[ctx] menu.exec() returned")
 
     def handle_move_info(self, item):
         QMessageBox.information(
