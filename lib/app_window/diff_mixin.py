@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QTreeWidgetItem,
 )
 import os
+import time
 from lib.git_helpers import (
     build_file_tree,
     get_commit_diff,
@@ -26,7 +27,7 @@ from lib.tree_utils import (
     update_folder_check_state,
 )
 from lib.dialogs import open_blame_window
-from lib.app_window.helpers import add_open_with_system_default_action, PLAIN_DIFF_LINE_CAP, clean_binary_diff_lines
+from lib.app_window.helpers import add_open_with_system_default_action, PLAIN_DIFF_LINE_CAP, clean_binary_diff_lines, _log
 
 
 class DiffMixin:
@@ -69,13 +70,18 @@ class DiffMixin:
             return
 
         sha = item.text().split()[0]
+        _log(f"[diff] start _do_update_side_diff sha={sha[:11]}")
 
         # Check cache
         cache_entry = self.commit_cache.get(sha, {})
+        is_merge = item.data(Qt.UserRole + 5)
+        _log(f"[diff] cache check done, is_merge={is_merge}")
 
         try:
             if 'meta' not in cache_entry:
+                _t = time.monotonic()
                 meta, msg = get_commit_metadata_and_message(self.repo_path, sha)
+                _log(f"[diff] get_commit_metadata_and_message: {time.monotonic()-_t:.3f}s")
                 cache_entry['meta'] = meta
                 cache_entry['msg'] = msg
                 self.commit_cache[sha] = cache_entry
@@ -85,31 +91,43 @@ class DiffMixin:
 
             self.side_commit_label.setText(f"Commit: <b>{sha}</b>  <span style='color:gray;'>({meta})</span>")
             self.side_commit_msg.setPlainText(msg)
+            _log(f"[diff] label+msg set")
 
             if self.diff_tab_widget.currentIndex() == 0:
                 if self.browse_file:
                     diff_key = f'file_diff:{self.browse_file}'
                     if diff_key not in cache_entry:
+                        _t = time.monotonic()
                         cache_entry[diff_key] = get_file_diff_only_in_commit(
                             self.repo_path, sha, self.browse_file)
+                        _log(f"[diff] get_file_diff_only_in_commit: {time.monotonic()-_t:.3f}s")
                         self.commit_cache[sha] = cache_entry
                     diff_text = cache_entry[diff_key]
                 else:
                     if 'diff' not in cache_entry:
+                        _t = time.monotonic()
                         cache_entry['diff'] = get_commit_diff(self.repo_path, sha)
+                        _log(f"[diff] get_commit_diff: {time.monotonic()-_t:.3f}s ({len(cache_entry['diff'])} bytes)")
                         self.commit_cache[sha] = cache_entry
                     diff_text = cache_entry['diff']
                 # Clean up binary file noise
+                _t = time.monotonic()
                 diff_text = clean_binary_diff_lines(diff_text)
+                _log(f"[diff] clean_binary_diff_lines: {time.monotonic()-_t:.3f}s")
                 # Truncate if too large
                 lines = diff_text.split('\n')
                 total_lines = len(lines)
+                _log(f"[diff] diff has {total_lines} lines, {len(diff_text)} bytes")
                 if total_lines > PLAIN_DIFF_LINE_CAP:
                     truncated = '\n'.join(lines[:PLAIN_DIFF_LINE_CAP])
+                    _t = time.monotonic()
                     self.side_diff_view.setPlainText(truncated)
+                    _log(f"[diff] setPlainText (truncated): {time.monotonic()-_t:.3f}s")
                     self._show_truncation_banner(total_lines)
                 else:
+                    _t = time.monotonic()
                     self.side_diff_view.setPlainText(diff_text)
+                    _log(f"[diff] setPlainText (full): {time.monotonic()-_t:.3f}s")
                     self._hide_truncation_banner()
                 self._current_diff_sha = sha
                 self.side_diff_view.set_separator_color(self.current_theme_colors.get("separator", "#444444"))
@@ -121,20 +139,25 @@ class DiffMixin:
 
             # Always populate file-wise and tree-wise tabs
             if 'files' not in cache_entry:
+                _t = time.monotonic()
                 cache_entry['files'] = get_commit_files_with_status(self.repo_path, sha, stash=self.browse_stash)
+                _log(f"[diff] get_commit_files_with_status: {time.monotonic()-_t:.3f}s ({len(cache_entry['files'])} files)")
                 self.commit_cache[sha] = cache_entry
 
             file_entries = cache_entry['files']
             # Fetch per-file stats (cached separately)
             if 'file_stats' not in cache_entry:
                 try:
+                    _t = time.monotonic()
                     cache_entry['file_stats'] = get_commit_file_stats(self.repo_path, sha)
+                    _log(f"[diff] get_commit_file_stats: {time.monotonic()-_t:.3f}s")
                 except:
                     cache_entry['file_stats'] = {}
                 self.commit_cache[sha] = cache_entry
             file_stats = cache_entry.get('file_stats', {})
 
             # Temporarily block signals to avoid triggering _on_filewise_item_changed prematurely
+            _t = time.monotonic()
             self.filewise_file_list.blockSignals(True)
             self.filewise_file_list.clear()
             for entry in file_entries:
@@ -155,17 +178,26 @@ class DiffMixin:
                 item.setCheckState(Qt.Unchecked)
                 self.filewise_file_list.addItem(item)
             self.filewise_file_list.blockSignals(False)
+            _log(f"[diff] filewise_file_list populated ({len(file_entries)} items): {time.monotonic()-_t:.3f}s")
 
             # Also populate the tree-wise tab
+            _t = time.monotonic()
             self._populate_treewise_tree(file_entries, file_stats)
+            _log(f"[diff] _populate_treewise_tree: {time.monotonic()-_t:.3f}s")
 
             # Refresh the active diff pane to show checked files
             tab_idx = self.diff_tab_widget.currentIndex()
             if tab_idx == 1:
+                _t = time.monotonic()
                 self._refresh_filewise_diff()
+                _log(f"[diff] _refresh_filewise_diff: {time.monotonic()-_t:.3f}s")
             elif tab_idx == 2:
+                _t = time.monotonic()
                 self._refresh_treewise_diff()
+                _log(f"[diff] _refresh_treewise_diff: {time.monotonic()-_t:.3f}s")
+            _log(f"[diff] end _do_update_side_diff")
         except Exception as e:
+            _log(f"[diff] EXCEPTION: {e}")
             self.side_diff_view.setPlainText(f"Error loading diff: {e}")
             if hasattr(self, 'side_commit_msg'):
                 self.side_commit_msg.clear()
