@@ -168,6 +168,7 @@ class DiffMixin:
         self.commit_cache[commit_sha] = cache_entry
 
         # Update filewise list items with stats (in-place, no rebuild)
+        self.filewise_file_list.setUpdatesEnabled(False)
         self.filewise_file_list.blockSignals(True)
         for i in range(self.filewise_file_list.count()):
             item = self.filewise_file_list.item(i)
@@ -176,12 +177,17 @@ class DiffMixin:
                 _, path1, _ = entry
                 item.setData(Qt.UserRole, file_stats.get(path1))
         self.filewise_file_list.blockSignals(False)
+        self.filewise_file_list.setUpdatesEnabled(True)
 
         # Update treewise tree stats in-place without rebuilding the whole tree.
         # This preserves any check states the user has already set.
         added_color = self.current_theme_colors.get("added", "#22863a") if hasattr(self, 'current_theme_colors') else "#22863a"
         removed_color = self.current_theme_colors.get("removed", "#cb2431") if hasattr(self, 'current_theme_colors') else "#cb2431"
+        self.treewise_tree.setUpdatesEnabled(False)
+        self.treewise_tree.blockSignals(True)
         self._update_treewise_stats(self.treewise_tree.invisibleRootItem(), file_stats, added_color, removed_color)
+        self.treewise_tree.blockSignals(False)
+        self.treewise_tree.setUpdatesEnabled(True)
 
         # Refresh active diff pane (no new subprocess calls — diffs are already cached)
         tab_idx = self.diff_tab_widget.currentIndex()
@@ -258,13 +264,11 @@ class DiffMixin:
                 self._ensure_filewise_populated(sha, cache_entry)
             self._refresh_treewise_diff()
 
-    def _ensure_filewise_populated(self, sha, cache_entry):
-        """Populate filewise list and treewise tree if not already done for this sha.
+    def _ensure_filewise_list_populated(self, sha, cache_entry):
+        """Populate filewise list if not already done for this sha."""
+        if getattr(self, '_filewise_list_sha', None) == sha:
+            return
 
-        Bug 4 fix: this is called lazily — only when the user actually visits the
-        filewise or treewise tab, avoiding unnecessary subprocess calls on every
-        commit selection when the plain diff tab is active.
-        """
         if 'files' not in cache_entry:
             cache_entry['files'] = get_commit_files_with_status(self.repo_path, sha, stash=self.browse_stash)
             self.commit_cache[sha] = cache_entry
@@ -278,6 +282,7 @@ class DiffMixin:
 
         self._filewise_entries_map = {}
         self._filewise_item_by_entry = {}
+        self.filewise_file_list.setUpdatesEnabled(False)
         self.filewise_file_list.blockSignals(True)
         self.filewise_file_list.clear()
         for entry in file_entries:
@@ -302,8 +307,37 @@ class DiffMixin:
             self.filewise_file_list.addItem(fitem)
             self._filewise_item_by_entry[entry] = fitem
         self.filewise_file_list.blockSignals(False)
+        self.filewise_file_list.setUpdatesEnabled(True)
+        self._filewise_list_sha = sha
 
+    def _ensure_treewise_tree_populated(self, sha, cache_entry):
+        """Populate treewise tree if not already done for this sha."""
+        if getattr(self, '_treewise_tree_sha', None) == sha:
+            return
+
+        if 'files' not in cache_entry:
+            cache_entry['files'] = get_commit_files_with_status(self.repo_path, sha, stash=self.browse_stash)
+            self.commit_cache[sha] = cache_entry
+
+        file_entries = cache_entry['files']
+        if 'file_stats' in cache_entry:
+            file_stats = cache_entry['file_stats']
+        else:
+            file_stats = {}
+            self._launch_numstat_worker(sha, file_entries)
+
+        self.treewise_tree.setUpdatesEnabled(False)
         self._populate_treewise_tree(file_entries, file_stats)
+        self.treewise_tree.setUpdatesEnabled(True)
+        self._treewise_tree_sha = sha
+
+    def _ensure_filewise_populated(self, sha, cache_entry):
+        """Populate the current active tab (filewise list or treewise tree)."""
+        tab_idx = self.diff_tab_widget.currentIndex()
+        if tab_idx == 2:
+            self._ensure_treewise_tree_populated(sha, cache_entry)
+        else:
+            self._ensure_filewise_list_populated(sha, cache_entry)
 
     def show_filewise_context_menu(self, pos):
         item = self.filewise_file_list.itemAt(pos)
