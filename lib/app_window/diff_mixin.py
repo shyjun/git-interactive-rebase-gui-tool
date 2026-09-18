@@ -1,6 +1,5 @@
 from PySide6.QtCore import (
     Qt,
-    QTimer,
 )
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
@@ -145,7 +144,7 @@ class DiffMixin:
             self._numstat_worker.finished.disconnect()
             self._numstat_worker.terminate()
             self._numstat_worker = None
-        _log(f"[diff] launching async numstat for {sha[:11]} ({len(file_entries)} files)")
+        _log(f"[diff] numstat started for {sha[:11]} ({len(file_entries)} files)")
         self._numstat_worker = NumstatWorker(self.repo_path, sha)
         self._numstat_worker.finished.connect(self._on_numstat_ready)
         self._numstat_worker.start()
@@ -217,49 +216,18 @@ class DiffMixin:
         if self.plain_diff_search.isVisible():
             self.plain_diff_search._perform_search()
 
-    def _debug_heartbeat(self, label):
-        _log(f"[diff] HEARTBEAT {label}")
-
-    def _debug_dump_traceback(self):
-        import traceback
-        import sys
-        import threading
-        main_thread = threading.main_thread()
-        frame = sys._current_frames().get(main_thread.ident)
-        if frame:
-            _log("[diff] === MAIN THREAD TRACEBACK ===")
-            for line in traceback.format_stack(frame):
-                _log(line.rstrip())
-            _log("[diff] === END TRACEBACK ===")
-        else:
-            _log("[diff] Could not get main thread frame")
-
-    def _cancel_debug_tb_timer(self):
-        """Bug 1 fix: cancel the background traceback-dump timer after a successful tab switch."""
-        if hasattr(self, '_debug_tb_timer') and self._debug_tb_timer is not None:
-            self._debug_tb_timer.cancel()
-            self._debug_tb_timer = None
-
     def on_diff_tab_changed(self, index):
-        _log(f"[diff] on_diff_tab_changed index={index}")
         self.settings.setValue(self._sk("diff_tab_index"), index)
-        import threading
-        self._debug_tb_timer = threading.Timer(3.0, self._debug_dump_traceback)
-        self._debug_tb_timer.daemon = True
-        self._debug_tb_timer.start()
-        QTimer.singleShot(500, lambda: self._cancel_debug_tb_timer())
         if index == 0:
-            # Bug 2 fix: only render from cache — never fetch git diff synchronously here.
+            # Only render from cache — never fetch git diff synchronously here.
             # _do_update_side_diff already fetches when the user selects a commit.
-            # If the diff isn't cached yet (e.g. user was on filewise tab when they first
-            # selected this commit), trigger the full update which handles fetching properly.
+            # If diff isn't cached yet (user was on filewise tab when first selecting
+            # this commit), trigger the full update which handles fetching properly.
             item = self.list_widget.currentItem()
             if item and item.data(Qt.UserRole + 9) != "load_more":
                 sha = item.text().split()[0]
-                _log(f"[diff] tab0 sha={sha[:11]}")
                 cache_entry = self.commit_cache.get(sha, {})
                 if 'diff' in cache_entry:
-                    _log(f"[diff] tab0 diff cached ({len(cache_entry['diff'])} bytes), rendering")
                     diff_text = clean_binary_diff_lines(cache_entry['diff'])
                     lines = diff_text.split('\n')
                     total_lines = len(lines)
@@ -275,28 +243,21 @@ class DiffMixin:
                     if self.plain_diff_search.isVisible():
                         self.plain_diff_search._perform_search()
                 else:
-                    # Not cached yet — run full update which fetches diff async-friendly
-                    _log("[diff] tab0 diff not cached, triggering full update")
                     self._do_update_side_diff()
         elif index == 1:
-            _log("[diff] tab1 lazy-populating filewise + refresh")
             item = self.list_widget.currentItem()
             if item and item.data(Qt.UserRole + 9) != "load_more":
                 sha = item.text().split()[0]
                 cache_entry = self.commit_cache.get(sha, {})
                 self._ensure_filewise_populated(sha, cache_entry)
             self._refresh_filewise_diff()
-            _log("[diff] tab1 done")
         elif index == 2:
-            _log("[diff] tab2 lazy-populating treewise + refresh")
             item = self.list_widget.currentItem()
             if item and item.data(Qt.UserRole + 9) != "load_more":
                 sha = item.text().split()[0]
                 cache_entry = self.commit_cache.get(sha, {})
                 self._ensure_filewise_populated(sha, cache_entry)
             self._refresh_treewise_diff()
-            _log("[diff] tab2 done")
-        _log("[diff] on_diff_tab_changed done")
 
     def _ensure_filewise_populated(self, sha, cache_entry):
         """Populate filewise list and treewise tree if not already done for this sha.
@@ -486,12 +447,10 @@ class DiffMixin:
             filepath = entry[2] if entry[0] == 'R' else entry[1]
         else:
             filepath = item.text()
-        _log(f"[diff] _on_filewise_item_changed {filepath[:40]} checked={checked}")
         for i in range(self.treewise_tree.topLevelItemCount()):
             self._sync_file_to_tree(self.treewise_tree.topLevelItem(i), filepath, checked)
         self._refresh_filewise_diff()
         self._refresh_treewise_diff()
-        _log("[diff] _on_filewise_item_changed done")
 
     def _sync_file_to_tree(self, parent_item, filepath, checked):
         """Recursively find and sync a file's check state in the tree."""
@@ -522,7 +481,6 @@ class DiffMixin:
             return
         checked = item.checkState(0) == Qt.Checked
         if item_data["type"] == "folder":
-            _log(f"[diff] _on_treewise_item_changed FOLDER checked={checked}")
             self._set_tree_children_checked(item, checked)
             p = item.parent()
             while p:
@@ -533,7 +491,6 @@ class DiffMixin:
             filepath = ""
             if entry:
                 filepath = entry[2] if entry[0] == 'R' else entry[1]
-                _log(f"[diff] _on_treewise_item_changed FILE {filepath[:40]} checked={checked}")
                 for i in range(self.filewise_file_list.count()):
                     list_item = self.filewise_file_list.item(i)
                     list_entry = list_item.data(FILE_ENTRY_ROLE)
@@ -606,16 +563,13 @@ class DiffMixin:
 
     def _refresh_filewise_diff(self):
         """Show combined diff of all checked files in the filewise diff pane."""
-        _log("[diff] _refresh_filewise_diff start")
         checked = self._checked_filewise_files()
-        _log(f"[diff] _refresh_filewise_diff checked={len(checked)}")
         if not checked:
             self.filewise_diff_view.clear()
             return
         try:
             parts = []
             for f in checked:
-                _log(f"[diff] _get_file_diff for {f}")
                 d = self._get_file_diff(f).rstrip("\n")
                 if d:
                     parts.append(d)
@@ -624,7 +578,6 @@ class DiffMixin:
             self.filewise_diff_view.set_separator_color(self.current_theme_colors.get("separator", "#444444"))
             self.filewise_diff_search._perform_search()
         except Exception as e:
-            _log(f"[diff] _refresh_filewise_diff EXCEPTION: {e}")
             self.filewise_diff_view.setPlainText(f"Error loading diff: {e}")
 
     def _refresh_treewise_diff(self):
