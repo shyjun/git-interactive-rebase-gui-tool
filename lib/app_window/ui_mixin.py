@@ -934,9 +934,11 @@ class UIMixin:
             self.full_view_btn.setToolTip("Expand diff pane to full height, hiding the commit message.")
 
     def _toggle_filewise_file_list(self):
+        _log("[diff] _toggle_filewise_file_list start")
         file_list = self.filewise_file_list
         visible = file_list.isVisible()
         file_list.setVisible(not visible)
+        _log("[diff] _toggle_filewise_file_list setVisible done")
         arrow = "\u25B6" if visible else "\u25BC"  # ▶ collapsed, ▼ expanded
         self.diff_tab_widget.setTabText(self._filewise_tab_idx,
                                        f"{arrow} File-wise Diff")
@@ -946,6 +948,7 @@ class UIMixin:
         else:
             self.filewise_splitter.setSizes([100, 300])
             self.filewise_splitter.handle(1).setEnabled(True)
+        _log("[diff] _toggle_filewise_file_list done")
 
     def _toggle_treewise_file_list(self):
         tree = self.treewise_tree
