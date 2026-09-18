@@ -244,9 +244,16 @@ class DiffMixin:
         if self.plain_diff_search.isVisible():
             self.plain_diff_search._perform_search()
 
+    def _debug_heartbeat(self, label):
+        _log(f"[diff] HEARTBEAT {label}")
+
     def on_diff_tab_changed(self, index):
         _log(f"[diff] on_diff_tab_changed index={index}")
         self.settings.setValue(self._sk("diff_tab_index"), index)
+        QTimer.singleShot(0, lambda: self._debug_heartbeat("deferred-0ms"))
+        QTimer.singleShot(100, lambda: self._debug_heartbeat("deferred-100ms"))
+        QTimer.singleShot(500, lambda: self._debug_heartbeat("deferred-500ms"))
+        QTimer.singleShot(1000, lambda: self._debug_heartbeat("deferred-1000ms"))
         if index == 0:
             # Load plain diff if not cached yet
             item = self.list_widget.currentItem()
