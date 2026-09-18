@@ -119,50 +119,18 @@ class DiffMixin:
             else:
                 self.side_diff_view.clear()
 
-            # Always populate file-wise and tree-wise tabs
-            if 'files' not in cache_entry:
-                cache_entry['files'] = get_commit_files_with_status(self.repo_path, sha, stash=self.browse_stash)
-                self.commit_cache[sha] = cache_entry
-
-            file_entries = cache_entry['files']
-            # Fetch per-file stats — use cache if available, otherwise launch async
-            if 'file_stats' in cache_entry:
-                file_stats = cache_entry.get('file_stats', {})
-            else:
-                file_stats = {}
-                self._launch_numstat_worker(sha, file_entries)
-
-            # Temporarily block signals to avoid triggering _on_filewise_item_changed prematurely
-            self.filewise_file_list.blockSignals(True)
-            self.filewise_file_list.clear()
-            for entry in file_entries:
-                status, path1, path2 = entry
-                if status == 'R':
-                    display = f"{path1} => {path2}"
-                elif status == 'D':
-                    display = f"{path1} (Deleted)"
-                elif status == 'A':
-                    display = f"{path1} (Added new file)"
-                else:
-                    display = path1
-                item = QListWidgetItem(display)
-                item.setToolTip(path1)
-                item.setData(Qt.UserRole, file_stats.get(path1))
-                item.setData(FILE_ENTRY_ROLE, entry)
-                item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
-                item.setCheckState(Qt.Unchecked)
-                self.filewise_file_list.addItem(item)
-            self.filewise_file_list.blockSignals(False)
-
-            # Also populate the tree-wise tab
-            self._populate_treewise_tree(file_entries, file_stats)
-
-            # Refresh the active diff pane to show checked files
+            # Bug 4 fix: only populate file-wise and tree-wise tabs when they are active.
+            # Lazy-load them on demand in on_diff_tab_changed to avoid unnecessary subprocess
+            # calls on every commit selection when the user is on the plain diff tab.
             tab_idx = self.diff_tab_widget.currentIndex()
-            if tab_idx == 1:
-                self._refresh_filewise_diff()
-            elif tab_idx == 2:
-                self._refresh_treewise_diff()
+            if tab_idx == 1 or tab_idx == 2:
+                self._ensure_filewise_populated(sha, cache_entry)
+
+                # Refresh the active diff pane to show checked files
+                if tab_idx == 1:
+                    self._refresh_filewise_diff()
+                elif tab_idx == 2:
+                    self._refresh_treewise_diff()
         except Exception as e:
             self.side_diff_view.setPlainText(f"Error loading diff: {e}")
             if hasattr(self, 'side_commit_msg'):
@@ -183,7 +151,11 @@ class DiffMixin:
         self._numstat_worker.start()
 
     def _on_numstat_ready(self, commit_sha, file_stats):
-        """Called when background numstat completes."""
+        """Called when background numstat completes.
+
+        Bug 5 fix: instead of rebuilding the entire tree (which resets all check states),
+        we only update the stats column on already-existing tree items in-place.
+        """
         _log(f"[diff] numstat ready for {commit_sha[:11]} ({len(file_stats)} files)")
         # If user already clicked a different commit, ignore stale results
         current_item = self.list_widget.currentItem()
@@ -197,7 +169,7 @@ class DiffMixin:
         cache_entry['file_stats'] = file_stats
         self.commit_cache[commit_sha] = cache_entry
 
-        # Update filewise items with stats
+        # Update filewise list items with stats (in-place, no rebuild)
         self.filewise_file_list.blockSignals(True)
         for i in range(self.filewise_file_list.count()):
             item = self.filewise_file_list.item(i)
@@ -207,12 +179,13 @@ class DiffMixin:
                 item.setData(Qt.UserRole, file_stats.get(path1))
         self.filewise_file_list.blockSignals(False)
 
-        # Update treewise stats
-        file_entries = cache_entry.get('files', [])
-        if file_entries:
-            self._populate_treewise_tree(file_entries, file_stats)
+        # Update treewise tree stats in-place without rebuilding the whole tree.
+        # This preserves any check states the user has already set.
+        added_color = self.current_theme_colors.get("added", "#22863a") if hasattr(self, 'current_theme_colors') else "#22863a"
+        removed_color = self.current_theme_colors.get("removed", "#cb2431") if hasattr(self, 'current_theme_colors') else "#cb2431"
+        self._update_treewise_stats(self.treewise_tree.invisibleRootItem(), file_stats, added_color, removed_color)
 
-        # Refresh active diff pane
+        # Refresh active diff pane (no new subprocess calls — diffs are already cached)
         tab_idx = self.diff_tab_widget.currentIndex()
         if tab_idx == 1:
             self._refresh_filewise_diff()
@@ -261,6 +234,12 @@ class DiffMixin:
         else:
             _log("[diff] Could not get main thread frame")
 
+    def _cancel_debug_tb_timer(self):
+        """Bug 1 fix: cancel the background traceback-dump timer after a successful tab switch."""
+        if hasattr(self, '_debug_tb_timer') and self._debug_tb_timer is not None:
+            self._debug_tb_timer.cancel()
+            self._debug_tb_timer = None
+
     def on_diff_tab_changed(self, index):
         _log(f"[diff] on_diff_tab_changed index={index}")
         self.settings.setValue(self._sk("diff_tab_index"), index)
@@ -270,56 +249,95 @@ class DiffMixin:
         self._debug_tb_timer.start()
         QTimer.singleShot(500, lambda: self._cancel_debug_tb_timer())
         if index == 0:
-            # Load plain diff if not cached yet
+            # Bug 2 fix: only render from cache — never fetch git diff synchronously here.
+            # _do_update_side_diff already fetches when the user selects a commit.
+            # If the diff isn't cached yet (e.g. user was on filewise tab when they first
+            # selected this commit), trigger the full update which handles fetching properly.
             item = self.list_widget.currentItem()
             if item and item.data(Qt.UserRole + 9) != "load_more":
                 sha = item.text().split()[0]
                 _log(f"[diff] tab0 sha={sha[:11]}")
                 cache_entry = self.commit_cache.get(sha, {})
-                if 'diff' not in cache_entry:
-                    _log("[diff] tab0 diff NOT cached, fetching synchronously...")
-                    try:
-                        if self.browse_file:
-                            cache_entry['diff'] = get_file_diff_only_in_commit(
-                                self.repo_path, sha, self.browse_file)
-                        else:
-                            cache_entry['diff'] = get_commit_diff(self.repo_path, sha)
-                        self.commit_cache[sha] = cache_entry
-                    except Exception:
-                        pass
-                else:
-                    _log("[diff] tab0 diff cached")
                 if 'diff' in cache_entry:
-                    _log(f"[diff] tab0 diff size={len(cache_entry['diff'])} bytes")
+                    _log(f"[diff] tab0 diff cached ({len(cache_entry['diff'])} bytes), rendering")
                     diff_text = clean_binary_diff_lines(cache_entry['diff'])
                     lines = diff_text.split('\n')
                     total_lines = len(lines)
-                    _log(f"[diff] tab0 {total_lines} lines")
                     if total_lines > PLAIN_DIFF_LINE_CAP:
                         truncated = '\n'.join(lines[:PLAIN_DIFF_LINE_CAP])
-                        _log("[diff] tab0 setPlainText (truncated)")
                         self.side_diff_view.setPlainText(truncated)
                         self._show_truncation_banner(total_lines)
                     else:
-                        _log("[diff] tab0 setPlainText (full)")
                         self.side_diff_view.setPlainText(diff_text)
                         self._hide_truncation_banner()
-                    _log("[diff] tab0 setPlainText done")
                     self._current_diff_sha = sha
                     self.side_diff_view.set_separator_color(self.current_theme_colors.get("separator", "#444444"))
                     if self.plain_diff_search.isVisible():
-                        _log("[diff] tab0 performing search")
                         self.plain_diff_search._perform_search()
-                        _log("[diff] tab0 search done")
+                else:
+                    # Not cached yet — run full update which fetches diff async-friendly
+                    _log("[diff] tab0 diff not cached, triggering full update")
+                    self._do_update_side_diff()
         elif index == 1:
-            _log("[diff] tab1 calling _refresh_filewise_diff")
+            _log("[diff] tab1 lazy-populating filewise + refresh")
+            item = self.list_widget.currentItem()
+            if item and item.data(Qt.UserRole + 9) != "load_more":
+                sha = item.text().split()[0]
+                cache_entry = self.commit_cache.get(sha, {})
+                self._ensure_filewise_populated(sha, cache_entry)
             self._refresh_filewise_diff()
-            _log("[diff] tab1 _refresh_filewise_diff done")
+            _log("[diff] tab1 done")
         elif index == 2:
-            _log("[diff] tab2 calling _refresh_treewise_diff")
+            _log("[diff] tab2 lazy-populating treewise + refresh")
+            item = self.list_widget.currentItem()
+            if item and item.data(Qt.UserRole + 9) != "load_more":
+                sha = item.text().split()[0]
+                cache_entry = self.commit_cache.get(sha, {})
+                self._ensure_filewise_populated(sha, cache_entry)
             self._refresh_treewise_diff()
-            _log("[diff] tab2 _refresh_treewise_diff done")
+            _log("[diff] tab2 done")
         _log("[diff] on_diff_tab_changed done")
+
+    def _ensure_filewise_populated(self, sha, cache_entry):
+        """Populate filewise list and treewise tree if not already done for this sha.
+
+        Bug 4 fix: this is called lazily — only when the user actually visits the
+        filewise or treewise tab, avoiding unnecessary subprocess calls on every
+        commit selection when the plain diff tab is active.
+        """
+        if 'files' not in cache_entry:
+            cache_entry['files'] = get_commit_files_with_status(self.repo_path, sha, stash=self.browse_stash)
+            self.commit_cache[sha] = cache_entry
+
+        file_entries = cache_entry['files']
+        if 'file_stats' in cache_entry:
+            file_stats = cache_entry['file_stats']
+        else:
+            file_stats = {}
+            self._launch_numstat_worker(sha, file_entries)
+
+        self.filewise_file_list.blockSignals(True)
+        self.filewise_file_list.clear()
+        for entry in file_entries:
+            status, path1, path2 = entry
+            if status == 'R':
+                display = f"{path1} => {path2}"
+            elif status == 'D':
+                display = f"{path1} (Deleted)"
+            elif status == 'A':
+                display = f"{path1} (Added new file)"
+            else:
+                display = path1
+            fitem = QListWidgetItem(display)
+            fitem.setToolTip(path1)
+            fitem.setData(Qt.UserRole, file_stats.get(path1))
+            fitem.setData(FILE_ENTRY_ROLE, entry)
+            fitem.setFlags(fitem.flags() | Qt.ItemIsUserCheckable)
+            fitem.setCheckState(Qt.Unchecked)
+            self.filewise_file_list.addItem(fitem)
+        self.filewise_file_list.blockSignals(False)
+
+        self._populate_treewise_tree(file_entries, file_stats)
 
     def show_filewise_context_menu(self, pos):
         item = self.filewise_file_list.itemAt(pos)
@@ -421,11 +439,19 @@ class DiffMixin:
         QMessageBox.information(self, "Copied", f"Copied '{fullpath}' to clipboard.")
 
     def _get_file_diff(self, filepath):
-        """Get diff for a single file in the current commit."""
+        """Get diff for a single file in the current commit.
+
+        Bug 3 fix: results are cached in commit_cache under key 'file_diff:<sha>:<filepath>'
+        so repeated tab switches and checkbox toggles don't re-run git for the same file.
+        """
         list_item = self.list_widget.currentItem()
         if not list_item:
             return ""
         sha = list_item.text().split()[0]
+        cache_key = f'file_diff:{filepath}'
+        cache_entry = self.commit_cache.get(sha, {})
+        if cache_key in cache_entry:
+            return cache_entry[cache_key]
         try:
             item = None
             for i in range(self.filewise_file_list.count()):
@@ -441,11 +467,14 @@ class DiffMixin:
                     break
             entry = item.data(FILE_ENTRY_ROLE) if item else None
             if entry and entry[0] == 'R':
-                return get_rename_diff_in_commit(self.repo_path, sha, entry[1], entry[2])
+                result = get_rename_diff_in_commit(self.repo_path, sha, entry[1], entry[2])
             elif entry:
-                return get_file_diff_only_in_commit(self.repo_path, sha, entry[1])
+                result = get_file_diff_only_in_commit(self.repo_path, sha, entry[1])
             else:
-                return get_file_diff_only_in_commit(self.repo_path, sha, filepath)
+                result = get_file_diff_only_in_commit(self.repo_path, sha, filepath)
+            cache_entry[cache_key] = result
+            self.commit_cache[sha] = cache_entry
+            return result
         except Exception as e:
             return f"Error loading diff: {e}"
 
@@ -672,6 +701,50 @@ class DiffMixin:
         else:
             item.setText(1, f"+{added} / -{deleted}")
         item.setTextAlignment(1, Qt.AlignRight | Qt.AlignVCenter)
+
+    def _update_treewise_stats(self, parent_item, file_stats, added_color, removed_color):
+        """Recursively update stats column on existing tree items without rebuilding the tree.
+
+        Bug 5 fix: called by _on_numstat_ready to inject stats after async numstat
+        completes, preserving existing check states set by the user.
+        """
+        for i in range(parent_item.childCount()):
+            child = parent_item.child(i)
+            item_data = child.data(0, Qt.UserRole + 10)
+            if not item_data:
+                continue
+            if item_data["type"] == "folder":
+                # Recurse into folder, accumulate stats from children
+                self._update_treewise_stats(child, file_stats, added_color, removed_color)
+                # Re-compute folder totals from file_stats
+                node = item_data.get("node", {})
+                added = sum(
+                    file_stats[e[1]][0]
+                    for e in self._collect_folder_entries(node)
+                    if e[1] in file_stats and file_stats[e[1]]
+                )
+                deleted = sum(
+                    file_stats[e[1]][1]
+                    for e in self._collect_folder_entries(node)
+                    if e[1] in file_stats and file_stats[e[1]]
+                )
+                if added or deleted:
+                    self._set_stats_column(child, added, deleted, added_color, removed_color)
+            else:
+                entry = item_data.get("entry")
+                if entry:
+                    path1 = entry[1]
+                    stats = file_stats.get(path1)
+                    if stats:
+                        self._set_stats_column(child, stats[0], stats[1], added_color, removed_color)
+
+    def _collect_folder_entries(self, node):
+        """Recursively yield all file entries under a folder node (for stats accumulation)."""
+        for child_node in node.get("children", {}).values():
+            if child_node["children"]:
+                yield from self._collect_folder_entries(child_node)
+            else:
+                yield from child_node.get("entries", [])
 
     def _add_tree_children(self, parent_item, children_dict):
         """Recursively add folder/file nodes to the QTreeWidget."""
