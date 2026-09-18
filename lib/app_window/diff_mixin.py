@@ -141,14 +141,12 @@ class DiffMixin:
 
     def _launch_numstat_worker(self, sha, file_entries):
         """Launch async numstat computation for a commit."""
-        if hasattr(self, '_numstat_worker') and self._numstat_worker is not None:
-            self._numstat_worker.finished.disconnect()
-            self._numstat_worker.terminate()
-            self._numstat_worker = None
         _log(f"[diff] numstat started for {sha[:11]} ({len(file_entries)} files)")
-        self._numstat_worker = NumstatWorker(self.repo_path, sha)
-        self._numstat_worker.finished.connect(self._on_numstat_ready)
-        self._numstat_worker.start()
+        worker = NumstatWorker(self.repo_path, sha, parent=self)
+        worker.finished.connect(self._on_numstat_ready)
+        worker.finished.connect(worker.deleteLater)
+        self._numstat_worker = worker
+        worker.start()
 
     def _on_numstat_ready(self, commit_sha, file_stats):
         """Called when background numstat completes.
