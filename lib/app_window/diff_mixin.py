@@ -152,7 +152,8 @@ class DiffMixin:
             self._active_numstat_workers.discard(worker)
             worker.deleteLater()
 
-        worker.finished.connect(self._on_numstat_ready)
+        worker.numstat_ready.connect(self._on_numstat_ready)
+        # Connect to native Qt QThread finished signal (emitted AFTER run() exits)
         worker.finished.connect(_cleanup)
         worker.start()
 

@@ -128,7 +128,7 @@ class UpdateMixin:
                 elif clicked == update_button:
                     self._run_self_update(tool_dir)
 
-        self.worker.finished.connect(on_check_finished)
+        self.worker.git_finished.connect(on_check_finished)
         _log("[thread] update check worker.start()")
         self.worker.start()
         self.progress_dialog.exec()
@@ -153,7 +153,7 @@ class UpdateMixin:
             else:
                 QMessageBox.critical(self, "Update Failed", message)
 
-        self.update_worker.finished.connect(on_update_finished)
+        self.update_worker.update_finished.connect(on_update_finished)
         _log("[thread] update self-update worker.start()")
         self.update_worker.start()
         self.update_progress_dialog.exec()

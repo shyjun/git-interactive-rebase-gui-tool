@@ -28,8 +28,8 @@ class ResetMixin:
 
         worker = GitWorker(["git", "fetch"], self.repo_path)
         self._active_workers.add(worker)
-        worker.finished.connect(lambda *a: self._active_workers.discard(worker))
-        worker.finished.connect(self.on_fetch_finished)
+        worker.git_finished.connect(lambda *a: self._active_workers.discard(worker))
+        worker.git_finished.connect(self.on_fetch_finished)
         self.worker = worker
         _log("[thread] GitWorker.start()")
         worker.start()
@@ -90,7 +90,7 @@ class ResetMixin:
 
                 self.load_history()
 
-            self.worker.finished.connect(on_origin_reset_finished)
+            self.worker.git_finished.connect(on_origin_reset_finished)
             _log("[thread] GitWorker.start()")
             self.worker.start()
             self.progress_dialog.exec()
@@ -114,7 +114,7 @@ class ResetMixin:
             self.progress_dialog = ProgressDialog("Git Pushing", "git push --force in progress...", self)
 
             self.worker = GitWorker(["git", "push", "--force"], self.repo_path)
-            self.worker.finished.connect(self.on_push_finished)
+            self.worker.git_finished.connect(self.on_push_finished)
             _log("[thread] GitWorker.start()")
             self.worker.start()
 
@@ -239,7 +239,7 @@ class ResetMixin:
             else:
                 QMessageBox.critical(self, "Reset Failed", f"Could not perform reset.\n\nError: {stderr}")
 
-        self.worker.finished.connect(on_reset_finished)
+        self.worker.git_finished.connect(on_reset_finished)
         _log("[thread] GitWorker.start()")
         self.worker.start()
         self.progress_dialog.exec()
@@ -327,7 +327,7 @@ class ResetMixin:
                     f"Could not perform reset.\n\nError: {stderr}"
                 )
 
-        self.worker.finished.connect(on_reset_here_finished)
+        self.worker.git_finished.connect(on_reset_here_finished)
         _log("[thread] GitWorker.start()")
         self.worker.start()
         self.progress_dialog.exec()

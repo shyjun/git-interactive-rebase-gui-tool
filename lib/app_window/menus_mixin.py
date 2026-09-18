@@ -170,7 +170,7 @@ class MenusMixin:
         from lib.git_helpers import GIT_REPO_URL
 
         class _UpdateCheckWorker(QThread):
-            finished = Signal(str)  # remote sha or empty on failure
+            check_finished = Signal(str)  # remote sha or empty on failure
 
             def run(self):
                 try:
@@ -182,11 +182,11 @@ class MenusMixin:
                         encoding='utf-8', errors='replace',
                         timeout=15)
                     if res.returncode == 0 and res.stdout.strip():
-                        self.finished.emit(res.stdout.split()[0])
+                        self.check_finished.emit(res.stdout.split()[0])
                     else:
-                        self.finished.emit("")
+                        self.check_finished.emit("")
                 except Exception:
-                    self.finished.emit("")
+                    self.check_finished.emit("")
 
         local_head = self.start_time_tool_full_head
 
@@ -207,11 +207,8 @@ class MenusMixin:
         local_display = self.start_time_tool_head[:8] if self.start_time_tool_head else "pip"
         _log(f"[startup_check] checking remote (local={local_display})...", flush=True)
         self._startup_check_worker = _UpdateCheckWorker()
-        self._startup_check_worker.finished.connect(_on_finished)
-        # deleteLater() releases the QThread safely via the event loop after it
-        # fully finishes, instead of dropping the reference in _on_finished
-        # (which can GC the QThread mid-emission and trigger
-        # 'QThread: Destroyed while thread is still running').
+        self._startup_check_worker.check_finished.connect(_on_finished)
+        # Connect native QThread finished signal (emitted AFTER run() exits) to deleteLater
         self._startup_check_worker.finished.connect(self._startup_check_worker.deleteLater)
         _log("[thread] startup check worker.start()", flush=True)
         self._startup_check_worker.start()

@@ -130,7 +130,7 @@ class UndoMixin:
                     QMessageBox.critical(self, "Undo Failed", f"Could not perform undo.\n\nError: {stderr}")
                     self.load_history()
 
-            self.worker.finished.connect(on_undo_finished)
+            self.worker.git_finished.connect(on_undo_finished)
             _log("[thread] undo GitWorker.start()")
             self.worker.start()
             self.progress_dialog.exec()
@@ -183,7 +183,7 @@ class UndoMixin:
                     QMessageBox.critical(self, "Redo Failed", f"Could not perform redo.\n\nError: {stderr}")
                     self.load_history()
 
-            self.worker.finished.connect(on_redo_finished)
+            self.worker.git_finished.connect(on_redo_finished)
             _log("[thread] redo GitWorker.start()")
             self.worker.start()
             self.progress_dialog.exec()

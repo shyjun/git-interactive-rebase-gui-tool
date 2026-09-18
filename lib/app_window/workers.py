@@ -7,7 +7,7 @@ from lib.git_helpers import perform_self_update
 
 
 class GitWorker(QThread):
-    finished = Signal(bool, str, str)
+    git_finished = Signal(bool, str, str)
 
     def __init__(self, command, cwd, timeout=30):
         super().__init__()
@@ -23,19 +23,19 @@ class GitWorker(QThread):
                 check=True, encoding='utf-8', errors='replace',
                 timeout=self.timeout
             )
-            self.finished.emit(True, result.stdout, "")
+            self.git_finished.emit(True, result.stdout, "")
         except subprocess.TimeoutExpired:
-            self.finished.emit(
+            self.git_finished.emit(
                 False, "", f"Command timed out after {self.timeout}s: {' '.join(str(a) for a in self.command)}"
             )
         except subprocess.CalledProcessError as e:
-            self.finished.emit(False, "", e.stderr)
+            self.git_finished.emit(False, "", e.stderr)
         except Exception as e:
-            self.finished.emit(False, "", str(e))
+            self.git_finished.emit(False, "", str(e))
 
 
 class NumstatWorker(QThread):
-    finished = Signal(str, dict)
+    numstat_ready = Signal(str, dict)
 
     def __init__(self, repo_path, commit_sha, parent=None):
         super().__init__(parent)
@@ -48,11 +48,11 @@ class NumstatWorker(QThread):
             stats = get_commit_file_stats(self.repo_path, self.commit_sha)
         except Exception:
             stats = {}
-        self.finished.emit(self.commit_sha, stats)
+        self.numstat_ready.emit(self.commit_sha, stats)
 
 
 class SelfUpdateWorker(QThread):
-    finished = Signal(bool, str)
+    update_finished = Signal(bool, str)
 
     def __init__(self, tool_dir):
         super().__init__()
@@ -61,13 +61,13 @@ class SelfUpdateWorker(QThread):
     def run(self):
         try:
             ok, message = perform_self_update(self.tool_dir)
-            self.finished.emit(ok, message)
+            self.update_finished.emit(ok, message)
         except Exception as e:
-            self.finished.emit(False, str(e))
+            self.update_finished.emit(False, str(e))
 
 
 class SplitWorker(QThread):
-    finished = Signal(int, str, str)
+    split_finished = Signal(int, str, str)
 
     def __init__(self, cmd, cwd, env=None):
         super().__init__()
@@ -78,6 +78,6 @@ class SplitWorker(QThread):
     def run(self):
         try:
             result = subprocess.run(self.cmd, cwd=self.cwd, env=self.env, capture_output=True, text=True, encoding='utf-8', errors='replace')
-            self.finished.emit(result.returncode, result.stdout, result.stderr)
+            self.split_finished.emit(result.returncode, result.stdout, result.stderr)
         except Exception as e:
-            self.finished.emit(-1, "", str(e))
+            self.split_finished.emit(-1, "", str(e))
