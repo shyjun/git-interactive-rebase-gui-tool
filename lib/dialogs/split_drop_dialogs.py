@@ -422,9 +422,9 @@ class DropFileFromCommitDialog(QDialog):
 
 class ConfirmDropFileDialog(DiffViewerDialog):
     """Confirmation dialog showing file diff before dropping file changes from a commit."""
-    def __init__(self, sha, filepath, diff_text, font_size=10, parent=None):
+    def __init__(self, sha, filepath, diff_text, font_size=10, font_family=None, parent=None):
         self.filepath = filepath
-        super().__init__(f"Confirm Drop File Changes: {sha}", sha, diff_text, font_size, parent)
+        super().__init__(f"Confirm Drop File Changes: {sha}", sha, diff_text, font_size, font_family, parent)
 
     def setup_header(self, sha):
         label = QLabel(f"Are you sure you want to drop changes of <b>{self.filepath}</b> from commit: <b>{sha}</b>?")
@@ -456,9 +456,9 @@ class ConfirmDropFileDialog(DiffViewerDialog):
 
 class ConfirmMoveFileDialog(DiffViewerDialog):
     """Confirmation dialog showing file diff before moving file changes out of a commit."""
-    def __init__(self, sha, filepath, diff_text, font_size=10, parent=None):
+    def __init__(self, sha, filepath, diff_text, font_size=10, font_family=None, parent=None):
         self.filepath = filepath
-        super().__init__(f"Confirm Move File Out: {sha}", sha, diff_text, font_size, parent)
+        super().__init__(f"Confirm Move File Out: {sha}", sha, diff_text, font_size, font_family, parent)
 
     def setup_header(self, sha):
         label = QLabel(f"Are you sure you want to move changes of <b>{self.filepath}</b> out of commit: <b>{sha}</b>?")
@@ -484,10 +484,10 @@ class ConfirmMoveFileDialog(DiffViewerDialog):
 
 class ConfirmRemoveFileOnwardsDialog(DiffViewerDialog):
     """Confirmation dialog for removing a file from a commit and all subsequent commits."""
-    def __init__(self, sha, filepath, diff_text, later_modifications_detected=False, font_size=10, parent=None):
+    def __init__(self, sha, filepath, diff_text, later_modifications_detected=False, font_size=10, font_family=None, parent=None):
         self.filepath = filepath
         self.later_modifications_detected = later_modifications_detected
-        super().__init__("Remove File from This Commit Onwards?", sha, diff_text, font_size, parent)
+        super().__init__("Remove File from This Commit Onwards?", sha, diff_text, font_size, font_family, parent)
 
     def setup_header(self, sha):
         msg = (

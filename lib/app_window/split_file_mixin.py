@@ -90,7 +90,7 @@ class SplitFileMixin:
             except Exception:
                 diff_text = "Could not load diff for this file."
 
-            confirm_dialog = ConfirmMoveFileDialog(sha, filepath, diff_text, self.current_font_size, self)
+            confirm_dialog = ConfirmMoveFileDialog(sha, filepath, diff_text, self.current_font_size, self.current_font_family, self)
             if confirm_dialog.exec() != QDialog.Accepted:
                 return
 
@@ -276,7 +276,7 @@ finally:
             except Exception:
                 diff_text = "Could not load diff for this file."
 
-            confirm_dialog = ConfirmDropFileDialog(sha, filepath, diff_text, self.current_font_size, self)
+            confirm_dialog = ConfirmDropFileDialog(sha, filepath, diff_text, self.current_font_size, self.current_font_family, self)
             if confirm_dialog.exec() != QDialog.Accepted:
                 return
 
@@ -437,7 +437,7 @@ subprocess.check_call(['git', 'clean', '-fd', '--', filepath])
             confirm_dialog = ConfirmRemoveFileOnwardsDialog(
                 sha, filepath, diff_text,
                 later_modifications_detected=later_modifications_detected,
-                font_size=self.current_font_size, parent=self
+                font_size=self.current_font_size, font_family=self.current_font_family, parent=self
             )
             if confirm_dialog.exec() != QDialog.Accepted:
                 return

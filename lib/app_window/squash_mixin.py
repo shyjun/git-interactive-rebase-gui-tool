@@ -537,7 +537,7 @@ class SquashMixin:
 
         try:
             diff_text = get_commit_diff(self.repo_path, sha)
-            dialog = DropDialog(sha, diff_text, self.current_font_size, self)
+            dialog = DropDialog(sha, diff_text, self.current_font_size, self.current_font_family, self)
             if dialog.exec() == QDialog.Accepted:
                 self.perform_drop(sha)
             else:

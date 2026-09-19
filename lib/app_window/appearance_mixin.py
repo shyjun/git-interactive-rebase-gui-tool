@@ -132,6 +132,10 @@ class AppearanceMixin:
             viewer.current_font_size = self.current_font_size
             viewer.current_font_family = self.current_font_family
             viewer.update_font()
+        for viewer in list(getattr(self, 'viewer_windows', [])):
+            viewer.font_size = self.current_font_size
+            viewer.font_family = self.current_font_family
+            viewer.update_font()
 
     def on_origin_visibility_toggled(self, visible):
         self.show_origin_options = visible

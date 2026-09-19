@@ -126,11 +126,12 @@ def _find_main_window(widget):
 
 class DiffViewerDialog(QDialog):
     """Base dialog for viewing diffs with centered buttons."""
-    def __init__(self, title, sha, diff_text, font_size=10, parent=None):
+    def __init__(self, title, sha, diff_text, font_size=10, font_family=None, parent=None):
         super().__init__(parent)
         self.setWindowTitle(title)
         self.setMinimumSize(800, 600)
         self.font_size = font_size
+        self.font_family = font_family
 
         self.layout = QVBoxLayout(self)
 
@@ -140,7 +141,7 @@ class DiffViewerDialog(QDialog):
         # Full diff view
         self.diff_view = DiffView()
         self.diff_view.setReadOnly(True)
-        self.diff_view.setFont(mono_font(self.font_size))
+        self.diff_view.setFont(mono_font(self.font_size, family=self.font_family))
         self._full_diff_text = clean_binary_diff_lines(diff_text)
         lines = self._full_diff_text.split('\n')
         total_lines = len(lines)
@@ -226,10 +227,10 @@ class DiffViewerDialog(QDialog):
             self.search_bar._perform_search()
 
 class ViewCommitDialog(DiffViewerDialog):
-    def __init__(self, sha, commit_message, commit_meta, diff_text, font_size=10, parent=None):
+    def __init__(self, sha, commit_message, commit_meta, diff_text, font_size=10, font_family=None, parent=None):
         self._commit_message = commit_message
         self._commit_meta = commit_meta
-        super().__init__(f"View Commit: {sha}", sha, diff_text, font_size, parent)
+        super().__init__(f"View Commit: {sha}", sha, diff_text, font_size, font_family, parent)
 
         # Convert fixed layout into a QSplitter
         label = self.layout.itemAt(0).widget()
@@ -324,7 +325,7 @@ class BranchDiffDialog(QDialog):
 
         self.side_diff_view = DiffView()
         self.side_diff_view.setReadOnly(True)
-        self.side_diff_view.setFont(mono_font(font_size))
+        self.side_diff_view.setFont(mono_font(font_size, family=self.font_family))
         self.side_diff_view.setPlainText(diff_text)
         self.plain_highlighter = DiffHighlighter(
             self.side_diff_view.document(),
@@ -351,7 +352,7 @@ class BranchDiffDialog(QDialog):
         # File list
         self.filewise_file_list = QListWidget()
         self.filewise_file_list.setMinimumHeight(60)
-        self.filewise_file_list.setFont(mono_font(font_size))
+        self.filewise_file_list.setFont(mono_font(font_size, family=self.font_family))
         stats_delegate = StatsItemDelegate(
             added_color=colors.get("added", "#22863a"),
             removed_color=colors.get("removed", "#cb2431"),
@@ -370,7 +371,7 @@ class BranchDiffDialog(QDialog):
         self.filewise_diff_view = DiffView()
         self.filewise_diff_view.setReadOnly(True)
         self.filewise_diff_view.setMinimumHeight(100)
-        self.filewise_diff_view.setFont(mono_font(font_size))
+        self.filewise_diff_view.setFont(mono_font(font_size, family=self.font_family))
         self.filewise_diff_view.setPlaceholderText("Select a file above to view its diff...")
         self.filewise_highlighter = DiffHighlighter(
             self.filewise_diff_view.document(),
@@ -406,7 +407,7 @@ class BranchDiffDialog(QDialog):
         self.treewise_tree.header().setSectionResizeMode(0, QHeaderView.Stretch)
         self.treewise_tree.header().setSectionResizeMode(1, QHeaderView.ResizeToContents)
         self.treewise_tree.setMinimumHeight(60)
-        self.treewise_tree.setFont(mono_font(font_size))
+        self.treewise_tree.setFont(mono_font(font_size, family=self.font_family))
         self.treewise_tree.setAnimated(True)
         self.treewise_tree.setItemDelegateForColumn(1, TreeStatsDelegate())
         self.treewise_tree.itemChanged.connect(self._on_treewise_item_changed)
@@ -422,7 +423,7 @@ class BranchDiffDialog(QDialog):
         self.treewise_diff_view = DiffView()
         self.treewise_diff_view.setReadOnly(True)
         self.treewise_diff_view.setMinimumHeight(100)
-        self.treewise_diff_view.setFont(mono_font(font_size))
+        self.treewise_diff_view.setFont(mono_font(font_size, family=self.font_family))
         self.treewise_diff_view.setPlaceholderText("Select a file or folder above to view its diff...")
         self.treewise_highlighter = DiffHighlighter(
             self.treewise_diff_view.document(),
@@ -971,11 +972,12 @@ class SingleCommitViewDialog(QDialog):
     """Single-commit viewer replicating the app's right-side pane: commit
     message on top, with Plain Diff and File-wise Diff tabs below."""
 
-    def __init__(self, repo_path, sha, font_size=10, parent=None, colors=None, editable=False):
+    def __init__(self, repo_path, sha, font_size=10, font_family=None, parent=None, colors=None, editable=False):
         super().__init__(parent)
         self.repo_path = repo_path
         self.sha = sha
         self.font_size = font_size
+        self.font_family = font_family
         self.editable = editable
         self.setWindowTitle(f"View Commit: {sha}")
         self.setMinimumSize(860, 620)
@@ -1015,7 +1017,7 @@ class SingleCommitViewDialog(QDialog):
         self.msg_view = QTextEdit()
         self.msg_view.setReadOnly(True)
         self.msg_view.setPlainText(commit_msg)
-        self.msg_view.setFont(mono_font(font_size))
+        self.msg_view.setFont(mono_font(font_size, family=self.font_family))
         header = CollapsibleCommitHeader(header_text, self.msg_view)
         header.toggled.connect(self._on_commit_header_toggled)
         top_layout.addWidget(header)
@@ -1031,7 +1033,7 @@ class SingleCommitViewDialog(QDialog):
         plain_layout.setSpacing(0)
         self.side_diff_view = DiffView()
         self.side_diff_view.setReadOnly(True)
-        self.side_diff_view.setFont(mono_font(font_size))
+        self.side_diff_view.setFont(mono_font(font_size, family=self.font_family))
         try:
             self.side_diff_view.setPlainText(get_commit_diff(repo_path, sha))
         except Exception as e:
@@ -1095,7 +1097,7 @@ class SingleCommitViewDialog(QDialog):
 
         self.filewise_file_list = QListWidget()
         self.filewise_file_list.setMinimumHeight(60)
-        self.filewise_file_list.setFont(mono_font(font_size))
+        self.filewise_file_list.setFont(mono_font(font_size, family=self.font_family))
         stats_delegate = StatsItemDelegate(
             added_color=colors.get("added", "#22863a"),
             removed_color=colors.get("removed", "#cb2431"),
@@ -1115,7 +1117,7 @@ class SingleCommitViewDialog(QDialog):
         self.filewise_diff_view = DiffView()
         self.filewise_diff_view.setReadOnly(True)
         self.filewise_diff_view.setMinimumHeight(100)
-        self.filewise_diff_view.setFont(mono_font(font_size))
+        self.filewise_diff_view.setFont(mono_font(font_size, family=self.font_family))
         self.filewise_diff_view.setPlaceholderText("Select a file above to view its diff...")
         self.filewise_highlighter = DiffHighlighter(
             self.filewise_diff_view.document(),
@@ -1154,7 +1156,7 @@ class SingleCommitViewDialog(QDialog):
         self.treewise_tree.header().setSectionResizeMode(0, QHeaderView.Stretch)
         self.treewise_tree.header().setSectionResizeMode(1, QHeaderView.ResizeToContents)
         self.treewise_tree.setMinimumHeight(60)
-        self.treewise_tree.setFont(mono_font(font_size))
+        self.treewise_tree.setFont(mono_font(font_size, family=self.font_family))
         self.treewise_tree.setAnimated(True)
         self.treewise_tree.setItemDelegateForColumn(1, TreeStatsDelegate())
         self.treewise_tree.itemChanged.connect(self._on_treewise_item_changed)
@@ -1170,7 +1172,7 @@ class SingleCommitViewDialog(QDialog):
         self.treewise_diff_view = DiffView()
         self.treewise_diff_view.setReadOnly(True)
         self.treewise_diff_view.setMinimumHeight(100)
-        self.treewise_diff_view.setFont(mono_font(font_size))
+        self.treewise_diff_view.setFont(mono_font(font_size, family=self.font_family))
         self.treewise_diff_view.setPlaceholderText("Select a file or folder above to view its diff...")
         self.treewise_highlighter = DiffHighlighter(
             self.treewise_diff_view.document(),
@@ -1249,6 +1251,16 @@ class SingleCommitViewDialog(QDialog):
         btn_layout.addWidget(ok_btn)
         btn_layout.addStretch()
         layout.addLayout(btn_layout)
+
+    def update_font(self):
+        """Re-apply the current font to all widgets in this dialog."""
+        f = mono_font(self.font_size, family=self.font_family)
+        self.msg_view.setFont(f)
+        self.side_diff_view.setFont(f)
+        self.filewise_file_list.setFont(f)
+        self.filewise_diff_view.setFont(f)
+        self.treewise_tree.setFont(f)
+        self.treewise_diff_view.setFont(f)
 
     def _focus_active_search(self):
         idx = self.tab_widget.currentIndex()
@@ -1981,7 +1993,7 @@ class FileWiseViewDialog(QDialog):
         self.msg_view = QTextEdit()
         self.msg_view.setReadOnly(True)
         self.msg_view.setPlainText(msg)
-        self.msg_view.setFont(mono_font(font_size))
+        self.msg_view.setFont(mono_font(font_size, family=self.font_family))
         msg_layout.addWidget(self.msg_view)
 
         self.main_splitter.addWidget(msg_widget)
@@ -1994,7 +2006,7 @@ class FileWiseViewDialog(QDialog):
 
         self.file_list = QListWidget()
         self.file_list.setMinimumHeight(60)
-        self.file_list.setFont(mono_font(font_size))
+        self.file_list.setFont(mono_font(font_size, family=self.font_family))
         for entry in files:
             status, path1, path2 = entry
             if status == 'R':
@@ -2029,7 +2041,7 @@ class FileWiseViewDialog(QDialog):
         self.diff_view = DiffView()
         self.diff_view.setMinimumHeight(100)
         self.diff_view.setReadOnly(True)
-        self.diff_view.setFont(mono_font(font_size))
+        self.diff_view.setFont(mono_font(font_size, family=self.font_family))
         self.diff_view.setPlaceholderText("Select a file above to view its diff...")
         self.highlighter = DiffHighlighter(
             self.diff_view.document(),

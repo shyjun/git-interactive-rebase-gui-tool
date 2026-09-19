@@ -25,11 +25,12 @@ from lib.widgets import (
 
 class DiffViewerDialog(QDialog):
     """Base dialog for viewing diffs with centered buttons."""
-    def __init__(self, title, sha, diff_text, font_size=10, parent=None):
+    def __init__(self, title, sha, diff_text, font_size=10, font_family=None, parent=None):
         super().__init__(parent)
         self.setWindowTitle(title)
         self.setMinimumSize(800, 600)
         self.font_size = font_size
+        self.font_family = font_family
 
         self.layout = QVBoxLayout(self)
 
@@ -39,7 +40,7 @@ class DiffViewerDialog(QDialog):
         # Full diff view
         self.diff_view = DiffView()
         self.diff_view.setReadOnly(True)
-        self.diff_view.setFont(mono_font(self.font_size))
+        self.diff_view.setFont(mono_font(self.font_size, family=self.font_family))
         self.diff_view.setPlainText(diff_text)
 
         # Determine highlighting colors based on parent theme or default to dark

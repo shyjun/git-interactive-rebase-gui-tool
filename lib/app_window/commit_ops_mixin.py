@@ -243,7 +243,7 @@ class CommitOpsMixin:
         sha = item.text().split()[0]
         _log(f"[commit] Viewing commit: {sha[:10]}")
         try:
-            dialog = SingleCommitViewDialog(self.repo_path, sha, self.current_font_size, self, editable=True)
+            dialog = SingleCommitViewDialog(self.repo_path, sha, self.current_font_size, self.current_font_family, self, editable=True)
             self._open_viewer(dialog)
         except Exception as e:
             _log(f"[commit] View commit FAILED: {e}")
@@ -354,7 +354,7 @@ class CommitOpsMixin:
             if not files:
                 QMessageBox.information(self, "No Files", f"Commit {sha[:10]} has no file changes to view.")
                 return
-            dialog = SingleCommitViewDialog(self.repo_path, sha, self.current_font_size, self)
+            dialog = SingleCommitViewDialog(self.repo_path, sha, self.current_font_size, self.current_font_family, self)
             self._open_viewer(dialog)
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not open file-wise view: {str(e)}")

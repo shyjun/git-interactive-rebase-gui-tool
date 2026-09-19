@@ -26,8 +26,8 @@ from .diff_viewer_dialog import DiffViewerDialog
 
 
 class DropDialog(DiffViewerDialog):
-    def __init__(self, sha, diff_text, font_size=10, parent=None):
-        super().__init__("Confirm Drop Commit", sha, diff_text, font_size, parent)
+    def __init__(self, sha, diff_text, font_size=10, font_family=None, parent=None):
+        super().__init__("Confirm Drop Commit", sha, diff_text, font_size, font_family, parent)
 
     def setup_header(self, sha):
         label = QLabel(f"Are you sure you want to drop the commit: <b>{sha}</b>?")

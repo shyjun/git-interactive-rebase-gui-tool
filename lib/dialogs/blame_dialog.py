@@ -437,7 +437,7 @@ class BlameDialog(QDialog):
                     colors = w.current_theme_colors
                     break
                 w = w.parent()
-            dlg = SingleCommitViewDialog(self.repo_path, sha, self.current_font_size, parent=self, colors=colors)
+            dlg = SingleCommitViewDialog(self.repo_path, sha, self.current_font_size, self.current_font_family, parent=self, colors=colors)
             dlg.setAttribute(Qt.WA_DeleteOnClose)
             flags = (dlg.windowFlags() & ~Qt.Dialog) | Qt.Window
             dlg.setWindowFlags(flags)
