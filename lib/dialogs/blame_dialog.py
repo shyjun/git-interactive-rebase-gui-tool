@@ -67,11 +67,12 @@ def open_blame_window(parent, filename, branch=None):
         return
     main_win = _find_main_window(parent)
     font_size = getattr(main_win, "current_font_size", None) or getattr(parent, "current_font_size", None) or getattr(parent, "font_size", 10)
+    font_family = getattr(main_win, "current_font_family", None) or getattr(parent, "current_font_family", None) or getattr(parent, "font_family", None)
     is_dark = getattr(main_win, "is_dark_theme", None)
     if is_dark is None:
         is_dark = getattr(parent, "is_dark_theme", False)
     _log(f"[blame] font_size={font_size}, is_dark={is_dark}, parent_type={type(parent).__name__}")
-    dlg = BlameDialog(repo_path, filename, ref=branch, font_size=font_size, parent=parent, is_dark_theme=is_dark)
+    dlg = BlameDialog(repo_path, filename, ref=branch, font_size=font_size, font_family=font_family, parent=parent, is_dark_theme=is_dark)
     dlg.setAttribute(Qt.WA_DeleteOnClose)
     if hasattr(parent, "browse_windows"):
         dlg._browse_windows_ref = parent.browse_windows
@@ -110,7 +111,7 @@ class BlameDialog(QDialog):
         "#c586c0", "#ce9178", "#b5cea8", "#9cdcfe",
     ]
 
-    def __init__(self, repo_path, filename, ref=None, font_size=10, parent=None, is_dark_theme=None):
+    def __init__(self, repo_path, filename, ref=None, font_size=10, font_family=None, parent=None, is_dark_theme=None):
         super().__init__(parent)
         self.setWindowFlags(Qt.Window)
         self.repo_path = repo_path
@@ -118,6 +119,7 @@ class BlameDialog(QDialog):
         self.ref = ref
         self.font_size = font_size
         self.current_font_size = font_size
+        self.current_font_family = font_family
         self._records = []
         self._sha_color = {}
         self._next_color_idx = 0
@@ -159,7 +161,7 @@ class BlameDialog(QDialog):
     def update_font(self):
         """Called when the parent window zooms in/out — updates table font."""
         self.font_size = self.current_font_size
-        font = mono_font(self.current_font_size)
+        font = mono_font(self.current_font_size, family=self.current_font_family)
         self.table.setFont(font)
         self.table.horizontalHeader().setFont(font)
         self._refresh_table()
@@ -253,7 +255,7 @@ class BlameDialog(QDialog):
         self.table.setAlternatingRowColors(True)
         self.table.setSortingEnabled(False)
         self.table.setWordWrap(False)
-        font = mono_font(self.current_font_size)
+        font = mono_font(self.current_font_size, family=self.current_font_family)
         self.table.setFont(font)
         self.table.horizontalHeader().setFont(font)
         self.table.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -483,7 +485,7 @@ class BlameDialog(QDialog):
 
             _log(f"[blame] Creating new BlameDialog for '{self.filename}' at {parent_sha[:10]}")
             dlg = BlameDialog(self.repo_path, self.filename, ref=parent_sha,
-                              font_size=self.current_font_size, parent=self)
+                              font_size=self.current_font_size, font_family=self.current_font_family, parent=self)
             dlg.setAttribute(Qt.WA_DeleteOnClose)
             if hasattr(self, "_browse_windows_ref"):
                 dlg._browse_windows_ref = self._browse_windows_ref
@@ -609,7 +611,7 @@ class BlameDialog(QDialog):
             self.table.setItem(row_idx, 4, li)
 
             ci = QTableWidgetItem(code)
-            ci.setFont(mono_font(self.current_font_size))
+            ci.setFont(mono_font(self.current_font_size, family=self.current_font_family))
             self.table.setItem(row_idx, 5, ci)
 
         self.table.setColumnHidden(1, not self.show_author_cb.isChecked())

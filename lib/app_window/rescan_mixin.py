@@ -146,7 +146,7 @@ class RescanMixin:
                 msg_dlg = NewCommitMessageDialog(
                     "Bulk Commit",
                     f"Committing all {len(unstaged_files)} modified file(s) into a single commit.",
-                    default_msg, self.current_font_size, self,
+                    default_msg, self.current_font_size, self.current_font_family, self,
                 )
                 if msg_dlg.exec() != QDialog.Accepted:
                     return

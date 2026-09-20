@@ -52,11 +52,12 @@ from lib.app_window.helpers import (
 
 class SplitCommitDialog(QDialog):
     """Dialog for moving a single file's changes out of a commit."""
-    def __init__(self, repo_path, sha, files, font_size=10, parent=None):
+    def __init__(self, repo_path, sha, files, font_size=10, font_family=None, parent=None):
         super().__init__(parent)
         self.repo_path = repo_path
         self.sha = sha
         self.font_size = font_size
+        self.font_family = font_family
         self.selected_file = None
         self.setWindowTitle(f"Split Commit: {sha}")
         self.setMinimumSize(860, 620)
@@ -100,7 +101,7 @@ class SplitCommitDialog(QDialog):
         self.msg_view = QTextEdit()
         self.msg_view.setReadOnly(True)
         self.msg_view.setPlainText(msg)
-        self.msg_view.setFont(mono_font(font_size))
+        self.msg_view.setFont(mono_font(font_size, family=self.font_family))
         msg_layout.addWidget(self.msg_view)
 
         self.main_splitter.addWidget(msg_widget)
@@ -113,7 +114,7 @@ class SplitCommitDialog(QDialog):
 
         self.file_list = QListWidget()
         self.file_list.setMinimumHeight(60)
-        self.file_list.setFont(mono_font(font_size))
+        self.file_list.setFont(mono_font(font_size, family=self.font_family))
         for f in files:
             item = QListWidgetItem(f)
             item.setData(Qt.UserRole, self.file_stats.get(f))
@@ -140,7 +141,7 @@ class SplitCommitDialog(QDialog):
         self.diff_view = DiffView()
         self.diff_view.setMinimumHeight(100)
         self.diff_view.setReadOnly(True)
-        self.diff_view.setFont(mono_font(font_size))
+        self.diff_view.setFont(mono_font(font_size, family=self.font_family))
         self.diff_view.setPlaceholderText("Select a file above to view its diff...")
         self.highlighter = DiffHighlighter(
             self.diff_view.document(),
@@ -232,11 +233,12 @@ class SplitCommitDialog(QDialog):
 
 class DropFileFromCommitDialog(QDialog):
     """Dialog for dropping a single file's changes from a commit."""
-    def __init__(self, repo_path, sha, files, font_size=10, parent=None):
+    def __init__(self, repo_path, sha, files, font_size=10, font_family=None, parent=None):
         super().__init__(parent)
         self.repo_path = repo_path
         self.sha = sha
         self.font_size = font_size
+        self.font_family = font_family
         self.selected_file = None
         self.setWindowTitle(f"Drop File From Commit: {sha}")
         self.setMinimumSize(860, 620)
@@ -280,7 +282,7 @@ class DropFileFromCommitDialog(QDialog):
         self.msg_view = QTextEdit()
         self.msg_view.setReadOnly(True)
         self.msg_view.setPlainText(msg)
-        self.msg_view.setFont(mono_font(font_size))
+        self.msg_view.setFont(mono_font(font_size, family=self.font_family))
         msg_layout.addWidget(self.msg_view)
 
         self.main_splitter.addWidget(msg_widget)
@@ -293,7 +295,7 @@ class DropFileFromCommitDialog(QDialog):
 
         self.file_list = QListWidget()
         self.file_list.setMinimumHeight(60)
-        self.file_list.setFont(mono_font(font_size))
+        self.file_list.setFont(mono_font(font_size, family=self.font_family))
         for f in files:
             item = QListWidgetItem(f)
             item.setData(Qt.UserRole, self.file_stats.get(f))
@@ -320,7 +322,7 @@ class DropFileFromCommitDialog(QDialog):
         self.diff_view = DiffView()
         self.diff_view.setMinimumHeight(100)
         self.diff_view.setReadOnly(True)
-        self.diff_view.setFont(mono_font(font_size))
+        self.diff_view.setFont(mono_font(font_size, family=self.font_family))
         self.diff_view.setPlaceholderText("Select a file above to view its diff...")
         self.highlighter = DiffHighlighter(
             self.diff_view.document(),
@@ -565,11 +567,12 @@ class AggressiveRemoveConfirmationDialog(QDialog):
     Second confirmation dialog when a user chooses to remove a file from history
     and that file is modified in future commits.
     """
-    def __init__(self, filepath, commits_modifying_file, has_empty_commits=False, font_size=10, parent=None):
+    def __init__(self, filepath, commits_modifying_file, has_empty_commits=False, font_size=10, font_family=None, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Proceed with aggressive file removal?")
         self.setMinimumSize(600, 480)
         self.font_size = font_size
+        self.font_family = font_family
         self.has_empty_commits = has_empty_commits
 
         layout = QVBoxLayout(self)
@@ -584,7 +587,7 @@ class AggressiveRemoveConfirmationDialog(QDialog):
         # List of future commits
         commit_list = QTextEdit()
         commit_list.setReadOnly(True)
-        commit_list.setFont(mono_font(self.font_size))
+        commit_list.setFont(mono_font(self.font_size, family=self.font_family))
 
         # Display each commit
         commits_text = ""
@@ -650,8 +653,8 @@ class AggressiveRemoveConfirmationDialog(QDialog):
 
 class RefineFileSelectDialog(SplitCommitDialog):
     """File-selection dialog for Refine Changes. Reuses SplitCommitDialog layout."""
-    def __init__(self, repo_path, sha, files, font_size=10, parent=None):
-        super().__init__(repo_path, sha, files, font_size, parent)
+    def __init__(self, repo_path, sha, files, font_size=10, font_family=None, parent=None):
+        super().__init__(repo_path, sha, files, font_size, font_family, parent)
         self.setWindowTitle(f"Refine Changes: {sha}")
         self.move_btn.setText("Refine changes in selected file")
         # Update the instruction label

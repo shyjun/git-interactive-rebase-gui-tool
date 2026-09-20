@@ -48,7 +48,7 @@ class SquashMixin:
             msg_above = get_full_commit_message(self.repo_path, sha_above)
             msg_current = get_full_commit_message(self.repo_path, sha_current)
 
-            dialog = SquashDialog(sha_above, msg_above, sha_current, msg_current, self.current_font_size, self)
+            dialog = SquashDialog(sha_above, msg_above, sha_current, msg_current, self.current_font_size, self.current_font_family, self)
             if dialog.exec() == QDialog.Accepted:
                 final_msg = dialog.get_message()
                 _log(f"Preparing to squash {sha_above} into {sha_current}...")
@@ -76,7 +76,7 @@ class SquashMixin:
             msg_current = get_full_commit_message(self.repo_path, sha_current)
             msg_below = get_full_commit_message(self.repo_path, sha_below)
 
-            dialog = SquashDialog(sha_current, msg_current, sha_below, msg_below, self.current_font_size, self, default_radio=2)
+            dialog = SquashDialog(sha_current, msg_current, sha_below, msg_below, self.current_font_size, self.current_font_family, self, default_radio=2)
             if dialog.exec() == QDialog.Accepted:
                 final_msg = dialog.get_message()
                 _log(f"Preparing to squash {sha_current} into {sha_below}...")
@@ -492,7 +492,7 @@ class SquashMixin:
             rephrase_sha = selected_shas[0]
 
             # Open the N-option message selection dialog directly
-            dialog = MultiSquashDialog(sha_msg_pairs, self.current_font_size, self)
+            dialog = MultiSquashDialog(sha_msg_pairs, self.current_font_size, self.current_font_family, self)
             if dialog.exec() != QDialog.Accepted:
                 return  # finally block handles cleanup
 

@@ -180,7 +180,7 @@ class StashMixin:
 
         dialog = CommitSelectivelyDialog(
             self.repo_path, unstaged_files, file_stats,
-            self.current_font_size, self
+            self.current_font_size, self.current_font_family, self
         )
         result = dialog.exec()
 
@@ -219,6 +219,7 @@ class StashMixin:
             "Enter commit message for the selected files:",
             self._selective_default_message(checked),
             self.current_font_size,
+            self.current_font_family,
             self
         )
         if msg_dlg.exec() != QDialog.Accepted:
@@ -262,6 +263,7 @@ class StashMixin:
             "Enter the new commit message for the amend:",
             default_msg,
             self.current_font_size,
+            self.current_font_family,
             self
         )
         if msg_dlg.exec() != QDialog.Accepted:
@@ -322,7 +324,7 @@ class StashMixin:
 
         dialog = SelectiveHunkDialog(
             self.repo_path, checked, diff_by_file, hunks_by_file,
-            self.current_font_size, self
+            self.current_font_size, self.current_font_family, self
         )
         result = dialog.exec()
         if result not in (SelectiveHunkDialog.CommitResult, SelectiveHunkDialog.AmendResult):
@@ -362,7 +364,7 @@ class StashMixin:
                 default_msg = ""
             label = "Enter the new commit message for the amend:"
         msg_dlg = NewCommitMessageDialog("Commit Message", label, default_msg,
-                                        self.current_font_size, self)
+                                        self.current_font_size, self.current_font_family, self)
         if msg_dlg.exec() != QDialog.Accepted:
             return  # Cancelled - nothing staged
         message = msg_dlg.get_message()
@@ -463,7 +465,7 @@ class StashMixin:
         file_stats = get_staged_file_stats(self.repo_path)
         from lib.dialogs.unstaged_dialogs import CommitStagedSelectivelyDialog
         dialog = CommitStagedSelectivelyDialog(
-            self.repo_path, staged, file_stats, self.current_font_size, self
+            self.repo_path, staged, file_stats, self.current_font_size, self.current_font_family, self
         )
         result = dialog.exec()
         if result not in (CommitStagedSelectivelyDialog.CommitSelectedResult,
@@ -496,14 +498,14 @@ class StashMixin:
                 "Amend HEAD with Selected",
                 f"Amending {len(checked)} staged file(s) into HEAD commit.",
                 default_message=default_msg,
-                font_size=self.current_font_size, parent=self,
+                font_size=self.current_font_size, font_family=self.current_font_family, parent=self,
             )
         else:
             default_msg = "Changes in " + ", ".join(checked[:3]) + ("..." if len(checked) > 3 else "")
             msg_dlg = NewCommitMessageDialog(
                 "Commit Selected Files",
                 f"Committing {len(checked)} staged file(s):",
-                default_msg, self.current_font_size, self,
+                default_msg, self.current_font_size, self.current_font_family, self,
             )
         if msg_dlg.exec() != QDialog.Accepted:
             return
@@ -557,6 +559,7 @@ class StashMixin:
             "Commit Staged Changes",
             f"Committing {len(staged)} staged file(s):",
             font_size=self.current_font_size,
+            font_family=self.current_font_family,
             parent=self,
         )
         if dlg.exec() != QDialog.Accepted:
@@ -669,6 +672,7 @@ class StashMixin:
             "Edit the message below or keep it unchanged to preserve the original.",
             default_message=default_msg,
             font_size=self.current_font_size,
+            font_family=self.current_font_family,
             parent=self,
         )
         if dlg.exec() != QDialog.Accepted:
@@ -719,7 +723,7 @@ class StashMixin:
         from lib.dialogs import StageFilesDialog
         dialog = StageFilesDialog(
             self.repo_path, untracked_files, file_stats,
-            font_size=self.current_font_size, parent=self,
+            font_size=self.current_font_size, font_family=self.current_font_family, parent=self,
         )
         if dialog.exec() == QDialog.Accepted:
             self.load_history()

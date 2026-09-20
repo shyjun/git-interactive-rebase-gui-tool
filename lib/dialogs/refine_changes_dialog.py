@@ -30,7 +30,7 @@ class RefineChangesDialog(QDialog):
     apply_hunk_modification = Signal(int)
     drop_hunk = Signal(int)
 
-    def __init__(self, sha, filepath, commit_msg, hunks, font_size=10, parent=None, is_only_file=False):
+    def __init__(self, sha, filepath, commit_msg, hunks, font_size=10, font_family=None, parent=None, is_only_file=False):
         """
         hunks: list of (hunk_header_str, hunk_body_str)
         """
@@ -87,7 +87,7 @@ class RefineChangesDialog(QDialog):
         hunks_layout.setSpacing(8)
 
         for i, (hdr, body) in enumerate(hunks):
-            hw = HunkWidget(i + 1, hdr, body, colors, font_size, sha=sha, filepath=filepath, 
+            hw = HunkWidget(i + 1, hdr, body, colors, font_size, font_family=font_family, sha=sha, filepath=filepath, 
                             is_only_hunk=(len(hunks) == 1), is_only_file=is_only_file)
             hw.apply_hunk_modification.connect(self.apply_hunk_modification.emit)
             hw.drop_hunk.connect(self.drop_hunk.emit)

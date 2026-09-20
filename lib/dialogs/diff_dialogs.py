@@ -1948,11 +1948,12 @@ class StagedDiffDialog(BranchDiffDialog):
 
 class FileWiseViewDialog(QDialog):
     """Dialog for viewing changes in a commit file by file."""
-    def __init__(self, repo_path, sha, files, font_size=10, parent=None):
+    def __init__(self, repo_path, sha, files, font_size=10, font_family=None, parent=None):
         super().__init__(parent)
         self.repo_path = repo_path
         self.sha = sha
         self.font_size = font_size
+        self.font_family = font_family
         self.setWindowTitle(f"View Commit File-wise: {sha}")
         self.setMinimumSize(860, 620)
 

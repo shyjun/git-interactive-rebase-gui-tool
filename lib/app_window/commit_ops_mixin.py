@@ -90,7 +90,7 @@ class CommitOpsMixin:
         _log(f"Preparing to rephrase {sha}...")
         try:
             current_message = get_full_commit_message(self.repo_path, sha)
-            dialog = RephraseDialog(sha, current_message, self.current_font_size, self)
+            dialog = RephraseDialog(sha, current_message, self.current_font_size, self.current_font_family, self)
             if dialog.exec() == QDialog.Accepted:
                 new_message = dialog.get_message()
                 if new_message != current_message:
@@ -139,7 +139,7 @@ class CommitOpsMixin:
         _log(f"[commit] Preparing to revert {sha[:10]}...")
         try:
             default_message = get_revert_commit_message(self.repo_path, sha)
-            dialog = RevertCommitDialog(sha, default_message, self.current_font_size, self)
+            dialog = RevertCommitDialog(sha, default_message, self.current_font_size, self.current_font_family, self)
             if dialog.exec() == QDialog.Accepted:
                 revert_message = dialog.get_message()
                 self.perform_revert_commit(sha, revert_message)

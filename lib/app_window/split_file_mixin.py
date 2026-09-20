@@ -49,7 +49,7 @@ class SplitFileMixin:
                 QMessageBox.warning(self, "Warning", "This commit has changes only in 1 file.")
                 return
 
-            dialog = SplitCommitDialog(self.repo_path, sha, files, self.current_font_size, self)
+            dialog = SplitCommitDialog(self.repo_path, sha, files, self.current_font_size, self.current_font_family, self)
             if dialog.exec() == QDialog.Accepted:
                 selected_file = dialog.get_selected_file()
                 if selected_file:
@@ -235,7 +235,7 @@ finally:
                 QMessageBox.warning(self, "Warning", "This commit has changes only in 1 file.")
                 return
 
-            dialog = DropFileFromCommitDialog(self.repo_path, sha, files, self.current_font_size, self)
+            dialog = DropFileFromCommitDialog(self.repo_path, sha, files, self.current_font_size, self.current_font_family, self)
             if dialog.exec() == QDialog.Accepted:
                 selected_file = dialog.get_selected_file()
                 if selected_file:
@@ -447,7 +447,7 @@ subprocess.check_call(['git', 'clean', '-fd', '--', filepath])
             if later_modifications_detected:
                 future_commits = [(s, m) for s, m, _ in commits_to_drop if s != sha]
                 agg_dialog = AggressiveRemoveConfirmationDialog(
-                    filepath, future_commits, has_empty_commits=has_empty_commits, font_size=self.current_font_size, parent=self
+                    filepath, future_commits, has_empty_commits=has_empty_commits, font_size=self.current_font_size, font_family=self.current_font_family, parent=self
                 )
                 if agg_dialog.exec() != QDialog.Accepted:
                     return

@@ -26,7 +26,7 @@ from lib.app_window.helpers import _log
 class CherryPickMixin:
     def handle_cherry_pick(self):
         """Cherry-picks a single commit entered by the user."""
-        dialog = CherryPickDialog(self.current_font_size, self)
+        dialog = CherryPickDialog(self.current_font_size, self.current_font_family, self)
         if dialog.exec() != QDialog.Accepted:
             _log("Cancelled cherry-pick.")
             return

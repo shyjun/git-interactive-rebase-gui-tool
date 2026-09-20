@@ -60,11 +60,12 @@ class DropDialog(DiffViewerDialog):
 
 class RephraseDialog(QDialog):
     """Dialog for editing commit message."""
-    def __init__(self, sha, current_message, font_size=10, parent=None):
+    def __init__(self, sha, current_message, font_size=10, font_family=None, parent=None):
         super().__init__(parent)
         self.setWindowTitle(f"Rephrase Commit: {sha}")
         self.setMinimumSize(600, 400)
         self.font_size = font_size
+        self.font_family = font_family
 
         layout = QVBoxLayout(self)
 
@@ -72,7 +73,7 @@ class RephraseDialog(QDialog):
         layout.addWidget(label)
 
         self.message_edit = QTextEdit()
-        self.message_edit.setFont(mono_font(self.font_size))
+        self.message_edit.setFont(mono_font(self.font_size, family=self.font_family))
         self.message_edit.setPlainText(current_message)
         layout.addWidget(self.message_edit)
 
@@ -108,11 +109,12 @@ class RephraseDialog(QDialog):
 
 class CherryPickDialog(QDialog):
     """Dialog for entering a commit SHA to cherry-pick."""
-    def __init__(self, font_size=10, parent=None):
+    def __init__(self, font_size=10, font_family=None, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Cherry-pick Commit")
         self.setFixedSize(600, 180)
         self.font_size = font_size
+        self.font_family = font_family
         self.chosen = None
 
         layout = QVBoxLayout(self)
@@ -123,7 +125,7 @@ class CherryPickDialog(QDialog):
 
         self.sha_edit = QLineEdit()
         self.sha_edit.setPlaceholderText("Commit SHA")
-        self.sha_edit.setFont(mono_font(self.font_size))
+        self.sha_edit.setFont(mono_font(self.font_size, family=self.font_family))
         self.sha_edit.setMinimumHeight(36)
         layout.addWidget(self.sha_edit)
 
@@ -168,11 +170,12 @@ class CherryPickDialog(QDialog):
 
 class RevertCommitDialog(QDialog):
     """Dialog for editing the commit message before reverting a commit."""
-    def __init__(self, sha, revert_message, font_size=10, parent=None):
+    def __init__(self, sha, revert_message, font_size=10, font_family=None, parent=None):
         super().__init__(parent)
         self.setWindowTitle(f"Revert Commit: {sha}")
         self.setMinimumSize(600, 300)
         self.font_size = font_size
+        self.font_family = font_family
 
         layout = QVBoxLayout(self)
 
@@ -185,7 +188,7 @@ class RevertCommitDialog(QDialog):
         layout.addWidget(label)
 
         self.message_edit = QTextEdit()
-        self.message_edit.setFont(mono_font(self.font_size))
+        self.message_edit.setFont(mono_font(self.font_size, family=self.font_family))
         self.message_edit.setPlainText(revert_message)
         layout.addWidget(self.message_edit)
 
@@ -220,11 +223,12 @@ class RevertCommitDialog(QDialog):
 
 class SquashDialog(QDialog):
     """Dialog for choosing and editing commit message during squash."""
-    def __init__(self, sha1, msg1, sha2, msg2, font_size=10, parent=None, default_radio=1):
+    def __init__(self, sha1, msg1, sha2, msg2, font_size=10, font_family=None, parent=None, default_radio=1):
         super().__init__(parent)
         self.setWindowTitle("Interactive Squash")
         self.setMinimumSize(600, 400)
         self.font_size = font_size
+        self.font_family = font_family
 
         self.msg1 = msg1
         self.msg2 = msg2
@@ -243,7 +247,7 @@ class SquashDialog(QDialog):
 
         # Text Editor
         self.editor = QTextEdit()
-        self.editor.setFont(mono_font(self.font_size))
+        self.editor.setFont(mono_font(self.font_size, family=self.font_family))
         layout.addWidget(self.editor)
 
         # Connections
@@ -292,7 +296,7 @@ class SquashDialog(QDialog):
 
 class MultiSquashDialog(QDialog):
     """Dialog for squashing N commits — shows one radio per commit for message selection."""
-    def __init__(self, sha_msg_pairs, font_size=10, parent=None):
+    def __init__(self, sha_msg_pairs, font_size=10, font_family=None, parent=None):
         """
         sha_msg_pairs: list of (sha, full_commit_message) in newest→oldest order
         """
@@ -300,6 +304,7 @@ class MultiSquashDialog(QDialog):
         self.setWindowTitle("Squash Commits — Choose Final Commit Message")
         self.setMinimumSize(680, 480)
         self.sha_msg_pairs = sha_msg_pairs
+        self.font_family = font_family
 
         layout = QVBoxLayout(self)
         layout.addWidget(QLabel(
@@ -333,7 +338,7 @@ class MultiSquashDialog(QDialog):
 
         # Text editor
         self.editor = QTextEdit()
-        self.editor.setFont(mono_font(font_size))
+        self.editor.setFont(mono_font(font_size, family=self.font_family))
         self.editor.setMinimumHeight(100)
 
         # Add to splitter

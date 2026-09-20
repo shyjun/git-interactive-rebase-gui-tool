@@ -49,7 +49,7 @@ class RefineMixin:
                 return
 
             dialog = RefineFileSelectDialog(self.repo_path, sha, files,
-                                            self.current_font_size, self)
+                                            self.current_font_size, self.current_font_family, self)
             if dialog.exec() == QDialog.Accepted:
                 selected_file = dialog.get_selected_file()
                 if selected_file:
@@ -99,7 +99,7 @@ class RefineMixin:
             is_only_file = len(all_files) == 1
 
             dialog = RefineChangesDialog(sha, filepath, commit_msg,
-                                         hunks, self.current_font_size, self, is_only_file=is_only_file)
+                                         hunks, self.current_font_size, self.current_font_family, self, is_only_file=is_only_file)
 
             # When user clicks "Apply modification" in a hunk menu, treat it as a final "Keep Selected" action
             dialog.apply_hunk_modification.connect(dialog._on_keep)
@@ -138,6 +138,7 @@ class RefineMixin:
                     "Enter commit message for the new commit (containing moved hunks):",
                     default_msg,
                     self.current_font_size,
+                    self.current_font_family,
                     self
                 )
                 if dialog.exec() != QDialog.Accepted:

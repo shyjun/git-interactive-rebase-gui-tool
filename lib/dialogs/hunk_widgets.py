@@ -42,7 +42,7 @@ from lib.widgets import (
 
 class EditHunkDialog(QDialog):
     """A small lightweight dialog to edit a single diff hunk."""
-    def __init__(self, sha, filepath, hunk_index, hunk_text, font_size=10, parent=None):
+    def __init__(self, sha, filepath, hunk_index, hunk_text, font_size=10, font_family=None, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Edit Hunk")
         self.setMinimumSize(800, 500)
@@ -76,7 +76,7 @@ class EditHunkDialog(QDialog):
         layout.addWidget(editor_label)
 
         self.editor = QTextEdit()
-        self.editor.setFont(mono_font(font_size))
+        self.editor.setFont(mono_font(font_size, family=font_family))
         self.editor.setPlainText(hunk_text)
         self.editor.setAcceptRichText(False)
         self.editor.setLineWrapMode(QTextEdit.NoWrap)
@@ -128,7 +128,7 @@ class EditHunkDialog(QDialog):
 
 class DropHunkDialog(QDialog):
     """A small lightweight dialog to confirm dropping a single diff hunk."""
-    def __init__(self, sha, filepath, hunk_index, hunk_text, font_size=10, parent=None):
+    def __init__(self, sha, filepath, hunk_index, hunk_text, font_size=10, font_family=None, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Drop Hunk")
         self.setMinimumSize(800, 500)
@@ -166,7 +166,7 @@ class DropHunkDialog(QDialog):
         layout.addWidget(viewer_label)
 
         self.viewer = QTextEdit()
-        self.viewer.setFont(mono_font(font_size))
+        self.viewer.setFont(mono_font(font_size, family=font_family))
         self.viewer.setPlainText(hunk_text)
         self.viewer.setReadOnly(True)
         self.viewer.setAcceptRichText(False)
@@ -235,7 +235,7 @@ class HunkWidget(QFrame):
     apply_hunk_modification = Signal(int)
     drop_hunk = Signal(int)
 
-    def __init__(self, hunk_index, hunk_header, hunk_text, colors, font_size, sha=None, filepath=None, is_only_hunk=False, is_only_file=False, allow_edit=True):
+    def __init__(self, hunk_index, hunk_header, hunk_text, colors, font_size, font_family=None, sha=None, filepath=None, is_only_hunk=False, is_only_file=False, allow_edit=True):
         super().__init__()
         self.hunk_index = hunk_index
         self.hunk_header = hunk_header
@@ -244,6 +244,7 @@ class HunkWidget(QFrame):
         self.current_hunk_text = hunk_text
         self.colors = colors
         self.font_size = font_size
+        self.font_family = font_family
         self.sha = sha
         self.filepath = filepath
         self.is_only_hunk = is_only_hunk
@@ -374,14 +375,14 @@ class HunkWidget(QFrame):
             return
 
         full_text = f"{self.hunk_header}\n{self.current_hunk_text}"
-        dlg = DropHunkDialog(self.sha, self.filepath, self.hunk_index, full_text, self.font_size, self)
+        dlg = DropHunkDialog(self.sha, self.filepath, self.hunk_index, full_text, self.font_size, self.font_family, self)
         if dlg.exec() == QDialog.Accepted:
             self.set_selected(False)
             self.drop_hunk.emit(self.hunk_index)
 
     def open_edit_dialog(self):
         full_text = f"{self.hunk_header}\n{self.current_hunk_text}"
-        dlg = EditHunkDialog(self.sha, self.filepath, self.hunk_index, full_text, self.font_size, self)
+        dlg = EditHunkDialog(self.sha, self.filepath, self.hunk_index, full_text, self.font_size, self.font_family, self)
         if dlg.exec() == QDialog.Accepted:
             new_full_text = dlg.get_hunk_text()
             if '\n' in new_full_text:
@@ -419,13 +420,14 @@ class SelectiveHunkDialog(QDialog):
     CommitResult = 1
     AmendResult = 2
 
-    def __init__(self, repo_path, files, diff_by_file, hunks_by_file, font_size=10, parent=None, colors=None):
+    def __init__(self, repo_path, files, diff_by_file, hunks_by_file, font_size=10, font_family=None, parent=None, colors=None):
         super().__init__(parent)
         self.repo_path = repo_path
         self.files = list(files)
         self.diff_by_file = diff_by_file
         self.hunks_by_file = hunks_by_file
         self.font_size = font_size
+        self.font_family = font_family
         self.result_action = None
 
         if colors is None:
@@ -483,7 +485,7 @@ class SelectiveHunkDialog(QDialog):
             file_label.setWordWrap(True)
             hunks_layout.addWidget(file_label)
             for i, (hdr, body) in enumerate(hunks):
-                hw = HunkWidget(i + 1, hdr, body, self.colors, font_size,
+                hw = HunkWidget(i + 1, hdr, body, self.colors, font_size, font_family=self.font_family,
                                 sha=None, filepath=f, allow_edit=False)
                 hw.checkbox.stateChanged.connect(self._update_counter)
                 self.hunk_widgets.append((f, hw))

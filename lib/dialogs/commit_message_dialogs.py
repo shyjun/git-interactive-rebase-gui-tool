@@ -14,11 +14,12 @@ from lib.app_window.helpers import mono_font
 
 class NewCommitMessageDialog(QDialog):
     """Dialog for entering a new commit message (e.g. during Move Hunks)."""
-    def __init__(self, title, label_text, default_message="", font_size=10, parent=None):
+    def __init__(self, title, label_text, default_message="", font_size=10, font_family=None, parent=None):
         super().__init__(parent)
         self.setWindowTitle(title)
         self.setMinimumSize(600, 400)
         self.font_size = font_size
+        self.font_family = font_family
 
         layout = QVBoxLayout(self)
 
@@ -27,7 +28,7 @@ class NewCommitMessageDialog(QDialog):
         layout.addWidget(self.label)
 
         self.message_edit = QTextEdit()
-        self.message_edit.setFont(mono_font(self.font_size))
+        self.message_edit.setFont(mono_font(self.font_size, family=self.font_family))
         self.message_edit.setPlainText(default_message)
         layout.addWidget(self.message_edit)
 
