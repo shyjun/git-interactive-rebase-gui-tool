@@ -72,7 +72,7 @@ class UnstagedChangesDialog(QDialog):
     MergeResult = 7
     SelectiveCommitResult = 8
 
-    def __init__(self, num_files, parent=None, from_rescan=False, repo_path=None, unstaged_files=None, font_size=None, managed_stash_exists=False, managed_stash_sha=None, viewer_mode=False):
+    def __init__(self, num_files, parent=None, from_rescan=False, repo_path=None, unstaged_files=None, font_size=None, font_family=None, managed_stash_exists=False, managed_stash_sha=None, viewer_mode=False):
         super().__init__(parent)
         self.repo_path = repo_path
         self.unstaged_files = unstaged_files or []
@@ -82,6 +82,7 @@ class UnstagedChangesDialog(QDialog):
         if font_size is None:
             font_size = int(QSettings("shyjun", "GitInteractiveRebase").value("font_size", 10))
         self.font_size = font_size
+        self.font_family = font_family
         self.setWindowTitle("Unstaged Changes Warning")
         self.setMinimumWidth(600)
         self.setModal(True)
@@ -183,7 +184,7 @@ class UnstagedChangesDialog(QDialog):
             from .diff_dialogs import UnstagedDiffDialog
             dlg = UnstagedDiffDialog(
                 self.repo_path, self.unstaged_files, diff_text, file_stats,
-                branch, head_sha, self.font_size, self
+                branch, head_sha, self.font_size, self.font_family, self
             )
             dlg.exec()
         except Exception as e:

@@ -620,7 +620,7 @@ class StashMixin:
         from lib.dialogs.diff_dialogs import StagedDiffDialog
         dlg = StagedDiffDialog(
             self.repo_path, staged, diff, file_stats,
-            branch, head_sha, self.current_font_size, parent=self,
+            branch, head_sha, self.current_font_size, font_family=self.current_font_family, parent=self,
         )
         dlg.exec()
 

@@ -281,12 +281,13 @@ class ViewCommitDialog(DiffViewerDialog):
 class BranchDiffDialog(QDialog):
     """Window replicating the right-side diff pane (Plain Diff + Filewise Diff tabs)
     for the combined diff between two commits (consolidated diff / PR preview)."""
-    def __init__(self, repo_path, start_sha, end_sha, num_commits, diff_text, files, file_stats, font_size=10, parent=None, colors=None, title=None, description=None):
+    def __init__(self, repo_path, start_sha, end_sha, num_commits, diff_text, files, file_stats, font_size=10, font_family=None, parent=None, colors=None, title=None, description=None):
         super().__init__(parent)
         self.repo_path = repo_path
         self.start_sha = start_sha
         self.end_sha = end_sha
         self.font_size = font_size
+        self.font_family = font_family
         title = title or "Consolidated Diff"
         self.setWindowTitle(f"{title} — {start_sha[:8]} → {end_sha[:8]}")
         self.setMinimumSize(860, 620)
@@ -1804,7 +1805,7 @@ class SingleCommitViewDialog(QDialog):
 class UnstagedDiffDialog(BranchDiffDialog):
     """Read-only window identical to the PR diff viewer (View PR Diff), but
     showing only the unstaged (worktree vs index) changes. No edits allowed."""
-    def __init__(self, repo_path, files, diff_text, file_stats, branch, head_sha, font_size=10, parent=None, colors=None):
+    def __init__(self, repo_path, files, diff_text, file_stats, branch, head_sha, font_size=10, font_family=None, parent=None, colors=None):
         if colors is None:
             main_win = parent if isinstance(parent, QMainWindow) else None
             if main_win and hasattr(main_win, 'current_theme_colors'):
@@ -1815,7 +1816,7 @@ class UnstagedDiffDialog(BranchDiffDialog):
 
         super().__init__(
             repo_path, branch, head_sha, len(files), diff_text,
-            files, file_stats, font_size, parent, colors=colors
+            files, file_stats, font_size, font_family=font_family, parent=parent, colors=colors
         )
         self.setWindowTitle("Unstaged Changes")
         self.header_label.setText(
@@ -1876,7 +1877,7 @@ class UnstagedDiffDialog(BranchDiffDialog):
 class StagedDiffDialog(BranchDiffDialog):
     """Read-only window showing staged (index vs HEAD) changes with 3 tabs:
     Plain Diff, File-wise Diff, Tree-wise Diff."""
-    def __init__(self, repo_path, files, diff_text, file_stats, branch, head_sha, font_size=10, parent=None, colors=None):
+    def __init__(self, repo_path, files, diff_text, file_stats, branch, head_sha, font_size=10, font_family=None, parent=None, colors=None):
         if colors is None:
             main_win = parent if isinstance(parent, QMainWindow) else None
             if main_win and hasattr(main_win, 'current_theme_colors'):
@@ -1887,7 +1888,7 @@ class StagedDiffDialog(BranchDiffDialog):
 
         super().__init__(
             repo_path, branch, head_sha, len(files), diff_text,
-            files, file_stats, font_size, parent, colors=colors
+            files, file_stats, font_size, font_family=font_family, parent=parent, colors=colors
         )
         self.setWindowTitle("Staged Changes")
         self.header_label.setText(

@@ -69,6 +69,7 @@ class RescanMixin:
             dialog = UnstagedChangesDialog(len(unstaged_files), parent=self, from_rescan=True,
                                            repo_path=self.repo_path, unstaged_files=unstaged_files,
                                            font_size=self.current_font_size,
+                                           font_family=self.current_font_family,
                                            managed_stash_sha=self.app_managed_stash_sha,
                                            viewer_mode=self.viewer_mode)
             result = dialog.exec()
@@ -246,7 +247,7 @@ class RescanMixin:
                     return
 
             dialog = BranchDiffDialog(self.repo_path, start_sha, end_sha, num_commits, diff_text, files,
-                                      file_stats, self.current_font_size, self, title=title, description=description)
+                                      file_stats, self.current_font_size, font_family=self.current_font_family, parent=self, title=title, description=description)
             self._open_viewer(dialog)
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not fetch consolidated diff: {str(e)}")
