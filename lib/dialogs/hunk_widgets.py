@@ -297,7 +297,7 @@ class HunkWidget(QFrame):
 
         self.diff_view = QTextEdit()
         self.diff_view.setReadOnly(True)
-        self.diff_view.setFont(mono_font(font_size))
+        self.diff_view.setFont(mono_font(font_size, family=font_family))
         self.diff_view.setPlainText(hunk_text)
         self.diff_view.setLineWrapMode(QTextEdit.NoWrap)
 

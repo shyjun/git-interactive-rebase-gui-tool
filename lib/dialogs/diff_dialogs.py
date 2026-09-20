@@ -265,7 +265,7 @@ class ViewCommitDialog(DiffViewerDialog):
         msg_box = QTextEdit()
         msg_box.setReadOnly(True)
         msg_box.setPlainText(self._commit_message)
-        msg_box.setFont(mono_font(self.font_size))
+        msg_box.setFont(mono_font(self.font_size, family=self.font_family))
         msg_box.setLineWrapMode(QTextEdit.WidgetWidth)
         msg_box.setProperty("class", "commit-msg-view")
         self.layout.addWidget(msg_box)
