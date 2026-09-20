@@ -133,9 +133,13 @@ class CommitListWidget(QListWidget):
                 event.accept()
                 return True
             else:
-                if self._cursor_override_active:
-                    QApplication.restoreOverrideCursor()
-                    self._cursor_override_active = False
+                self._restore_cursor()
+
+        elif etype == QEvent.Leave:
+            # Mouse left the viewport — restore cursor so it doesn't get stuck
+            # over the title bar, scrollbars, or other widgets.
+            if not self._resizing:
+                self._restore_cursor()
 
         elif etype == QEvent.MouseButtonPress and event.button() == Qt.LeftButton:
             col = self._hit_test_resize(int(event.position().x()))
@@ -163,6 +167,13 @@ class CommitListWidget(QListWidget):
                 self._restore_cursor()
                 event.accept()
                 return True
+
+        elif etype in (QEvent.FocusOut, QEvent.WindowDeactivate):
+            # Window/widget lost focus (e.g. a QMessageBox appeared while dragging
+            # a column border, or the user Alt-Tabbed). Restore cursor hard.
+            self._resizing = False
+            self._resize_col = None
+            self._restore_cursor()
 
         return super().viewportEvent(event)
 
