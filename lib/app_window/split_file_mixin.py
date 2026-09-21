@@ -286,9 +286,9 @@ finally:
 
             dialog = DropFileFromCommitDialog(self.repo_path, sha, files, self.current_font_size, self.current_font_family, self)
             if dialog.exec() == QDialog.Accepted:
-                selected_file = dialog.get_selected_file()
-                if selected_file:
-                    self.perform_drop_file_from_commit(sha, selected_file)
+                selected_files = dialog.get_selected_files()
+                if selected_files:
+                    self.perform_drop_file_from_commit(sha, selected_files)
             else:
                 _log(f"Cancelled drop file from {sha}.")
         except Exception as e:
