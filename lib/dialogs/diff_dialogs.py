@@ -1659,8 +1659,20 @@ class SingleCommitViewDialog(QDialog):
         if self.editable and is_editable_branch(self):
             is_only_file = self.filewise_file_list.count() <= 1
 
-            move_action = QAction("Move file changes out of this commit", self)
-            move_action.triggered.connect(lambda checked=False, text=target_path: self.move_file_out(text))
+            checked_files = []
+            for i in range(self.filewise_file_list.count()):
+                item = self.filewise_file_list.item(i)
+                if hasattr(item, 'checkState') and item.checkState() == Qt.Checked:
+                    checked_files.append(item.text())
+            if len(checked_files) > 1:
+                move_label = "Move selected files changes out of this commit"
+            elif len(checked_files) == 1:
+                move_label = "Move selected file changes out of this commit"
+            else:
+                move_label = "Move file changes out of this commit"
+
+            move_action = QAction(move_label, self)
+            move_action.triggered.connect(lambda checked=False, text=target_path, files=checked_files: self.move_file_out(text, files))
             move_action.setEnabled(not is_only_file)
             menu.addAction(move_action)
 
@@ -1714,8 +1726,20 @@ class SingleCommitViewDialog(QDialog):
         if self.editable and is_editable_branch(self):
             is_only_file = self.filewise_file_list.count() <= 1
 
-            move_action = QAction("Move file changes out of this commit", self)
-            move_action.triggered.connect(lambda checked=False, text=target_path: self.move_file_out(text))
+            checked_files = []
+            for i in range(self.filewise_file_list.count()):
+                item = self.filewise_file_list.item(i)
+                if hasattr(item, 'checkState') and item.checkState() == Qt.Checked:
+                    checked_files.append(item.text())
+            if len(checked_files) > 1:
+                move_label = "Move selected files changes out of this commit"
+            elif len(checked_files) == 1:
+                move_label = "Move selected file changes out of this commit"
+            else:
+                move_label = "Move file changes out of this commit"
+
+            move_action = QAction(move_label, self)
+            move_action.triggered.connect(lambda checked=False, text=target_path, files=checked_files: self.move_file_out(text, files))
             move_action.setEnabled(not is_only_file)
             menu.addAction(move_action)
 
@@ -1740,11 +1764,12 @@ class SingleCommitViewDialog(QDialog):
         menu.addAction(browse_log_action)
         menu.exec(self.filewise_file_list.mapToGlobal(pos))
 
-    def move_file_out(self, filepath):
+    def move_file_out(self, filepath, checked_files=None):
         main_win = self.parent() if isinstance(self.parent(), QMainWindow) else None
         if main_win and hasattr(main_win, 'perform_move_file_out'):
+            files = checked_files if checked_files else [filepath]
             self.accept()
-            QTimer.singleShot(0, lambda: main_win.perform_move_file_out(self.sha, [filepath]))
+            QTimer.singleShot(0, lambda: main_win.perform_move_file_out(self.sha, files))
 
     def drop_file(self, filepath):
         main_win = self.parent() if isinstance(self.parent(), QMainWindow) else None
@@ -2105,7 +2130,7 @@ class FileWiseViewDialog(QDialog):
 
         is_only_file = self.file_list.count() <= 1
 
-        move_action = QAction("Move file changes out of this commit", self)
+        move_action = QAction("Move selected file changes out of this commit", self)
         move_action.triggered.connect(lambda checked=False, text=target_path: self.move_file_out(text))
         move_action.setEnabled(not is_only_file)
         menu.addAction(move_action)
@@ -2137,11 +2162,12 @@ class FileWiseViewDialog(QDialog):
         if main_win and hasattr(main_win, 'open_file_log_for'):
             main_win.open_file_log_for(filepath)
 
-    def move_file_out(self, filepath):
+    def move_file_out(self, filepath, checked_files=None):
         main_win = self.parent() if isinstance(self.parent(), QMainWindow) else None
         if main_win and hasattr(main_win, 'perform_move_file_out'):
+            files = checked_files if checked_files else [filepath]
             self.accept()
-            QTimer.singleShot(0, lambda: main_win.perform_move_file_out(self.sha, [filepath]))
+            QTimer.singleShot(0, lambda: main_win.perform_move_file_out(self.sha, files))
 
     def drop_file(self, filepath):
         main_win = self.parent() if isinstance(self.parent(), QMainWindow) else None

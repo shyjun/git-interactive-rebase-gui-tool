@@ -382,8 +382,20 @@ class DiffMixin:
         if not self.browse_mode and not self.viewer_mode:
             is_only_file = self.filewise_file_list.count() <= 1
 
-            move_action = QAction("Move file changes out of this commit", self)
-            move_action.triggered.connect(lambda checked=False, text=target_path: self.handle_context_move_file_out(text))
+            checked_files = []
+            for i in range(self.filewise_file_list.count()):
+                item = self.filewise_file_list.item(i)
+                if hasattr(item, 'checkState') and item.checkState() == Qt.Checked:
+                    checked_files.append(item.text())
+            if len(checked_files) > 1:
+                move_label = "Move selected files changes out of this commit"
+            elif len(checked_files) == 1:
+                move_label = "Move selected file changes out of this commit"
+            else:
+                move_label = "Move file changes out of this commit"
+
+            move_action = QAction(move_label, self)
+            move_action.triggered.connect(lambda checked=False, text=target_path, files=checked_files: self.handle_context_move_file_out(text, files))
             move_action.setEnabled(not is_only_file)
             menu.addAction(move_action)
 
@@ -410,12 +422,13 @@ class DiffMixin:
 
         menu.exec(self.filewise_file_list.mapToGlobal(pos))
 
-    def handle_context_move_file_out(self, filepath):
+    def handle_context_move_file_out(self, filepath, checked_files=None):
         current_commit_item = self.list_widget.currentItem()
         if not current_commit_item:
             return
         sha = current_commit_item.text().split()[0]
-        self.perform_move_file_out(sha, [filepath])
+        files = checked_files if checked_files else [filepath]
+        self.perform_move_file_out(sha, files)
 
     def handle_context_drop_file(self, filepath):
         current_commit_item = self.list_widget.currentItem()
@@ -888,8 +901,20 @@ class DiffMixin:
         if not self.browse_mode and not self.viewer_mode:
             is_only_file = self.filewise_file_list.count() <= 1
 
-            move_action = QAction("Move file changes out of this commit", self)
-            move_action.triggered.connect(lambda checked=False, text=target_path: self.handle_context_move_file_out(text))
+            checked_files = []
+            for i in range(self.filewise_file_list.count()):
+                item = self.filewise_file_list.item(i)
+                if hasattr(item, 'checkState') and item.checkState() == Qt.Checked:
+                    checked_files.append(item.text())
+            if len(checked_files) > 1:
+                move_label = "Move selected files changes out of this commit"
+            elif len(checked_files) == 1:
+                move_label = "Move selected file changes out of this commit"
+            else:
+                move_label = "Move file changes out of this commit"
+
+            move_action = QAction(move_label, self)
+            move_action.triggered.connect(lambda checked=False, text=target_path, files=checked_files: self.handle_context_move_file_out(text, files))
             move_action.setEnabled(not is_only_file)
             menu.addAction(move_action)
 
