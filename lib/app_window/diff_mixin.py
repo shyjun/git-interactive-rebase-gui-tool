@@ -415,7 +415,7 @@ class DiffMixin:
         if not current_commit_item:
             return
         sha = current_commit_item.text().split()[0]
-        self.perform_move_file_out(sha, filepath)
+        self.perform_move_file_out(sha, [filepath])
 
     def handle_context_drop_file(self, filepath):
         current_commit_item = self.list_widget.currentItem()

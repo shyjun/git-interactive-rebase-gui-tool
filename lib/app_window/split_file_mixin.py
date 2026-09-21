@@ -6,6 +6,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QApplication,
     QDialog,
+    QLabel,
     QMessageBox,
 )
 from lib.git_helpers import (
@@ -34,7 +35,7 @@ class SplitFileMixin:
     """Split a single file out of / drop from / remove from a commit."""
 
     def handle_split_commit(self, item):
-        """Opens SplitCommitDialog to allow moving a file out of a commit."""
+        """Opens SplitCommitDialog to allow moving file(s) out of a commit."""
         sha = item.text().split()[0]
         if not self._check_no_unstaged_changes():
             return
@@ -51,17 +52,18 @@ class SplitFileMixin:
 
             dialog = SplitCommitDialog(self.repo_path, sha, files, self.current_font_size, self.current_font_family, self)
             if dialog.exec() == QDialog.Accepted:
-                selected_file = dialog.get_selected_file()
-                if selected_file:
-                    self.perform_move_file_out(sha, selected_file)
+                selected_files = dialog.get_selected_files()
+                if selected_files:
+                    self.perform_move_file_out(sha, selected_files)
             else:
                 _log(f"Cancelled split/move file from {sha}.")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not open split dialog: {str(e)}")
 
-    def perform_move_file_out(self, sha, filepath):
+    def perform_move_file_out(self, sha, filepaths):
         """
-        Moves a single file's changes out of a commit into a new commit after it.
+        Moves file(s) changes out of a commit into a new commit after it.
+        filepaths: list of file paths to move out.
         """
         if not self._check_not_viewer_mode():
             return
@@ -77,27 +79,59 @@ class SplitFileMixin:
         editor_script = None
         try:
             all_files = get_commit_files(self.repo_path, sha)
-            other_files = [f for f in all_files if f != filepath]
+            other_files = [f for f in all_files if f not in filepaths]
             short_sha = sha[:8]
 
             if not other_files:
-                QMessageBox.information(self, "Info", f"File '{filepath}' is the only modified file in this commit. Nothing to split.")
+                file_list_str = ", ".join(filepaths) if len(filepaths) <= 3 else f"{len(filepaths)} files"
+                QMessageBox.information(self, "Info",
+                    f"All changes in this commit are in the selected {file_list_str}. Nothing to split.")
                 return
 
-            # Show confirmation dialog with file diff
+            # Show confirmation dialog with combined diff of selected files
             try:
-                diff_text = get_file_diff_only_in_commit(self.repo_path, sha, filepath)
+                parts = []
+                for fp in filepaths:
+                    d = get_file_diff_only_in_commit(self.repo_path, sha, fp).rstrip("\n")
+                    if d:
+                        parts.append(d)
+                diff_text = "\n\n".join(parts) + ("\n" if parts else "")
             except Exception:
-                diff_text = "Could not load diff for this file."
+                diff_text = "Could not load diff for selected files."
 
-            confirm_dialog = ConfirmMoveFileDialog(sha, filepath, diff_text, self.current_font_size, self.current_font_family, self)
+            if len(filepaths) == 1:
+                confirm_title = f"Confirm Move File Out: {sha}"
+                confirm_label = f"Move <b>{filepaths[0]}</b> out of commit <b>{sha}</b>?"
+            else:
+                file_list = "\n".join(f"  {f}" for f in filepaths)
+                confirm_title = f"Confirm Move Files Out: {sha}"
+                confirm_label = (f"Move <b>{len(filepaths)} files</b> out of commit <b>{sha}</b>?\n\n"
+                                 f"<pre>{file_list}</pre>")
+
+            from lib.dialogs.diff_viewer_dialog import DiffViewerDialog
+            confirm_dialog = DiffViewerDialog(confirm_title, sha, diff_text,
+                                              self.current_font_size, self.current_font_family, self)
+            # Insert label at the top of the layout (before the diff view)
+            label = QLabel(confirm_label)
+            label.setTextFormat(Qt.RichText)
+            label.setWordWrap(True)
+            confirm_dialog.layout.insertWidget(0, label)
             if confirm_dialog.exec() != QDialog.Accepted:
                 return
 
             original_msg = get_full_commit_message(self.repo_path, sha)
-            new_msg = f"{filepath} changes separated out from {short_sha}\n\n{original_msg}"
+            if len(filepaths) == 1:
+                new_msg = f"{filepaths[0]} changes separated out from {short_sha}\n\n{original_msg}"
+            else:
+                new_msg = f"changes for {len(filepaths)} files separated out from {short_sha}\n\n{original_msg}"
 
-            # Action script content
+            # Write filepaths to a temp file for the action script
+            fp_fd, fp_path = tempfile.mkstemp(prefix='git_split_files_', text=True)
+            with os.fdopen(fp_fd, 'w', encoding='utf-8') as f:
+                for fp in filepaths:
+                    f.write(fp + '\n')
+
+            # Action script content — reads filepaths from temp file
             action_script_content = f"""#!/usr/bin/env python3
 import subprocess
 import os
@@ -105,18 +139,23 @@ import tempfile
 import sys
 
 sha = {repr(sha)}
-filepath = {repr(filepath)}
+fp_path = {repr(fp_path)}
 new_msg = {repr(new_msg)}
+
+with open(fp_path, 'r') as f:
+    filepaths = [line.strip() for line in f if line.strip()]
 
 # 1. Soft-reset to unstage the commit
 subprocess.check_call(['git', 'reset', '--soft', 'HEAD~1'])
-# 2. Un-stage the target file from the index
-subprocess.check_call(['git', 'reset', 'HEAD', '--', filepath])
+# 2. Un-stage all target files from the index
+for fp in filepaths:
+    subprocess.check_call(['git', 'reset', 'HEAD', '--', fp])
 # 3. Re-commit the remaining files with the original commit message
 subprocess.check_call(['git', 'commit', '-C', sha])
-# 4. Stage the target file
-subprocess.check_call(['git', 'add', '--all', '--', filepath])
-# 5. Commit the target file with the new descriptive message
+# 4. Stage all target files
+for fp in filepaths:
+    subprocess.check_call(['git', 'add', '--all', '--', fp])
+# 5. Commit the target files with the new descriptive message
 msg_fd, msg_path = tempfile.mkstemp(prefix='git_msg_', text=True)
 with os.fdopen(msg_fd, 'w', encoding='utf-8') as f:
     f.write(new_msg)
@@ -178,7 +217,11 @@ finally:
             else:
                 cmd = ["git", "rebase", "-i", upstream]
 
-            progress = ProgressDialog("Moving File Out", f"Moving '{filepath}' out of commit {short_sha}...", self)
+            if len(filepaths) == 1:
+                progress_msg = f"Moving '{filepaths[0]}' out of commit {short_sha}..."
+            else:
+                progress_msg = f"Moving {len(filepaths)} files out of commit {short_sha}..."
+            progress = ProgressDialog("Moving Files Out", progress_msg, self)
             self.split_worker = SplitWorker(cmd, self.repo_path, env)
 
             def on_split_finished(returncode, stdout, stderr):
@@ -188,16 +231,23 @@ finally:
                     try:
                         os.unlink(editor_script)
                         os.unlink(action_path)
-                    except:
+                        os.unlink(fp_path)
+                    except Exception:
                         pass
 
                     if returncode == 0:
                         self.load_history()
                         new_head = self.get_head_sha()
-                        self.log_action(sha, f"moved {filepath} out of", old_head, new_head)
-                        QMessageBox.information(self, "Success",
-                            f"File '{filepath}' has been moved out of commit {short_sha}.\n\n"
-                            f"A new commit was created with message: \"{filepath} changes separated out from {short_sha}\"")
+                        if len(filepaths) == 1:
+                            self.log_action(sha, f"moved {filepaths[0]} out of", old_head, new_head)
+                            QMessageBox.information(self, "Success",
+                                f"File '{filepaths[0]}' has been moved out of commit {short_sha}.\n\n"
+                                f"A new commit was created with message: \"{filepaths[0]} changes separated out from {short_sha}\"")
+                        else:
+                            self.log_action(sha, f"moved {len(filepaths)} files out of", old_head, new_head)
+                            QMessageBox.information(self, "Success",
+                                f"{len(filepaths)} files have been moved out of commit {short_sha}.\n\n"
+                                f"A new commit was created with message: \"{new_msg.splitlines()[0]}\"")
                     else:
                         ok, detail = self._abort_rebase_safely()
                         if not ok:
