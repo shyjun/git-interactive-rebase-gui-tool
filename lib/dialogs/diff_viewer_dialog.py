@@ -110,13 +110,13 @@ class DiffViewerDialog(QDialog):
         pass # To be overridden
 
     def setup_buttons(self):
-        ok_btn = QPushButton("Move File(s) Out")
-        ok_btn.setMinimumWidth(180)
+        ok_btn = QPushButton("Ok")
+        ok_btn.setMinimumWidth(100)
         ok_btn.setProperty("class", "dialog-btn")
         ok_btn.clicked.connect(self.accept)
 
         cancel_btn = QPushButton("Cancel")
-        cancel_btn.setMinimumWidth(120)
+        cancel_btn.setMinimumWidth(100)
         cancel_btn.setProperty("class", "dialog-btn")
         cancel_btn.clicked.connect(self.reject)
 
