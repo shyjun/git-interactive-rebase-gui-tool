@@ -39,7 +39,7 @@ class DropDialog(DiffViewerDialog):
              warning_color = main_win.current_theme_colors["removed"]
 
         label.setStyleSheet(f"color: {warning_color};") 
-        self.layout.addWidget(label)
+        self.content_layout.addWidget(label)
 
     def setup_buttons(self):
         self.yes_btn = QPushButton("Yes, Drop it")

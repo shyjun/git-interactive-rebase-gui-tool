@@ -259,7 +259,7 @@ class ViewCommitDialog(DiffViewerDialog):
     def setup_header(self, sha):
         label = QLabel(f"Showing changes for commit: <b>{sha}</b>  <span style='color:gray;'>({self._commit_meta})</span>")
         label.setTextFormat(Qt.RichText)
-        self.layout.addWidget(label)
+        self.content_layout.addWidget(label)
 
         # Commit message box
         msg_box = QTextEdit()
@@ -268,7 +268,7 @@ class ViewCommitDialog(DiffViewerDialog):
         msg_box.setFont(mono_font(self.font_size, family=self.font_family))
         msg_box.setLineWrapMode(QTextEdit.WidgetWidth)
         msg_box.setProperty("class", "commit-msg-view")
-        self.layout.addWidget(msg_box)
+        self.content_layout.addWidget(msg_box)
 
     def setup_buttons(self):
         ok_btn = QPushButton("Ok")

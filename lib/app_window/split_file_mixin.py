@@ -111,11 +111,11 @@ class SplitFileMixin:
             from lib.dialogs.diff_viewer_dialog import DiffViewerDialog
             confirm_dialog = DiffViewerDialog(confirm_title, sha, diff_text,
                                               self.current_font_size, self.current_font_family, self)
-            # Insert label at the top of the layout (before the diff view)
+            # Insert label at the top of the content area (inside the splitter)
             label = QLabel(confirm_label)
             label.setTextFormat(Qt.RichText)
             label.setWordWrap(True)
-            confirm_dialog.layout.insertWidget(0, label)
+            confirm_dialog.content_layout.insertWidget(0, label)
             if confirm_dialog.exec() != QDialog.Accepted:
                 return
 

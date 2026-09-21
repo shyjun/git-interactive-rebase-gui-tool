@@ -871,7 +871,7 @@ class ConfirmDropFileDialog(DiffViewerDialog):
         if main_win and hasattr(main_win, 'current_theme_colors'):
             warning_color = main_win.current_theme_colors["removed"]
         label.setStyleSheet(f"color: {warning_color};")
-        self.layout.addWidget(label)
+        self.content_layout.addWidget(label)
 
     def setup_buttons(self):
         self.yes_btn = QPushButton("Yes, Drop this file's changes")
@@ -899,7 +899,7 @@ class ConfirmMoveFileDialog(DiffViewerDialog):
     def setup_header(self, sha):
         label = QLabel(f"Are you sure you want to move changes of <b>{self.filepath}</b> out of commit: <b>{sha}</b>?")
         label.setWordWrap(True)
-        self.layout.addWidget(label)
+        self.content_layout.addWidget(label)
 
     def setup_buttons(self):
         self.yes_btn = QPushButton("Yes, Move this file out")
@@ -937,7 +937,7 @@ class ConfirmRemoveFileOnwardsDialog(DiffViewerDialog):
         label = QLabel(msg)
         label.setWordWrap(True)
         label.setTextFormat(Qt.RichText)
-        self.layout.addWidget(label)
+        self.content_layout.addWidget(label)
 
         if self.later_modifications_detected:
             # Use theme-aware warning color
@@ -953,7 +953,7 @@ class ConfirmRemoveFileOnwardsDialog(DiffViewerDialog):
             warning_label.setWordWrap(True)
             warning_label.setTextFormat(Qt.RichText)
             warning_label.setStyleSheet(f"color: {warning_color}; padding: 6px; border: 1px solid {warning_color}; border-radius: 4px;")
-            self.layout.addWidget(warning_label)
+            self.content_layout.addWidget(warning_label)
 
     def setup_buttons(self):
         if self.later_modifications_detected:

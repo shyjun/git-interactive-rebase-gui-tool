@@ -48,8 +48,9 @@ class DiffViewerDialog(QDialog):
         content_layout = QVBoxLayout(content_widget)
         content_layout.setContentsMargins(0, 0, 0, 0)
         content_layout.setSpacing(0)
+        self.content_layout = content_layout
 
-        # Header info
+        # Header info (subclasses add to self.content_layout)
         self.setup_header(sha)
 
         # Full diff view
