@@ -6,7 +6,7 @@ from .core import (
     _git_capture,
     _pad_diff_separators,
 )
-from lib.app_window.helpers import _log
+from lib.app_window.helpers import _log, _VERBOSE
 
 MAX_DIFF_BYTES = 2 * 1024 * 1024  # 2 MB cap for diff output
 
@@ -77,7 +77,8 @@ def get_commit_diff(repo_path, commit_sha):
         diff_text = data
         if truncated:
             diff_text += f"\n\n[Truncated: merge commit diff exceeded {_format_bytes(MAX_DIFF_BYTES)} limit]"
-            _log(f"[git_helpers] get_commit_diff: truncated at {_format_bytes(MAX_DIFF_BYTES)} for {commit_sha[:11]}")
+            if _VERBOSE:
+                _log(f"[git_helpers] get_commit_diff: truncated at {_format_bytes(MAX_DIFF_BYTES)} for {commit_sha[:11]}")
 
         # Inject a newline before every 'diff --git' block, but NOT if it's at the absolute start
         # This prevents an extra empty line at the top of the diff viewer.
