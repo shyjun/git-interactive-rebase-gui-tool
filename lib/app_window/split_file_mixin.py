@@ -238,10 +238,8 @@ finally:
 
                     if returncode == 0:
                         self.load_history()
-                        for i in range(self.list_widget.count()):
-                            if self.list_widget.item(i).text().split()[0].startswith(sha[:8]):
-                                self.list_widget.setCurrentRow(i)
-                                break
+                        if self.list_widget.count() > 1:
+                            self.list_widget.setCurrentRow(1)
                         new_head = self.get_head_sha()
                         if len(filepaths) == 1:
                             self.log_action(sha, f"moved {filepaths[0]} out of", old_head, new_head)
@@ -260,8 +258,6 @@ finally:
                             f"Error: {stderr}")
                 except Exception as e:
                     QMessageBox.critical(self, "Error", f"An error occurred during split: {str(e)}")
-                finally:
-                    self.load_history()
 
             self.split_worker.split_finished.connect(on_split_finished)
             _log("[thread] split_file split_worker.start()")
