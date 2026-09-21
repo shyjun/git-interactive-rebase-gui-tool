@@ -238,17 +238,19 @@ finally:
 
                     if returncode == 0:
                         self.load_history()
+                        for i in range(self.list_widget.count()):
+                            if self.list_widget.item(i).text().split()[0].startswith(sha[:8]):
+                                self.list_widget.setCurrentRow(i)
+                                break
                         new_head = self.get_head_sha()
                         if len(filepaths) == 1:
                             self.log_action(sha, f"moved {filepaths[0]} out of", old_head, new_head)
                             QMessageBox.information(self, "Success",
-                                f"File '{filepaths[0]}' has been moved out of commit {short_sha}.\n\n"
-                                f"A new commit was created with message: \"{filepaths[0]} changes separated out from {short_sha}\"")
+                                f"File '{filepaths[0]}' has been moved out of commit {short_sha}.")
                         else:
                             self.log_action(sha, f"moved {len(filepaths)} files out of", old_head, new_head)
                             QMessageBox.information(self, "Success",
-                                f"{len(filepaths)} files have been moved out of commit {short_sha}.\n\n"
-                                f"A new commit was created with message: \"{new_msg.splitlines()[0]}\"")
+                                f"{len(filepaths)} files have been moved out of commit {short_sha}.")
                     else:
                         ok, detail = self._abort_rebase_safely()
                         if not ok:
