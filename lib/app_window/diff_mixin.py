@@ -558,6 +558,8 @@ class DiffMixin:
 
     def _sync_filewise_checks_to_tree(self):
         """Apply current filewise check states to the treewise tree."""
+        if getattr(self, '_filewise_list_sha', None) != getattr(self, '_treewise_tree_sha', None):
+            return
         for i in range(self.filewise_file_list.count()):
             item = self.filewise_file_list.item(i)
             checked = item.checkState() == Qt.Checked
