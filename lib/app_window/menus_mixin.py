@@ -649,7 +649,7 @@ class MenusMixin:
         split_drop_file_action.setEnabled(has_multiple_files)
         split_menu.addAction(split_drop_file_action)
 
-        split_move_out_action = QAction("move one file changes out of this commit", self)
+        split_move_out_action = QAction("move file(s) changes out of this commit", self)
         split_move_out_action.triggered.connect(lambda: self.handle_split_commit(item))
         split_menu.addAction(split_move_out_action)
 

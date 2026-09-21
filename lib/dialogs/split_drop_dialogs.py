@@ -227,11 +227,13 @@ class SplitCommitDialog(QDialog):
         self.tab_widget.addTab(treewise_widget, "\u25BC Tree-wise Diff")
         self._treewise_tab_idx = self.tab_widget.indexOf(treewise_widget)
 
+        self.tab_widget.currentChanged.connect(self._on_tab_changed)
+
         self.main_splitter.addWidget(self.tab_widget)
         self.main_splitter.setSizes([100, 500])
-        layout.addWidget(self.main_splitter)
+        layout.addWidget(self.main_splitter, 1)
 
-        # Buttons
+        # Buttons (always visible at bottom)
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
         self.move_btn = QPushButton("Move Out of Commit")
@@ -555,6 +557,46 @@ class SplitCommitDialog(QDialog):
     def _update_move_button(self):
         """Enable/disable move button based on whether any files are checked."""
         self.move_btn.setEnabled(len(self._checked_filewise_files()) > 0)
+
+    def _toggle_filewise_file_list(self):
+        visible = self.filewise_file_list.isVisible()
+        self.filewise_file_list.setVisible(not visible)
+        arrow = "\u25B6" if visible else "\u25BC"
+        self.tab_widget.setTabText(self._filewise_tab_idx,
+                                   f"{arrow} Filewise Diff")
+        if visible:
+            self.filewise_file_list.setMinimumHeight(0)
+            self.filewise_splitter.setCollapsible(0, True)
+            self.filewise_splitter.setSizes([0, 1000])
+            self.filewise_splitter.handle(1).setEnabled(False)
+        else:
+            self.filewise_file_list.setMinimumHeight(60)
+            self.filewise_splitter.setCollapsible(0, False)
+            self.filewise_splitter.setSizes([150, 350])
+            self.filewise_splitter.handle(1).setEnabled(True)
+
+    def _toggle_treewise_file_list(self):
+        visible = self.treewise_tree.isVisible()
+        self.treewise_tree.setVisible(not visible)
+        arrow = "\u25B6" if visible else "\u25BC"
+        self.tab_widget.setTabText(self._treewise_tab_idx,
+                                   f"{arrow} Tree-wise Diff")
+        if visible:
+            self.treewise_tree.setMinimumHeight(0)
+            self.treewise_splitter.setCollapsible(0, True)
+            self.treewise_splitter.setSizes([0, 1000])
+            self.treewise_splitter.handle(1).setEnabled(False)
+        else:
+            self.treewise_tree.setMinimumHeight(60)
+            self.treewise_splitter.setCollapsible(0, False)
+            self.treewise_splitter.setSizes([150, 350])
+            self.treewise_splitter.handle(1).setEnabled(True)
+
+    def _on_tab_changed(self, idx):
+        if idx == self._filewise_tab_idx and not self.filewise_file_list.isVisible():
+            self._toggle_filewise_file_list()
+        elif idx == self._treewise_tab_idx and not self.treewise_tree.isVisible():
+            self._toggle_treewise_file_list()
 
     def show_filewise_context_menu(self, pos):
         item = self.filewise_file_list.itemAt(pos)
