@@ -70,13 +70,13 @@ class DiffViewerDialog(QDialog):
 
         diff_container_layout.addWidget(self.diff_view)
 
-        self.layout.addWidget(diff_container)
+        self.layout.addWidget(diff_container, 1)
 
         # Connect Ctrl+F explicitly just in case focus escapes
         self.ctrl_f_shortcut = QShortcut(QKeySequence("Ctrl+F"), self)
         self.ctrl_f_shortcut.activated.connect(self.search_bar.show_and_focus)
 
-        # Buttons
+        # Buttons (always visible at bottom)
         self.btn_layout = QHBoxLayout()
         self.btn_layout.addStretch() # Center spacer left
         self.setup_buttons()

@@ -228,6 +228,7 @@ class SplitCommitDialog(QDialog):
         self._treewise_tab_idx = self.tab_widget.indexOf(treewise_widget)
 
         self.tab_widget.currentChanged.connect(self._on_tab_changed)
+        self.tab_widget.tabBar().tabBarClicked.connect(self._on_tab_bar_clicked)
 
         self.main_splitter.addWidget(self.tab_widget)
         self.main_splitter.setSizes([100, 500])
@@ -597,6 +598,13 @@ class SplitCommitDialog(QDialog):
             self._toggle_filewise_file_list()
         elif idx == self._treewise_tab_idx and not self.treewise_tree.isVisible():
             self._toggle_treewise_file_list()
+
+    def _on_tab_bar_clicked(self, idx):
+        if idx == self.tab_widget.currentIndex():
+            if idx == self._filewise_tab_idx:
+                self._toggle_filewise_file_list()
+            elif idx == self._treewise_tab_idx:
+                self._toggle_treewise_file_list()
 
     def show_filewise_context_menu(self, pos):
         item = self.filewise_file_list.itemAt(pos)
