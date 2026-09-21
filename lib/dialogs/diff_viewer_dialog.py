@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QDialog,
     QHBoxLayout,
     QLabel,
+    QPushButton,
 )
 # pyrefly: ignore [missing-import]
 from PySide6.QtGui import (
@@ -91,6 +92,7 @@ class DiffViewerDialog(QDialog):
 
         # Bottom: buttons always visible
         btn_widget = QWidget()
+        btn_widget.setMinimumHeight(40)
         self.btn_layout = QHBoxLayout(btn_widget)
         self.btn_layout.addStretch()
         self.setup_buttons()
@@ -108,4 +110,15 @@ class DiffViewerDialog(QDialog):
         pass # To be overridden
 
     def setup_buttons(self):
-        pass # To be overridden
+        ok_btn = QPushButton("Move File(s) Out")
+        ok_btn.setMinimumWidth(180)
+        ok_btn.setProperty("class", "dialog-btn")
+        ok_btn.clicked.connect(self.accept)
+
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.setMinimumWidth(120)
+        cancel_btn.setProperty("class", "dialog-btn")
+        cancel_btn.clicked.connect(self.reject)
+
+        self.btn_layout.addWidget(ok_btn)
+        self.btn_layout.addWidget(cancel_btn)
