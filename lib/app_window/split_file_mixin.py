@@ -338,8 +338,7 @@ finally:
                 reply = QMessageBox.warning(
                     self, "Drop File Changes",
                     f"Drop changes for {len(filepaths)} files from commit {short_sha}?\n\n"
-                    f"{file_list}\n\n"
-                    "This cannot be undone.",
+                    f"{file_list}",
                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
                 if reply != QMessageBox.Yes:
                     return
