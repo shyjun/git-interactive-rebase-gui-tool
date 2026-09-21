@@ -1658,8 +1658,15 @@ class SingleCommitViewDialog(QDialog):
             move_action.setEnabled(not is_only_file)
             menu.addAction(move_action)
 
-            drop_action = QAction("Drop file changes from this commit", self)
-            drop_action.triggered.connect(lambda checked=False, text=target_path: self.drop_file(text))
+            if len(checked_files) > 1:
+                drop_label = "Drop selected files changes from this commit"
+            elif len(checked_files) == 1:
+                drop_label = "Drop selected file changes from this commit"
+            else:
+                drop_label = "Drop file changes from this commit"
+
+            drop_action = QAction(drop_label, self)
+            drop_action.triggered.connect(lambda checked=False, text=target_path, files=checked_files: self.drop_file(text, files))
             drop_action.setEnabled(not is_only_file)
             menu.addAction(drop_action)
 
@@ -1725,8 +1732,15 @@ class SingleCommitViewDialog(QDialog):
             move_action.setEnabled(not is_only_file)
             menu.addAction(move_action)
 
-            drop_action = QAction("Drop file changes from this commit", self)
-            drop_action.triggered.connect(lambda checked=False, text=target_path: self.drop_file(text))
+            if len(checked_files) > 1:
+                drop_label = "Drop selected files changes from this commit"
+            elif len(checked_files) == 1:
+                drop_label = "Drop selected file changes from this commit"
+            else:
+                drop_label = "Drop file changes from this commit"
+
+            drop_action = QAction(drop_label, self)
+            drop_action.triggered.connect(lambda checked=False, text=target_path, files=checked_files: self.drop_file(text, files))
             drop_action.setEnabled(not is_only_file)
             menu.addAction(drop_action)
 
@@ -1753,11 +1767,12 @@ class SingleCommitViewDialog(QDialog):
             self.accept()
             QTimer.singleShot(0, lambda: main_win.perform_move_file_out(self.sha, files))
 
-    def drop_file(self, filepath):
+    def drop_file(self, filepath, checked_files=None):
         main_win = self.parent() if isinstance(self.parent(), QMainWindow) else None
         if main_win and hasattr(main_win, 'perform_drop_file_from_commit'):
+            files = checked_files if checked_files else [filepath]
             self.accept()
-            QTimer.singleShot(0, lambda: main_win.perform_drop_file_from_commit(self.sha, filepath))
+            QTimer.singleShot(0, lambda: main_win.perform_drop_file_from_commit(self.sha, files))
 
     def remove_file_onwards(self, filepath):
         main_win = self.parent() if isinstance(self.parent(), QMainWindow) else None
@@ -2151,11 +2166,12 @@ class FileWiseViewDialog(QDialog):
             self.accept()
             QTimer.singleShot(0, lambda: main_win.perform_move_file_out(self.sha, files))
 
-    def drop_file(self, filepath):
+    def drop_file(self, filepath, checked_files=None):
         main_win = self.parent() if isinstance(self.parent(), QMainWindow) else None
         if main_win and hasattr(main_win, 'perform_drop_file_from_commit'):
+            files = checked_files if checked_files else [filepath]
             self.accept()
-            QTimer.singleShot(0, lambda: main_win.perform_drop_file_from_commit(self.sha, filepath))
+            QTimer.singleShot(0, lambda: main_win.perform_drop_file_from_commit(self.sha, files))
 
     def remove_file_onwards(self, filepath):
         main_win = self.parent() if isinstance(self.parent(), QMainWindow) else None

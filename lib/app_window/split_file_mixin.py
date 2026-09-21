@@ -294,9 +294,10 @@ finally:
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not open drop file dialog: {str(e)}")
 
-    def perform_drop_file_from_commit(self, sha, filepath):
+    def perform_drop_file_from_commit(self, sha, filepaths):
         """
-        Drops a single file's changes from a commit without moving it to a new one.
+        Drops file changes from a commit without moving them to a new one.
+        filepaths can be a single filepath string or a list of filepath strings.
         """
         if not self._check_not_viewer_mode():
             return
@@ -311,42 +312,58 @@ finally:
         action_path = None
         editor_script = None
         try:
+            if isinstance(filepaths, str):
+                filepaths = [filepaths]
             all_files = get_commit_files(self.repo_path, sha)
-            other_files = [f for f in all_files if f != filepath]
+            other_files = [f for f in all_files if f not in filepaths]
             short_sha = sha[:8]
 
             if not other_files:
-                QMessageBox.information(self, "Info", f"File '{filepath}' is the only modified file in this commit. Dropping it means dropping the commit completely. Use Drop action instead.")
+                QMessageBox.information(self, "Info",
+                    "All modified files in this commit are selected for dropping. "
+                    "Dropping them means dropping the commit completely. Use Drop action instead.")
                 return
 
-            # Show confirmation dialog with file diff
-            try:
-                diff_text = get_file_diff_only_in_commit(self.repo_path, sha, filepath)
-            except Exception:
-                diff_text = "Could not load diff for this file."
+            if len(filepaths) == 1:
+                filepath = filepaths[0]
+                try:
+                    diff_text = get_file_diff_only_in_commit(self.repo_path, sha, filepath)
+                except Exception:
+                    diff_text = "Could not load diff for this file."
+                confirm_dialog = ConfirmDropFileDialog(sha, filepath, diff_text, self.current_font_size, self.current_font_family, self)
+                if confirm_dialog.exec() != QDialog.Accepted:
+                    return
+            else:
+                file_list = "\n".join(f"  {f}" for f in filepaths)
+                reply = QMessageBox.warning(
+                    self, "Drop File Changes",
+                    f"Drop changes for {len(filepaths)} files from commit {short_sha}?\n\n"
+                    f"{file_list}\n\n"
+                    "This cannot be undone.",
+                    QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+                if reply != QMessageBox.Yes:
+                    return
 
-            confirm_dialog = ConfirmDropFileDialog(sha, filepath, diff_text, self.current_font_size, self.current_font_family, self)
-            if confirm_dialog.exec() != QDialog.Accepted:
-                return
-
-            # Action script content for dropping
+            filepaths_repr = repr(filepaths)
             action_script_content = f"""#!/usr/bin/env python3
 import subprocess
 import sys
 
 sha = {repr(sha)}
-filepath = {repr(filepath)}
+filepaths = {filepaths_repr}
 
 # 1. Soft-reset to unstage the commit
 subprocess.check_call(['git', 'reset', '--soft', 'HEAD~1'])
-# 2. Un-stage the target file from the index so it won't be committed
-subprocess.check_call(['git', 'reset', 'HEAD', '--', filepath])
+# 2. Un-stage the target files from the index so they won't be committed
+for fp in filepaths:
+    subprocess.check_call(['git', 'reset', 'HEAD', '--', fp])
 # 3. Commit the remaining files with the original commit message
 subprocess.check_call(['git', 'commit', '-C', sha])
 # 4. Discard the unstaged changes to drop them
 subprocess.check_call(['git', 'reset', '--hard', 'HEAD'])
 # 5. Clean untracked files (in case the dropped change was a new file)
-subprocess.check_call(['git', 'clean', '-fd', '--', filepath])
+for fp in filepaths:
+    subprocess.check_call(['git', 'clean', '-fd', '--', fp])
 """
             import tempfile
             import os
@@ -413,9 +430,16 @@ subprocess.check_call(['git', 'clean', '-fd', '--', filepath])
             if result.returncode == 0:
                 self.load_history()
                 new_head = self.get_head_sha()
-                self.log_action(sha, f"dropped {filepath} from", old_head, new_head)
-                QMessageBox.information(self, "Success",
-                    f"File '{filepath}' changes have been dropped from commit {short_sha}.")
+                if len(filepaths) == 1:
+                    self.log_action(sha, f"dropped {filepaths[0]} from", old_head, new_head)
+                    QMessageBox.information(self, "Success",
+                        f"File '{filepaths[0]}' changes have been dropped from commit {short_sha}.")
+                else:
+                    self.log_action(sha, f"dropped {len(filepaths)} files from", old_head, new_head)
+                    file_list = "\n".join(f"  {f}" for f in filepaths)
+                    QMessageBox.information(self, "Success",
+                        f"Changes for {len(filepaths)} files have been dropped from commit {short_sha}:\n\n{file_list}")
+                self.setCurrentRow(1)
             else:
                 ok, detail = self._abort_rebase_safely()
                 if not ok:

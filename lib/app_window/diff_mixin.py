@@ -399,8 +399,15 @@ class DiffMixin:
             move_action.setEnabled(not is_only_file)
             menu.addAction(move_action)
 
-            drop_action = QAction("Drop file changes from this commit", self)
-            drop_action.triggered.connect(lambda checked=False, text=target_path: self.handle_context_drop_file(text))
+            if len(checked_files) > 1:
+                drop_label = "Drop selected files changes from this commit"
+            elif len(checked_files) == 1:
+                drop_label = "Drop selected file changes from this commit"
+            else:
+                drop_label = "Drop file changes from this commit"
+
+            drop_action = QAction(drop_label, self)
+            drop_action.triggered.connect(lambda checked=False, text=target_path, files=checked_files: self.handle_context_drop_file(text, files))
             drop_action.setEnabled(not is_only_file)
             menu.addAction(drop_action)
 
@@ -430,12 +437,13 @@ class DiffMixin:
         files = checked_files if checked_files else [filepath]
         self.perform_move_file_out(sha, files)
 
-    def handle_context_drop_file(self, filepath):
+    def handle_context_drop_file(self, filepath, checked_files=None):
         current_commit_item = self.list_widget.currentItem()
         if not current_commit_item:
             return
         sha = current_commit_item.text().split()[0]
-        self.perform_drop_file_from_commit(sha, filepath)
+        files = checked_files if checked_files else [filepath]
+        self.perform_drop_file_from_commit(sha, files)
 
     def handle_context_remove_file_onwards(self, filepath):
         current_commit_item = self.list_widget.currentItem()
@@ -918,8 +926,15 @@ class DiffMixin:
             move_action.setEnabled(not is_only_file)
             menu.addAction(move_action)
 
-            drop_action = QAction("Drop file changes from this commit", self)
-            drop_action.triggered.connect(lambda checked=False, text=target_path: self.handle_context_drop_file(text))
+            if len(checked_files) > 1:
+                drop_label = "Drop selected files changes from this commit"
+            elif len(checked_files) == 1:
+                drop_label = "Drop selected file changes from this commit"
+            else:
+                drop_label = "Drop file changes from this commit"
+
+            drop_action = QAction(drop_label, self)
+            drop_action.triggered.connect(lambda checked=False, text=target_path, files=checked_files: self.handle_context_drop_file(text, files))
             drop_action.setEnabled(not is_only_file)
             menu.addAction(drop_action)
 

@@ -644,7 +644,7 @@ class MenusMixin:
             has_multiple_files = False
             _log(f"[ctx] get_commit_files FAILED: {e}")
 
-        split_drop_file_action = QAction("drop changes from one file from this commit", self)
+        split_drop_file_action = QAction("drop selected file(s) changes from this commit", self)
         split_drop_file_action.triggered.connect(lambda: self.handle_split_drop_file(item))
         split_drop_file_action.setEnabled(has_multiple_files)
         split_menu.addAction(split_drop_file_action)
