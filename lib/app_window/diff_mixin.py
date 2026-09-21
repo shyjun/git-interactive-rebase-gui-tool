@@ -560,16 +560,20 @@ class DiffMixin:
         """Apply current filewise check states to the treewise tree."""
         if getattr(self, '_filewise_list_sha', None) != getattr(self, '_treewise_tree_sha', None):
             return
+        checked_files = []
         for i in range(self.filewise_file_list.count()):
             item = self.filewise_file_list.item(i)
-            checked = item.checkState() == Qt.Checked
-            entry = item.data(FILE_ENTRY_ROLE)
-            if entry:
-                filepath = entry[2] if entry[0] == 'R' else entry[1]
-            else:
-                filepath = item.text()
+            if item.checkState() == Qt.Checked:
+                entry = item.data(FILE_ENTRY_ROLE)
+                if entry:
+                    checked_files.append(entry[2] if entry[0] == 'R' else entry[1])
+                else:
+                    checked_files.append(item.text())
+        if not checked_files:
+            return
+        for filepath in checked_files:
             for j in range(self.treewise_tree.topLevelItemCount()):
-                self._sync_file_to_tree(self.treewise_tree.topLevelItem(j), filepath, checked)
+                self._sync_file_to_tree(self.treewise_tree.topLevelItem(j), filepath, True)
 
     def _sync_treewise_checks_to_filewise(self):
         """Apply current treewise check states to the filewise list."""
