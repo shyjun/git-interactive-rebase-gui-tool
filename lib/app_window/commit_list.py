@@ -325,18 +325,13 @@ class CommitListWidget(QListWidget):
                 if token and len(token) >= 7 and all(c in "0123456789abcdefABCDEF" for c in token):
                     sha_map[i] = token
 
-        affected_start = min(start, insert_pos)
-        affected_end = max(end, insert_pos + block_len - 1)
-
-        original_affected = [sha_map[i] for i in range(affected_start, affected_end + 1) if i in sha_map]
-
-        upstream = None
-        for i in range(affected_end + 1, count):
-            if i in sha_map:
-                upstream = sha_map[i]
-                break
-        if upstream is None:
-            upstream = self.commit_sha
+        # Capture the FULL original SHA list before we reorder the widget.
+        # Passing only an "affected window" + upstream_override was the root cause
+        # of the bug: git rebase -i rewrites upstream..HEAD entirely, so any commit
+        # above the window that was missing from the todo list got silently dropped.
+        # By passing all SHAs + upstream_override=None we let run_interactive_rebase's
+        # common-prefix detection compute the correct minimal upstream itself.
+        original_shas = [sha_map[i] for i in range(count) if i in sha_map]
 
         items = [self.takeItem(0) for _ in range(count)]
         self.blockSignals(True)
@@ -344,11 +339,11 @@ class CommitListWidget(QListWidget):
             self.addItem(items[idx])
         self.blockSignals(False)
 
-        new_affected = [sha_map[idx] for idx in new_order if affected_start <= idx <= affected_end and idx in sha_map]
+        new_shas = [sha_map[idx] for idx in new_order if idx in sha_map]
 
-        def _deferred(new_s, orig_s, upstream_sha):
-            self.main_window.perform_move(new_s, orig_s, upstream_override=upstream_sha)
+        def _deferred(new_s, orig_s):
+            self.main_window.perform_move(new_s, orig_s, upstream_override=None)
             self.main_window.exit_multi_select_mode()
 
-        QTimer.singleShot(0, lambda: _deferred(new_affected, original_affected, upstream))
+        QTimer.singleShot(0, lambda: _deferred(new_shas, original_shas))
         event.accept()
