@@ -571,6 +571,8 @@ class DiffMixin:
 
     def _sync_treewise_checks_to_filewise(self):
         """Apply current treewise check states to the filewise list."""
+        if getattr(self, '_treewise_tree_sha', None) != getattr(self, '_filewise_list_sha', None):
+            return
         self.filewise_file_list.blockSignals(True)
         checked_files = self._checked_treewise_files()
         for i in range(self.filewise_file_list.count()):
