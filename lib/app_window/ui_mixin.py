@@ -435,6 +435,7 @@ class UIMixin:
         self._set_repo_icon(self.repo_btn)
         self.git_status_btn = QPushButton("Git Status")
         self.git_status_btn.setToolTip("Run 'git status' and show the output.")
+        self.git_status_btn.setMinimumHeight(40)
         self.pop_stash_btn = QPushButton("Pop app created stash")
         self.pop_stash_btn.setToolTip("Pop the app-created stash (git stash pop).")
         self._set_pop_stash_icon(self.pop_stash_btn)
@@ -1046,7 +1047,9 @@ class UIMixin:
         text_edit = QTextEdit()
         text_edit.setReadOnly(True)
         text_edit.setPlainText(output)
-        text_edit.setFont(mono_font(10, family=getattr(self, 'current_font_family', None)))
+        font_size = getattr(self, 'current_font_size', 10)
+        font_family = getattr(self, 'current_font_family', None)
+        text_edit.setFont(mono_font(font_size, family=font_family))
         layout.addWidget(text_edit)
 
         btn_layout = QHBoxLayout()
