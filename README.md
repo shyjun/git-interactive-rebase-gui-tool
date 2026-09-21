@@ -20,8 +20,8 @@ A Python-based Git Interactive Rebase GUI tool to visually manage commit history
 * **Split Commits**: Split a commit's changes into multiple commits.
   * Split every file change into its own commit
   * Split all changes into separate commits
-  * Move one file's changes out of a commit
-  * Drop one file's changes from a commit
+  * Move one or more files' changes out of a commit (multi-file selection with filewise/treewise tabs, checkboxes, bidirectional sync, and collapsible file lists)
+  * Drop one or more files' changes from a commit (same multi-file UI as Move)
 * **Hunk-Level Refinement**: Selectively manipulate individual hunks within a commit.
   * Keep only selected hunks
   * Drop selected hunks
@@ -127,7 +127,7 @@ Right-clicking any commit gives you quick access to:
 * Rephrase, drop
 * **Squash commits** submenu — squash with above/below, or multi-select any range to squash (also via the **Perform action on selected commits** menu)
 * **Move Commit** submenu — move up/down or drag to reorder (drag also works on a contiguous block of checked commits in multi-select mode)
-* **Split Commit** submenu — split, per-file split, move file out, drop file, refine hunks
+* **Split Commit** submenu — split, per-file split, move file(s) out, drop file(s), refine hunks
 * **Consolidated Diff** submenu — set start commit, diff to here, or diff HEAD to here
 * Copy SHA / message / both to clipboard
 

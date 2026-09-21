@@ -28,6 +28,10 @@ Visual documentation for the Git Interactive Rebase GUI Tool. Each section descr
 15. [Multi-Select Actions](#15-multi-select-actions)
 16. [Squash Commits](#16-squash-commits)
 17. [Split Dialog](#17-split-dialog)
+    - [17.1 Option 1: Move file(s) changes out of a commit](#option-1-move-files-changes-out-of-a-commit)
+    - [17.2 Option 2: Split each file changes to separate commits](#option-2-split-each-file-changes-to-separate-commits)
+    - [17.3 Option 3: Split all changes in one file to separate commits](#option-3-split-all-changes-in-one-file-to-separate-commits)
+    - [17.4 Option 4: Drop file(s) changes from a commit](#option-4-drop-files-changes-from-a-commit)
 18. [Refine Changes in File](#18-refine-changes-in-file)
     - [18.1 Selectively Drop Changes / Hunks](#181-selectively-drop-changes--hunks)
     - [18.2 Keep Only Selected Changes / Hunks](#182-keep-only-selected-changes--hunks)
@@ -165,7 +169,7 @@ The main window displays your commit history in an interactive list with action 
 
 ![Main Interface](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/main-interface.webp)
 
-**Description:** The main window shows the commit list with SHA, message, and branch indicators. The details panel displays commit metadata (SHA, author, date, changed files). A **diff pane** is docked on the right side (marked in the screenshot above) — click any commit to view its diff there (added lines in green, removed lines in red, with line numbers), in either **Plain Diff** or **File-wise Diff** mode (see [10](#10-diff-viewer) and [11](#11-diff-pane)). The top toolbar includes search, the **Search Options** dropdown (Match Case / Whole Word / Display Only Matching), theme toggle, zoom controls, a **Repo** menu (View PR Diff, View a Commit, Cherry-pick 1 Commit, Browse Branch, Browse File Log, Browse Log of a Commit, Browse Reflog, Browse Stashes, Find Merge-base), and reset options.
+**Description:** The main window shows the commit list with SHA, message, and branch indicators. The details panel displays commit metadata (SHA, author, date, changed files). A **diff pane** is docked on the right side (marked in the screenshot above) — click any commit to view its diff there (added lines in green, removed lines in red, with line numbers), in either **Plain Diff** or **File-wise Diff** mode (see [10](#10-diff-viewer) and [11](#11-diff-pane)). The top toolbar includes search, the **Search Options** dropdown (Match Case / Whole Word / Display Only Matching), theme toggle, zoom controls, a **Git Status** button (opens a dialog showing staged, unstaged, and untracked file counts — see [Handle Staged Changes](#44-handle-staged-changes)), a **Repo** menu (View PR Diff, View a Commit, Cherry-pick 1 Commit, Browse Branch, Browse File Log, Browse Log of a Commit, Browse Reflog, Browse Stashes, Find Merge-base), and reset options.
 
 The status bar holds a **Configure** button whose **Show/Hide** menu lets you toggle which markers/columns and controls are visible — each choice is remembered across sessions:
 
@@ -206,7 +210,7 @@ Access all commit actions via right-click menu.
 - Revert
 - Squash commits (with above / below, or select multiple)
 - Move Commit (up / down, or drag to reorder)
-- Split Commit (drop file change, move file out, split to separate commits)
+- Split Commit (drop file(s) changes, move file(s) out, split to separate commits)
 - Refine changes (hunk-level)
 - Consolidated Diff (set start, diff to here, from here till HEAD, git difftool)
 - Browse file log
@@ -304,8 +308,8 @@ Right-click a file in the **File-wise Diff** tab for per-file actions.
 
 **When the commit is in the current branch** (right-click **Show / View commit {sha}**, or double-click from the main list, and not in browse/viewer mode):
 
-- **Move file changes out of this commit** (disabled when the commit has only one file)
-- **Drop file changes from this commit** (disabled when the commit has only one file)
+- **Move [selected file(s)] changes out of this commit** — move changes to a new commit (disabled when the commit has only one file; label updates dynamically: "Move **selected file** changes…" / "Move **selected files** changes…" / "Move file changes…" depending on how many files are checked)
+- **Drop [selected file(s)] changes from this commit** — drop changes from the commit (disabled when the commit has only one file; same dynamic label pattern as Move)
 - **Remove file from this commit onwards**
 - **Refine/Edit changes in selected file**
 
@@ -517,9 +521,31 @@ Break a commit into multiple smaller commits by file or change.
 
 ![Split Context Menu](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/split-context-menu.webp)
 
-### Option 1: Move single file changes out of a commit
+The **Split Commit** submenu offers:
 
-Move changes of a specific file to a separate commit (only for commits with multiple file changes).
+- **drop selected file(s) changes from this commit** — Drop file changes from a commit (see Option 4 below)
+- **move selected file(s) changes out of this commit** — Move file changes to a new commit (see Option 1 below)
+- **split each file changes to separate commits** — One commit per changed file (see Option 2)
+- **split all changes in one file to separate commits** — Per-hunk split for single-file commits (see Option 3)
+
+The menu labels update dynamically based on how many files are checked in the diff pane:
+
+- "drop **selected file** changes from this commit" / "move **selected file** changes out of this commit" — one file checked
+- "drop **selected files** changes from this commit" / "move **selected files** changes out of this commit" — two or more files checked
+- "drop file changes from this commit" / "move file changes out of this commit" — no files checked (acts on the right-clicked file)
+
+### Option 1: Move file(s) changes out of a commit
+
+Move changes of one or more files to a separate commit (only for commits with multiple file changes).
+
+The dialog presents two tabs with checkboxes:
+
+- **Filewise Diff** tab — a flat list of changed files with checkboxes and per-file `+N / -M` stats
+- **Tree-wise Diff** tab — a folder/file tree with checkboxes and per-folder stats
+
+Check any number of files in either tab. Selections are **synchronized bidirectionally** between tabs — check a file in Filewise and it is checked in Tree-wise, and vice versa. Checking a folder checks all its children. The diff pane below shows the combined diff of all checked files.
+
+Click a tab title to collapse/expand the file list (▶/▼ arrows). Use **Ctrl+F** to search within the diff.
 
 **Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/split-move-single-file-1.webp`
 
@@ -544,6 +570,23 @@ Breaks all changes in a single file into individual commits per file change. Ava
 **Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/split-all-to-separate.webp`
 
 ![Split All to Separate](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/split-all-to-separate.webp)
+
+### Option 4: Drop file(s) changes from a commit
+
+Drop (discard) the changes of one or more files from a commit without creating a new commit. Available only for commits with multiple file changes.
+
+The dialog presents the same two-tab UI as the Move dialog (see Option 1 above):
+
+- **Filewise Diff** tab — checkboxes with per-file stats
+- **Tree-wise Diff** tab — folder tree with checkboxes and stats
+- Bidirectional sync between tabs
+- Collapsible file lists (click tab titles)
+- Combined diff preview of checked files
+- **Ctrl+F** search
+
+Check the files whose changes you want to drop, then click **Drop selected file changes from this commit**. A confirmation dialog shows the files being dropped before proceeding.
+
+The operation uses interactive rebase to un-stage the target files and re-commit the remaining ones with the original commit message. After success, the original commit is selected (now containing only the remaining files).
 
 ---
 
@@ -693,6 +736,7 @@ Pick exactly which **files** — or even individual **hunks** — to commit, lea
 
 - **Commit Selected Files** → Stage the checked files and commit them (a message dialog opens)
 - **commit --amend selected files** → Stage the checked files and amend into HEAD (message pre-filled from HEAD, editable)
+- **Drop Selected Files** → Discard unstaged changes for the checked files (`git checkout -- <files>`) with a Yes/No confirmation. The dialog refreshes in-place after the drop — dropped files disappear from the list, counter updates, and the diff pane recalculates.
 - **git add -p** → Drill into individual **hunks** of the checked files (see below)
 
 Unchecked files stay completely untouched, and cancelling at any point leaves the repository unchanged.
