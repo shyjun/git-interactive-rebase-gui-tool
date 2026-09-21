@@ -594,10 +594,7 @@ class SplitCommitDialog(QDialog):
             self.treewise_splitter.handle(0).setEnabled(True)
 
     def _on_tab_changed(self, idx):
-        if idx == self._filewise_tab_idx and not self.filewise_file_list.isVisible():
-            self._toggle_filewise_file_list()
-        elif idx == self._treewise_tab_idx and not self.treewise_tree.isVisible():
-            self._toggle_treewise_file_list()
+        pass
 
     def _on_tab_bar_clicked(self, idx):
         if idx == self.tab_widget.currentIndex():
