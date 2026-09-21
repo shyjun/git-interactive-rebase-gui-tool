@@ -134,21 +134,9 @@ class DiffViewerDialog(QDialog):
         self.font_family = font_family
 
         self.layout = QVBoxLayout(self)
-        self.layout.setContentsMargins(0, 0, 0, 0)
-        self.layout.setSpacing(0)
+        self.content_layout = self.layout
 
-        # Main splitter: content on top, buttons always visible at bottom
-        main_splitter = QSplitter(Qt.Vertical)
-        main_splitter.setChildrenCollapsible(False)
-
-        # Top: header + diff
-        content_widget = QWidget()
-        content_layout = QVBoxLayout(content_widget)
-        content_layout.setContentsMargins(0, 0, 0, 0)
-        content_layout.setSpacing(0)
-        self.content_layout = content_layout
-
-        # Header info (subclasses add to self.content_layout)
+        # Header info
         self.setup_header(sha)
 
         # Full diff view
@@ -176,7 +164,7 @@ class DiffViewerDialog(QDialog):
              # Default dark-ish colors if not found
              colors = {"added": "#a6e22e", "removed": "#f92672", "header": "#66d9ef"}
 
-        self.highlighter = DiffHighlighter(self.diff_view.document(), 
+        self.highlighter = DiffHighlighter(self.diff_view.document(),
                                            added_color=colors["added"],
                                            removed_color=colors["removed"],
                                            header_color=colors["header"])
@@ -213,24 +201,18 @@ class DiffViewerDialog(QDialog):
 
         diff_container_layout.addWidget(self.diff_view)
 
-        content_layout.addWidget(diff_container)
-        main_splitter.addWidget(content_widget)
-
-        # Bottom: buttons always visible
-        btn_widget = QWidget()
-        btn_widget.setMinimumHeight(40)
-        self.btn_layout = QHBoxLayout(btn_widget)
-        self.btn_layout.addStretch()
-        self.setup_buttons()
-        self.btn_layout.addStretch()
-        main_splitter.addWidget(btn_widget)
-
-        main_splitter.setSizes([500, 50])
-        self.layout.addWidget(main_splitter)
+        self.layout.addWidget(diff_container)
 
         # Connect Ctrl+F explicitly just in case focus escapes
         self.ctrl_f_shortcut = QShortcut(QKeySequence("Ctrl+F"), self)
         self.ctrl_f_shortcut.activated.connect(self.search_bar.show_and_focus)
+
+        # Buttons
+        self.btn_layout = QHBoxLayout()
+        self.btn_layout.addStretch() # Center spacer left
+        self.setup_buttons()
+        self.btn_layout.addStretch() # Center spacer right
+        self.layout.addLayout(self.btn_layout)
 
     def setup_header(self, sha):
         pass # To be overridden

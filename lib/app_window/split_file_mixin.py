@@ -115,7 +115,7 @@ class SplitFileMixin:
             label = QLabel(confirm_label)
             label.setTextFormat(Qt.RichText)
             label.setWordWrap(True)
-            confirm_dialog.content_layout.insertWidget(0, label)
+            confirm_dialog.layout.insertWidget(0, label)
             if confirm_dialog.exec() != QDialog.Accepted:
                 return
 
