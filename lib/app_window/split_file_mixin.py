@@ -438,7 +438,7 @@ for fp in filepaths:
                     file_list = "\n".join(f"  {f}" for f in filepaths)
                     QMessageBox.information(self, "Success",
                         f"Changes for {len(filepaths)} files have been dropped from commit {short_sha}:\n\n{file_list}")
-                self.setCurrentRow(1)
+                self.list_widget.setCurrentRow(1)
             else:
                 ok, detail = self._abort_rebase_safely()
                 if not ok:
