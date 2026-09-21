@@ -47,6 +47,7 @@ from lib.git_helpers import (
     get_unstaged_diff,
     get_unstaged_file_diff,
     get_unstaged_file_stats,
+    get_unstaged_files,
 )
 from lib.app_window.helpers import mono_font
 from lib.widgets import (
@@ -290,14 +291,14 @@ class CommitSelectivelyDialog(QDialog):
         layout.setSpacing(8)
 
         branch = get_current_branch(repo_path) or "HEAD"
-        header = QLabel(
+        self.header = QLabel(
             f"Unstaged Changes: <b>{branch}</b> - {len(self.files)} file{'s' if len(self.files) != 1 else ''}<br>"
             "Select the files to commit. The bottom pane shows the combined diff "
             "of the selected (checked) files."
         )
-        header.setTextFormat(Qt.RichText)
-        header.setWordWrap(True)
-        layout.addWidget(header)
+        self.header.setTextFormat(Qt.RichText)
+        self.header.setWordWrap(True)
+        layout.addWidget(self.header)
 
         top_row = QHBoxLayout()
         top_row.setSpacing(6)
@@ -407,6 +408,15 @@ class CommitSelectivelyDialog(QDialog):
             "QPushButton:hover { background-color: #f6eefb; }"
         )
 
+        self.drop_selected_btn = QPushButton("Drop Selected Files")
+        self.drop_selected_btn.setToolTip("Discard unstaged changes for the checked files (git checkout --).")
+        self.drop_selected_btn.setStyleSheet(
+            "QPushButton { color: #c0392b; border: 2px solid #c0392b; padding: 10px 18px; "
+            "border-radius: 6px; font-weight: bold; } "
+            "QPushButton:hover { background-color: #fdf2f2; }"
+        )
+        self.drop_selected_btn.clicked.connect(self._drop_selected_files)
+
         self.commit_btn = QPushButton("Commit Selected Files")
         self.commit_btn.setDefault(True)
         self.commit_btn.setToolTip("Stage only the checked files and commit them in a single commit.")
@@ -436,6 +446,14 @@ class CommitSelectivelyDialog(QDialog):
         self.commit_btn.clicked.connect(lambda: self.done(self.CommitSelectedResult))
         self.add_p_btn.clicked.connect(lambda: self.done(self.GitAddPResult))
         cancel_btn.clicked.connect(self.reject)
+
+        drop_col = QVBoxLayout()
+        drop_col.setSpacing(2)
+        drop_col.addWidget(self.drop_selected_btn)
+        drop_note = QLabel("(discard unstaged changes)")
+        drop_note.setStyleSheet("color: #c0392b; font-size: 11px;")
+        drop_note.setAlignment(Qt.AlignCenter)
+        drop_col.addWidget(drop_note)
 
         amend_col = QVBoxLayout()
         amend_col.setSpacing(2)
@@ -470,6 +488,7 @@ class CommitSelectivelyDialog(QDialog):
         cancel_col.addWidget(cancel_note)
 
         bot_row.addStretch()
+        bot_row.addLayout(drop_col)
         bot_row.addLayout(amend_col)
         bot_row.addLayout(commit_col)
         bot_row.addLayout(addp_col)
@@ -522,6 +541,66 @@ class CommitSelectivelyDialog(QDialog):
         sel = len(self.checked_files())
         self.counter_label.setText(f"<b>Selected:</b> {sel}&nbsp;&nbsp;<b>Total:</b> {total}")
         self.counter_label.setTextFormat(Qt.RichText)
+
+    def _drop_selected_files(self):
+        """Discard unstaged changes for checked files and refresh the dialog."""
+        checked = self.checked_files()
+        if not checked:
+            QMessageBox.information(self, "No Files Selected",
+                                    "No files were selected. Nothing was dropped.")
+            return
+        count = len(checked)
+        file_list = "\n".join(f"  {f}" for f in checked[:10])
+        if count > 10:
+            file_list += f"\n  ... and {count - 10} more"
+        reply = QMessageBox.warning(
+            self, "Drop Unstaged Changes",
+            f"Discard unstaged changes for {count} file(s)?\n\n"
+            f"{file_list}\n\n"
+            "This cannot be undone.",
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if reply != QMessageBox.Yes:
+            return
+        import subprocess
+        for fp in checked:
+            try:
+                subprocess.run(["git", "checkout", "--", fp],
+                               cwd=self.repo_path, check=True,
+                               capture_output=True, timeout=10)
+            except Exception:
+                pass
+        self._rebuild_file_list()
+
+    def _rebuild_file_list(self):
+        """Re-fetch unstaged files and rebuild the file list and tree in-place."""
+        try:
+            new_files = get_unstaged_files(self.repo_path, ignore_submodules=True)
+            new_stats = get_unstaged_file_stats(self.repo_path, ignore_submodules=True)
+        except Exception:
+            return
+        self.files = list(new_files)
+        self.file_stats = new_stats or {}
+        self.file_list.blockSignals(True)
+        self.file_list.clear()
+        for f in self.files:
+            item = QListWidgetItem(f)
+            item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsUserCheckable)
+            item.setCheckState(Qt.Checked)
+            item.setData(Qt.UserRole, self.file_stats.get(f))
+            self.file_list.addItem(item)
+        self.file_list.blockSignals(False)
+        self.treewise_tree.blockSignals(True)
+        self.treewise_tree.clear()
+        self._populate_tree()
+        self.treewise_tree.blockSignals(False)
+        self._update_counter()
+        self._refresh_diff()
+        self.header.setText(
+            f"Unstaged Changes: <b>{get_current_branch(self.repo_path) or 'HEAD'}</b> "
+            f"- {len(self.files)} file{'s' if len(self.files) != 1 else ''}<br>"
+            "Select the files to commit. The bottom pane shows the combined diff "
+            "of the selected (checked) files."
+        )
 
     def checked_files(self):
         return [self.file_list.item(i).text()
