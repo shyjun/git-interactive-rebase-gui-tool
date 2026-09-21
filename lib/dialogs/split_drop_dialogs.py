@@ -569,12 +569,12 @@ class SplitCommitDialog(QDialog):
             self.filewise_file_list.setMinimumHeight(0)
             self.filewise_splitter.setCollapsible(0, True)
             self.filewise_splitter.setSizes([0, 1000])
-            self.filewise_splitter.handle(1).setEnabled(False)
+            self.filewise_splitter.handle(0).setEnabled(False)
         else:
             self.filewise_file_list.setMinimumHeight(60)
             self.filewise_splitter.setCollapsible(0, False)
             self.filewise_splitter.setSizes([150, 350])
-            self.filewise_splitter.handle(1).setEnabled(True)
+            self.filewise_splitter.handle(0).setEnabled(True)
 
     def _toggle_treewise_file_list(self):
         visible = self.treewise_tree.isVisible()
@@ -586,12 +586,12 @@ class SplitCommitDialog(QDialog):
             self.treewise_tree.setMinimumHeight(0)
             self.treewise_splitter.setCollapsible(0, True)
             self.treewise_splitter.setSizes([0, 1000])
-            self.treewise_splitter.handle(1).setEnabled(False)
+            self.treewise_splitter.handle(0).setEnabled(False)
         else:
             self.treewise_tree.setMinimumHeight(60)
             self.treewise_splitter.setCollapsible(0, False)
             self.treewise_splitter.setSizes([150, 350])
-            self.treewise_splitter.handle(1).setEnabled(True)
+            self.treewise_splitter.handle(0).setEnabled(True)
 
     def _on_tab_changed(self, idx):
         if idx == self._filewise_tab_idx and not self.filewise_file_list.isVisible():
