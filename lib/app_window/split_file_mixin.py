@@ -121,9 +121,10 @@ class SplitFileMixin:
 
             original_msg = get_full_commit_message(self.repo_path, sha)
             if len(filepaths) == 1:
-                new_msg = f"{filepaths[0]} changes separated out from {short_sha}\n\n{original_msg}"
+                new_msg = f"Changes of {filepaths[0]} moved out of {short_sha}\n\n{original_msg}"
             else:
-                new_msg = f"changes for {len(filepaths)} files separated out from {short_sha}\n\n{original_msg}"
+                file_list = "\n".join(f"  {fp}" for fp in filepaths)
+                new_msg = f"Changes of {len(filepaths)} files moved out of {short_sha}\n\n{file_list}\n\n{original_msg}"
 
             # Write filepaths to a temp file for the action script
             fp_fd, fp_path = tempfile.mkstemp(prefix='git_split_files_', text=True)
