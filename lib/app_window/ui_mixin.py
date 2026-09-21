@@ -433,6 +433,8 @@ class UIMixin:
         self.repo_btn.setToolTip("Repository actions: PR diff, cherry-pick, browse branch.")
         self.repo_btn.setMenu(self._build_repo_menu())
         self._set_repo_icon(self.repo_btn)
+        self.git_status_btn = QPushButton("Git Status")
+        self.git_status_btn.setToolTip("Run 'git status' and show the output.")
         self.pop_stash_btn = QPushButton("Pop app created stash")
         self.pop_stash_btn.setToolTip("Pop the app-created stash (git stash pop).")
         self._set_pop_stash_icon(self.pop_stash_btn)
@@ -473,6 +475,7 @@ class UIMixin:
 
         self.exit_viewer_mode_btn.clicked.connect(self.handle_exit_viewer_mode)
         self.rescan_btn.clicked.connect(self.handle_rescan_repo)
+        self.git_status_btn.clicked.connect(self.handle_git_status)
         self.pop_stash_btn.clicked.connect(self.handle_pop_managed_stash)
         self.undo_btn.clicked.connect(self.handle_undo)
         self.redo_btn.clicked.connect(self.handle_redo)
@@ -555,6 +558,7 @@ class UIMixin:
 
         controls_layout.addStretch()
         controls_layout.addWidget(self.pop_stash_btn)
+        controls_layout.addWidget(self.git_status_btn)
         controls_layout.addWidget(self.repo_btn)
         controls_layout.addWidget(self.exit_viewer_mode_btn)
         self.browse_cherry_pick_btn = QPushButton("Cherry-pick selected commit(s)")
@@ -1015,6 +1019,53 @@ class UIMixin:
             return
         from lib.app_window.helpers import _relaunch
         _relaunch()
+
+    def handle_git_status(self):
+        import subprocess
+        from PySide6.QtWidgets import (
+            QDialog, QVBoxLayout, QHBoxLayout, QTextEdit,
+            QPushButton, QApplication, QMainWindow,
+        )
+        from lib.app_window.helpers import mono_font
+        try:
+            result = subprocess.run(
+                ["git", "status"],
+                cwd=self.repo_path,
+                capture_output=True, text=True, timeout=10,
+            )
+            output = result.stdout or result.stderr or "(no output)"
+        except Exception as e:
+            output = f"Error running git status: {e}"
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle("git status")
+        dlg.setMinimumSize(600, 400)
+
+        layout = QVBoxLayout(dlg)
+
+        text_edit = QTextEdit()
+        text_edit.setReadOnly(True)
+        text_edit.setPlainText(output)
+        text_edit.setFont(mono_font(10, family=getattr(self, 'current_font_family', None)))
+        layout.addWidget(text_edit)
+
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+
+        copy_btn = QPushButton("Copy to Clipboard")
+        copy_btn.setMinimumWidth(140)
+        copy_btn.setProperty("class", "dialog-btn")
+        copy_btn.clicked.connect(lambda: QApplication.clipboard().setText(output))
+        btn_layout.addWidget(copy_btn)
+
+        close_btn = QPushButton("Close")
+        close_btn.setMinimumWidth(80)
+        close_btn.setProperty("class", "dialog-btn")
+        close_btn.clicked.connect(dlg.accept)
+        btn_layout.addWidget(close_btn)
+
+        layout.addLayout(btn_layout)
+        dlg.exec()
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
