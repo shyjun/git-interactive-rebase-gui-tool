@@ -245,12 +245,6 @@ class CherryPickMixin:
         else:
             self._cherry_pick_sequence(shas)
 
-        # The pick reloaded the list asynchronously with fresh items that carry
-        # no checkboxes, but the button/checkbox state from select-mode is still
-        # active. Drop it so the UI returns to the normal single-select state.
-        if self.multi_select_mode:
-            self.exit_browse_multi_select()
-
     @staticmethod
     def _make_resizable_message_box(parent):
         """Creates a QMessageBox that is genuinely resizable.
@@ -319,6 +313,14 @@ class CherryPickMixin:
         success, err = self._run_cherry_pick(sha)
         if success:
             self._sync_cached_head()
+            saved_sha = sha
+            def restore_single_selection():
+                for i in range(self.list_widget.count()):
+                    item = self.list_widget.item(i)
+                    if item and item.text().split()[0] == saved_sha:
+                        self.list_widget.setCurrentItem(item)
+                        break
+            self._browse_load_post_action = restore_single_selection
             self.load_history()
             self._refresh_parent_main_window()
             self._show_cherry_pick_result("Cherry-pick succeeded.", [sha], [])
@@ -376,6 +378,12 @@ class CherryPickMixin:
         box.exec()
         if box.clickedButton() is not yes_btn:
             return
+
+        saved_checked_shas = [
+            self.list_widget.item(i).text().split()[0]
+            for i in range(self.list_widget.count())
+            if self.list_widget.item(i).checkState() == Qt.Checked
+        ]
 
         head_before = get_full_head_sha(self.repo_path)
 
@@ -503,6 +511,13 @@ class CherryPickMixin:
                                   if s not in cherry_picked_shas and s not in skipped_shas]
 
         self._sync_cached_head()
+        saved = saved_checked_shas
+        def restore_multi_checked():
+            for i in range(self.list_widget.count()):
+                item = self.list_widget.item(i)
+                if item and item.text().split()[0] in saved:
+                    item.setCheckState(Qt.Checked)
+        self._browse_load_post_action = restore_multi_checked
         self.load_history()
         if cherry_picked > 0:
             self._refresh_parent_main_window()

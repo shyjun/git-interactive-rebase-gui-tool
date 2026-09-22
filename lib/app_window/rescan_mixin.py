@@ -521,6 +521,7 @@ class RescanMixin:
         self.total_commits_label.setText("Total: counting...")
         self._browse_load_done = False
         self._browse_load_result = None
+        self._browse_load_post_action = None
 
         repo_path = self.repo_path
         branch = self.browse_branch
@@ -605,6 +606,10 @@ class RescanMixin:
             self.list_widget.blockSignals(False)
             self.update_side_diff()
         self._refresh_history_load()
+        if self._browse_load_post_action:
+            action = self._browse_load_post_action
+            self._browse_load_post_action = None
+            action()
 
     def _detect_base_async(self):
         """Detect branch base in background thread, then reload if range <= 200."""
