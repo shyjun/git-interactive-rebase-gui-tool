@@ -209,6 +209,8 @@ finally:
             else:
                 upstream = current_shas[sha_idx + 1]
 
+            parent_sha = current_shas[sha_idx + 1] if sha_idx + 1 < len(current_shas) else None
+
             env = os.environ.copy()
             env["GIT_SEQUENCE_EDITOR"] = _script_command(editor_script)
             env["GIT_EDITOR"] = "true"
@@ -238,8 +240,13 @@ finally:
 
                     if returncode == 0:
                         self.load_history()
-                        if self.list_widget.count() > 1:
-                            self.list_widget.setCurrentRow(1)
+                        if parent_sha:
+                            for i in range(self.list_widget.count()):
+                                if self.list_widget.item(i).text().split()[0] == parent_sha:
+                                    self.list_widget.setCurrentRow(max(0, i - 1))
+                                    break
+                        else:
+                            self.list_widget.setCurrentRow(self.list_widget.count() - 1)
                         new_head = self.get_head_sha()
                         if len(filepaths) == 1:
                             self.log_action(sha, f"moved {filepaths[0]} out of", old_head, new_head)
@@ -408,6 +415,8 @@ for fp in filepaths:
             else:
                 upstream = current_shas[sha_idx + 1]
 
+            parent_sha = current_shas[sha_idx + 1] if sha_idx + 1 < len(current_shas) else None
+
             env = os.environ.copy()
             env["GIT_SEQUENCE_EDITOR"] = _script_command(editor_script)
             env["GIT_EDITOR"] = "true"
@@ -438,7 +447,13 @@ for fp in filepaths:
                     file_list = "\n".join(f"  {f}" for f in filepaths)
                     QMessageBox.information(self, "Success",
                         f"Changes for {len(filepaths)} files have been dropped from commit {short_sha}:\n\n{file_list}")
-                self.list_widget.setCurrentRow(1)
+                if parent_sha:
+                    for i in range(self.list_widget.count()):
+                        if self.list_widget.item(i).text().split()[0] == parent_sha:
+                            self.list_widget.setCurrentRow(max(0, i - 1))
+                            break
+                else:
+                    self.list_widget.setCurrentRow(self.list_widget.count() - 1)
             else:
                 ok, detail = self._abort_rebase_safely()
                 if not ok:
