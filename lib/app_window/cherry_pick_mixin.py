@@ -320,8 +320,8 @@ class CherryPickMixin:
                     if item and item.text().split()[0] == saved_sha:
                         self.list_widget.setCurrentItem(item)
                         break
-            self._browse_load_post_action = restore_single_selection
             self.load_history()
+            self._browse_load_post_action = restore_single_selection
             self._refresh_parent_main_window()
             self._show_cherry_pick_result("Cherry-pick succeeded.", [sha], [])
         else:
@@ -517,8 +517,8 @@ class CherryPickMixin:
                 item = self.list_widget.item(i)
                 if item and item.text().split()[0] in saved:
                     item.setCheckState(Qt.Checked)
-        self._browse_load_post_action = restore_multi_checked
         self.load_history()
+        self._browse_load_post_action = restore_multi_checked
         if cherry_picked > 0:
             self._refresh_parent_main_window()
 
