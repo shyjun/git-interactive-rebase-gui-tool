@@ -90,6 +90,9 @@ class ToolbarMixin:
     def _set_repo_icon(self, button):
         self._apply_toolbar_icon(button, self._draw_repo)
 
+    def _set_git_status_icon(self, button):
+        self._apply_toolbar_icon(button, self._draw_git_status)
+
     def _refresh_toolbar_icons(self):
         self._set_theme_icon(self.theme_menu_btn)
         self._set_rescan_icon(self.rescan_btn)
@@ -100,6 +103,7 @@ class ToolbarMixin:
         self._set_exit_viewer_mode_icon(self.exit_viewer_mode_btn)
         self._set_pop_stash_icon(self.pop_stash_btn)
         self._set_repo_icon(self.repo_btn)
+        self._set_git_status_icon(self.git_status_btn)
         self._set_configure_icon(self.configure_btn)
 
     def _draw_rescan(self, painter, color):
@@ -226,3 +230,25 @@ class ToolbarMixin:
         painter.drawLine(5.5, 5.5, 6.5, 7.5)
         painter.drawLine(6.5, 7.5, 14.5, 7.5)
         painter.drawLine(3.5, 10.5, 9.5, 10.5)
+
+    def _draw_git_status(self, painter, color):
+        pen = QPen(color, 1.7)
+        pen.setCapStyle(Qt.RoundCap)
+        pen.setJoinStyle(Qt.RoundJoin)
+        painter.setPen(pen)
+        painter.setBrush(Qt.NoBrush)
+
+        # Three status lines (left-aligned, tapering right-side to suggest a list)
+        painter.drawLine(1.5, 3.5, 10.5, 3.5)
+        painter.drawLine(1.5, 7.5, 9.0, 7.5)
+        painter.drawLine(1.5, 11.5, 6.5, 11.5)
+
+        # Magnifying glass circle (bottom-right)
+        painter.drawEllipse(8.0, 7.5, 5.5, 5.5)
+
+        # Magnifying glass handle
+        pen2 = QPen(color, 2.0)
+        pen2.setCapStyle(Qt.RoundCap)
+        painter.setPen(pen2)
+        painter.drawLine(12.5, 12.2, 15.0, 14.8)
+
