@@ -321,8 +321,9 @@ class CherryPickMixin:
                         self.list_widget.setCurrentItem(item)
                         break
             self.load_history()
-            self._browse_load_post_action = restore_single_selection
             self._refresh_parent_main_window()
+            self._browse_load_post_action = restore_single_selection
+            _log(f"[debug] post_action set for single pick, sha={saved_sha}, action={self._browse_load_post_action}")
             self._show_cherry_pick_result("Cherry-pick succeeded.", [sha], [])
         else:
             message = self._cherry_pick_failure_message(sha, err)
@@ -518,9 +519,10 @@ class CherryPickMixin:
                 if item and item.text().split()[0] in saved:
                     item.setCheckState(Qt.Checked)
         self.load_history()
-        self._browse_load_post_action = restore_multi_checked
         if cherry_picked > 0:
             self._refresh_parent_main_window()
+        self._browse_load_post_action = restore_multi_checked
+        _log(f"[debug] post_action set for multi pick, saved_shas={saved}, action={self._browse_load_post_action}")
 
         if not_cherry_picked == 0 and skipped == 0:
             headline = "Cherry-pick(s) succeeded."
