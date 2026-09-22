@@ -820,7 +820,7 @@ Open any other branch's history in a separate read-only window.
 Click **Select commits** to enter checkbox selection mode, then tick the commits you want to bring over. Click **Cherry-pick selected commit(s)** to apply them to your current branch:
 
 - A confirmation dialog shows the exact apply order (oldest-first, matching the branch chronology) before anything is done.
-- Commits are then cherry-picked one by one. If a pick fails, you choose how to proceed: **Undo entire cherry-pick** (reset back to the starting point), **Skip this and continue with the next**, or **Stop cherry-pick here** to finish manually.
+- Commits are then cherry-picked one by one. If a pick fails, you choose how to proceed: **Undo entire cherry-pick** (reset back to the starting point), **Skip this and continue with the next**, or **Stop cherry-pick here** to finish manually. Both the failure dialog and the final summary include a **Copy to clipboard** button for easy sharing of results.
 - A final summary reports which commits were cherry-picked, skipped, or left unapplied.
 - The main window's commit list refreshes automatically after the picks finish.
 - **Cancel selection** exits selection mode without making any changes.
@@ -933,7 +933,7 @@ Apply commits from another branch (or by SHA) onto your current branch.
 - **Repo → Cherry-pick 1 Commit** → You will be asked to enter a commit SHA to apply
 - **Browse Branch → Cherry-pick selected commit(s)** → Select one or more commits in a browse window and inject them (multi-commit picks apply **oldest-first** so history stays linear)
 
-Before applying, a **pre-flight confirmation** shows the exact order the selected commits will be applied in (numbered, with subjects and target branch). If a commit fails, you are told why (conflict, already applied/no change, or other) with the conflicting files listed, and you can choose to **Undo the entire cherry-pick**, **Skip and continue**, or **Stop and handle manually**. A final summary shows how many commits were cherry-picked / skipped / not applied, with every SHA listed.
+Before applying, a **pre-flight confirmation** shows the exact order the selected commits will be applied in (numbered, with subjects and target branch). If a commit fails, you are told why (conflict, already applied/no change, or other) with the conflicting files listed, and you can choose to **Undo the entire cherry-pick**, **Skip and continue**, or **Stop and handle manually**. Both the failure dialog and the final summary include a **Copy to clipboard** button for easy sharing of results. A final summary shows how many commits were cherry-picked / skipped / not applied, with every SHA listed.
 
 ---
 
