@@ -288,7 +288,6 @@ class CherryPickMixin:
             if viewer is self:
                 continue
             if getattr(viewer, '_browse_load_post_action', None) is not None:
-                _log("[debug] _notify_browse_windows: skipping viewer with pending post_action")
                 continue
             try:
                 viewer.cached_current_head_full_sha = get_full_head_sha(self.repo_path)
@@ -325,8 +324,6 @@ class CherryPickMixin:
                         break
             self.load_history()
             self._browse_load_post_action = restore_single_selection
-            _log(f"[debug] post_action set for single pick, sha={saved_sha}, action={self._browse_load_post_action}")
-            self._refresh_parent_main_window()
             self._show_cherry_pick_result("Cherry-pick succeeded.", [sha], [])
         else:
             message = self._cherry_pick_failure_message(sha, err)
@@ -523,7 +520,6 @@ class CherryPickMixin:
                     item.setCheckState(Qt.Checked)
         self.load_history()
         self._browse_load_post_action = restore_multi_checked
-        _log(f"[debug] post_action set for multi pick, saved_shas={saved}, action={self._browse_load_post_action}")
         if cherry_picked > 0:
             self._refresh_parent_main_window()
 
