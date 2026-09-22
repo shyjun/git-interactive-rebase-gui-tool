@@ -70,6 +70,21 @@ class DiffMixin:
 
         sha = item.text().split()[0]
 
+        # Reset selection state if selected commit changes
+        if getattr(self, '_current_selected_diff_sha', None) != sha:
+            self._current_selected_diff_sha = sha
+            self._checked_files_for_sha = set()
+            self._filewise_list_sha = None
+            self._treewise_tree_sha = None
+            if hasattr(self, 'filewise_file_list'):
+                self.filewise_file_list.clear()
+            if hasattr(self, 'filewise_diff_view'):
+                self.filewise_diff_view.clear()
+            if hasattr(self, 'treewise_tree'):
+                self.treewise_tree.clear()
+            if hasattr(self, 'treewise_diff_view'):
+                self.treewise_diff_view.clear()
+
         # Check cache
         cache_entry = self.commit_cache.get(sha, {})
 
@@ -263,14 +278,20 @@ class DiffMixin:
             if item and item.data(Qt.UserRole + 9) != "load_more":
                 sha = item.text().split()[0]
                 cache_entry = self.commit_cache.get(sha, {})
-                self._ensure_filewise_populated(sha, cache_entry)
+                if getattr(self, '_filewise_list_sha', None) != sha:
+                    self._ensure_filewise_list_populated(sha, cache_entry)
+                else:
+                    self._sync_checked_set_to_filewise_list()
             self._refresh_filewise_diff()
         elif index == 2:
             item = self.list_widget.currentItem()
             if item and item.data(Qt.UserRole + 9) != "load_more":
                 sha = item.text().split()[0]
                 cache_entry = self.commit_cache.get(sha, {})
-                self._ensure_filewise_populated(sha, cache_entry)
+                if getattr(self, '_treewise_tree_sha', None) != sha:
+                    self._ensure_treewise_tree_populated(sha, cache_entry)
+                else:
+                    self._apply_checked_set_to_tree(getattr(self, '_checked_files_for_sha', set()))
             self._refresh_treewise_diff()
 
     def _ensure_filewise_list_populated(self, sha, cache_entry):
@@ -289,6 +310,7 @@ class DiffMixin:
             file_stats = {}
             self._launch_numstat_worker(sha, file_entries)
 
+        checked_set = getattr(self, '_checked_files_for_sha', set())
         self._filewise_entries_map = {}
         self._filewise_item_by_entry = {}
         self.filewise_file_list.setUpdatesEnabled(False)
@@ -312,7 +334,8 @@ class DiffMixin:
             fitem.setData(Qt.UserRole, file_stats.get(path1))
             fitem.setData(FILE_ENTRY_ROLE, entry)
             fitem.setFlags(fitem.flags() | Qt.ItemIsUserCheckable)
-            fitem.setCheckState(Qt.Unchecked)
+            is_checked = (path in checked_set) or (path1 in checked_set)
+            fitem.setCheckState(Qt.Checked if is_checked else Qt.Unchecked)
             self.filewise_file_list.addItem(fitem)
             self._filewise_item_by_entry[entry] = fitem
         self.filewise_file_list.blockSignals(False)
@@ -337,6 +360,9 @@ class DiffMixin:
 
         self.treewise_tree.setUpdatesEnabled(False)
         self._populate_treewise_tree(file_entries, file_stats)
+        checked_set = getattr(self, '_checked_files_for_sha', set())
+        if checked_set:
+            self._apply_checked_set_to_tree(checked_set)
         self.treewise_tree.setUpdatesEnabled(True)
         self._treewise_tree_sha = sha
 
@@ -519,16 +545,83 @@ class DiffMixin:
         except Exception as e:
             return f"Error loading diff: {e}"
 
+    def _apply_checked_set_to_tree(self, checked_set):
+        """Apply checked_set to all leaf items in treewise_tree and update folder check states."""
+        self.treewise_tree.blockSignals(True)
+        def _apply(parent_item):
+            for i in range(parent_item.childCount()):
+                child = parent_item.child(i)
+                item_data = child.data(0, Qt.UserRole + 10)
+                if not item_data:
+                    continue
+                if item_data["type"] == "folder":
+                    _apply(child)
+                else:
+                    entry = item_data.get("entry")
+                    if entry:
+                        filepath = entry[2] if entry[0] == 'R' else entry[1]
+                        is_checked = (filepath in checked_set) or (entry[1] in checked_set)
+                        child.setCheckState(0, Qt.Checked if is_checked else Qt.Unchecked)
+                    else:
+                        child.setCheckState(0, Qt.Unchecked)
+        _apply(self.treewise_tree.invisibleRootItem())
+        for i in range(self.treewise_tree.topLevelItemCount()):
+            top_item = self.treewise_tree.topLevelItem(i)
+            item_data = top_item.data(0, Qt.UserRole + 10)
+            if item_data and item_data["type"] == "folder":
+                self._update_folder_check_state_recursive(top_item)
+        self.treewise_tree.blockSignals(False)
+
+    def _update_folder_check_state_recursive(self, parent_item):
+        for i in range(parent_item.childCount()):
+            child = parent_item.child(i)
+            item_data = child.data(0, Qt.UserRole + 10)
+            if item_data and item_data["type"] == "folder":
+                self._update_folder_check_state_recursive(child)
+        self._update_folder_check_state(parent_item)
+
+    def _sync_checked_set_to_filewise_list(self):
+        """Sync canonical _checked_files_for_sha to filewise_file_list."""
+        checked_set = getattr(self, '_checked_files_for_sha', set())
+        self.filewise_file_list.blockSignals(True)
+        for i in range(self.filewise_file_list.count()):
+            item = self.filewise_file_list.item(i)
+            entry = item.data(FILE_ENTRY_ROLE)
+            if entry:
+                path = entry[2] if entry[0] == 'R' else entry[1]
+                is_checked = (path in checked_set) or (entry[1] in checked_set)
+            else:
+                is_checked = (item.text() in checked_set)
+            item.setCheckState(Qt.Checked if is_checked else Qt.Unchecked)
+        self.filewise_file_list.blockSignals(False)
+
     def _on_filewise_item_changed(self, item):
         """Handle checkbox change in filewise list: sync to tree and refresh diff."""
+        if not hasattr(self, '_checked_files_for_sha'):
+            self._checked_files_for_sha = set()
         checked = item.checkState() == Qt.Checked
         entry = item.data(FILE_ENTRY_ROLE)
         if entry:
             filepath = entry[2] if entry[0] == 'R' else entry[1]
         else:
             filepath = item.text()
-        for i in range(self.treewise_tree.topLevelItemCount()):
-            self._sync_file_to_tree(self.treewise_tree.topLevelItem(i), filepath, checked)
+
+        if checked:
+            self._checked_files_for_sha.add(filepath)
+            if entry and entry[1]:
+                self._checked_files_for_sha.add(entry[1])
+        else:
+            self._checked_files_for_sha.discard(filepath)
+            if entry and entry[1]:
+                self._checked_files_for_sha.discard(entry[1])
+
+        current_item = self.list_widget.currentItem()
+        if current_item and current_item.data(Qt.UserRole + 9) != "load_more":
+            sha = current_item.text().split()[0]
+            if getattr(self, '_treewise_tree_sha', None) == sha:
+                for i in range(self.treewise_tree.topLevelItemCount()):
+                    self._sync_file_to_tree(self.treewise_tree.topLevelItem(i), filepath, checked)
+
         self._refresh_filewise_diff()
         self._refresh_treewise_diff()
 
@@ -544,7 +637,7 @@ class DiffMixin:
             elif child_data.get("entry"):
                 entry = child_data["entry"]
                 child_path = entry[2] if entry[0] == 'R' else entry[1]
-                if child_path == filepath:
+                if child_path == filepath or entry[1] == filepath:
                     self.treewise_tree.blockSignals(True)
                     child.setCheckState(0, Qt.Checked if checked else Qt.Unchecked)
                     self.treewise_tree.blockSignals(False)
@@ -568,21 +661,21 @@ class DiffMixin:
                 p = p.parent()
         else:
             entry = item_data.get("entry")
-            filepath = ""
             if entry:
-                filepath = entry[2] if entry[0] == 'R' else entry[1]
-                for i in range(self.filewise_file_list.count()):
-                    list_item = self.filewise_file_list.item(i)
-                    list_entry = list_item.data(FILE_ENTRY_ROLE)
-                    if list_entry and list_entry == entry:
-                        self.filewise_file_list.blockSignals(True)
-                        list_item.setCheckState(Qt.Checked if checked else Qt.Unchecked)
-                        self.filewise_file_list.blockSignals(False)
-                        break
-            p = item.parent()
-            while p:
-                self._update_folder_check_state(p)
-                p = p.parent()
+                p = item.parent()
+                while p:
+                    self._update_folder_check_state(p)
+                    p = p.parent()
+
+        checked_files = self._checked_treewise_files()
+        self._checked_files_for_sha = set(checked_files)
+
+        current_item = self.list_widget.currentItem()
+        if current_item and current_item.data(Qt.UserRole + 9) != "load_more":
+            sha = current_item.text().split()[0]
+            if getattr(self, '_filewise_list_sha', None) == sha:
+                self._sync_checked_set_to_filewise_list()
+
         self._refresh_treewise_diff()
         self._refresh_filewise_diff()
 
