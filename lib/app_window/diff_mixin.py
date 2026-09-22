@@ -339,7 +339,6 @@ class DiffMixin:
         self._populate_treewise_tree(file_entries, file_stats)
         self.treewise_tree.setUpdatesEnabled(True)
         self._treewise_tree_sha = sha
-        self._sync_filewise_checks_to_tree()
 
     def _ensure_filewise_populated(self, sha, cache_entry):
         """Populate the current active tab (filewise list or treewise tree)."""
@@ -554,25 +553,6 @@ class DiffMixin:
                         self._update_folder_check_state(p)
                         p = p.parent()
                     return
-
-    def _sync_filewise_checks_to_tree(self):
-        """Apply current filewise check states to the treewise tree."""
-        if getattr(self, '_filewise_list_sha', None) != getattr(self, '_treewise_tree_sha', None):
-            return
-        checked_files = []
-        for i in range(self.filewise_file_list.count()):
-            item = self.filewise_file_list.item(i)
-            if item.checkState() == Qt.Checked:
-                entry = item.data(FILE_ENTRY_ROLE)
-                if entry:
-                    checked_files.append(entry[2] if entry[0] == 'R' else entry[1])
-                else:
-                    checked_files.append(item.text())
-        if not checked_files:
-            return
-        for filepath in checked_files:
-            for j in range(self.treewise_tree.topLevelItemCount()):
-                self._sync_file_to_tree(self.treewise_tree.topLevelItem(j), filepath, True)
 
     def _on_treewise_item_changed(self, item, column):
         """Handle checkbox change in tree: sync to file list and refresh diff."""
