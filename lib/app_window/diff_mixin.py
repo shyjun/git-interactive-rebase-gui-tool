@@ -318,7 +318,6 @@ class DiffMixin:
         self.filewise_file_list.blockSignals(False)
         self.filewise_file_list.setUpdatesEnabled(True)
         self._filewise_list_sha = sha
-        self._sync_treewise_checks_to_filewise()
 
     def _ensure_treewise_tree_populated(self, sha, cache_entry):
         """Populate treewise tree if not already done for this sha."""
@@ -574,22 +573,6 @@ class DiffMixin:
         for filepath in checked_files:
             for j in range(self.treewise_tree.topLevelItemCount()):
                 self._sync_file_to_tree(self.treewise_tree.topLevelItem(j), filepath, True)
-
-    def _sync_treewise_checks_to_filewise(self):
-        """Apply current treewise check states to the filewise list."""
-        if getattr(self, '_treewise_tree_sha', None) != getattr(self, '_filewise_list_sha', None):
-            return
-        self.filewise_file_list.blockSignals(True)
-        checked_files = self._checked_treewise_files()
-        for i in range(self.filewise_file_list.count()):
-            item = self.filewise_file_list.item(i)
-            entry = item.data(FILE_ENTRY_ROLE)
-            if entry:
-                filepath = entry[2] if entry[0] == 'R' else entry[1]
-            else:
-                filepath = item.text()
-            item.setCheckState(Qt.Checked if filepath in checked_files else Qt.Unchecked)
-        self.filewise_file_list.blockSignals(False)
 
     def _on_treewise_item_changed(self, item, column):
         """Handle checkbox change in tree: sync to file list and refresh diff."""
