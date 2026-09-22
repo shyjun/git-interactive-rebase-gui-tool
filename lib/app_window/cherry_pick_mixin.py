@@ -422,7 +422,29 @@ class CherryPickMixin:
                     lines.append(f"{s[:7]}: {subject}".rstrip())
                 return "<br/>".join(lines) if lines else "<i>none</i>"
 
+            def format_sha_list_plain(shas_list):
+                lines = []
+                for s in shas_list:
+                    try:
+                        subject = get_commit_subject(self.repo_path, s)
+                    except Exception:
+                        subject = ""
+                    if len(subject) > 80:
+                        subject = subject[:80] + "..."
+                    lines.append(f"  {s[:7]}: {subject}".rstrip())
+                return "\n".join(lines) if lines else "  (none)"
+
             pending_shas = shas[current_index + 1:]
+            clipboard_text = (
+                f"Cherry-pick of {sha[:10]} failed.\n"
+                f"Reason: {reason}\n"
+                f"\n"
+                f"Successfully cherry-picked so far: {cherry_picked}\n"
+                f"{format_sha_list_plain(cherry_picked_shas)}\n"
+                f"\n"
+                f"Pending commits: {remaining_after}\n"
+                f"{format_sha_list_plain(pending_shas)}"
+            )
             box = self._make_resizable_message_box(self)
             box.setWindowTitle("Cherry-pick Failed")
             box.setTextFormat(Qt.RichText)
@@ -438,10 +460,13 @@ class CherryPickMixin:
             skip_btn = box.addButton("Skip this and continue with next", QMessageBox.AcceptRole)
             stop_btn = box.addButton("Stop cherry-pick here, I'll cherry-pick manually",
                                      QMessageBox.RejectRole)
+            copy_btn = box.addButton("Copy to clipboard", QMessageBox.ActionRole)
             box.exec()
             clicked = box.clickedButton()
 
-            if clicked is undo_btn:
+            if clicked is copy_btn:
+                QApplication.clipboard().setText(clipboard_text)
+            elif clicked is undo_btn:
                 subprocess.run(
                     ["git", "reset", "--hard", head_before], cwd=self.repo_path,
                     capture_output=True, text=True, encoding='utf-8', errors='replace'
@@ -495,6 +520,22 @@ class CherryPickMixin:
             body = "<br/>".join(s[:7] for s in shas_list)
             return f"<b>{label}:</b> {len(shas_list)}<br/>{body}"
 
+        def _summary_block_plain(label, shas_list):
+            if not shas_list:
+                return f"{label}: 0"
+            body = "\n".join(f"  {s[:7]}" for s in shas_list)
+            return f"{label}: {len(shas_list)}\n{body}"
+
+        summary_clipboard = (
+            f"{headline}\n"
+            f"\n"
+            f"{_summary_block_plain('Cherry-picked', cherry_picked_shas)}\n"
+            f"\n"
+            f"{_summary_block_plain('Skipped', skipped_shas)}\n"
+            f"\n"
+            f"{_summary_block_plain('Not cherry-picked', not_cherry_picked_shas)}"
+        )
+
         box = self._make_resizable_message_box(self)
         box.setWindowTitle("Cherry-pick Summary")
         box.setTextFormat(Qt.RichText)
@@ -504,8 +545,11 @@ class CherryPickMixin:
             f"{_summary_block('Skipped', skipped_shas)}<br/><br/>"
             f"{_summary_block('Not cherry-picked', not_cherry_picked_shas)}</p>"
         )
-        box.addButton("OK", QMessageBox.AcceptRole)
+        ok_btn = box.addButton("OK", QMessageBox.AcceptRole)
+        copy_btn = box.addButton("Copy to clipboard", QMessageBox.ActionRole)
         box.exec()
+        if box.clickedButton() is copy_btn:
+            QApplication.clipboard().setText(summary_clipboard)
 
     def _abort_rebase_safely(self):
         """Runs 'git rebase --abort' and verifies the repository is out of a rebase state.
