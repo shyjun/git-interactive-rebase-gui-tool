@@ -546,16 +546,17 @@ class DiffMixin:
             return f"Error loading diff: {e}"
 
     def _apply_checked_set_to_tree(self, checked_set):
-        """Apply checked_set to all leaf items in treewise_tree and update folder check states."""
+        """Apply checked_set to all leaf items in treewise_tree and update folder check states in a single post-order pass."""
         self.treewise_tree.blockSignals(True)
-        def _apply(parent_item):
+        def _apply_postorder(parent_item):
             for i in range(parent_item.childCount()):
                 child = parent_item.child(i)
                 item_data = child.data(0, Qt.UserRole + 10)
                 if not item_data:
                     continue
                 if item_data["type"] == "folder":
-                    _apply(child)
+                    _apply_postorder(child)
+                    update_folder_check_state(child)
                 else:
                     entry = item_data.get("entry")
                     if entry:
@@ -564,21 +565,13 @@ class DiffMixin:
                         child.setCheckState(0, Qt.Checked if is_checked else Qt.Unchecked)
                     else:
                         child.setCheckState(0, Qt.Unchecked)
-        _apply(self.treewise_tree.invisibleRootItem())
+        _apply_postorder(self.treewise_tree.invisibleRootItem())
         for i in range(self.treewise_tree.topLevelItemCount()):
             top_item = self.treewise_tree.topLevelItem(i)
             item_data = top_item.data(0, Qt.UserRole + 10)
             if item_data and item_data["type"] == "folder":
-                self._update_folder_check_state_recursive(top_item)
+                update_folder_check_state(top_item)
         self.treewise_tree.blockSignals(False)
-
-    def _update_folder_check_state_recursive(self, parent_item):
-        for i in range(parent_item.childCount()):
-            child = parent_item.child(i)
-            item_data = child.data(0, Qt.UserRole + 10)
-            if item_data and item_data["type"] == "folder":
-                self._update_folder_check_state_recursive(child)
-        self._update_folder_check_state(parent_item)
 
     def _sync_checked_set_to_filewise_list(self):
         """Sync canonical _checked_files_for_sha to filewise_file_list."""
@@ -684,7 +677,6 @@ class DiffMixin:
         self.treewise_tree.blockSignals(True)
         set_tree_children_checked(item, checked)
         self.treewise_tree.blockSignals(False)
-        self._sync_tree_checked_to_file_list()
 
     def _sync_tree_checked_to_file_list(self):
         """Sync all tree check states to the filewise list."""
