@@ -815,6 +815,22 @@ class DiffMixin:
                     if filepath and filepath not in files:
                         files.append(filepath)
 
+    def _count_treewise_files(self):
+        """Return total count of file (non-folder) items in treewise tree."""
+        count = [0]
+        def _walk(parent):
+            for i in range(parent.childCount()):
+                child = parent.child(i)
+                item_data = child.data(0, Qt.UserRole + 10)
+                if not item_data:
+                    continue
+                if item_data["type"] == "folder":
+                    _walk(child)
+                else:
+                    count[0] += 1
+        _walk(self.treewise_tree.invisibleRootItem())
+        return count[0]
+
     def _populate_treewise_tree(self, file_entries, file_stats):
         """Build and display the tree-wise file tree from commit file entries."""
         self.treewise_tree.blockSignals(True)
@@ -992,13 +1008,9 @@ class DiffMixin:
         menu.addAction(copy_fullpath_action)
 
         if not self.browse_mode and not self.viewer_mode:
-            is_only_file = self.filewise_file_list.count() <= 1
+            is_only_file = self._count_treewise_files() <= 1
 
-            checked_files = []
-            for i in range(self.filewise_file_list.count()):
-                item = self.filewise_file_list.item(i)
-                if hasattr(item, 'checkState') and item.checkState() == Qt.Checked:
-                    checked_files.append(item.text())
+            checked_files = self._checked_treewise_files()
             if len(checked_files) > 1:
                 move_label = "Move selected files changes out of this commit"
             elif len(checked_files) == 1:
