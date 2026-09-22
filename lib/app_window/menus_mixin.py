@@ -753,11 +753,13 @@ class MenusMixin:
 
     def handle_move_up(self, item):
         """Swaps the selected commit with the one above it (Towards HEAD)."""
-        idx = self.list_widget.row(item)
+        sha = item.text().split()[0]
+        current_shas = self.get_commit_shas()
+        if sha not in current_shas:
+            return
+        idx = current_shas.index(sha)
         if idx <= 0:
             return
-
-        sha = item.text().split()[0]
 
         reply = QMessageBox.question(
             self,
@@ -780,7 +782,6 @@ class MenusMixin:
             return
 
         old_head = self.get_head_sha()
-        current_shas = self.get_commit_shas()
         # Swap with older (idx-1)
         current_shas[idx], current_shas[idx-1] = current_shas[idx-1], current_shas[idx]
 
@@ -796,11 +797,13 @@ class MenusMixin:
 
     def handle_move_down(self, item):
         """Swaps the selected commit with the one below it (Away from HEAD)."""
-        idx = self.list_widget.row(item)
-        if idx >= self.get_commit_count() - 1:
-            return
-
         sha = item.text().split()[0]
+        current_shas = self.get_commit_shas()
+        if sha not in current_shas:
+            return
+        idx = current_shas.index(sha)
+        if idx >= len(current_shas) - 1:
+            return
 
         reply = QMessageBox.question(
             self,
@@ -823,7 +826,6 @@ class MenusMixin:
             return
 
         old_head = self.get_head_sha()
-        current_shas = self.get_commit_shas()
         # Swap with newer (idx+1)
         current_shas[idx], current_shas[idx+1] = current_shas[idx+1], current_shas[idx]
 

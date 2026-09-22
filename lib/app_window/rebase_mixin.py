@@ -21,32 +21,16 @@ class RebaseMixin:
     """Interactive rebase and commit move operations."""
 
     def get_commit_shas(self):
-        """Return list of valid commit SHAs in list_widget order, excluding sentinel items like 'Load 100 more...'."""
+        """Return list of valid commit SHAs from list_widget, excluding sentinel items like 'Load 100 more...'."""
         if hasattr(self, 'list_widget') and hasattr(self.list_widget, 'get_commit_shas'):
             return self.list_widget.get_commit_shas()
-        shas = []
-        if hasattr(self, 'list_widget'):
-            for i in range(self.list_widget.count()):
-                item = self.list_widget.item(i)
-                if item and item.data(Qt.UserRole + 9) != "load_more":
-                    token = item.text().split()[0]
-                    if token and token != "Load" and len(token) >= 7 and all(c in "0123456789abcdefABCDEF" for c in token):
-                        shas.append(token)
-        return shas
+        return []
 
     def get_commit_count(self):
         """Return count of actual commit items in list_widget, excluding sentinel items like 'Load 100 more...'."""
         if hasattr(self, 'list_widget') and hasattr(self.list_widget, 'get_commit_count'):
             return self.list_widget.get_commit_count()
-        count = 0
-        if hasattr(self, 'list_widget'):
-            for i in range(self.list_widget.count()):
-                item = self.list_widget.item(i)
-                if item and item.data(Qt.UserRole + 9) != "load_more":
-                    token = item.text().split()[0]
-                    if token and token != "Load":
-                        count += 1
-        return count
+        return 0
 
     def perform_move(self, new_shas, original_shas=None, upstream_override=None):
         """Performs commit reordering using our unified rebase logic."""

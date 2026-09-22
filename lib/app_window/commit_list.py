@@ -190,14 +190,7 @@ class CommitListWidget(QListWidget):
 
     def get_commit_count(self):
         """Return count of actual commit items, excluding sentinel items (e.g. 'Load 100 more...')."""
-        count = 0
-        for i in range(self.count()):
-            item = self.item(i)
-            if item and item.data(Qt.UserRole + 9) != "load_more":
-                token = item.text().split()[0]
-                if token and token != "Load":
-                    count += 1
-        return count
+        return len(self.get_commit_shas())
 
     def dropEvent(self, event):
         try:
