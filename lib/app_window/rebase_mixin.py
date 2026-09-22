@@ -20,6 +20,34 @@ from lib.app_window.helpers import (
 class RebaseMixin:
     """Interactive rebase and commit move operations."""
 
+    def get_commit_shas(self):
+        """Return list of valid commit SHAs in list_widget order, excluding sentinel items like 'Load 100 more...'."""
+        if hasattr(self, 'list_widget') and hasattr(self.list_widget, 'get_commit_shas'):
+            return self.list_widget.get_commit_shas()
+        shas = []
+        if hasattr(self, 'list_widget'):
+            for i in range(self.list_widget.count()):
+                item = self.list_widget.item(i)
+                if item and item.data(Qt.UserRole + 9) != "load_more":
+                    token = item.text().split()[0]
+                    if token and token != "Load" and len(token) >= 7 and all(c in "0123456789abcdefABCDEF" for c in token):
+                        shas.append(token)
+        return shas
+
+    def get_commit_count(self):
+        """Return count of actual commit items in list_widget, excluding sentinel items like 'Load 100 more...'."""
+        if hasattr(self, 'list_widget') and hasattr(self.list_widget, 'get_commit_count'):
+            return self.list_widget.get_commit_count()
+        count = 0
+        if hasattr(self, 'list_widget'):
+            for i in range(self.list_widget.count()):
+                item = self.list_widget.item(i)
+                if item and item.data(Qt.UserRole + 9) != "load_more":
+                    token = item.text().split()[0]
+                    if token and token != "Load":
+                        count += 1
+        return count
+
     def perform_move(self, new_shas, original_shas=None, upstream_override=None):
         """Performs commit reordering using our unified rebase logic."""
         if not self._check_not_viewer_mode():
@@ -30,10 +58,13 @@ class RebaseMixin:
             return
         if not self._check_staged_changes():
             return
+        new_shas = [s for s in new_shas if s and s != "Load" and not s.startswith("Load")]
+        if original_shas is not None:
+            original_shas = [s for s in original_shas if s and s != "Load" and not s.startswith("Load")]
         self._merge_shas_cached = set()
         for i in range(self.list_widget.count()):
             item = self.list_widget.item(i)
-            if item and item.data(Qt.UserRole + 5):
+            if item and item.data(Qt.UserRole + 9) != "load_more" and item.data(Qt.UserRole + 5):
                 sha = item.text().split()[0]
                 self._merge_shas_cached.add(sha)
         if original_shas is not None and not self._validate_merge_crossing(new_shas, original_shas):
@@ -108,6 +139,11 @@ class RebaseMixin:
         self.save_undo_state()
         _log("Starting interactive rebase...")
         try:
+            # Filter out any non-commit sentinel items (e.g. "Load 100 more...")
+            new_shas = [s for s in new_shas if s and s != "Load" and not s.startswith("Load")]
+            if original_shas is not None:
+                original_shas = [s for s in original_shas if s and s != "Load" and not s.startswith("Load")]
+
             # If upstream is pre-computed (e.g. multi-drag with affected-only SHAs),
             # skip common-prefix detection entirely and rebase the provided SHAs
             # directly onto the given upstream.
@@ -123,7 +159,7 @@ class RebaseMixin:
                 if original_shas is not None:
                     display_shas = original_shas
                 else:
-                    display_shas = [self.list_widget.item(i).text().split()[0] for i in range(self.list_widget.count())]
+                    display_shas = self.get_commit_shas()
                 old_order = list(reversed(display_shas))
                 proposed_order = list(reversed(new_shas))
 

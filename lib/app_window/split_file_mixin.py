@@ -174,8 +174,7 @@ finally:
 
             single_exec = f"exec {_script_command(action_path)}"
 
-            current_shas = [self.list_widget.item(i).text().split()[0]
-                            for i in range(self.list_widget.count())]
+            current_shas = self.get_commit_shas()
 
             with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.py') as f:
                 f.write("#!/usr/bin/env python3\n")
@@ -380,8 +379,7 @@ for fp in filepaths:
 
             single_exec = f"exec {_script_command(action_path)}"
 
-            current_shas = [self.list_widget.item(i).text().split()[0]
-                            for i in range(self.list_widget.count())]
+            current_shas = self.get_commit_shas()
 
             with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.py') as f:
                 f.write("#!/usr/bin/env python3\n")
@@ -449,11 +447,12 @@ for fp in filepaths:
                         f"Changes for {len(filepaths)} files have been dropped from commit {short_sha}:\n\n{file_list}")
                 if parent_sha:
                     for i in range(self.list_widget.count()):
-                        if self.list_widget.item(i).text().split()[0] == parent_sha:
+                        item = self.list_widget.item(i)
+                        if item and item.data(Qt.UserRole + 9) != "load_more" and item.text().split()[0] == parent_sha:
                             self.list_widget.setCurrentRow(max(0, i - 1))
                             break
                 else:
-                    self.list_widget.setCurrentRow(self.list_widget.count() - 1)
+                    self.list_widget.setCurrentRow(self.get_commit_count() - 1)
             else:
                 ok, detail = self._abort_rebase_safely()
                 if not ok:
@@ -490,8 +489,7 @@ for fp in filepaths:
         try:
             short_sha = sha[:8]
 
-            current_shas = [self.list_widget.item(i).text().split()[0]
-                            for i in range(self.list_widget.count())]
+            current_shas = self.get_commit_shas()
             sha_idx = current_shas.index(sha) if sha in current_shas else -1
 
             commits_to_drop = []

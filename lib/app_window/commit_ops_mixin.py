@@ -113,9 +113,7 @@ class CommitOpsMixin:
         old_head = self.get_head_sha()
         try:
             # Current list of SHAs in UI
-            current_shas = []
-            for i in range(self.list_widget.count()):
-                current_shas.append(self.list_widget.item(i).text().split()[0])
+            current_shas = self.get_commit_shas()
 
             if self.run_interactive_rebase(current_shas, rephrase_map={sha: new_message}, progress_title="Rephrasing Commit", progress_text=f"Rephrasing commit {sha}. Please wait..."):
                 self.load_history()

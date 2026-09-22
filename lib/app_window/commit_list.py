@@ -177,6 +177,28 @@ class CommitListWidget(QListWidget):
 
         return super().viewportEvent(event)
 
+    def get_commit_shas(self):
+        """Return list of valid commit SHAs in list order, excluding sentinel items (e.g. 'Load 100 more...')."""
+        shas = []
+        for i in range(self.count()):
+            item = self.item(i)
+            if item and item.data(Qt.UserRole + 9) != "load_more":
+                token = item.text().split()[0]
+                if token and token != "Load" and len(token) >= 7 and all(c in "0123456789abcdefABCDEF" for c in token):
+                    shas.append(token)
+        return shas
+
+    def get_commit_count(self):
+        """Return count of actual commit items, excluding sentinel items (e.g. 'Load 100 more...')."""
+        count = 0
+        for i in range(self.count()):
+            item = self.item(i)
+            if item and item.data(Qt.UserRole + 9) != "load_more":
+                token = item.text().split()[0]
+                if token and token != "Load":
+                    count += 1
+        return count
+
     def dropEvent(self, event):
         try:
             if getattr(self.main_window, "multi_select_mode", False):
@@ -221,11 +243,11 @@ class CommitListWidget(QListWidget):
                     event.ignore()
                     return
 
-                original_shas = [self.item(i).text().split()[0] for i in range(self.count())]
+                original_shas = self.get_commit_shas()
 
                 super().dropEvent(event)
 
-                new_shas = [self.item(i).text().split()[0] for i in range(self.count())]
+                new_shas = self.get_commit_shas()
                 self.main_window.perform_move(new_shas, original_shas)
             else:
                 _log(f"Cancelled reorder of {sha}.")

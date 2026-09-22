@@ -61,7 +61,7 @@ class SquashMixin:
     def handle_squash_below(self, item):
         """Squashes the current commit with the one below it (older)."""
         index = self.list_widget.row(item)
-        if index >= self.list_widget.count() - 1: return
+        if index >= self.get_commit_count() - 1: return
 
         if not self._check_no_unstaged_changes():
             return
@@ -99,9 +99,7 @@ class SquashMixin:
         old_head = self.get_head_sha()
         try:
             # Current list of SHAs in UI
-            current_shas = []
-            for i in range(self.list_widget.count()):
-                current_shas.append(self.list_widget.item(i).text().split()[0])
+            current_shas = self.get_commit_shas()
 
             # Use final_msg for the rebase - we associate it with the SHA being squashed
             # so the amend happens right after the squash command in the todo list.
@@ -452,8 +450,7 @@ class SquashMixin:
         if not self._check_staged_changes():
             return False
         try:
-            current_shas = [self.list_widget.item(i).text().split()[0]
-                            for i in range(self.list_widget.count())]
+            current_shas = self.get_commit_shas()
             new_shas = [s for s in current_shas if s != sha]
             if self.run_interactive_rebase(
                     new_shas,
@@ -499,7 +496,7 @@ class SquashMixin:
             final_msg = dialog.get_message()
 
             # Build all SHAs list from current view
-            all_shas = [self.list_widget.item(i).text().split()[0] for i in range(self.list_widget.count())]
+            all_shas = self.get_commit_shas()
 
             if self.run_interactive_rebase(all_shas, squash_shas=squash_shas, rephrase_map={rephrase_sha: final_msg}, progress_title="Squashing Commits", progress_text="Squashing selected commits together. Please wait..."):
                 self.load_history()
@@ -522,7 +519,7 @@ class SquashMixin:
 
         # Guard: if this is the only commit in the list and we're in branch-detection
         # mode, dropping it is equivalent to a hard-reset to the base — not supported.
-        if self.list_widget.count() == 1 and self.base_branch:
+        if self.get_commit_count() == 1 and self.base_branch:
             base_sha_short = self.commit_sha[:8] if self.commit_sha else "<base>"
             QMessageBox.information(
                 self,
@@ -559,9 +556,7 @@ class SquashMixin:
         old_head = self.get_head_sha()
         try:
             # Current list of SHAs in UI
-            current_shas = []
-            for i in range(self.list_widget.count()):
-                current_shas.append(self.list_widget.item(i).text().split()[0])
+            current_shas = self.get_commit_shas()
 
             # New list without the dropped SHA
             new_shas = [s for s in current_shas if s != sha]

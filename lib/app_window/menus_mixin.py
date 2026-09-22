@@ -497,11 +497,14 @@ class MenusMixin:
         # Clipboard items
         copy_sha_action = QAction("Copy SHA to clipboard", self)
         copy_msg_action = QAction("Copy commit msg to clipboard", self)
+        if item and item.data(Qt.UserRole + 9) == "load_more":
+            return
+
         copy_sha_msg_action = QAction("Copy SHA and commit msg to clipboard", self)
 
         # Squash items
         index = self.list_widget.row(item)
-        count = self.list_widget.count()
+        count = self.get_commit_count()
 
         def format_squash_label(neighbor_item):
             parts = neighbor_item.text().split(maxsplit=1)
@@ -600,7 +603,7 @@ class MenusMixin:
         checked_count = 0
         if self.multi_select_mode:
             checked_count = sum(1 for i in range(self.list_widget.count())
-                                if self.list_widget.item(i).checkState() == Qt.Checked)
+                                if self.list_widget.item(i) and self.list_widget.item(i).data(Qt.UserRole + 9) != "load_more" and self.list_widget.item(i).checkState() == Qt.Checked)
         squash_selected_action.setEnabled(self.multi_select_mode and checked_count >= 2)
         squash_selected_action.triggered.connect(self.handle_squash_selected)
 
@@ -777,7 +780,7 @@ class MenusMixin:
             return
 
         old_head = self.get_head_sha()
-        current_shas = [self.list_widget.item(i).text().split()[0] for i in range(self.list_widget.count())]
+        current_shas = self.get_commit_shas()
         # Swap with older (idx-1)
         current_shas[idx], current_shas[idx-1] = current_shas[idx-1], current_shas[idx]
 
@@ -794,7 +797,7 @@ class MenusMixin:
     def handle_move_down(self, item):
         """Swaps the selected commit with the one below it (Away from HEAD)."""
         idx = self.list_widget.row(item)
-        if idx >= self.list_widget.count() - 1:
+        if idx >= self.get_commit_count() - 1:
             return
 
         sha = item.text().split()[0]
@@ -820,14 +823,14 @@ class MenusMixin:
             return
 
         old_head = self.get_head_sha()
-        current_shas = [self.list_widget.item(i).text().split()[0] for i in range(self.list_widget.count())]
+        current_shas = self.get_commit_shas()
         # Swap with newer (idx+1)
         current_shas[idx], current_shas[idx+1] = current_shas[idx+1], current_shas[idx]
 
         if self.run_interactive_rebase(current_shas, progress_title="Moving Commit", progress_text=f"Moving commit {sha} down..."):
             self.load_history()
             # Select the moved commit at its new index (idx + 1)
-            target_idx = min(self.list_widget.count() - 1, idx + 1)
+            target_idx = min(self.get_commit_count() - 1, idx + 1)
             self.list_widget.setCurrentRow(target_idx)
 
             new_head = self.get_head_sha()
