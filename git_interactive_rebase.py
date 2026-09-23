@@ -209,6 +209,9 @@ def main():
     def _is_file(repo_path, arg):
         return os.path.isfile(os.path.join(repo_path, arg))
 
+    def _is_dir(repo_path, arg):
+        return os.path.isdir(os.path.join(repo_path, arg))
+
     def _is_branch(repo_path, arg):
         res = subprocess.run(
             ["git", "rev-parse", "--verify", "--quiet", f"refs/heads/{arg}"],
@@ -251,6 +254,9 @@ def main():
         if _is_file(repo_path, arg):
             _log(f"Arg '{arg}' is a file. Opening file log.")
             browse_file = arg
+        elif _is_dir(repo_path, arg):
+            _log(f"Arg '{arg}' is a directory. Opening folder log.")
+            browse_file = arg
         elif _is_branch(repo_path, arg):
             _log(f"Arg '{arg}' is a branch. Browsing branch.")
             browse_branch = normalize_branch_ref(repo_path, arg)
@@ -264,12 +270,12 @@ def main():
             commit_sha = res.stdout.strip()
             _log(f"Resolved '{arg}' -> {commit_sha}")
         else:
-            QMessageBox.critical(None, "Error", f"Cannot understand argument: '{arg}'\n\nNot a file, branch, tag, or commit reference.")
+            QMessageBox.critical(None, "Error", f"Cannot understand argument: '{arg}'\n\nNot a file, directory, branch, tag, or commit reference.")
             sys.exit(1)
     elif len(positional) == 2:
-        # Two args: <branch-or-tag> <file>
+        # Two args: <branch-or-tag> <file-or-dir>
         ref_arg, file_arg = positional
-        if _is_file(repo_path, file_arg):
+        if _is_file(repo_path, file_arg) or _is_dir(repo_path, file_arg):
             if _is_branch(repo_path, ref_arg):
                 _log(f"Browsing branch '{ref_arg}', file '{file_arg}'")
                 browse_branch = normalize_branch_ref(repo_path, ref_arg)
@@ -284,10 +290,10 @@ def main():
                 sys.exit(1)
         else:
             QMessageBox.critical(None, "Error",
-                f"Second argument '{file_arg}' is not a valid file path.")
+                f"Second argument '{file_arg}' is not a valid file or directory path.")
             sys.exit(1)
     else:
-        QMessageBox.critical(None, "Error", "Too many arguments. Use at most 2: <branch-or-tag> <file>")
+        QMessageBox.critical(None, "Error", "Too many arguments. Use at most 2: <branch-or-tag> <file-or-dir>")
         sys.exit(1)
 
     # Apply global stylesheet before any dialog, so the startup unstaged-changes

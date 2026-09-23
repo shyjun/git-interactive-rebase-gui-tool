@@ -547,9 +547,9 @@ class BrowseMixin:
                                 "Please enter a file path to browse.")
             return
         full_path = os.path.join(self.repo_path, file_path)
-        if not os.path.isfile(full_path):
-            QMessageBox.critical(self, "File does not exist",
-                                 f"The file '{file_path}' does not exist.")
+        if not os.path.exists(full_path):
+            QMessageBox.critical(self, "Path does not exist",
+                                 f"The path '{file_path}' does not exist.")
             return
         _log(f"[browse] Opening file log: '{file_path}', limit={commit_limit}")
         self._open_file_log_viewer(file_path, commit_limit)

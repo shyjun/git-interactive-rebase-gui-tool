@@ -383,7 +383,7 @@ class MenusMixin:
             merge_view_action.triggered.connect(lambda: self.view_merge_commits(item))
             menu.addAction(merge_view_action)
 
-        if self.browse_file:
+        if self.browse_file and not getattr(self, 'browse_is_dir', False):
             menu.addSeparator()
             sha = item.text().split()[0]
             add_open_with_system_default_action(menu, self.browse_file, self, sha=sha, is_head=False)

@@ -539,7 +539,7 @@ class UIMixin:
         self.blame_file_btn.setToolTip("Open a blame viewer for this file.")
         self.blame_file_btn.setMinimumHeight(40)
         self.blame_file_btn.setMinimumWidth(100)
-        self.blame_file_btn.setVisible(bool(self.browse_file))
+        self.blame_file_btn.setVisible(bool(self.browse_file) and not getattr(self, 'browse_is_dir', False))
         self.blame_file_btn.clicked.connect(self._blame_browse_file)
         controls_layout.addWidget(self.blame_file_btn)
 
@@ -554,7 +554,7 @@ class UIMixin:
         self.follow_cb.setFont(bold_font)
         self.follow_cb.setToolTip("Include --follow in git log (tracks renames).")
         self.follow_cb.setChecked(False)
-        self.follow_cb.setVisible(bool(self.browse_file))
+        self.follow_cb.setVisible(bool(self.browse_file) and not getattr(self, 'browse_is_dir', False))
         self.follow_cb.toggled.connect(self._on_follow_toggled)
         controls_layout.addWidget(self.follow_cb)
 

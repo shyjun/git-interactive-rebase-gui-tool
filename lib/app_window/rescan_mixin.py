@@ -808,7 +808,8 @@ class RescanMixin:
         if self.browse_stash:
             self.total_commits_label.setText(f"Total stashes: {count_str}")
         elif self.browse_file:
-            self.total_commits_label.setText(f"Total commits touching file: {count_str}")
+            label = "path" if getattr(self, 'browse_is_dir', False) else "file"
+            self.total_commits_label.setText(f"Total commits touching {label}: {count_str}")
         else:
             self.total_commits_label.setText(f"Total commits in repo: {count_str}")
         if not getattr(self, 'viewer_mode', False) or getattr(self, 'browse_file', None):

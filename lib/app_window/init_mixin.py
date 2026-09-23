@@ -44,6 +44,7 @@ class InitMixin:
         self.viewer_mode = viewer_mode
         self.browse_branch = browse_branch
         self.browse_file = browse_file
+        self.browse_is_dir = os.path.isdir(os.path.join(repo_path, browse_file)) if browse_file else False
         self.browse_file_ref = browse_file_ref
         self.browse_reflog = browse_reflog
         self.browse_stash = browse_stash
@@ -290,11 +291,12 @@ class InitMixin:
             self.setWindowTitle(title)
             return
         if self.browse_file:
+            label = "Browse Path" if self.browse_is_dir else "Browse File"
             if self.browse_file_ref:
-                title = (f"Browse File: {self.browse_file} @ {self.browse_file_ref} (read-only, latest "
+                title = (f"{label}: {self.browse_file} @ {self.browse_file_ref} (read-only, latest "
                          f"{self.browse_limit}), path={self.repo_path}")
             else:
-                title = (f"Browse File: {self.browse_file} (read-only, latest "
+                title = (f"{label}: {self.browse_file} (read-only, latest "
                          f"{self.browse_limit}), path={self.repo_path}")
             self.setWindowTitle(title)
             return
