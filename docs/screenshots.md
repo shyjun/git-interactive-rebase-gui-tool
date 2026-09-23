@@ -107,12 +107,14 @@ The tool auto-detects the type of positional arguments:
 python3 git_interactive_rebase.py <branch>          # browse a branch (read-only)
 python3 git_interactive_rebase.py <tag>             # browse from a tag (read-only)
 python3 git_interactive_rebase.py <file>            # open file log (read-only)
+python3 git_interactive_rebase.py <folder>          # open folder log (read-only, like gitk <folder>)
 python3 git_interactive_rebase.py <commit-ref>      # start from a specific commit
 python3 git_interactive_rebase.py <branch> <file>   # browse branch, filtered to file
 python3 git_interactive_rebase.py <tag> <file>      # browse tag, filtered to file
+python3 git_interactive_rebase.py <branch> <folder> # browse branch, filtered to folder
 ```
 
-Detection priority: file → branch → tag → commit ref → error.
+Detection priority: file → directory → branch → tag → commit ref → error.
 
 You can specify commits using:
 
