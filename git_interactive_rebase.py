@@ -124,8 +124,16 @@ def main():
     import platform
     if not args.no_fork and platform.system() != "Windows":
         if sys.stdout and sys.stdout.isatty():
+            # Insert --no-fork before any existing '--' sentinel so argparse
+            # parses it as a flag; appending after '--' would make it a
+            # positional argument, defeating the guard and forking forever.
+            child_argv = sys.argv[:]
+            if '--' in child_argv:
+                child_argv.insert(child_argv.index('--'), '--no-fork')
+            else:
+                child_argv.append('--no-fork')
             proc = subprocess.Popen(
-                [sys.executable] + sys.argv + ["--no-fork"],
+                [sys.executable] + child_argv,
                 stdin=subprocess.DEVNULL,
                 # stdout / stderr inherited → prints still appear in terminal
                 start_new_session=True,
