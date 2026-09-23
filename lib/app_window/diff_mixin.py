@@ -304,6 +304,10 @@ class DiffMixin:
             self.commit_cache[sha] = cache_entry
 
         file_entries = cache_entry['files']
+        if getattr(self, 'browse_is_dir', False) and self.browse_file:
+            prefix = self.browse_file.rstrip('/') + '/'
+            file_entries = [e for e in file_entries
+                           if e[1].startswith(prefix) or e[1] == self.browse_file.rstrip('/')]
         if 'file_stats' in cache_entry:
             file_stats = cache_entry['file_stats']
         else:
@@ -352,6 +356,10 @@ class DiffMixin:
             self.commit_cache[sha] = cache_entry
 
         file_entries = cache_entry['files']
+        if getattr(self, 'browse_is_dir', False) and self.browse_file:
+            prefix = self.browse_file.rstrip('/') + '/'
+            file_entries = [e for e in file_entries
+                           if e[1].startswith(prefix) or e[1] == self.browse_file.rstrip('/')]
         if 'file_stats' in cache_entry:
             file_stats = cache_entry['file_stats']
         else:

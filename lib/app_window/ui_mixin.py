@@ -292,7 +292,7 @@ class UIMixin:
         # Keep a strong reference: in file-log mode the tab page is not added to
         # the tab widget, so it would otherwise be garbage-collected.
         self.filewise_widget = filewise_widget
-        if not self.browse_file:
+        if not self.browse_file or self.browse_is_dir:
             self.diff_tab_widget.addTab(filewise_widget, "\u25BC File-wise Diff")
             self._filewise_tab_idx = self.diff_tab_widget.indexOf(filewise_widget)
 
@@ -342,7 +342,7 @@ class UIMixin:
 
         treewise_layout.addWidget(self.treewise_splitter)
         self.treewise_widget = treewise_widget
-        if not self.browse_file:
+        if not self.browse_file or self.browse_is_dir:
             self.diff_tab_widget.addTab(treewise_widget, "\u25BC Tree-wise Diff")
             self._treewise_tab_idx = self.diff_tab_widget.indexOf(treewise_widget)
 
