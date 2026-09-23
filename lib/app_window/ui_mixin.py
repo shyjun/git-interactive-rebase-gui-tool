@@ -437,6 +437,7 @@ class UIMixin:
         self.git_status_btn.setToolTip("Run 'git status' and show the output.")
         self.git_status_btn.setMinimumHeight(40)
         self._set_git_status_icon(self.git_status_btn)
+        self.git_status_btn.setVisible(not self.browse_mode)
         self.pop_stash_btn = QPushButton("Pop app created stash")
         self.pop_stash_btn.setToolTip("Pop the app-created stash (git stash pop).")
         self._set_pop_stash_icon(self.pop_stash_btn)
