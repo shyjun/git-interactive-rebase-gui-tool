@@ -421,3 +421,12 @@ class ProgressDialog(QDialog):
 
         # Add some spacing at the bottom
         layout.addSpacing(10)
+
+    def keyPressEvent(self, event):
+        # Progress dialogs are not user-dismissible: Qt's default would
+        # reject() on Esc, hiding the window while the git operation keeps
+        # running (and releasing the modal lock in exec() mode).
+        if event.key() == Qt.Key_Escape:
+            event.ignore()
+            return
+        super().keyPressEvent(event)
