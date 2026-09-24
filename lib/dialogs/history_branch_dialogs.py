@@ -429,6 +429,7 @@ class TagCommitDialog(QDialog):
         layout.addWidget(self.annotate_cb)
 
         self.msg_edit = QTextEdit()
+        self.msg_edit.setAcceptRichText(False)
         self.msg_edit.setPlaceholderText("Annotation message (optional)")
         self.msg_edit.setToolTip("Message for an annotated tag. Ignored if 'Annotate' is unchecked.")
         self.msg_edit.setEnabled(False)

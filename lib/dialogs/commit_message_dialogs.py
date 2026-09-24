@@ -28,6 +28,7 @@ class NewCommitMessageDialog(QDialog):
         layout.addWidget(self.label)
 
         self.message_edit = QTextEdit()
+        self.message_edit.setAcceptRichText(False)
         self.message_edit.setFont(mono_font(self.font_size, family=self.font_family))
         self.message_edit.setPlainText(default_message)
         layout.addWidget(self.message_edit)

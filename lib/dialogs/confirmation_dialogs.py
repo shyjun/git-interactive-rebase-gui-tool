@@ -73,6 +73,7 @@ class RephraseDialog(QDialog):
         layout.addWidget(label)
 
         self.message_edit = QTextEdit()
+        self.message_edit.setAcceptRichText(False)
         self.message_edit.setFont(mono_font(self.font_size, family=self.font_family))
         self.message_edit.setPlainText(current_message)
         layout.addWidget(self.message_edit)
@@ -188,6 +189,7 @@ class RevertCommitDialog(QDialog):
         layout.addWidget(label)
 
         self.message_edit = QTextEdit()
+        self.message_edit.setAcceptRichText(False)
         self.message_edit.setFont(mono_font(self.font_size, family=self.font_family))
         self.message_edit.setPlainText(revert_message)
         layout.addWidget(self.message_edit)
@@ -247,6 +249,7 @@ class SquashDialog(QDialog):
 
         # Text Editor
         self.editor = QTextEdit()
+        self.editor.setAcceptRichText(False)
         self.editor.setFont(mono_font(self.font_size, family=self.font_family))
         layout.addWidget(self.editor)
 
@@ -338,6 +341,7 @@ class MultiSquashDialog(QDialog):
 
         # Text editor
         self.editor = QTextEdit()
+        self.editor.setAcceptRichText(False)
         self.editor.setFont(mono_font(font_size, family=self.font_family))
         self.editor.setMinimumHeight(100)
 
