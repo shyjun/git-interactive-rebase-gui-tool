@@ -430,3 +430,12 @@ class ProgressDialog(QDialog):
             event.ignore()
             return
         super().keyPressEvent(event)
+
+    def closeEvent(self, event):
+        # Block user-initiated closes (X button, Alt+F4, system menu —
+        # spontaneous events); allow programmatic close() from
+        # worker-finished handlers so exec() still ends normally.
+        if event.spontaneous():
+            event.ignore()
+        else:
+            super().closeEvent(event)
