@@ -107,7 +107,7 @@ The tool auto-detects the type of positional arguments:
 python3 git_interactive_rebase.py <branch>          # browse a branch (read-only)
 python3 git_interactive_rebase.py <tag>             # browse from a tag (read-only)
 python3 git_interactive_rebase.py <file>            # open file log (read-only)
-python3 git_interactive_rebase.py <folder>          # open folder log (read-only, like gitk <folder>)
+python3 git_interactive_rebase.py <folder>          # open folder log (read-only, like gitk <folder>) — File-wise/Tree-wise tabs show only files under the folder
 python3 git_interactive_rebase.py <commit-ref>      # start from a specific commit
 python3 git_interactive_rebase.py <branch> <file>   # browse branch, filtered to file
 python3 git_interactive_rebase.py <tag> <file>      # browse tag, filtered to file
@@ -171,7 +171,7 @@ The main window displays your commit history in an interactive list with action 
 
 ![Main Interface](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/main-interface.webp)
 
-**Description:** The main window shows the commit list with SHA, message, and branch indicators. The details panel displays commit metadata (SHA, author, date, changed files). A **diff pane** is docked on the right side (marked in the screenshot above) — click any commit to view its diff there (added lines in green, removed lines in red, with line numbers), in either **Plain Diff** or **File-wise Diff** mode (see [10](#10-diff-viewer) and [11](#11-diff-pane)). The top toolbar includes search, the **Search Options** dropdown (Match Case / Whole Word / Display Only Matching), theme toggle, zoom controls, a **Git Status** button (runs `git status` and shows the output in a dialog with a Copy to Clipboard button), a **Repo** menu (View PR Diff, View a Commit, Cherry-pick 1 Commit, Browse Branch, Browse File Log, Browse Log of a Commit, Browse Reflog, Browse Stashes, Find Merge-base), and reset options.
+**Description:** The main window shows the commit list with SHA, message, and branch indicators. The details panel displays commit metadata (SHA, author, date, changed files). A **diff pane** is docked on the right side (marked in the screenshot above) — click any commit to view its diff there (added lines in green, removed lines in red, with line numbers), in either **Plain Diff** or **File-wise Diff** mode (see [10](#10-diff-viewer) and [11](#11-diff-pane)). The top toolbar includes search, the **Search Options** dropdown (Match Case / Whole Word / Display Only Matching), theme toggle, zoom controls, a **Git Status** button (main window only — runs `git status` and shows the output in a dialog with a Copy to Clipboard button), a **Repo** menu (View PR Diff, View a Commit, Cherry-pick 1 Commit, Browse Branch, Browse File Log, Browse Log of a Commit, Browse Reflog, Browse Stashes, Find Merge-base), and reset options.
 
 The status bar holds a **Configure** button whose **Show/Hide** menu lets you toggle which markers/columns and controls are visible — each choice is remembered across sessions:
 
@@ -824,7 +824,7 @@ Click **Select commits** to enter checkbox selection mode, then tick the commits
 - A confirmation dialog shows the exact apply order (oldest-first, matching the branch chronology) before anything is done.
 - Commits are then cherry-picked one by one. If a pick fails, you choose how to proceed: **Undo entire cherry-pick** (reset back to the starting point), **Skip this and continue with the next**, or **Stop cherry-pick here** to finish manually. Both the failure dialog and the final summary include a **Copy to clipboard** button for easy sharing of results.
 - A final summary reports which commits were cherry-picked, skipped, or left unapplied.
-- The main window's commit list refreshes automatically after the picks finish.
+- The main window's commit list refreshes automatically after the picks finish, and the browse window **restores your selection** — the picked commit stays selected (single pick) or the checked commits stay ticked (multi pick), so you can immediately continue working from the same place.
 - **Cancel selection** exits selection mode without making any changes.
 
 ---
@@ -1268,7 +1268,7 @@ Keyboard shortcuts for faster navigation and workflow.
 | Shortcut | Action |
 |----------|--------|
 | `/` | Focus the commit search bar |
-| `Esc` | Clear search, close dialogs, exit search mode, or exit multi-select mode |
+| `Esc` | Clear search, close dialogs (except progress dialogs), exit search mode, or exit multi-select mode |
 | `Ctrl+F` | Focus the diff search bar (available in every diff view) |
 | `Ctrl+Q` | Exit the application |
 | `Ctrl+Z` | Undo the last operation (disabled while editing text) |
@@ -1279,5 +1279,5 @@ Keyboard shortcuts for faster navigation and workflow.
 
 **Notes:**
 
-- `Esc` behaves contextually and may close dialogs, clear filters, exit search, or exit multi-select mode depending on the active state.
+- `Esc` behaves contextually and may close dialogs, clear filters, exit search, or exit multi-select mode depending on the active state. **Progress dialogs** shown during history-rewriting operations (rebase, reset, push, etc.) are not dismissible — they close automatically when the operation completes.
 - `Ctrl+F` focuses the diff search bar, which is available in every diff view (see [Diff Search Bar](#9-diff-search-bar)).
