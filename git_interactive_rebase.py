@@ -109,7 +109,7 @@ def main():
         # correct installation root regardless of how the tool was invoked.
         import lib
         tool_dir = os.path.abspath(os.path.join(os.path.dirname(lib.__file__), ".."))
-        ok, message = perform_self_update(tool_dir)
+        ok, message = perform_self_update(tool_dir, report=_log)
         _log(message)
         sys.exit(0 if ok else 1)
 

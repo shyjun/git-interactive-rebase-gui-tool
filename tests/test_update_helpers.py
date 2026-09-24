@@ -109,6 +109,38 @@ class TestPerformSelfUpdate(unittest.TestCase):
         self.assertTrue(ok)
         self.assertIn("latest version", message)
 
+    def test_report_callback_receives_progress_lines_in_order(self):
+        self._publish_first_commit()
+        self._publish_new_commit()
+
+        lines = []
+        ok, message = perform_self_update(self.tool, report=lines.append)
+        self.assertTrue(ok, message)
+        self.assertTrue(lines[0].startswith("Current version: "), lines)
+        self.assertTrue(lines[1].startswith("Fetching latest version from "), lines)
+        self.assertTrue(lines[2].startswith("Latest version: "), lines)
+        self.assertEqual(lines[3], "Updating...")
+
+    def test_report_up_to_date_skips_updating_line(self):
+        self._publish_first_commit()
+
+        lines = []
+        ok, message = perform_self_update(self.tool, report=lines.append)
+        self.assertTrue(ok, message)
+        self.assertEqual(len(lines), 3, lines)
+        self.assertNotIn("Updating...", lines)
+
+    def test_report_silent_on_dirty_tree(self):
+        self._publish_first_commit()
+
+        with open(os.path.join(self.tool, "file.txt"), "w") as f:
+            f.write("LOCAL EDIT\n")
+
+        lines = []
+        ok, message = perform_self_update(self.tool, report=lines.append)
+        self.assertFalse(ok)
+        self.assertEqual(lines, [])
+
 
 if __name__ == "__main__":
     unittest.main()
