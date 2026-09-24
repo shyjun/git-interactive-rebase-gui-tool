@@ -132,6 +132,7 @@ class SplitFileMixin:
                 for fp in filepaths:
                     f.write(fp + '\n')
 
+            _log(f"[DBG-MOVE] perform_move_file_out called: sha={sha}, filepaths={filepaths}, repo={self.repo_path}")
             # Action script content — reads filepaths from temp file
             action_script_content = f"""#!/usr/bin/env python3
 import subprocess
@@ -143,25 +144,33 @@ sha = {repr(sha)}
 fp_path = {repr(fp_path)}
 new_msg = {repr(new_msg)}
 
+print(f"[DBG-ACTION-MOVE] Starting action script for sha={{sha}}", flush=True)
 with open(fp_path, 'r') as f:
     filepaths = [line.strip() for line in f if line.strip()]
+print(f"[DBG-ACTION-MOVE] Filepaths to move out: {{filepaths}}", flush=True)
 
 # 1. Soft-reset to unstage the commit
+print("[DBG-ACTION-MOVE] 1. git reset --soft HEAD~1", flush=True)
 subprocess.check_call(['git', 'reset', '--soft', 'HEAD~1'])
 # 2. Un-stage all target files from the index
 for fp in filepaths:
+    print(f"[DBG-ACTION-MOVE] 2. git reset HEAD -- {{fp}}", flush=True)
     subprocess.check_call(['git', 'reset', 'HEAD', '--', fp])
 # 3. Re-commit the remaining files with the original commit message
+print(f"[DBG-ACTION-MOVE] 3. git commit -C {{sha}}", flush=True)
 subprocess.check_call(['git', 'commit', '-C', sha])
 # 4. Stage all target files
 for fp in filepaths:
+    print(f"[DBG-ACTION-MOVE] 4. git add --all -- {{fp}}", flush=True)
     subprocess.check_call(['git', 'add', '--all', '--', fp])
 # 5. Commit the target files with the new descriptive message
+print("[DBG-ACTION-MOVE] 5. git commit -F msg_path", flush=True)
 msg_fd, msg_path = tempfile.mkstemp(prefix='git_msg_', text=True)
 with os.fdopen(msg_fd, 'w', encoding='utf-8') as f:
     f.write(new_msg)
 try:
     subprocess.check_call(['git', 'commit', '-F', msg_path])
+    print("[DBG-ACTION-MOVE] Action script completed successfully", flush=True)
 finally:
     try:
         os.unlink(msg_path)
@@ -175,6 +184,7 @@ finally:
             single_exec = f"exec {_script_command(action_path)}"
 
             current_shas = self.get_commit_shas()
+            _log(f"[DBG-MOVE] current_shas={current_shas[:10]}")
 
             with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.py') as f:
                 f.write("#!/usr/bin/env python3\n")
@@ -185,17 +195,23 @@ finally:
                 f.write("with open(todo_path, 'r') as tf:\n")
                 f.write("    lines = tf.readlines()\n")
                 f.write("output = []\n")
+                f.write("matched = False\n")
                 f.write("for line in lines:\n")
                 f.write("    output.append(line)\n")
                 f.write("    stripped = line.strip()\n")
-                f.write("    if not stripped.startswith('#') and len(stripped.split()) >= 2 and stripped.split()[1].startswith(target_sha):\n")
-                f.write("        output.append(single_exec + '\\n')\n")
+                f.write("    if not stripped.startswith('#') and len(stripped.split()) >= 2:\n")
+                f.write("        todo_sha = stripped.split()[1]\n")
+                f.write("        if todo_sha.startswith(target_sha) or target_sha.startswith(todo_sha):\n")
+                f.write("            output.append(single_exec + '\\n')\n")
+                f.write("            matched = True\n")
+                f.write("print(f'[DBG-SEQ-EDITOR] target_sha={target_sha} matched={matched}', flush=True)\n")
                 f.write("with open(todo_path, 'w') as tf:\n")
                 f.write("    tf.writelines(output)\n")
                 editor_script = f.name
 
 
             sha_idx = current_shas.index(sha) if sha in current_shas else -1
+            _log(f"[DBG-MOVE] sha={sha}, sha_idx={sha_idx}, total_shas={len(current_shas)}")
             if sha_idx == len(current_shas) - 1:
                 has_parent = False
                 try:
@@ -209,6 +225,7 @@ finally:
                 upstream = current_shas[sha_idx + 1]
 
             parent_sha = current_shas[sha_idx + 1] if sha_idx + 1 < len(current_shas) else None
+            _log(f"[DBG-MOVE] upstream={upstream}, parent_sha={parent_sha}")
 
             env = os.environ.copy()
             env["GIT_SEQUENCE_EDITOR"] = _script_command(editor_script)
@@ -219,6 +236,8 @@ finally:
             else:
                 cmd = ["git", "rebase", "-i", upstream]
 
+            _log(f"[DBG-MOVE] Executing cmd={cmd} old_head={old_head}")
+
             if len(filepaths) == 1:
                 progress_msg = f"Moving '{filepaths[0]}' out of commit {short_sha}..."
             else:
@@ -228,6 +247,9 @@ finally:
 
             def on_split_finished(returncode, stdout, stderr):
                 try:
+                    _log(f"[DBG-MOVE-FINISHED] returncode={returncode}")
+                    _log(f"[DBG-MOVE-FINISHED] stdout=\n{stdout}")
+                    _log(f"[DBG-MOVE-FINISHED] stderr=\n{stderr}")
                     if progress.isVisible():
                         progress.close()
                     try:
@@ -247,6 +269,7 @@ finally:
                         else:
                             self.list_widget.setCurrentRow(self.list_widget.count() - 1)
                         new_head = self.get_head_sha()
+                        _log(f"[DBG-MOVE-FINISHED] HEAD before={old_head}, HEAD after={new_head}")
                         if len(filepaths) == 1:
                             self.log_action(sha, f"moved {filepaths[0]} out of", old_head, new_head)
                             QMessageBox.information(self, "Success",
@@ -390,11 +413,16 @@ for fp in filepaths:
                 f.write("with open(todo_path, 'r') as tf:\n")
                 f.write("    lines = tf.readlines()\n")
                 f.write("output = []\n")
+                f.write("matched = False\n")
                 f.write("for line in lines:\n")
                 f.write("    output.append(line)\n")
                 f.write("    stripped = line.strip()\n")
-                f.write("    if not stripped.startswith('#') and len(stripped.split()) >= 2 and stripped.split()[1].startswith(target_sha):\n")
-                f.write("        output.append(single_exec + '\\n')\n")
+                f.write("    if not stripped.startswith('#') and len(stripped.split()) >= 2:\n")
+                f.write("        todo_sha = stripped.split()[1]\n")
+                f.write("        if todo_sha.startswith(target_sha) or target_sha.startswith(todo_sha):\n")
+                f.write("            output.append(single_exec + '\\n')\n")
+                f.write("            matched = True\n")
+                f.write("print(f'[DBG-SEQ-EDITOR-DROP] target_sha={target_sha} matched={matched}', flush=True)\n")
                 f.write("with open(todo_path, 'w') as tf:\n")
                 f.write("    tf.writelines(output)\n")
                 editor_script = f.name
@@ -651,8 +679,9 @@ except Exception as e:
                 f.write("    is_target = False\n")
                 f.write("    matched_sha = None\n")
                 f.write("    if not stripped.startswith('#') and len(stripped.split()) >= 2:\n")
+                f.write("        todo_sha = stripped.split()[1]\n")
                 f.write("        for ts in target_shas:\n")
-                f.write("            if stripped.split()[1].startswith(ts):\n")
+                f.write("            if todo_sha.startswith(ts) or ts.startswith(todo_sha):\n")
                 f.write("                is_target = True\n")
                 f.write("                matched_sha = ts\n")
                 f.write("                break\n")
