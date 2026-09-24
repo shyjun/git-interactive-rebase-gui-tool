@@ -62,17 +62,34 @@ def get_commit_diff(repo_path, commit_sha):
         proc = Popen(cmd, cwd=repo_path, stdout=PIPE, stderr=PIPE,
                      encoding='utf-8', errors='replace')
         data = proc.stdout.read(MAX_DIFF_BYTES)
-        truncated = proc.poll() is None
+        # Detect truncation from data length, not process liveness.
+        # Right after stdout EOF the child may not be reaped yet, so
+        # poll() can return None even for a fully received small diff
+        # (race observed on Windows). If we hit the cap, probe for one
+        # more character to see if more data remains.
+        if len(data) < MAX_DIFF_BYTES:
+            truncated = False
+        else:
+            truncated = proc.stdout.read(1) != ''
         if truncated:
             try:
                 proc.kill()
             except OSError:
                 pass
             proc.wait()
-        elif proc.returncode != 0:
-            stderr = proc.stderr.read()
-            proc.wait()
-            raise Exception(f"Failed to fetch diff: {stderr}")
+        else:
+            try:
+                proc.wait(timeout=30)
+            except subprocess.TimeoutExpired:
+                try:
+                    proc.kill()
+                except OSError:
+                    pass
+                proc.wait()
+                raise Exception(f"Failed to fetch diff: git show timed out for {commit_sha[:11]}")
+            if proc.returncode != 0:
+                stderr = proc.stderr.read()
+                raise Exception(f"Failed to fetch diff: {stderr}")
 
         diff_text = data
         if truncated:
