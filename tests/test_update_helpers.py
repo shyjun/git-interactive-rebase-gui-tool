@@ -1,24 +1,30 @@
 import unittest
 import sys
 import os
+import shlex
 import tempfile
 import shutil
 import subprocess
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+# Import lib.app_window first, matching the app's import order: importing
+# lib.git_helpers first hits a package-init cycle (git_helpers -> core ->
+# app_window.helpers -> app_window.__init__ -> init_mixin -> git_helpers).
+import lib.app_window.helpers  # noqa: F401
 from lib.git_helpers import build_update_command, perform_self_update
 
 
 class TestBuildUpdateCommand(unittest.TestCase):
 
     def test_pip_install_command(self):
+        # bab67e3 switched build_update_command to sys.executable + -m.
         self.assertEqual(build_update_command("/some/dir", is_pip=True),
-                         "git_interactive_rebase --update")
+                         f"{shlex.quote(sys.executable)} -m git_interactive_rebase --update")
 
     def test_git_install_command(self):
         self.assertEqual(
             build_update_command("/path/to/tool", is_pip=False),
-            "python3 /path/to/tool/git_interactive_rebase.py --update")
+            f"{shlex.quote(sys.executable)} /path/to/tool/git_interactive_rebase.py --update")
 
 
 class TestPerformSelfUpdate(unittest.TestCase):
