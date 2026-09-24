@@ -1641,11 +1641,7 @@ class SingleCommitViewDialog(QDialog):
         if self.editable and is_editable_branch(self):
             is_only_file = self.filewise_file_list.count() <= 1
 
-            checked_files = []
-            for i in range(self.filewise_file_list.count()):
-                item = self.filewise_file_list.item(i)
-                if hasattr(item, 'checkState') and item.checkState() == Qt.Checked:
-                    checked_files.append(item.text())
+            checked_files = self._checked_treewise_files()
             if len(checked_files) > 1:
                 move_label = "Move selected files changes out of this commit"
             elif len(checked_files) == 1:
@@ -1715,11 +1711,7 @@ class SingleCommitViewDialog(QDialog):
         if self.editable and is_editable_branch(self):
             is_only_file = self.filewise_file_list.count() <= 1
 
-            checked_files = []
-            for i in range(self.filewise_file_list.count()):
-                item = self.filewise_file_list.item(i)
-                if hasattr(item, 'checkState') and item.checkState() == Qt.Checked:
-                    checked_files.append(item.text())
+            checked_files = self._checked_filewise_files()
             if len(checked_files) > 1:
                 move_label = "Move selected files changes out of this commit"
             elif len(checked_files) == 1:
