@@ -6,6 +6,10 @@ import shutil
 import subprocess
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+# Import lib.app_window first, matching the app's import order: importing
+# lib.git_helpers first hits a package-init cycle (git_helpers -> core ->
+# app_window.helpers -> app_window.__init__ -> init_mixin -> git_helpers).
+import lib.app_window.helpers  # noqa: F401
 from lib.git_helpers import _parse_stash_records, get_commit_files_with_status
 
 
@@ -105,11 +109,16 @@ class TestStashFilesWithStatus(unittest.TestCase):
         added = [e for e in entries if e[0] == 'A']
         self.assertEqual([e[1] for e in added], ["h.txt"])
 
-    def test_without_stash_flag_returns_empty(self):
-        # Plain diff-tree cannot see a stash's files (merge commit), which is
-        # why the stash flag exists.
+    def test_without_stash_flag_diffs_against_both_parents(self):
+        # Since b1b8e4f the non-stash path uses -m (for merge commit display),
+        # so a stash SHA without the flag yields one entry set per parent:
+        # f/g appear twice, h (only in the stash) once. The stash flag exists
+        # to diff against the first parent only, avoiding the duplicates.
         entries = get_commit_files_with_status(self.repo, self.stash_sha)
-        self.assertEqual(entries, [])
+        files = [e[1] for e in entries]
+        self.assertEqual(files.count("h.txt"), 1)
+        self.assertEqual(files.count("f.txt"), 2)
+        self.assertEqual(files.count("g.txt"), 2)
 
 
 if __name__ == "__main__":

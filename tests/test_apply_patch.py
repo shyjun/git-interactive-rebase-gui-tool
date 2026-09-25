@@ -6,6 +6,10 @@ import shutil
 import subprocess
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+# Import lib.app_window first, matching the app's import order: importing
+# lib.git_helpers first hits a package-init cycle (git_helpers -> core ->
+# app_window.helpers -> app_window.__init__ -> init_mixin -> git_helpers).
+import lib.app_window.helpers  # noqa: F401
 from lib.git_helpers import apply_patch_file, _parse_patch_commit_message
 
 
