@@ -28,14 +28,13 @@ from PySide6.QtGui import QAction
 import atexit
 import shutil
 
+from lib.logger import _log, set_verbose, _VERBOSE, _VERBOSE_TAGS
+
 PR_DIFF_SIZE_WARN_THRESHOLD = 200_000
 
 PLAIN_DIFF_LINE_CAP = 10_000
 
 MATCH_ROLE = Qt.UserRole + 7
-
-from lib.logger import _log, set_verbose, _VERBOSE, _VERBOSE_TAGS
-
 
 
 def _wait_worker(worker, label='worker', timeout_ms=3000):
