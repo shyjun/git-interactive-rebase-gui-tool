@@ -261,6 +261,7 @@ class BranchDiffDialog(QDialog):
     for the combined diff between two commits (consolidated diff / PR preview)."""
     def __init__(self, repo_path, start_sha, end_sha, num_commits, diff_text, files, file_stats, font_size=10, font_family=None, parent=None, colors=None, title=None, description=None):
         super().__init__(parent)
+        _log(f"[crashdbg] BranchDiffDialog.__init__ entry: title={title!r} files={len(files)} diff_len={len(diff_text)}")
         self.repo_path = repo_path
         self.start_sha = start_sha
         self.end_sha = end_sha
@@ -278,6 +279,7 @@ class BranchDiffDialog(QDialog):
             else:
                 colors = {"added": "#a6e22e", "removed": "#f92672", "header": "#66d9ef", "separator": "#444444"}
         self.colors = colors
+        _log("[crashdbg]   colors resolved")
 
         layout = QVBoxLayout(self)
 
@@ -319,6 +321,7 @@ class BranchDiffDialog(QDialog):
         plain_layout.addWidget(self.side_diff_view)
 
         self.tab_widget.addTab(plain_widget, "Plain Diff")
+        _log("[crashdbg]   plain-diff tab built (DiffView + Highlighter + SearchBar)")
 
         # Tab 1: Filewise Diff
         filewise_widget = QWidget()
@@ -341,6 +344,7 @@ class BranchDiffDialog(QDialog):
         self.filewise_file_list.itemChanged.connect(self._on_filewise_item_changed)
         self.filewise_file_list_filter = FileListFilter(self.filewise_file_list)
         self.filewise_splitter.addWidget(self.filewise_file_list)
+        _log("[crashdbg]   filewise list + FileListFilter built")
 
         # File diff view + search
         file_right_widget = QWidget()
@@ -370,6 +374,7 @@ class BranchDiffDialog(QDialog):
 
         self.tab_widget.addTab(filewise_widget, "\u25BC Filewise Diff")
         self._filewise_tab_idx = self.tab_widget.indexOf(filewise_widget)
+        _log("[crashdbg]   filewise tab built (diff view + highlighter + search)")
 
         # Tab 2: Tree-wise Diff
         treewise_widget = QWidget()
@@ -422,6 +427,7 @@ class BranchDiffDialog(QDialog):
 
         self.tab_widget.addTab(treewise_widget, "\u25BC Tree-wise Diff")
         self._treewise_tab_idx = self.tab_widget.indexOf(treewise_widget)
+        _log("[crashdbg]   treewise tab built (tree + FileListFilter + diff view + highlighter + search)")
 
         layout.addWidget(self.tab_widget)
 
@@ -444,6 +450,7 @@ class BranchDiffDialog(QDialog):
 
         # Populate tree-wise tab (BranchDiffDialog uses plain file strings, not status tuples)
         self._populate_treewise_from_files(files, file_stats)
+        _log("[crashdbg]   file list + tree populated")
 
         # Ctrl+F focuses the search bar of the active tab
         self.ctrl_f_shortcut = QShortcut(QKeySequence("Ctrl+F"), self)
@@ -463,6 +470,7 @@ class BranchDiffDialog(QDialog):
         btn_layout.addWidget(ok_btn)
         btn_layout.addStretch()
         layout.addLayout(btn_layout)
+        _log("[crashdbg]   BranchDiffDialog.__init__ done")
 
     def _focus_active_search(self):
         idx = self.tab_widget.currentIndex()
@@ -1820,6 +1828,7 @@ class UnstagedDiffDialog(BranchDiffDialog):
     """Read-only window identical to the PR diff viewer (View PR Diff), but
     showing only the unstaged (worktree vs index) changes. No edits allowed."""
     def __init__(self, repo_path, files, diff_text, file_stats, branch, head_sha, font_size=10, font_family=None, parent=None, colors=None):
+        _log(f"[crashdbg] UnstagedDiffDialog.__init__ entry: files={len(files)} diff_len={len(diff_text)}")
         if colors is None:
             main_win = parent if isinstance(parent, QMainWindow) else None
             if main_win and hasattr(main_win, 'current_theme_colors'):
@@ -1832,6 +1841,7 @@ class UnstagedDiffDialog(BranchDiffDialog):
             repo_path, branch, head_sha, len(files), diff_text,
             files, file_stats, font_size, font_family=font_family, parent=parent, colors=colors
         )
+        _log("[crashdbg] UnstagedDiffDialog.__init__ done (super returned)")
         self.setWindowTitle("Unstaged Changes")
         self.header_label.setText(
             f"Unstaged Changes: <b>{branch}</b> - {len(files)} file{'s' if len(files) != 1 else ''}"

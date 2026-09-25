@@ -928,6 +928,7 @@ class FileListFilter(QObject):
     DEBOUNCE_MS = 200
 
     def __init__(self, widget, parent=None):
+        print(f"[crashdbg] FileListFilter.__init__ entry widget={type(widget).__name__}", flush=True)
         super().__init__(parent or widget)
         self.widget = widget
         self.viewport = widget.viewport()
@@ -1031,11 +1032,13 @@ class FileListFilter(QObject):
                 obj.reset()
 
         widget.model().modelAboutToBeReset.connect(_on_model_reset)
+        print("[crashdbg] FileListFilter: modelAboutToBeReset connected", flush=True)
 
         self.button.hide()
         self.bar.hide()
 
         _FILE_FILTERS.add(self)
+        print("[crashdbg] FileListFilter.__init__ done", flush=True)
 
         def _on_widget_destroyed(_obj=None):
             _FILE_FILTERS.discard(self)
