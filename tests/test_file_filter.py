@@ -7,6 +7,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 # lib.git_helpers first hits a package-init cycle (git_helpers -> core ->
 # app_window.helpers -> app_window.__init__ -> init_mixin -> git_helpers).
 import lib.app_window.helpers  # noqa: F401
+from lib.app_window.helpers import get_theme_stylesheet, mono_font
 from PySide6.QtWidgets import (
     QApplication,
     QListWidget,
@@ -480,6 +481,68 @@ class TestHoverButtonAppearance(unittest.TestCase):
         self.assertFalse(flt.button.icon().pixmap(1, 1).isNull())
         lw.close()
         lw.deleteLater()
+
+
+class TestFontPreservation(unittest.TestCase):
+    """Docking the bar must not reset the list/tree font.
+
+    Reparenting through the parentless container in _dock_bar re-polishes
+    the widget under the app stylesheet, which drops its explicit setFont
+    (the bug where clicking the magnifier shrank the right-pane lists to
+    the default 9pt font)."""
+
+    def setUp(self):
+        self._old_sheet = app.styleSheet()
+        app.setStyleSheet(get_theme_stylesheet("light"))
+
+    def tearDown(self):
+        app.setStyleSheet(self._old_sheet)
+
+    def _dock_fonts(self, widget):
+        host = QWidget()
+        layout = QVBoxLayout(host)
+        layout.setContentsMargins(0, 0, 0, 0)
+        split = QSplitter(Qt.Vertical)
+        layout.addWidget(split)
+        split.addWidget(widget)
+        host.resize(300, 200)
+        host.show()
+        app.processEvents()
+        # The app applies fonts while the window already exists (setup_ui /
+        # zoom / theme paths); post-show setFont is what the polish during
+        # the dock wrap used to clobber.
+        widget.setFont(mono_font(14))
+        app.processEvents()
+        flt = FileListFilter(widget)
+        before = (widget.font(), widget.viewport().font())
+        flt.open_bar()
+        app.processEvents()
+        after = (widget.font(), widget.viewport().font())
+        host.close()
+        host.deleteLater()
+        return before, after
+
+    def _assert_fonts_equal(self, before, after):
+        for b, a in zip(before, after):
+            self.assertEqual(a.family(), b.family())
+            self.assertEqual(a.pointSize(), b.pointSize())
+            self.assertEqual(a.bold(), b.bold())
+
+    def test_list_font_survives_dock(self):
+        lw = QListWidget()
+        lw.addItem(QListWidgetItem("a.c"))
+        before, after = self._dock_fonts(lw)
+        self.assertEqual(before[0].pointSize(), 14)
+        self._assert_fonts_equal(before, after)
+        self.assertEqual(after[0].pointSize(), 14)
+
+    def test_tree_font_survives_dock(self):
+        tree = QTreeWidget()
+        tree.addTopLevelItem(QTreeWidgetItem(["a.c"]))
+        before, after = self._dock_fonts(tree)
+        self.assertEqual(before[0].pointSize(), 14)
+        self._assert_fonts_equal(before, after)
+        self.assertEqual(after[0].pointSize(), 14)
 
 
 if __name__ == "__main__":

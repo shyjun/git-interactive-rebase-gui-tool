@@ -1113,6 +1113,8 @@ class FileListFilter(QObject):
             if not isinstance(layout, QBoxLayout) or layout.indexOf(widget) < 0:
                 return False
             host, idx = layout, layout.indexOf(widget)
+        font = widget.font()
+        vp_font = widget.viewport().font()
         container = QWidget()
         container_layout = QVBoxLayout(container)
         container_layout.setContentsMargins(0, 0, 0, 0)
@@ -1122,6 +1124,12 @@ class FileListFilter(QObject):
         # The widget left its old slot above, so inserting at the captured
         # index puts the container exactly where the widget was.
         host.insertWidget(idx, container)
+        # Reparenting through the parentless container makes Qt re-polish
+        # the widget, which silently resets its explicit font to the app
+        # default (with the stylesheet active) — restore it. Font events
+        # fire synchronously, so setting it here sticks.
+        widget.setFont(font)
+        widget.viewport().setFont(vp_font)
         self._container = container
         return True
 
