@@ -3,6 +3,7 @@ import weakref
 from PySide6.QtCore import (
     QEvent,
     QObject,
+    QPoint,
     QRegularExpression,
     QRect,
     QSize,
@@ -902,7 +903,12 @@ class FileListFilter(QObject):
         self._matches = []
         self._current = -1
 
-        self.button = QToolButton(self.viewport)
+        # Docked overlays: the button and bar are children of the *widget*,
+        # not the viewport. QAbstractScrollArea::scrollContentsBy moves
+        # viewport children by the scroll delta, which would drag them out of
+        # view while scrolling; widget children stay pinned in place and are
+        # positioned in widget coordinates (viewport offset + margin).
+        self.button = QToolButton(widget)
         self.button.setToolTip("Filter files")
         self.button.setFixedSize(24, 24)
         self.button.setIcon(_magnifier_icon(
@@ -910,7 +916,7 @@ class FileListFilter(QObject):
         self._style_hover_button()
         self.button.clicked.connect(self.open_bar)
 
-        self.bar = QWidget(self.viewport)
+        self.bar = QWidget(widget)
         self.bar.setObjectName("FileFilterBar")
         # Bar metrics and button construction mirror DiffSearchBar (the
         # "Search in diff" toolbar) so both bars look the same.
@@ -1024,12 +1030,19 @@ class FileListFilter(QObject):
             return False
         return super().eventFilter(obj, event)
 
+    def _vp_offset(self):
+        return self.viewport.mapTo(self.widget, QPoint(0, 0))
+
     def _position_button(self):
-        self.button.move(self.viewport.width() - self.button.width() - 4, 4)
+        off = self._vp_offset()
+        self.button.move(
+            off.x() + self.viewport.width() - self.button.width() - 4,
+            off.y() + 4)
 
     def _position_bar(self):
+        off = self._vp_offset()
         width = max(200, self.viewport.width() - 8)
-        self.bar.setGeometry(4, 4, width, 38)
+        self.bar.setGeometry(off.x() + 4, off.y() + 4, width, 38)
 
     def _hide_button_if_cursor_away(self):
         pos = QCursor.pos()

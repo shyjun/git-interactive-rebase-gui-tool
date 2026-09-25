@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
     QTreeWidget,
     QTreeWidgetItem,
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QPoint, Qt
 from lib.widgets import (
     FILTER_MATCH_ROLE,
     FileListFilter,
@@ -225,6 +225,98 @@ class TestTreeWidgetFilter(unittest.TestCase):
         self._filter("gui")
         self.tw.clear()
         self.assertFalse(self.flt.bar.isVisible())
+
+
+class TestScrollPinning(unittest.TestCase):
+    """The bar and hover button are docked to the widget, not the viewport.
+
+    QAbstractScrollArea::scrollContentsBy moves viewport children by the
+    scroll delta; widget children stay pinned, so scrolling (wheel,
+    scrollbar, scrollToItem after next-match navigation) must never move
+    the overlays."""
+
+    def setUp(self):
+        self.lw = QListWidget()
+        self.lw.resize(240, 160)
+        self.lw.show()
+        for i in range(60):
+            self.lw.addItem(QListWidgetItem(f"file{i:02d}.c"))
+        self.flt = FileListFilter(self.lw)
+
+    def tearDown(self):
+        self.lw.close()
+        self.lw.deleteLater()
+
+    def _want(self):
+        off = self.flt.viewport.mapTo(self.lw, QPoint(0, 0))
+        bar = (off.x() + 4, off.y() + 4)
+        btn = (off.x() + self.flt.viewport.width()
+               - self.flt.button.width() - 4, off.y() + 4)
+        return bar, btn
+
+    def test_bar_pinned_while_scrolling(self):
+        self.flt.open_bar()
+        app.processEvents()
+        want_bar, _ = self._want()
+        self.assertTrue(self.flt.bar.isVisible())
+        self.assertEqual((self.flt.bar.x(), self.flt.bar.y()), want_bar)
+
+        self.lw.verticalScrollBar().setValue(80)
+        app.processEvents()
+        self.assertTrue(self.flt.bar.isVisible())
+        self.assertEqual((self.flt.bar.x(), self.flt.bar.y()), want_bar)
+
+        self.lw.setCurrentRow(50)  # the scrollToItem path used by navigation
+        app.processEvents()
+        self.assertTrue(self.flt.bar.isVisible())
+        self.assertEqual((self.flt.bar.x(), self.flt.bar.y()), want_bar)
+
+    def test_button_pinned_while_scrolling(self):
+        self.flt._hover = True
+        self.flt._position_button()
+        self.flt.button.show()
+        app.processEvents()
+        _, want_btn = self._want()
+        self.assertEqual((self.flt.button.x(), self.flt.button.y()), want_btn)
+
+        self.lw.verticalScrollBar().setValue(99)
+        app.processEvents()
+        self.assertEqual((self.flt.button.x(), self.flt.button.y()), want_btn)
+
+    def test_navigation_keeps_bar_pinned(self):
+        # User report: pressing next-match repeatedly scrolled the pane and
+        # the bar went out of view.
+        self.flt.open_bar()
+        self.flt.input.setText(".c")
+        self.flt._apply()
+        for _ in range(6):
+            self.flt.next_match()
+        app.processEvents()
+        want_bar, _ = self._want()
+        self.assertTrue(self.flt.bar.isVisible())
+        self.assertEqual((self.flt.bar.x(), self.flt.bar.y()), want_bar)
+
+    def test_tree_bar_stays_below_header(self):
+        tw = QTreeWidget()
+        tw.resize(240, 160)
+        tw.show()
+        tw.setHeaderLabels(["Name", "Stats"])
+        root = QTreeWidgetItem(["src", ""])
+        tw.addTopLevelItem(root)
+        for i in range(40):
+            root.addChild(QTreeWidgetItem([f"file{i:02d}.c", "+1 -1"]))
+        flt = FileListFilter(tw)
+        flt.open_bar()
+        app.processEvents()
+        off = flt.viewport.mapTo(tw, QPoint(0, 0))
+        want = (off.x() + 4, off.y() + 4)
+        self.assertGreater(off.y(), 0)  # header pushes the viewport down
+        tw.verticalScrollBar().setValue(50)
+        app.processEvents()
+        self.assertTrue(flt.bar.isVisible())
+        self.assertEqual((flt.bar.x(), flt.bar.y()), want)
+        tw.close()
+        tw.deleteLater()
 
 
 if __name__ == "__main__":
