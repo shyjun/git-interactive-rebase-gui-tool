@@ -314,7 +314,7 @@ class UIMixin:
         self.treewise_tree.header().setSectionResizeMode(1, QHeaderView.ResizeToContents)
         self.treewise_tree.setMinimumHeight(60)
         self.treewise_tree.setAnimated(True)
-        self.treewise_tree.setItemDelegateForColumn(1, TreeStatsDelegate())
+        self.treewise_tree.setItemDelegateForColumn(1, TreeStatsDelegate(parent=self.treewise_tree))
         self.treewise_tree.itemChanged.connect(self._on_treewise_item_changed)
         self.treewise_tree.setContextMenuPolicy(Qt.CustomContextMenu)
         self.treewise_tree.customContextMenuRequested.connect(self.show_treewise_context_menu)
