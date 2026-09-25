@@ -18,4 +18,4 @@ def _log(msg, **_kw):
         is_error = any(k in msg for k in ('FAILED', 'Error', 'error', 'Exception', 'Traceback'))
         if tag in _VERBOSE_TAGS and not is_error:
             return
-    print(f"[{time.strftime('%H:%M:%S')}.{time.time_ns() % 1000:03d}] {msg}")
+    print(f"[{time.strftime('%H:%M:%S')}.{(time.time_ns() // 1_000_000) % 1000:03d}] {msg}", flush=True)
