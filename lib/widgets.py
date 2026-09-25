@@ -912,9 +912,11 @@ class FileListFilter(QObject):
 
         self.bar = QWidget(self.viewport)
         self.bar.setObjectName("FileFilterBar")
+        # Bar metrics and button construction mirror DiffSearchBar (the
+        # "Search in diff" toolbar) so both bars look the same.
         bar_layout = QHBoxLayout(self.bar)
-        bar_layout.setContentsMargins(6, 4, 6, 4)
-        bar_layout.setSpacing(4)
+        bar_layout.setContentsMargins(5, 5, 5, 5)
+        bar_layout.setSpacing(5)
 
         icon_label = QLabel()
         icon_label.setPixmap(_magnifier_icon(
@@ -923,32 +925,33 @@ class FileListFilter(QObject):
 
         self.input = _FilterSearchInput(self)
         self.input.setPlaceholderText("Filter files...")
-        self.input.setMinimumHeight(24)
+        self.input.setMinimumHeight(28)
+        self.input.setClearButtonEnabled(True)
         self.input.textChanged.connect(self._schedule_apply)
         bar_layout.addWidget(self.input, 1)
 
-        self.counter = QLabel("0 / 0")
-        self.counter.setMinimumWidth(56)
+        self.counter = QLabel("0/0")
+        self.counter.setMinimumWidth(40)
         self.counter.setAlignment(Qt.AlignCenter)
         bar_layout.addWidget(self.counter)
 
         self.btn_prev = QToolButton()
-        self.btn_prev.setArrowType(Qt.UpArrow)
-        self.btn_prev.setFixedSize(24, 24)
+        self.btn_prev.setText("<")
+        self.btn_prev.setFixedSize(28, 28)
         self.btn_prev.setToolTip("Previous match")
         self.btn_prev.clicked.connect(self.prev_match)
         bar_layout.addWidget(self.btn_prev)
 
         self.btn_next = QToolButton()
-        self.btn_next.setArrowType(Qt.DownArrow)
-        self.btn_next.setFixedSize(24, 24)
+        self.btn_next.setText(">")
+        self.btn_next.setFixedSize(28, 28)
         self.btn_next.setToolTip("Next match")
         self.btn_next.clicked.connect(self.next_match)
         bar_layout.addWidget(self.btn_next)
 
         self.btn_close = QToolButton()
         self.btn_close.setText("\u2715")
-        self.btn_close.setFixedSize(24, 24)
+        self.btn_close.setFixedSize(28, 28)
         self.btn_close.setToolTip("Close filter")
         self.btn_close.clicked.connect(self.close_bar)
         bar_layout.addWidget(self.btn_close)
@@ -1026,7 +1029,7 @@ class FileListFilter(QObject):
 
     def _position_bar(self):
         width = max(200, self.viewport.width() - 8)
-        self.bar.setGeometry(4, 4, width, 34)
+        self.bar.setGeometry(4, 4, width, 38)
 
     def _hide_button_if_cursor_away(self):
         pos = QCursor.pos()
@@ -1289,9 +1292,9 @@ class FileListFilter(QObject):
 
     def _update_counter(self):
         if self._matches:
-            self.counter.setText(f"{self._current + 1} / {len(self._matches)}")
+            self.counter.setText(f"{self._current + 1}/{len(self._matches)}")
         else:
-            self.counter.setText("0 / 0")
+            self.counter.setText("0/0")
 
     def _set_nav_enabled(self, enabled):
         self.btn_prev.setEnabled(enabled)

@@ -114,7 +114,7 @@ class TestListWidgetFilter(unittest.TestCase):
         self._filter("gui")
         hidden = [self.lw.item(i).isHidden() for i in range(self.lw.count())]
         self.assertEqual(hidden, [False, False, True])
-        self.assertEqual(self.flt.counter.text(), "1 / 2")
+        self.assertEqual(self.flt.counter.text(), "1/2")
 
     def test_check_states_preserved_on_hidden_rows(self):
         self.lw.item(2).setCheckState(Qt.Unchecked)
@@ -133,19 +133,19 @@ class TestListWidgetFilter(unittest.TestCase):
 
     def test_navigation_wraps(self):
         self._filter("gui")
-        self.assertEqual(self.flt.counter.text(), "1 / 2")
+        self.assertEqual(self.flt.counter.text(), "1/2")
         self.flt.next_match()
-        self.assertEqual(self.flt.counter.text(), "2 / 2")
+        self.assertEqual(self.flt.counter.text(), "2/2")
         self.assertEqual(self.lw.currentRow(), 1)
         self.flt.next_match()
-        self.assertEqual(self.flt.counter.text(), "1 / 2")
+        self.assertEqual(self.flt.counter.text(), "1/2")
 
     def test_model_reset_closes_bar_and_restores_list(self):
         self._filter("gui")
         self.assertTrue(self.flt.bar.isVisible())
         self.lw.clear()
         self.assertFalse(self.flt.bar.isVisible())
-        self.assertEqual(self.flt.counter.text(), "0 / 0")
+        self.assertEqual(self.flt.counter.text(), "0/0")
         self.lw.addItem("fresh.c")
         self.assertFalse(self.lw.isRowHidden(0))
 
@@ -203,7 +203,7 @@ class TestTreeWidgetFilter(unittest.TestCase):
         self.assertTrue(self.items["util"].isHidden())
         self.assertFalse(self.items["gui"].isHidden())
         self.assertTrue(self.items["gui"].isExpanded())
-        self.assertEqual(self.flt.counter.text(), "1 / 2")
+        self.assertEqual(self.flt.counter.text(), "1/2")
 
     def test_folder_name_highlighted(self):
         self._filter("gui")
