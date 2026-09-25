@@ -5,7 +5,7 @@ from .core import (
     _parse_reflog_records,
     _parse_stash_records,
 )
-from lib.app_window.helpers import _log
+from lib.logger import _log
 
 
 def get_git_history(repo_path, start_sha, end_sha, limit=None):

@@ -7,7 +7,7 @@ from .core import (
     _git_capture,
     _pad_diff_separators,
 )
-from lib.app_window.helpers import _log
+from lib.logger import _log
 
 
 def _popen_no_window(cmd, cwd):

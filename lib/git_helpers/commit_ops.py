@@ -1,7 +1,7 @@
 import os
 import subprocess
 import tempfile
-from lib.app_window.helpers import _log
+from lib.logger import _log
 
 
 def commit_file(repo_path, filepath, message):

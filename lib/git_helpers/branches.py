@@ -1,6 +1,6 @@
 import os
 import subprocess
-from lib.app_window.helpers import _log
+from lib.logger import _log
 
 
 def get_current_branch(repo_path):

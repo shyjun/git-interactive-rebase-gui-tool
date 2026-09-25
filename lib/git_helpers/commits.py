@@ -6,7 +6,7 @@ from .core import (
     _git_capture,
     _pad_diff_separators,
 )
-from lib.app_window.helpers import _log, _VERBOSE
+from lib.logger import _log, _VERBOSE
 
 MAX_DIFF_BYTES = 2 * 1024 * 1024  # 2 MB cap for diff output
 

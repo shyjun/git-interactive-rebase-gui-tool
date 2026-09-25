@@ -1,6 +1,6 @@
 import re
 import subprocess
-from lib.app_window.helpers import _log
+from lib.logger import _log
 
 
 def _parse_log_records(stdout):

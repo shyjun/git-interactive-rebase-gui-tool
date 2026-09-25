@@ -1,7 +1,7 @@
 import os
 import subprocess
 from datetime import datetime
-from lib.app_window.helpers import _log
+from lib.logger import _log
 
 
 # Sentinel returned by stash_changes when there was nothing to stash (a no-op),
