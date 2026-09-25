@@ -907,11 +907,7 @@ class FileListFilter(QObject):
         self.button.setFixedSize(24, 24)
         self.button.setIcon(_magnifier_icon(
             widget.palette().color(QPalette.ButtonText)))
-        self.button.setStyleSheet(
-            "QToolButton { border: 1px solid transparent; border-radius: 4px;"
-            " background: transparent; }"
-            " QToolButton:hover { border: 1px solid rgba(128,128,128,120);"
-            " background: rgba(128,128,128,40); }")
+        self._style_hover_button()
         self.button.clicked.connect(self.open_bar)
 
         self.bar = QWidget(self.viewport)
@@ -1018,6 +1014,7 @@ class FileListFilter(QObject):
                 elif etype in (QEvent.PaletteChange, QEvent.ApplicationPaletteChange):
                     self.button.setIcon(_magnifier_icon(
                         self.widget.palette().color(QPalette.ButtonText)))
+                    self._style_hover_button()
                     self._style_bar()
         except (AttributeError, RuntimeError):
             # Half-torn-down state during widget destruction; ignore.
@@ -1037,6 +1034,28 @@ class FileListFilter(QObject):
             if child.isVisible() and child.rect().contains(child.mapFromGlobal(pos)):
                 return
         self.button.hide()
+
+    def _style_hover_button(self):
+        """Opaque palette-aware plate for the hover button.
+
+        A fully transparent button let row text (stats, filenames) show
+        through and made the icon hard to see, especially over the stats
+        column. Use palette roles so it reads in both light and dark themes.
+        """
+        pal = self.widget.palette()
+        bg = pal.color(QPalette.Button)
+        border = pal.color(QPalette.Mid)
+        light = bg.lightness() >= 128
+        hover_bg = bg.darker(106) if light else bg.lighter(106)
+        press_bg = bg.darker(115) if light else bg.lighter(115)
+        self.button.setStyleSheet(
+            "QToolButton { border: 1px solid %s; border-radius: 4px;"
+            " background: %s; }"
+            " QToolButton:hover { border: 1px solid %s; background: %s; }"
+            " QToolButton:pressed { border: 1px solid %s; background: %s; }"
+            % (border.name(), bg.name(),
+               pal.color(QPalette.ButtonText).name(), hover_bg.name(),
+               border.name(), press_bg.name()))
 
     def _style_bar(self):
         pal = self.widget.palette()
