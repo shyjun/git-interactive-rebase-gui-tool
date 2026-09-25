@@ -1,5 +1,8 @@
+import weakref
+
 from PySide6.QtCore import (
     QEvent,
+    QObject,
     QRegularExpression,
     QRect,
     QSize,
@@ -9,9 +12,14 @@ from PySide6.QtCore import (
 from PySide6.QtGui import (
     QAction,
     QColor,
+    QCursor,
     QFontMetrics,
+    QIcon,
     QKeySequence,
     QPainter,
+    QPalette,
+    QPen,
+    QPixmap,
     QShortcut,
     QSyntaxHighlighter,
     QTextCharFormat,
@@ -31,6 +39,7 @@ from PySide6.QtWidgets import (
     QStyledItemDelegate,
     QTextEdit,
     QToolButton,
+    QTreeWidget,
     QWidget,
 )
 
@@ -62,6 +71,116 @@ class BrowseDimOverlay(QWidget):
 # Data role on file-wise list items holding the (status, path1, path2) entry.
 # Qt.UserRole holds the display stats tuple.
 FILE_ENTRY_ROLE = Qt.UserRole + 1
+
+# Data role holding [(start, end)] match ranges of the active file filter,
+# painted with a yellow background by the item delegates.
+FILTER_MATCH_ROLE = Qt.UserRole + 2
+
+
+def filter_match_ranges(text, term):
+    """Case-insensitive ranges of *term* in *text* as [(start, end), ...]."""
+    if not term or not text:
+        return []
+    ranges = []
+    hay, needle = text.lower(), term.lower()
+    start = hay.find(needle)
+    while start != -1:
+        ranges.append((start, start + len(needle)))
+        start = hay.find(needle, start + len(needle))
+    return ranges
+
+
+def list_filter_hidden(texts, term):
+    """One bool per text: True when the row should be hidden for *term*."""
+    if not term:
+        return [False] * len(texts)
+    needle = term.lower()
+    return [needle not in (t or "").lower() for t in texts]
+
+
+def _path_ancestors(path):
+    parts = path.split("/")
+    return ["/".join(parts[:i]) for i in range(1, len(parts))]
+
+
+def tree_filter_sets(file_paths, term):
+    """Given full file paths, return (visible_files, visible_folders).
+
+    A file is visible when *term* matches its full path (case-insensitive);
+    a folder is visible when at least one descendant file is visible.
+    """
+    if term:
+        needle = term.lower()
+        visible_files = {p for p in file_paths if needle in p.lower()}
+    else:
+        visible_files = set(file_paths)
+    visible_folders = set()
+    for p in visible_files:
+        visible_folders.update(_path_ancestors(p))
+    return visible_files, visible_folders
+
+
+def _draw_magnifier(painter, color):
+    """Pen-drawn magnifier, same style as the Rescan Repo toolbar icon."""
+    pen = QPen(color, 1.8)
+    pen.setCapStyle(Qt.RoundCap)
+    pen.setJoinStyle(Qt.RoundJoin)
+    painter.setPen(pen)
+    painter.setBrush(Qt.NoBrush)
+
+    painter.drawEllipse(2.0, 2.0, 8.8, 8.8)
+    painter.drawLine(9.4, 9.4, 14.0, 14.0)
+
+
+def _magnifier_icon(color):
+    pixmap = QPixmap(16, 16)
+    pixmap.fill(Qt.transparent)
+    painter = QPainter(pixmap)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    _draw_magnifier(painter, color)
+    painter.end()
+    return QIcon(pixmap)
+
+
+def _paint_matched_text(painter, text, rect, ranges, base_color, font):
+    """Draw *text* into *rect*, giving each (start, end) range a yellow wash."""
+    if not text or rect.isEmpty():
+        return
+    fm = QFontMetrics(font)
+    painter.save()
+    painter.setFont(font)
+    painter.setClipRect(rect)
+    x = rect.left()
+    pos = 0
+    for start, end in sorted(ranges or []):
+        start = max(0, min(start, len(text)))
+        end = max(0, min(end, len(text)))
+        if end <= start:
+            continue
+        if start > pos:
+            seg = text[pos:start]
+            w = fm.horizontalAdvance(seg)
+            painter.setPen(base_color)
+            painter.drawText(QRect(x, rect.top(), int(w) + 2, rect.height()),
+                             Qt.AlignLeft | Qt.AlignVCenter, seg)
+            x += w
+            pos = start
+        seg = text[start:end]
+        w = fm.horizontalAdvance(seg)
+        painter.fillRect(QRect(x, rect.top(), int(w), rect.height()),
+                         QColor(255, 235, 59, 220))
+        painter.setPen(QColor("#000000"))
+        painter.drawText(QRect(x, rect.top(), int(w) + 2, rect.height()),
+                         Qt.AlignLeft | Qt.AlignVCenter, seg)
+        x += w
+        pos = end
+    if pos < len(text):
+        seg = text[pos:]
+        w = fm.horizontalAdvance(seg)
+        painter.setPen(base_color)
+        painter.drawText(QRect(x, rect.top(), int(w) + 2, rect.height()),
+                         Qt.AlignLeft | Qt.AlignVCenter, seg)
+    painter.restore()
 
 
 class DiffHighlighter(QSyntaxHighlighter):
@@ -600,10 +719,16 @@ class StatsItemDelegate(QStyledItemDelegate):
         else:
             filename_rect = rect
 
-        # Draw filename, elided if too long
+        # Draw filename, elided if too long; file-filter matches get a
+        # yellow wash on the matching substring (drawn unclipped-elided).
         painter.setPen(text_color)
-        painter.drawText(filename_rect, Qt.AlignLeft | Qt.AlignVCenter,
-                         fm.elidedText(filename, Qt.ElideMiddle, filename_rect.width()))
+        match_ranges = index.data(FILTER_MATCH_ROLE)
+        if match_ranges:
+            _paint_matched_text(painter, filename, filename_rect, match_ranges,
+                                text_color, opt.font)
+        else:
+            painter.drawText(filename_rect, Qt.AlignLeft | Qt.AlignVCenter,
+                             fm.elidedText(filename, Qt.ElideMiddle, filename_rect.width()))
 
         painter.restore()
 
@@ -679,3 +804,476 @@ class TreeStatsDelegate(QStyledItemDelegate):
     def sizeHint(self, option, index):
         hint = super().sizeHint(option, index)
         return QSize(hint.width(), max(hint.height(), 28))
+
+
+class FileNameDelegate(QStyledItemDelegate):
+    """Paints tree column 0 (file/folder names) with file-filter match highlights."""
+
+    def paint(self, painter, option, index):
+        from PySide6.QtWidgets import (
+            QApplication,
+            QStyleOptionViewItem,
+        )
+        from PySide6.QtWidgets import QStyle as _QStyle
+
+        opt = QStyleOptionViewItem(option)
+        self.initStyleOption(opt, index)
+
+        style = opt.widget.style() if opt.widget else QApplication.style()
+        opt.text = ""
+        style.drawControl(_QStyle.ControlElement.CE_ItemViewItem, opt, painter, opt.widget)
+        text_rect = style.subElementRect(_QStyle.SubElement.SE_ItemViewItemText, opt, opt.widget)
+
+        painter.save()
+        painter.setFont(opt.font)
+
+        is_selected = bool(option.state & _QStyle.State_Selected)
+        text_color = QColor("white") if is_selected else option.palette.text().color()
+        rect = text_rect.adjusted(0, 0, -4, 0) if not text_rect.isNull() else option.rect.adjusted(6, 0, -6, 0)
+        filename = index.data(Qt.DisplayRole) or ""
+        match_ranges = index.data(FILTER_MATCH_ROLE)
+
+        if match_ranges:
+            _paint_matched_text(painter, filename, rect, match_ranges,
+                                text_color, opt.font)
+        else:
+            fm = QFontMetrics(opt.font)
+            painter.setPen(text_color)
+            painter.drawText(rect, Qt.AlignLeft | Qt.AlignVCenter,
+                             fm.elidedText(filename, Qt.ElideMiddle, rect.width()))
+
+        painter.restore()
+
+    def sizeHint(self, option, index):
+        hint = super().sizeHint(option, index)
+        return QSize(hint.width(), max(hint.height(), 28))
+
+
+class _FilterSearchInput(QLineEdit):
+    """Search input for FileListFilter: Esc closes, Enter/Shift+Enter navigate."""
+
+    def __init__(self, owner):
+        super().__init__()
+        self._owner = owner
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Escape:
+            self._owner.close_bar()
+            event.accept()
+            return
+        if event.key() in (Qt.Key_Return, Qt.Key_Enter):
+            if event.modifiers() & Qt.ShiftModifier:
+                self._owner.prev_match()
+            else:
+                self._owner.next_match()
+            event.accept()
+            return
+        super().keyPressEvent(event)
+
+
+# Strong references to live FileListFilter instances. Wrappers must outlive
+# their Qt-side connections: if Python wrapper dies while the C++ object
+# (parented to the widget) stays alive, later signal emissions look up bound
+# methods on the deleted wrapper and segfault PySide6. Released when the
+# attached widget is destroyed.
+_FILE_FILTERS = set()
+
+
+class FileListFilter(QObject):
+    """Hover-revealed "Filter files" overlay for a file QListWidget / QTreeWidget.
+
+    Mouse-only: a small magnifier button floats over the list while the mouse
+    is over it; clicking it opens a floating search bar that live-filters rows.
+    Check states and selection on hidden rows are preserved. A model reset
+    (list repopulation, e.g. on commit change) closes the bar and restores the
+    full list."""
+
+    DEBOUNCE_MS = 200
+
+    def __init__(self, widget, parent=None):
+        super().__init__(parent or widget)
+        self.widget = widget
+        self.viewport = widget.viewport()
+        self._is_tree = isinstance(widget, QTreeWidget)
+        self._hover = False
+        self._tagged = []
+        self._hidden_rows = []
+        self._hidden_items = []
+        self._matches = []
+        self._current = -1
+
+        self.button = QToolButton(self.viewport)
+        self.button.setToolTip("Filter files")
+        self.button.setFixedSize(24, 24)
+        self.button.setIcon(_magnifier_icon(
+            widget.palette().color(QPalette.ButtonText)))
+        self.button.setStyleSheet(
+            "QToolButton { border: 1px solid transparent; border-radius: 4px;"
+            " background: transparent; }"
+            " QToolButton:hover { border: 1px solid rgba(128,128,128,120);"
+            " background: rgba(128,128,128,40); }")
+        self.button.clicked.connect(self.open_bar)
+
+        self.bar = QWidget(self.viewport)
+        self.bar.setObjectName("FileFilterBar")
+        bar_layout = QHBoxLayout(self.bar)
+        bar_layout.setContentsMargins(6, 4, 6, 4)
+        bar_layout.setSpacing(4)
+
+        icon_label = QLabel()
+        icon_label.setPixmap(_magnifier_icon(
+            widget.palette().color(QPalette.ButtonText)).pixmap(14, 14))
+        bar_layout.addWidget(icon_label)
+
+        self.input = _FilterSearchInput(self)
+        self.input.setPlaceholderText("Filter files...")
+        self.input.setMinimumHeight(24)
+        self.input.textChanged.connect(self._schedule_apply)
+        bar_layout.addWidget(self.input, 1)
+
+        self.counter = QLabel("0 / 0")
+        self.counter.setMinimumWidth(56)
+        self.counter.setAlignment(Qt.AlignCenter)
+        bar_layout.addWidget(self.counter)
+
+        self.btn_prev = QToolButton()
+        self.btn_prev.setArrowType(Qt.UpArrow)
+        self.btn_prev.setFixedSize(24, 24)
+        self.btn_prev.setToolTip("Previous match")
+        self.btn_prev.clicked.connect(self.prev_match)
+        bar_layout.addWidget(self.btn_prev)
+
+        self.btn_next = QToolButton()
+        self.btn_next.setArrowType(Qt.DownArrow)
+        self.btn_next.setFixedSize(24, 24)
+        self.btn_next.setToolTip("Next match")
+        self.btn_next.clicked.connect(self.next_match)
+        bar_layout.addWidget(self.btn_next)
+
+        self.btn_close = QToolButton()
+        self.btn_close.setText("\u2715")
+        self.btn_close.setFixedSize(24, 24)
+        self.btn_close.setToolTip("Close filter")
+        self.btn_close.clicked.connect(self.close_bar)
+        bar_layout.addWidget(self.btn_close)
+
+        # Weakref closures: modelAboutToBeReset and the debounce timer can
+        # fire after this Python wrapper is gone (e.g. tests deleting the
+        # wrapper early) — calling a bound method of a deleted wrapper
+        # segfaults PySide6.
+        self_ref = weakref.ref(self)
+
+        self._debounce = QTimer(self)
+        self._debounce.setSingleShot(True)
+        self._debounce.setInterval(self.DEBOUNCE_MS)
+
+        def _on_timeout():
+            obj = self_ref()
+            if obj is not None:
+                obj._apply()
+
+        self._debounce.timeout.connect(_on_timeout)
+
+        if self._is_tree:
+            widget.setItemDelegateForColumn(0, FileNameDelegate(parent=widget))
+
+        self.viewport.installEventFilter(self)
+
+        def _on_model_reset():
+            obj = self_ref()
+            if obj is not None:
+                obj.reset()
+
+        widget.model().modelAboutToBeReset.connect(_on_model_reset)
+
+        self._style_bar()
+        self.button.hide()
+        self.bar.hide()
+
+        _FILE_FILTERS.add(self)
+
+        def _on_widget_destroyed(_obj=None):
+            _FILE_FILTERS.discard(self)
+
+        widget.destroyed.connect(_on_widget_destroyed)
+
+    # --- hover button / bar positioning -----------------------------------
+
+    def eventFilter(self, obj, event):
+        try:
+            if obj is self.viewport:
+                etype = event.type()
+                if etype == QEvent.Enter:
+                    self._hover = True
+                    if not self.bar.isVisible():
+                        self._position_button()
+                        self.button.show()
+                elif etype == QEvent.Leave:
+                    self._hover = False
+                    if not self.bar.isVisible():
+                        self._hide_button_if_cursor_away()
+                elif etype == QEvent.Resize:
+                    self._position_button()
+                    self._position_bar()
+                elif etype in (QEvent.PaletteChange, QEvent.ApplicationPaletteChange):
+                    self.button.setIcon(_magnifier_icon(
+                        self.widget.palette().color(QPalette.ButtonText)))
+                    self._style_bar()
+        except (AttributeError, RuntimeError):
+            # Half-torn-down state during widget destruction; ignore.
+            return False
+        return super().eventFilter(obj, event)
+
+    def _position_button(self):
+        self.button.move(self.viewport.width() - self.button.width() - 4, 4)
+
+    def _position_bar(self):
+        width = max(200, self.viewport.width() - 8)
+        self.bar.setGeometry(4, 4, width, 34)
+
+    def _hide_button_if_cursor_away(self):
+        pos = QCursor.pos()
+        for child in (self.button, self.bar):
+            if child.isVisible() and child.rect().contains(child.mapFromGlobal(pos)):
+                return
+        self.button.hide()
+
+    def _style_bar(self):
+        pal = self.widget.palette()
+        self.bar.setStyleSheet(
+            "#FileFilterBar { background: %s; border: 1px solid %s;"
+            " border-radius: 4px; }"
+            % (pal.color(QPalette.Base).name(),
+               pal.color(QPalette.Mid).name()))
+
+    # --- open / close / reset ---------------------------------------------
+
+    def open_bar(self):
+        self._position_bar()
+        self.bar.raise_()
+        self.bar.show()
+        self.button.hide()
+        self.input.setFocus()
+        self.input.selectAll()
+
+    def close_bar(self):
+        self._debounce.stop()
+        try:
+            self.input.blockSignals(True)
+            self.input.clear()
+            self.input.blockSignals(False)
+        except RuntimeError:
+            # Child widgets already deleted during teardown; nothing to restore.
+            return
+        self._clear_filter()
+        self.bar.hide()
+        if self._hover:
+            self._position_button()
+            self.button.show()
+        else:
+            self.button.hide()
+
+    def reset(self):
+        """Close the bar on a model reset (list repopulation, commit change).
+
+        Never touches items: modelAboutToBeReset can fire again after the
+        old items are already deleted, and row-hidden state does not survive
+        a reset anyway (verified: the view clears it)."""
+        try:
+            self._debounce.stop()
+            self.input.blockSignals(True)
+            self.input.clear()
+            self.input.blockSignals(False)
+        except (AttributeError, RuntimeError):
+            return
+        self._tagged = []
+        self._hidden_rows = []
+        self._hidden_items = []
+        self._matches = []
+        self._current = -1
+        try:
+            self._update_counter()
+            self._set_nav_enabled(False)
+            self.bar.hide()
+            if self._hover:
+                self._position_button()
+                self.button.show()
+            else:
+                self.button.hide()
+        except (AttributeError, RuntimeError):
+            return
+
+    # --- filtering ---------------------------------------------------------
+
+    def _clear_tagged(self):
+        for item in self._tagged:
+            if self._is_tree:
+                item.setData(0, FILTER_MATCH_ROLE, None)
+            else:
+                item.setData(FILTER_MATCH_ROLE, None)
+        self._tagged = []
+
+    def _clear_filter(self):
+        try:
+            self._clear_tagged()
+            if self._is_tree:
+                for item in self._hidden_items:
+                    item.setHidden(False)
+                self._hidden_items = []
+            else:
+                for row in self._hidden_rows:
+                    self.widget.setRowHidden(row, False)
+                self._hidden_rows = []
+        except RuntimeError:
+            # Items already deleted (teardown) — just forget the references.
+            self._tagged = []
+            self._hidden_items = []
+            self._hidden_rows = []
+        self._matches = []
+        self._current = -1
+        self._update_counter()
+        self._set_nav_enabled(False)
+        self.viewport.update()
+
+    def _schedule_apply(self, *_):
+        self._debounce.start()
+
+    def _apply(self):
+        self._debounce.stop()
+        term = self.input.text()
+        if not term:
+            self._clear_filter()
+            return
+        if self._is_tree:
+            self._apply_tree(term)
+        else:
+            self._apply_list(term)
+        if self._matches:
+            self._current = 0
+            self._select_current()
+        else:
+            self._current = -1
+        self._update_counter()
+        self._set_nav_enabled(bool(self._matches))
+        self.viewport.update()
+
+    def _apply_list(self, term):
+        widget = self.widget
+        self._clear_tagged()
+        for row in self._hidden_rows:
+            widget.setRowHidden(row, False)
+        self._hidden_rows = []
+        count = widget.count()
+        texts = [widget.item(i).text() for i in range(count)]
+        hidden = list_filter_hidden(texts, term)
+        for row in range(count):
+            item = widget.item(row)
+            if hidden[row]:
+                widget.setRowHidden(row, True)
+                self._hidden_rows.append(row)
+            else:
+                item.setData(FILTER_MATCH_ROLE, filter_match_ranges(item.text(), term))
+                self._tagged.append(item)
+        self._matches = [widget.item(r) for r in range(count) if not hidden[r]]
+
+    def _apply_tree(self, term):
+        widget = self.widget
+        self._clear_tagged()
+        for item in self._hidden_items:
+            item.setHidden(False)
+        self._hidden_items = []
+
+        files = []  # (item, full_path) in document order
+
+        def collect(items, prefix):
+            for item in items:
+                name = item.text(0)
+                path = f"{prefix}/{name}" if prefix else name
+                if item.childCount() == 0:
+                    files.append((item, path))
+                else:
+                    collect([item.child(i) for i in range(item.childCount())], path)
+
+        collect(self._top_level_items(), "")
+        visible_files, visible_folders = tree_filter_sets(
+            [p for _, p in files], term)
+
+        self._matches = []
+        for item, path in files:
+            if path in visible_files:
+                leaf_ranges = []
+                leaf_start = len(path) - len(item.text(0))
+                for start, end in filter_match_ranges(path, term):
+                    start = max(start, leaf_start) - leaf_start
+                    end = min(end, len(path)) - leaf_start
+                    if end > start:
+                        leaf_ranges.append((start, end))
+                item.setData(0, FILTER_MATCH_ROLE, leaf_ranges)
+                self._tagged.append(item)
+                self._matches.append(item)
+            else:
+                item.setHidden(True)
+                self._hidden_items.append(item)
+
+        def apply_folders(items, prefix):
+            for item in items:
+                name = item.text(0)
+                path = f"{prefix}/{name}" if prefix else name
+                if item.childCount() > 0:
+                    if path in visible_folders:
+                        item.setHidden(False)
+                        item.setExpanded(True)
+                        folder_ranges = filter_match_ranges(name, term)
+                        item.setData(0, FILTER_MATCH_ROLE, folder_ranges)
+                        if folder_ranges:
+                            self._tagged.append(item)
+                    else:
+                        item.setHidden(True)
+                        self._hidden_items.append(item)
+                    apply_folders([item.child(i) for i in range(item.childCount())], path)
+
+        apply_folders(self._top_level_items(), "")
+
+    def _top_level_items(self):
+        if self._is_tree:
+            return [self.widget.topLevelItem(i)
+                    for i in range(self.widget.topLevelItemCount())]
+        return []
+
+    # --- navigation --------------------------------------------------------
+
+    def next_match(self):
+        if not self._matches:
+            return
+        self._current = (self._current + 1) % len(self._matches)
+        self._select_current()
+        self._update_counter()
+
+    def prev_match(self):
+        if not self._matches:
+            return
+        self._current = (self._current - 1) % len(self._matches)
+        self._select_current()
+        self._update_counter()
+
+    def _select_current(self):
+        if not (0 <= self._current < len(self._matches)):
+            return
+        item = self._matches[self._current]
+        if self._is_tree:
+            self.widget.setCurrentItem(item)
+            self.widget.scrollToItem(item)
+        else:
+            row = self.widget.row(item)
+            self.widget.setCurrentRow(row)
+            self.widget.scrollToItem(item)
+
+    def _update_counter(self):
+        if self._matches:
+            self.counter.setText(f"{self._current + 1} / {len(self._matches)}")
+        else:
+            self.counter.setText("0 / 0")
+
+    def _set_nav_enabled(self, enabled):
+        self.btn_prev.setEnabled(enabled)
+        self.btn_next.setEnabled(enabled)

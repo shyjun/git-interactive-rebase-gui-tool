@@ -54,6 +54,7 @@ from lib.widgets import (
     DiffHighlighter,
     DiffSearchBar,
     DiffView,
+    FileListFilter,
     StatsItemDelegate,
     TreeStatsDelegate,
 )
@@ -340,6 +341,7 @@ class CommitSelectivelyDialog(QDialog):
         )
         self.file_list.setItemDelegate(self.stats_delegate)
         self.file_list.itemChanged.connect(self._on_file_item_changed)
+        self.file_list_filter = FileListFilter(self.file_list)
         file_list_layout.addWidget(self.file_list)
         self.tab_widget.addTab(file_list_widget, "File List")
 
@@ -358,6 +360,7 @@ class CommitSelectivelyDialog(QDialog):
         self.treewise_tree.setFont(mono_font(font_size, family=self.font_family))
         self.treewise_tree.setAnimated(True)
         self.treewise_tree.setItemDelegateForColumn(1, TreeStatsDelegate())
+        self.treewise_tree_filter = FileListFilter(self.treewise_tree)
         self.treewise_tree.itemChanged.connect(self._on_tree_item_changed)
         tree_layout.addWidget(self.treewise_tree)
 
@@ -837,6 +840,7 @@ class CommitStagedSelectivelyDialog(QDialog):
         )
         self.file_list.setItemDelegate(self.stats_delegate)
         self.file_list.itemChanged.connect(self._on_file_item_changed)
+        self.file_list_filter = FileListFilter(self.file_list)
         file_list_layout.addWidget(self.file_list)
         self.tab_widget.addTab(file_list_widget, "File List")
 
@@ -855,6 +859,7 @@ class CommitStagedSelectivelyDialog(QDialog):
         self.treewise_tree.setFont(mono_font(font_size, family=self.font_family))
         self.treewise_tree.setAnimated(True)
         self.treewise_tree.setItemDelegateForColumn(1, TreeStatsDelegate())
+        self.treewise_tree_filter = FileListFilter(self.treewise_tree)
         self.treewise_tree.itemChanged.connect(self._on_tree_item_changed)
         tree_layout.addWidget(self.treewise_tree)
 
@@ -1212,6 +1217,7 @@ class StageFilesDialog(QDialog):
         )
         self.file_list.setItemDelegate(self.stats_delegate)
         self.file_list.itemChanged.connect(self._on_file_item_changed)
+        self.file_list_filter = FileListFilter(self.file_list)
         file_list_layout.addWidget(self.file_list)
         self.tab_widget.addTab(file_list_widget, "File List")
 
@@ -1230,6 +1236,7 @@ class StageFilesDialog(QDialog):
         self.treewise_tree.setFont(mono_font(font_size, family=self.font_family))
         self.treewise_tree.setAnimated(True)
         self.treewise_tree.setItemDelegateForColumn(1, TreeStatsDelegate())
+        self.treewise_tree_filter = FileListFilter(self.treewise_tree)
         self.treewise_tree.itemChanged.connect(self._on_tree_item_changed)
         tree_layout.addWidget(self.treewise_tree)
 

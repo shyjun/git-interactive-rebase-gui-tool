@@ -56,6 +56,7 @@ from lib.widgets import (
     DiffSearchBar,
     DiffView,
     FILE_ENTRY_ROLE,
+    FileListFilter,
     StatsItemDelegate,
     TreeStatsDelegate,
 )
@@ -262,6 +263,7 @@ class UIMixin:
             parent=self.filewise_file_list
         )
         self.filewise_file_list.setItemDelegate(self.filewise_stats_delegate)
+        self.filewise_filter = FileListFilter(self.filewise_file_list)
 
         # File diff
         self.filewise_diff_view = DiffView()
@@ -316,6 +318,7 @@ class UIMixin:
         self.treewise_tree.itemChanged.connect(self._on_treewise_item_changed)
         self.treewise_tree.setContextMenuPolicy(Qt.CustomContextMenu)
         self.treewise_tree.customContextMenuRequested.connect(self.show_treewise_context_menu)
+        self.treewise_filter = FileListFilter(self.treewise_tree)
 
         self.treewise_diff_view = DiffView()
         self.treewise_diff_view.setReadOnly(True)

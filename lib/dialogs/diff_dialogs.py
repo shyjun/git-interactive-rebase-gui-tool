@@ -98,6 +98,7 @@ from lib.widgets import (
     DiffSearchBar,
     DiffView,
     FILE_ENTRY_ROLE,
+    FileListFilter,
     StatsItemDelegate,
     TreeStatsDelegate,
 )
@@ -338,6 +339,7 @@ class BranchDiffDialog(QDialog):
         )
         self.filewise_file_list.setItemDelegate(stats_delegate)
         self.filewise_file_list.itemChanged.connect(self._on_filewise_item_changed)
+        self.filewise_file_list_filter = FileListFilter(self.filewise_file_list)
         self.filewise_splitter.addWidget(self.filewise_file_list)
 
         # File diff view + search
@@ -391,6 +393,7 @@ class BranchDiffDialog(QDialog):
         self.treewise_tree.itemChanged.connect(self._on_treewise_item_changed)
         self.treewise_tree.setContextMenuPolicy(Qt.CustomContextMenu)
         self.treewise_tree.customContextMenuRequested.connect(self.show_treewise_context_menu)
+        self.treewise_tree_filter = FileListFilter(self.treewise_tree)
         self.treewise_splitter.addWidget(self.treewise_tree)
 
         treewise_right_widget = QWidget()
@@ -1085,6 +1088,7 @@ class SingleCommitViewDialog(QDialog):
         self.filewise_file_list.itemChanged.connect(self._on_filewise_item_changed)
         self.filewise_file_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.filewise_file_list.customContextMenuRequested.connect(self.show_filewise_context_menu)
+        self.filewise_file_list_filter = FileListFilter(self.filewise_file_list)
         self.filewise_splitter.addWidget(self.filewise_file_list)
 
         file_right_widget = QWidget()
@@ -1140,6 +1144,7 @@ class SingleCommitViewDialog(QDialog):
         self.treewise_tree.itemChanged.connect(self._on_treewise_item_changed)
         self.treewise_tree.setContextMenuPolicy(Qt.CustomContextMenu)
         self.treewise_tree.customContextMenuRequested.connect(self.show_treewise_context_menu)
+        self.treewise_tree_filter = FileListFilter(self.treewise_tree)
         self.treewise_splitter.addWidget(self.treewise_tree)
 
         treewise_right_widget = QWidget()
@@ -2039,6 +2044,7 @@ class FileWiseViewDialog(QDialog):
         self.file_list.itemChanged.connect(self._on_file_item_changed)
         self.file_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.file_list.customContextMenuRequested.connect(self.show_file_context_menu)
+        self.file_list_filter = FileListFilter(self.file_list)
         file_layout.addWidget(self.file_list)
 
         self.main_splitter.addWidget(file_widget)

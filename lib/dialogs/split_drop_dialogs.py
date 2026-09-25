@@ -46,6 +46,7 @@ from lib.widgets import (
     DiffHighlighter,
     DiffSearchBar,
     DiffView,
+    FileListFilter,
     StatsItemDelegate,
     TreeStatsDelegate,
 )
@@ -147,6 +148,7 @@ class SplitCommitDialog(QDialog):
         self.filewise_file_list.itemChanged.connect(self._on_filewise_item_changed)
         self.filewise_file_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.filewise_file_list.customContextMenuRequested.connect(self.show_filewise_context_menu)
+        self.filewise_file_list_filter = FileListFilter(self.filewise_file_list)
         self.filewise_splitter.addWidget(self.filewise_file_list)
 
         file_right_widget = QWidget()
@@ -198,6 +200,7 @@ class SplitCommitDialog(QDialog):
         self.treewise_tree.itemChanged.connect(self._on_treewise_item_changed)
         self.treewise_tree.setContextMenuPolicy(Qt.CustomContextMenu)
         self.treewise_tree.customContextMenuRequested.connect(self.show_treewise_context_menu)
+        self.treewise_tree_filter = FileListFilter(self.treewise_tree)
         self.treewise_splitter.addWidget(self.treewise_tree)
 
         treewise_right_widget = QWidget()
@@ -750,6 +753,7 @@ class DropFileFromCommitDialog(QDialog):
         self.filewise_file_list.itemChanged.connect(self._on_filewise_item_changed)
         self.filewise_file_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.filewise_file_list.customContextMenuRequested.connect(self.show_filewise_context_menu)
+        self.filewise_file_list_filter = FileListFilter(self.filewise_file_list)
         self.filewise_splitter.addWidget(self.filewise_file_list)
 
         file_right_widget = QWidget()
@@ -801,6 +805,7 @@ class DropFileFromCommitDialog(QDialog):
         self.treewise_tree.itemChanged.connect(self._on_treewise_item_changed)
         self.treewise_tree.setContextMenuPolicy(Qt.CustomContextMenu)
         self.treewise_tree.customContextMenuRequested.connect(self.show_treewise_context_menu)
+        self.treewise_tree_filter = FileListFilter(self.treewise_tree)
         self.treewise_splitter.addWidget(self.treewise_tree)
 
         treewise_right_widget = QWidget()
