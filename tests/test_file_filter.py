@@ -545,5 +545,101 @@ class TestFontPreservation(unittest.TestCase):
         self.assertEqual(after[0].pointSize(), 14)
 
 
+class TestSignalSilence(unittest.TestCase):
+    """Filter mutations must not emit itemChanged.
+
+    The dialogs treat itemChanged as a checkbox change and walk the whole
+    tree + rebuild both diff panes per item — on a 16k-file commit that
+    froze the UI (O(N^2) per keystroke)."""
+
+    def _counting_list(self):
+        lw = QListWidget()
+        for name in ("src/gui.c", "src/core.c", "lib/util.c"):
+            lw.addItem(QListWidgetItem(name))
+        lw.resize(240, 160)
+        lw.show()
+        app.processEvents()
+        hits = []
+        lw.itemChanged.connect(lambda *_: hits.append(1))
+        return lw, hits
+
+    def test_unblocked_setdata_still_emits(self):
+        # Sanity: proves the counters below would catch a regression.
+        lw, hits = self._counting_list()
+        lw.item(0).setData(FILTER_MATCH_ROLE, [(0, 3)])
+        self.assertEqual(len(hits), 1)
+        lw.close()
+        lw.deleteLater()
+
+    def test_list_apply_clear_close_are_silent(self):
+        lw, hits = self._counting_list()
+        flt = FileListFilter(lw)
+        flt.open_bar()
+        flt.input.setText("gui")
+        flt._apply()
+        self.assertEqual(hits, [])
+        self.assertFalse(lw.signalsBlocked())
+        self.assertEqual([r for r in range(3) if lw.isRowHidden(r)], [1, 2])
+        # Retyp exercises _clear_tagged's setData(None) storm path.
+        flt.input.setText("core")
+        flt._apply()
+        self.assertEqual(hits, [])
+        self.assertEqual([r for r in range(3) if lw.isRowHidden(r)], [0, 2])
+        flt.input.setText("")
+        flt._apply()
+        self.assertEqual(hits, [])
+        self.assertEqual([r for r in range(3) if lw.isRowHidden(r)], [])
+        flt.close_bar()
+        self.assertEqual(hits, [])
+        self.assertFalse(lw.signalsBlocked())
+        lw.close()
+        lw.deleteLater()
+
+    def _counting_tree(self):
+        tree = QTreeWidget()
+        tree.setHeaderLabels(["Name"])
+        src = QTreeWidgetItem(["src"])
+        tree.addTopLevelItem(src)
+        QTreeWidgetItem(src, ["gui.c"])
+        QTreeWidgetItem(src, ["core.c"])
+        lib = QTreeWidgetItem(["lib"])
+        tree.addTopLevelItem(lib)
+        QTreeWidgetItem(lib, ["util.c"])
+        tree.resize(240, 160)
+        tree.show()
+        app.processEvents()
+        hits = []
+        tree.itemChanged.connect(lambda *_: hits.append(1))
+        return tree, hits
+
+    def test_unblocked_tree_setdata_emits(self):
+        tree, hits = self._counting_tree()
+        tree.topLevelItem(0).setData(0, FILTER_MATCH_ROLE, [(0, 3)])
+        self.assertEqual(len(hits), 1)
+        tree.close()
+        tree.deleteLater()
+
+    def test_tree_apply_clear_close_are_silent(self):
+        tree, hits = self._counting_tree()
+        flt = FileListFilter(tree)
+        flt.open_bar()
+        flt.input.setText("gui")
+        flt._apply()
+        self.assertEqual(hits, [])
+        self.assertFalse(tree.signalsBlocked())
+        self.assertFalse(tree.topLevelItem(0).child(0).isHidden())
+        self.assertTrue(tree.topLevelItem(0).child(1).isHidden())
+        self.assertTrue(tree.topLevelItem(1).isHidden())
+        flt.input.setText("")
+        flt._apply()
+        self.assertEqual(hits, [])
+        self.assertFalse(tree.topLevelItem(1).isHidden())
+        flt.close_bar()
+        self.assertEqual(hits, [])
+        self.assertFalse(tree.signalsBlocked())
+        tree.close()
+        tree.deleteLater()
+
+
 if __name__ == "__main__":
     unittest.main()

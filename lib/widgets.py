@@ -1,4 +1,5 @@
 import weakref
+from contextlib import contextmanager
 
 from PySide6.QtCore import (
     QEvent,
@@ -1249,25 +1250,48 @@ class FileListFilter(QObject):
 
     # --- filtering ---------------------------------------------------------
 
+    @contextmanager
+    def _silenced(self):
+        """Block the widget's signals while filter state mutates items.
+
+        setData(FILTER_MATCH_ROLE) emits itemChanged per row, and the
+        dialogs interpret itemChanged as a checkbox change: they walk the
+        whole tree and rebuild both diff panes *per item*, turning a
+        keystroke on a 16k-file commit into an O(N^2) freeze. Filtering
+        never changes check state, so those handlers must not run.
+        (Population uses the same blockSignals pattern.)
+        """
+        self.widget.blockSignals(True)
+        try:
+            yield
+        finally:
+            try:
+                self.widget.blockSignals(False)
+            except RuntimeError:
+                # Widget already deleted during teardown; nothing to restore.
+                pass
+
     def _clear_tagged(self):
-        for item in self._tagged:
-            if self._is_tree:
-                item.setData(0, FILTER_MATCH_ROLE, None)
-            else:
-                item.setData(FILTER_MATCH_ROLE, None)
+        with self._silenced():
+            for item in self._tagged:
+                if self._is_tree:
+                    item.setData(0, FILTER_MATCH_ROLE, None)
+                else:
+                    item.setData(FILTER_MATCH_ROLE, None)
         self._tagged = []
 
     def _clear_filter(self):
         try:
             self._clear_tagged()
-            if self._is_tree:
-                for item in self._hidden_items:
-                    item.setHidden(False)
-                self._hidden_items = []
-            else:
-                for row in self._hidden_rows:
-                    self.widget.setRowHidden(row, False)
-                self._hidden_rows = []
+            with self._silenced():
+                if self._is_tree:
+                    for item in self._hidden_items:
+                        item.setHidden(False)
+                    self._hidden_items = []
+                else:
+                    for row in self._hidden_rows:
+                        self.widget.setRowHidden(row, False)
+                    self._hidden_rows = []
         except RuntimeError:
             # Items already deleted (teardown) — just forget the references.
             self._tagged = []
@@ -1303,80 +1327,86 @@ class FileListFilter(QObject):
 
     def _apply_list(self, term):
         widget = self.widget
+        # _clear_tagged silences itself; blockSignals is a plain flag (not a
+        # counter), so it must not nest inside _silenced.
         self._clear_tagged()
-        for row in self._hidden_rows:
-            widget.setRowHidden(row, False)
-        self._hidden_rows = []
-        count = widget.count()
-        texts = [widget.item(i).text() for i in range(count)]
-        hidden = list_filter_hidden(texts, term)
-        for row in range(count):
-            item = widget.item(row)
-            if hidden[row]:
-                widget.setRowHidden(row, True)
-                self._hidden_rows.append(row)
-            else:
-                item.setData(FILTER_MATCH_ROLE, filter_match_ranges(item.text(), term))
-                self._tagged.append(item)
-        self._matches = [widget.item(r) for r in range(count) if not hidden[r]]
+        with self._silenced():
+            for row in self._hidden_rows:
+                widget.setRowHidden(row, False)
+            self._hidden_rows = []
+            count = widget.count()
+            texts = [widget.item(i).text() for i in range(count)]
+            hidden = list_filter_hidden(texts, term)
+            for row in range(count):
+                item = widget.item(row)
+                if hidden[row]:
+                    widget.setRowHidden(row, True)
+                    self._hidden_rows.append(row)
+                else:
+                    item.setData(FILTER_MATCH_ROLE, filter_match_ranges(item.text(), term))
+                    self._tagged.append(item)
+            self._matches = [widget.item(r) for r in range(count) if not hidden[r]]
 
     def _apply_tree(self, term):
-        widget = self.widget
+        # See _apply_list: _clear_tagged first so signals stay blocked for
+        # the whole mutation without nesting _silenced.
         self._clear_tagged()
-        for item in self._hidden_items:
-            item.setHidden(False)
-        self._hidden_items = []
+        with self._silenced():
+            widget = self.widget
+            for item in self._hidden_items:
+                item.setHidden(False)
+            self._hidden_items = []
 
-        files = []  # (item, full_path) in document order
+            files = []  # (item, full_path) in document order
 
-        def collect(items, prefix):
-            for item in items:
-                name = item.text(0)
-                path = f"{prefix}/{name}" if prefix else name
-                if item.childCount() == 0:
-                    files.append((item, path))
-                else:
-                    collect([item.child(i) for i in range(item.childCount())], path)
-
-        collect(self._top_level_items(), "")
-        visible_files, visible_folders = tree_filter_sets(
-            [p for _, p in files], term)
-
-        self._matches = []
-        for item, path in files:
-            if path in visible_files:
-                leaf_ranges = []
-                leaf_start = len(path) - len(item.text(0))
-                for start, end in filter_match_ranges(path, term):
-                    start = max(start, leaf_start) - leaf_start
-                    end = min(end, len(path)) - leaf_start
-                    if end > start:
-                        leaf_ranges.append((start, end))
-                item.setData(0, FILTER_MATCH_ROLE, leaf_ranges)
-                self._tagged.append(item)
-                self._matches.append(item)
-            else:
-                item.setHidden(True)
-                self._hidden_items.append(item)
-
-        def apply_folders(items, prefix):
-            for item in items:
-                name = item.text(0)
-                path = f"{prefix}/{name}" if prefix else name
-                if item.childCount() > 0:
-                    if path in visible_folders:
-                        item.setHidden(False)
-                        item.setExpanded(True)
-                        folder_ranges = filter_match_ranges(name, term)
-                        item.setData(0, FILTER_MATCH_ROLE, folder_ranges)
-                        if folder_ranges:
-                            self._tagged.append(item)
+            def collect(items, prefix):
+                for item in items:
+                    name = item.text(0)
+                    path = f"{prefix}/{name}" if prefix else name
+                    if item.childCount() == 0:
+                        files.append((item, path))
                     else:
-                        item.setHidden(True)
-                        self._hidden_items.append(item)
-                    apply_folders([item.child(i) for i in range(item.childCount())], path)
+                        collect([item.child(i) for i in range(item.childCount())], path)
 
-        apply_folders(self._top_level_items(), "")
+            collect(self._top_level_items(), "")
+            visible_files, visible_folders = tree_filter_sets(
+                [p for _, p in files], term)
+
+            self._matches = []
+            for item, path in files:
+                if path in visible_files:
+                    leaf_ranges = []
+                    leaf_start = len(path) - len(item.text(0))
+                    for start, end in filter_match_ranges(path, term):
+                        start = max(start, leaf_start) - leaf_start
+                        end = min(end, len(path)) - leaf_start
+                        if end > start:
+                            leaf_ranges.append((start, end))
+                    item.setData(0, FILTER_MATCH_ROLE, leaf_ranges)
+                    self._tagged.append(item)
+                    self._matches.append(item)
+                else:
+                    item.setHidden(True)
+                    self._hidden_items.append(item)
+
+            def apply_folders(items, prefix):
+                for item in items:
+                    name = item.text(0)
+                    path = f"{prefix}/{name}" if prefix else name
+                    if item.childCount() > 0:
+                        if path in visible_folders:
+                            item.setHidden(False)
+                            item.setExpanded(True)
+                            folder_ranges = filter_match_ranges(name, term)
+                            item.setData(0, FILTER_MATCH_ROLE, folder_ranges)
+                            if folder_ranges:
+                                self._tagged.append(item)
+                        else:
+                            item.setHidden(True)
+                            self._hidden_items.append(item)
+                        apply_folders([item.child(i) for i in range(item.childCount())], path)
+
+            apply_folders(self._top_level_items(), "")
 
     def _top_level_items(self):
         if self._is_tree:
