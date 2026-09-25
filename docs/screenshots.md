@@ -386,6 +386,8 @@ The commit diff can be viewed in three modes (tabs):
 
 ![Plain / File-wise / Tree-wise Diff](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/plain-file-tree-diff.webp)
 
+**File list filter:** Every file list in the diff viewer — the File-wise list, the Tree-wise tree, and the equivalent lists in dialogs such as Branch Diff, Single Commit View, Split/Drop, Commit Selectively, Commit Staged Selectively, and Add Untracked Files — has a **hover-revealed filter**. Move the mouse over the list to reveal a magnifier button, click it to open a filter bar, and type to narrow the list live: matching names are highlighted in yellow, a `N / M` counter shows matches out of visible entries, and the ◀/▶ buttons jump between matches. In the tree, typing a folder name shows all of its files with the tree auto-expanded to them. Checkboxes on hidden rows are preserved, and the filter closes automatically when the list reloads (e.g. switching commits). Press **Esc** in the filter input, or click ✕, to clear it.
+
 ---
 
 ### 10.1 Plain Diff
@@ -412,7 +414,7 @@ Browse a commit's changes as a folder/file tree with per-file stats.
 
 **Description:** Switch to the **Tree-wise Diff** tab to view the commit's changes organized as a hierarchical folder tree. Each folder shows a combined `+N/-M` stat count, and each file shows its own `+N/-M` stats. Click a folder to expand/collapse it. Click a file to view its diff in the panel below. Click a folder to view a concatenated diff of all files inside. Right-click a file for the same actions as the File-wise Diff tab (see screenshot above).
 
-The tree supports zoom and theme colors — font size and colors follow the Plain Diff view settings. A search bar at the top filters files by name. Press **Esc** to clear the filter.
+The tree supports zoom and theme colors — font size and colors follow the Plain Diff view settings. Hovering the tree reveals the filter button (see the file list filter note in [Diff Viewer](#10-diff-viewer)): type a file or folder name to narrow the tree, with matches highlighted as you type.
 
 This tab is available in the main window, the Single Commit View dialog, and the Branch Diff dialog.
 
@@ -425,6 +427,7 @@ A diff viewer is docked at the right side of the main window.
 **Description:** A diff viewer is docked towards the main window's right-side pane (see [Main Interface](#2-main-interface) screenshot, right side highlighted). Click any commit to view its diff there — added lines in green, removed lines in red, with line numbers. The pane offers three modes: **Plain Diff**, **File-wise Diff**, and **Tree-wise Diff** (see [10](#10-diff-viewer)).
 
 - **Configure → Show/Hide → Show Diffs** toggles the right-side diff pane; the choice is remembered across sessions. The diff pane is **visible by default**.
+- The File-wise and Tree-wise lists in this pane support the hover-revealed file list filter (see [Diff Viewer](#10-diff-viewer)).
 
 ---
 
@@ -741,7 +744,7 @@ Pick exactly which **files** — or even individual **hunks** — to commit, lea
 - **Drop Selected Files** → Discard unstaged changes for the checked files (`git checkout -- <files>`) with a Yes/No confirmation. The dialog refreshes in-place after the drop — dropped files disappear from the list, counter updates, and the diff pane recalculates.
 - **git add -p** → Drill into individual **hunks** of the checked files (see below)
 
-Unchecked files stay completely untouched, and cancelling at any point leaves the repository unchanged.
+Unchecked files stay completely untouched, and cancelling at any point leaves the repository unchanged. The file list has the hover-revealed filter for narrowing long change sets (see [Diff Viewer](#10-diff-viewer)).
 
 #### Hunk-level commit with `git add -p`
 
@@ -1152,6 +1155,7 @@ Buttons are disabled when no staged files remain. All history-modifying operatio
 Features:
 - **File List tab** — checkboxes with per-file `+N / -M` stats
 - **Tree View tab** — folder/file hierarchy with checkboxes (folders auto-tick when all children checked)
+- **File list filter** — hover either list and click the magnifier to narrow it by name (matches highlighted)
 - **Diff preview pane** — shows combined diff of checked files (Ctrl+F search)
 - **Amend HEAD with Selected** — amend only checked files into HEAD
 - **Commit Selected Files** — commit only checked files
@@ -1167,6 +1171,7 @@ Features:
 ![Add Untracked Files Dialog](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/add-untracked-files.webp)
 - **File List tab** — checkboxes with per-file stats
 - **Tree View tab** — folder/file hierarchy with checkboxes
+- **File list filter** — hover either list and click the magnifier to narrow it by name
 
 Select files and click **Add/Stage Selected Files** to run `git add` on them. If unstaged changes exist in tracked files, the tool warns and blocks this operation.
 
@@ -1234,7 +1239,7 @@ The splitter handle is locked when collapsed to prevent accidental resizing. Dra
 - **▼ File-wise Diff** — file list is visible
 - **▶ File-wise Diff** — file list is collapsed, diff pane gets more space
 
-Clicking a different tab switches normally without toggling. This works in the main window, Branch Diff dialog, and Single Commit View dialog.
+Clicking a different tab switches normally without toggling. This works in the main window, Branch Diff dialog, and Single Commit View dialog. Both lists also have the hover-revealed filter button (see [Diff Viewer](#10-diff-viewer)).
 
 ---
 
