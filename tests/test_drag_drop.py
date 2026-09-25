@@ -39,10 +39,17 @@ GUARDS = [
 
 
 def _requires_screen(test):
-    """In-test drag sessions (QTest mouse drag) don't work on the offscreen
-    platform — verified: the drop never lands, so skip there."""
+    """Interactive real-drag tests: skipped by default, opt in explicitly.
+
+    These four tests open a visible list window and run a synthetic QTest
+    mouse drag over it, which looks like a manual GUI session (and the drop
+    is timing-sensitive, so they also flake). Set RUN_REAL_DRAG=1 to run
+    them on a real platform; the offscreen platform cannot land drops at
+    all, so they always skip there."""
     if QGuiApplication.platformName() == "offscreen":
         test.skipTest("in-test drag-and-drop needs a real platform (xcb)")
+    if os.environ.get("RUN_REAL_DRAG") != "1":
+        test.skipTest("interactive real-drag test; set RUN_REAL_DRAG=1 to run it")
 
 
 class _MsgBox:
