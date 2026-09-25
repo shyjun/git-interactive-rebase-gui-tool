@@ -7,9 +7,7 @@ Version: 1.0.0
 Date: Feb 2026
 """
 import argparse
-import atexit
 import faulthandler
-import traceback
 # Copyright (c) 2026 shyjun
 # This project is licensed under the MIT License - see the LICENSE file for details.
 import json
@@ -65,23 +63,9 @@ from lib.dialogs import (
 import shutil
 
 
-def _crashdbg_excepthook(exc_type, exc_value, exc_tb):
-    print("[crashdbg] uncaught Python exception:", flush=True)
-    traceback.print_exception(exc_type, exc_value, exc_tb, flush=True)
-
-
-def _crashdbg_atexit():
-    print("[crashdbg] interpreter exiting (atexit ran)", flush=True)
-
-
 def main():
-    # [crashdbg] permanent debug hooks: native fault tracebacks (faulthandler),
-    # full Python tracebacks instead of a silent exit, and a marker proving the
-    # interpreter reached its exit handlers (absent on segfault/signal death).
+    # Print a native traceback if a native fault ever occurs (silent otherwise).
     faulthandler.enable()
-    sys.excepthook = _crashdbg_excepthook
-    atexit.register(_crashdbg_atexit)
-    _log("[crashdbg] main() entered")
 
     # 1. Runtime check for Git CLI
     if not shutil.which("git"):
@@ -340,9 +324,7 @@ def main():
     _log(f"[perf] get_unstaged_files: {time.monotonic()-_t:.3f}s")
     if unstaged_files and not args.viewer_mode:
         dialog = UnstagedChangesDialog(len(unstaged_files), repo_path=repo_path, unstaged_files=unstaged_files)
-        _log(f"[crashdbg] UnstagedChangesDialog exec() starting (files={len(unstaged_files)})")
         result = dialog.exec()
-        _log(f"[crashdbg] UnstagedChangesDialog exec() returned result={result!r}")
 
         if result == UnstagedChangesDialog.SelectiveCommitResult:
             # Defer until the main window exists so the dialog gets the app's
@@ -448,7 +430,6 @@ def main():
         elif result == UnstagedChangesDialog.ViewerModeResult:
             args.viewer_mode = True
         else:
-            _log(f"[crashdbg] startup dialog result={result!r} not handled -> exiting")
             _log("Exiting as requested by the user.")
             sys.exit(0)
 
@@ -562,7 +543,6 @@ def main():
                         detail = f"\n\n{msg}" if msg else ""
                         QMessageBox.critical(None, "Error", "Failed to pop stash. You may need to do it manually." + detail)
 
-    _log(f"[crashdbg] reaching final sys.exit({exit_code})")
     sys.exit(exit_code)
 
 if __name__ == "__main__":

@@ -178,27 +178,19 @@ class UnstagedChangesDialog(QDialog):
 
     def show_unstaged_changes(self):
         """Open a read-only viewer (same layout as View PR Diff) with only the unstaged changes."""
-        print("[crashdbg] show_unstaged_changes: entry", flush=True)
         if not self.repo_path:
-            print("[crashdbg] show_unstaged_changes: no repo_path, aborting", flush=True)
             return
         try:
             diff_text = get_unstaged_diff(self.repo_path, ignore_submodules=True)
-            print(f"[crashdbg]   get_unstaged_diff -> len={len(diff_text)}", flush=True)
             file_stats = get_unstaged_file_stats(self.repo_path, ignore_submodules=True)
-            print(f"[crashdbg]   get_unstaged_file_stats -> entries={len(file_stats)}", flush=True)
             branch = get_current_branch(self.repo_path) or "HEAD"
             head_sha = get_full_head_sha(self.repo_path)
-            print(f"[crashdbg]   branch={branch!r} head={head_sha}", flush=True)
             from .diff_dialogs import UnstagedDiffDialog
-            print("[crashdbg]   constructing UnstagedDiffDialog...", flush=True)
             dlg = UnstagedDiffDialog(
                 self.repo_path, self.unstaged_files, diff_text, file_stats,
                 branch, head_sha, self.font_size, self.font_family, self
             )
-            print("[crashdbg]   UnstagedDiffDialog ctor done, calling dlg.exec()...", flush=True)
             dlg.exec()
-            print("[crashdbg]   dlg.exec() returned", flush=True)
         except Exception as e:
             traceback.print_exc()
             QMessageBox.warning(self, "Unstaged Changes", f"Could not load unstaged changes: {e}")
