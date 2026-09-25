@@ -21,6 +21,7 @@ from PySide6.QtCore import QPoint, Qt
 from lib.widgets import (
     FILTER_MATCH_ROLE,
     FileListFilter,
+    _accent_from_stylesheet,
     filter_match_ranges,
     list_filter_hidden,
     tree_filter_sets,
@@ -445,6 +446,38 @@ class TestDockedBar(unittest.TestCase):
         app.processEvents()
         self.assertIsNone(flt._container)
         self.assertTrue(flt.bar.isVisible())
+        lw.close()
+        lw.deleteLater()
+
+
+class TestAccentFromStylesheet(unittest.TestCase):
+
+    def test_dark_theme(self):
+        sheet = "QPushButton { background-color: #007acc; }"
+        self.assertEqual(_accent_from_stylesheet(sheet), "#007acc")
+
+    def test_light_theme(self):
+        sheet = "QListWidget::item:selected { background-color: #007aff; }"
+        self.assertEqual(_accent_from_stylesheet(sheet), "#007aff")
+
+    def test_unknown_and_empty(self):
+        self.assertIsNone(_accent_from_stylesheet("QWidget { color: red; }"))
+        self.assertIsNone(_accent_from_stylesheet(""))
+        self.assertIsNone(_accent_from_stylesheet(None))
+
+
+class TestHoverButtonAppearance(unittest.TestCase):
+
+    def test_button_is_28_with_icon(self):
+        lw = QListWidget()
+        lw.resize(200, 120)
+        lw.show()
+        lw.addItem(QListWidgetItem("a.c"))
+        flt = FileListFilter(lw)
+        self.assertEqual(flt.button.size().toTuple(), (28, 28))
+        self.assertFalse(flt.button.icon().pixmap(1, 1).isNull())
+        flt._refresh_button_icon()
+        self.assertFalse(flt.button.icon().pixmap(1, 1).isNull())
         lw.close()
         lw.deleteLater()
 

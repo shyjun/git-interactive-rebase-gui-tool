@@ -28,6 +28,7 @@ from PySide6.QtGui import (
     QTextDocument,
 )
 from PySide6.QtWidgets import (
+    QApplication,
     QBoxLayout,
     QCheckBox,
     QFrame,
@@ -124,9 +125,9 @@ def tree_filter_sets(file_paths, term):
     return visible_files, visible_folders
 
 
-def _draw_magnifier(painter, color):
+def _draw_magnifier(painter, color, pen_width=1.8):
     """Pen-drawn magnifier, same style as the Rescan Repo toolbar icon."""
-    pen = QPen(color, 1.8)
+    pen = QPen(color, pen_width)
     pen.setCapStyle(Qt.RoundCap)
     pen.setJoinStyle(Qt.RoundJoin)
     painter.setPen(pen)
@@ -136,14 +137,44 @@ def _draw_magnifier(painter, color):
     painter.drawLine(9.4, 9.4, 14.0, 14.0)
 
 
-def _magnifier_icon(color):
-    pixmap = QPixmap(16, 16)
+def _magnifier_icon(color, size=16, pen_width=1.8):
+    pixmap = QPixmap(size, size)
     pixmap.fill(Qt.transparent)
     painter = QPainter(pixmap)
     painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-    _draw_magnifier(painter, color)
+    if size != 16:
+        painter.scale(size / 16.0, size / 16.0)
+    _draw_magnifier(painter, color, pen_width)
     painter.end()
     return QIcon(pixmap)
+
+
+# Interactive accent colors from get_theme_stylesheet (lib/app_window/
+# helpers.py): the dark sheet uses #007acc, the light sheet #007aff, and
+# the two never co-occur, so scanning the app stylesheet identifies the
+# theme without importing the (cycle-prone) helpers module.
+_ACCENT_DARK = "#007acc"
+_ACCENT_LIGHT = "#007aff"
+
+
+def _accent_from_stylesheet(text):
+    """Return the theme accent hex in *text*, or None if not found."""
+    if not text:
+        return None
+    if _ACCENT_DARK in text:
+        return _ACCENT_DARK
+    if _ACCENT_LIGHT in text:
+        return _ACCENT_LIGHT
+    return None
+
+
+def _accent_color():
+    """Current theme accent for the filter button (palette fallback)."""
+    app = QApplication.instance()
+    accent = _accent_from_stylesheet(app.styleSheet() if app else "")
+    if accent:
+        return QColor(accent)
+    return app.palette().color(QPalette.Highlight) if app else QColor("#007acc")
 
 
 def _paint_matched_text(painter, text, rect, ranges, base_color, font):
@@ -918,9 +949,10 @@ class FileListFilter(QObject):
         # it as a pinned overlay over the viewport top.
         self.button = QToolButton(widget)
         self.button.setToolTip("Filter files")
-        self.button.setFixedSize(24, 24)
-        self.button.setIcon(_magnifier_icon(
-            widget.palette().color(QPalette.ButtonText)))
+        # Same 28x28 as the Search in diff toolbar buttons; the accent-blue
+        # icon + border keeps it noticeable over white list rows.
+        self.button.setFixedSize(28, 28)
+        self._refresh_button_icon()
         self._style_hover_button()
         self.button.clicked.connect(self.open_bar)
 
@@ -1018,6 +1050,7 @@ class FileListFilter(QObject):
                 if etype == QEvent.Enter:
                     self._hover = True
                     if not self.bar.isVisible():
+                        self._refresh_button_icon()
                         self._position_button()
                         self.button.show()
                 elif etype == QEvent.Leave:
@@ -1029,8 +1062,7 @@ class FileListFilter(QObject):
                     if self._container is None:
                         self._position_bar()
                 elif etype in (QEvent.PaletteChange, QEvent.ApplicationPaletteChange):
-                    self.button.setIcon(_magnifier_icon(
-                        self.widget.palette().color(QPalette.ButtonText)))
+                    self._refresh_button_icon()
                     self._style_hover_button()
                     if self._container is None:
                         self._style_bar()
@@ -1100,16 +1132,27 @@ class FileListFilter(QObject):
                 return
         self.button.hide()
 
+    def _refresh_button_icon(self):
+        """(Re)draw the magnifier in the current theme's accent color.
+
+        Resolved on demand (init, hover, palette change) so a theme switch
+        is picked up even without a palette event.
+        """
+        self.button.setIcon(_magnifier_icon(_accent_color(),
+                                            size=19, pen_width=2.2))
+        self.button.setIconSize(QSize(19, 19))
+
     def _style_hover_button(self):
-        """Opaque palette-aware plate for the hover button.
+        """Opaque plate with an accent border for the hover button.
 
         A fully transparent button let row text (stats, filenames) show
         through and made the icon hard to see, especially over the stats
-        column. Use palette roles so it reads in both light and dark themes.
+        column. The plate adapts to the palette (light/dark); the border
+        uses the theme accent so the control reads as interactive.
         """
         pal = self.widget.palette()
         bg = pal.color(QPalette.Button)
-        border = pal.color(QPalette.Mid)
+        accent = _accent_color().name()
         light = bg.lightness() >= 128
         hover_bg = bg.darker(106) if light else bg.lighter(106)
         press_bg = bg.darker(115) if light else bg.lighter(115)
@@ -1118,9 +1161,9 @@ class FileListFilter(QObject):
             " background: %s; }"
             " QToolButton:hover { border: 1px solid %s; background: %s; }"
             " QToolButton:pressed { border: 1px solid %s; background: %s; }"
-            % (border.name(), bg.name(),
-               pal.color(QPalette.ButtonText).name(), hover_bg.name(),
-               border.name(), press_bg.name()))
+            % (accent, bg.name(),
+               accent, hover_bg.name(),
+               accent, press_bg.name()))
 
     def _style_bar(self):
         """Overlay fallback plate (see _position_bar); docked bars stay
