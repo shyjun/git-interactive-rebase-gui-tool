@@ -11,8 +11,11 @@ from PySide6.QtWidgets import (
     QApplication,
     QListWidget,
     QListWidgetItem,
+    QSplitter,
     QTreeWidget,
     QTreeWidgetItem,
+    QVBoxLayout,
+    QWidget,
 )
 from PySide6.QtCore import QPoint, Qt
 from lib.widgets import (
@@ -317,6 +320,133 @@ class TestScrollPinning(unittest.TestCase):
         self.assertEqual((flt.bar.x(), flt.bar.y()), want)
         tw.close()
         tw.deleteLater()
+
+
+class TestDockedBar(unittest.TestCase):
+    """The bar docks as a real row above the list (splitter/layout parents)
+    so it never covers file rows; hiding it collapses the row."""
+
+    def _make(self, widget, extra=None):
+        splitter = QSplitter()
+        splitter.addWidget(widget)
+        splitter.addWidget(extra if extra is not None else QWidget())
+        host = QWidget()
+        layout = QVBoxLayout(host)
+        layout.addWidget(splitter)
+        host.resize(420, 320)
+        host.show()
+        app.processEvents()
+        return host, splitter
+
+    def test_docks_into_splitter_and_covers_no_rows(self):
+        lw = QListWidget()
+        for name in ("src/charset.c", "src/drawline.c", "src/ex_cmds.c"):
+            lw.addItem(QListWidgetItem(name))
+        host, splitter = self._make(lw)
+        flt = FileListFilter(lw)
+
+        def vp_top():
+            # Host-local, not global: a real window manager can reposition
+            # the window between measurements, which would invalidate
+            # global coordinates.
+            return lw.mapTo(host, QPoint(0, 0)).y()
+
+        y_before = vp_top()
+        flt.open_bar()
+        app.processEvents()
+        self.assertIsNotNone(flt._container)
+        self.assertIs(splitter.widget(0), flt._container)
+        self.assertIs(lw.parentWidget(), flt._container)
+        self.assertIs(flt.bar.parentWidget(), flt._container)
+        self.assertTrue(flt.bar.isVisible())
+        self.assertGreater(vp_top(), y_before)  # list pushed below the row
+
+        lw.setCurrentRow(0)  # the user-reported case: selection must show
+        app.processEvents()
+        rect = lw.visualItemRect(lw.item(0))
+        row_top = lw.viewport().mapToGlobal(rect.topLeft()).y()
+        bar_bottom = flt.bar.mapToGlobal(flt.bar.rect().bottomLeft()).y()
+        self.assertGreaterEqual(row_top, bar_bottom)
+
+        # bar is layout-managed: scrolling cannot move or unpin it
+        geo = flt.bar.geometry()
+        lw.verticalScrollBar().setValue(50)
+        app.processEvents()
+        self.assertEqual(flt.bar.geometry(), geo)
+
+        # closing collapses the row: viewport returns to its original place
+        self.assertGreater(vp_top(), y_before)
+        flt.close_bar()
+        app.processEvents()
+        self.assertFalse(flt.bar.isVisible())
+        self.assertEqual(vp_top(), y_before)
+
+        host.close()
+        host.deleteLater()
+
+    def test_docks_into_plain_layout(self):
+        page = QWidget()
+        page_layout = QVBoxLayout(page)
+        lw = QListWidget()
+        lw.addItem(QListWidgetItem("a.c"))
+        page_layout.addWidget(lw)
+        host = QWidget()
+        host_layout = QVBoxLayout(host)
+        host_layout.addWidget(page)
+        host.resize(300, 200)
+        host.show()
+        app.processEvents()
+        flt = FileListFilter(lw)
+
+        def vp_top():
+            # Host-local (see comment in the splitter test): WM-safe.
+            return lw.mapTo(host, QPoint(0, 0)).y()
+
+        y_before = vp_top()
+        flt.open_bar()
+        app.processEvents()
+        self.assertIsNotNone(flt._container)
+        self.assertTrue(flt.bar.isVisible())
+        self.assertGreater(vp_top(), y_before)
+        flt.close_bar()
+        app.processEvents()
+        self.assertEqual(vp_top(), y_before)
+
+        host.close()
+        host.deleteLater()
+
+    def test_tree_bar_docks_above_header(self):
+        tw = QTreeWidget()
+        tw.setHeaderLabels(["Name", "Stats"])
+        root = QTreeWidgetItem(["src", ""])
+        tw.addTopLevelItem(root)
+        root.addChild(QTreeWidgetItem(["a.c", "+1 -1"]))
+        host, _ = self._make(tw)
+        flt = FileListFilter(tw)
+
+        flt.open_bar()
+        app.processEvents()
+        self.assertIsNotNone(flt._container)
+        bar_bottom = flt.bar.mapToGlobal(flt.bar.rect().bottomLeft()).y()
+        header_top = tw.header().mapToGlobal(
+            tw.header().rect().topLeft()).y()
+        self.assertLessEqual(bar_bottom, header_top)
+
+        host.close()
+        host.deleteLater()
+
+    def test_parentless_falls_back_to_overlay(self):
+        lw = QListWidget()
+        lw.resize(200, 120)
+        lw.show()
+        lw.addItem(QListWidgetItem("x.c"))
+        flt = FileListFilter(lw)
+        flt.open_bar()
+        app.processEvents()
+        self.assertIsNone(flt._container)
+        self.assertTrue(flt.bar.isVisible())
+        lw.close()
+        lw.deleteLater()
 
 
 if __name__ == "__main__":

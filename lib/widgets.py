@@ -28,6 +28,7 @@ from PySide6.QtGui import (
     QTextDocument,
 )
 from PySide6.QtWidgets import (
+    QBoxLayout,
     QCheckBox,
     QFrame,
     QHBoxLayout,
@@ -36,11 +37,13 @@ from PySide6.QtWidgets import (
     QMenu,
     QPlainTextEdit,
     QSizePolicy,
+    QSplitter,
     QStyle,
     QStyledItemDelegate,
     QTextEdit,
     QToolButton,
     QTreeWidget,
+    QVBoxLayout,
     QWidget,
 )
 
@@ -881,13 +884,14 @@ _FILE_FILTERS = set()
 
 
 class FileListFilter(QObject):
-    """Hover-revealed "Filter files" overlay for a file QListWidget / QTreeWidget.
+    """Hover-revealed "Filter files" control for a file QListWidget / QTreeWidget.
 
     Mouse-only: a small magnifier button floats over the list while the mouse
-    is over it; clicking it opens a floating search bar that live-filters rows.
-    Check states and selection on hidden rows are preserved. A model reset
-    (list repopulation, e.g. on commit change) closes the bar and restores the
-    full list."""
+    is over it; clicking it opens a filter bar **docked as a row above the
+    list** (the list shrinks, so no file row is ever covered) that live-
+    filters rows. Check states and selection on hidden rows are preserved.
+    A model reset (list repopulation, e.g. on commit change) closes the bar
+    and restores the full list."""
 
     DEBOUNCE_MS = 200
 
@@ -902,12 +906,16 @@ class FileListFilter(QObject):
         self._hidden_items = []
         self._matches = []
         self._current = -1
+        # Set by _dock_bar on first open: the wrapper row [bar, widget]
+        # inserted where the widget sits in its splitter/layout.
+        self._container = None
 
-        # Docked overlays: the button and bar are children of the *widget*,
-        # not the viewport. QAbstractScrollArea::scrollContentsBy moves
-        # viewport children by the scroll delta, which would drag them out of
-        # view while scrolling; widget children stay pinned in place and are
-        # positioned in widget coordinates (viewport offset + margin).
+        # The magnifier button is a child of the *widget* (not the viewport):
+        # QAbstractScrollArea::scrollContentsBy moves viewport children with
+        # the scroll, widget children stay pinned. The bar becomes a real
+        # layout row above the list when opened (see _dock_bar) so it never
+        # covers file rows; parentless widgets (standalone/test embeds) keep
+        # it as a pinned overlay over the viewport top.
         self.button = QToolButton(widget)
         self.button.setToolTip("Filter files")
         self.button.setFixedSize(24, 24)
@@ -991,7 +999,6 @@ class FileListFilter(QObject):
 
         widget.model().modelAboutToBeReset.connect(_on_model_reset)
 
-        self._style_bar()
         self.button.hide()
         self.bar.hide()
 
@@ -1019,12 +1026,14 @@ class FileListFilter(QObject):
                         self._hide_button_if_cursor_away()
                 elif etype == QEvent.Resize:
                     self._position_button()
-                    self._position_bar()
+                    if self._container is None:
+                        self._position_bar()
                 elif etype in (QEvent.PaletteChange, QEvent.ApplicationPaletteChange):
                     self.button.setIcon(_magnifier_icon(
                         self.widget.palette().color(QPalette.ButtonText)))
                     self._style_hover_button()
-                    self._style_bar()
+                    if self._container is None:
+                        self._style_bar()
         except (AttributeError, RuntimeError):
             # Half-torn-down state during widget destruction; ignore.
             return False
@@ -1040,9 +1049,49 @@ class FileListFilter(QObject):
             off.y() + 4)
 
     def _position_bar(self):
+        """Overlay fallback (parentless widget): pin the bar over the
+        viewport's top. Docked bars are positioned by their layout."""
         off = self._vp_offset()
         width = max(200, self.viewport.width() - 8)
         self.bar.setGeometry(off.x() + 4, off.y() + 4, width, 38)
+
+    def _dock_bar(self):
+        """Make the bar a real row above the list (lazy, idempotent).
+
+        Wraps the list/tree in a container [bar, widget] and puts the
+        container back where the widget sits in its splitter or layout, so
+        opening the bar shrinks the list instead of covering its first rows;
+        hiding the bar collapses the row again. Called on first open because
+        attach points construct FileListFilter *before* inserting the list
+        into its parent, so the parent is unknown at __init__ time.
+
+        Returns False when the widget has no splitter/layout parent
+        (standalone lists) — the caller keeps the pinned overlay instead.
+        """
+        if self._container is not None:
+            return True
+        widget = self.widget
+        parent = widget.parentWidget()
+        if parent is None:
+            return False
+        if isinstance(parent, QSplitter) and parent.indexOf(widget) >= 0:
+            host, idx = parent, parent.indexOf(widget)
+        else:
+            layout = parent.layout()
+            if not isinstance(layout, QBoxLayout) or layout.indexOf(widget) < 0:
+                return False
+            host, idx = layout, layout.indexOf(widget)
+        container = QWidget()
+        container_layout = QVBoxLayout(container)
+        container_layout.setContentsMargins(0, 0, 0, 0)
+        container_layout.setSpacing(2)
+        container_layout.addWidget(self.bar)
+        container_layout.addWidget(widget, 1)
+        # The widget left its old slot above, so inserting at the captured
+        # index puts the container exactly where the widget was.
+        host.insertWidget(idx, container)
+        self._container = container
+        return True
 
     def _hide_button_if_cursor_away(self):
         pos = QCursor.pos()
@@ -1074,6 +1123,8 @@ class FileListFilter(QObject):
                border.name(), press_bg.name()))
 
     def _style_bar(self):
+        """Overlay fallback plate (see _position_bar); docked bars stay
+        unstyled so they match the Search in diff toolbar."""
         pal = self.widget.palette()
         self.bar.setStyleSheet(
             "#FileFilterBar { background: %s; border: 1px solid %s;"
@@ -1084,8 +1135,15 @@ class FileListFilter(QObject):
     # --- open / close / reset ---------------------------------------------
 
     def open_bar(self):
-        self._position_bar()
-        self.bar.raise_()
+        if self._dock_bar():
+            # Docked row: the layout owns geometry; no chrome — the themed
+            # pane background shows through like the Search in diff toolbar.
+            self.bar.setStyleSheet("")
+        else:
+            # Parentless fallback: pinned overlay needs its own plate.
+            self._style_bar()
+            self._position_bar()
+            self.bar.raise_()
         self.bar.show()
         self.button.hide()
         self.input.setFocus()
