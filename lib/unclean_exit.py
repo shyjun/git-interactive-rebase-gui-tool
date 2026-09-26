@@ -29,6 +29,7 @@ import tempfile
 import time
 import webbrowser
 
+from PySide6.QtCore import QSettings
 from PySide6.QtWidgets import (
     QApplication,
     QDialog,
@@ -334,6 +335,25 @@ def _open_github_issues():
         pass
 
 
+def _apply_tool_theme():
+    """Apply the tool's theme stylesheet so the dialog matches the tool look.
+
+    main() applies this later for its own dialogs; the previous-run
+    notification shows before that point and must not look foreign.
+    """
+    try:
+        app = QApplication.instance()
+        if app is None:
+            return
+        theme_name = QSettings(
+            "git-interactive-rebase-gui-tool", "settings"
+        ).value("theme", "light", type=str)
+        from lib.app_window.helpers import get_theme_stylesheet
+        app.setStyleSheet(get_theme_stylesheet(theme_name))
+    except Exception:
+        pass
+
+
 def _build_notification_dialog(details):
     dialog = QDialog()
     dialog.setWindowTitle("Previous Run")
@@ -352,8 +372,12 @@ def _build_notification_dialog(details):
     layout.addWidget(details_area, 1)
 
     open_button = QPushButton("Open GitHub Issues")
+    open_button.setMinimumWidth(120)
+    open_button.setProperty("class", "dialog-btn")
     open_button.clicked.connect(_open_github_issues)
     noted_button = QPushButton("Noted. Continue")
+    noted_button.setMinimumWidth(120)
+    noted_button.setProperty("class", "dialog-btn")
     noted_button.clicked.connect(dialog.accept)
 
     buttons = QHBoxLayout()
@@ -375,6 +399,7 @@ def show_previous_run_notification(stale_instances):
         app = QApplication.instance()
         if app is None:
             app = QApplication(sys.argv)
+        _apply_tool_theme()
         dialog = _build_notification_dialog(details)
         dialog.exec()
     except Exception as exc:
