@@ -293,7 +293,38 @@ class TestNotificationDialog(_UncleanExitBase):
         self.assertEqual(dialog.noted_button.text(), "Noted. Continue")
         self.assertIn("did not exit normally", unclean_exit.NOTIFICATION_MESSAGE)
         self.assertEqual(dialog.details_area.toPlainText(), "DETAILS-HERE")
+        for button in (dialog.open_button, dialog.noted_button):
+            self.assertEqual(button.property("class"), "dialog-btn")
+            self.assertGreaterEqual(button.minimumWidth(), 120)
         dialog.deleteLater()
+
+    def test_apply_tool_theme_sets_stylesheet(self):
+        from PySide6.QtWidgets import QApplication
+        from lib.app_window.helpers import get_theme_stylesheet
+        app = QApplication.instance()
+        previous = app.styleSheet()
+        try:
+            unclean_exit._apply_tool_theme()
+            theme_name = unclean_exit.QSettings(
+                "git-interactive-rebase-gui-tool", "settings"
+            ).value("theme", "light", type=str)
+            self.assertEqual(app.styleSheet(), get_theme_stylesheet(theme_name))
+        finally:
+            app.setStyleSheet(previous)
+
+    def test_show_applies_theme_before_building_dialog(self):
+        order = []
+        fake_dialog = mock.Mock()
+        with mock.patch.object(
+            unclean_exit, "_apply_tool_theme",
+            side_effect=lambda: order.append("theme"),
+        ), mock.patch.object(
+            unclean_exit, "_build_notification_dialog",
+            side_effect=lambda details: order.append("dialog") or fake_dialog,
+        ):
+            unclean_exit.show_previous_run_notification([])
+        self.assertEqual(order, ["theme", "dialog"])
+        fake_dialog.exec.assert_called_once()
 
     def test_noted_button_dismisses_dialog(self):
         dialog = unclean_exit._build_notification_dialog("x")
