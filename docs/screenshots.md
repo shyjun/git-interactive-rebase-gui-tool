@@ -78,7 +78,9 @@ Visual documentation for the Git Interactive Rebase GUI Tool. Each section descr
 53. [Collapsible File List in Branch/Commit Dialogs](#53-collapsible-file-list-in-branchcommit-dialogs)
 54. [Font Selection Dialog](#54-font-selection-dialog)
 55. [Keyboard Shortcuts](#55-keyboard-shortcuts)
-56. [Unexpected Error (Crash) Dialog](#56-unexpected-error-crash-dialog)
+56. [Fault Handling](#56-fault-handling)
+    - [56.1 Exception Handling](#561-exception-handling)
+    - [56.2 Crash Handling](#562-crash-handling)
 
 ---
 
@@ -1292,11 +1294,15 @@ Keyboard shortcuts for faster navigation and workflow.
 
 ---
 
-## 56. Unexpected Error (Crash) Dialog
+## 56. Fault Handling
 
-**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/crash-dialog.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/fault-handling.webp`
 
-![Unexpected Error (Crash) Dialog](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/crash-dialog.webp)
+![Fault Handling](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/fault-handling.webp)
+
+**Description:** The tool has two layers of fault handling: **[56.1 Exception Handling](#561-exception-handling)** deals with unexpected Python exceptions *inside* the running application and shows a dialog with the full traceback, while **[56.2 Crash Handling](#562-crash-handling)** covers failures that kill the process outright — those print a native traceback to the terminal, and the next launch detects that the previous run did not exit normally.
+
+### 56.1 Exception Handling
 
 **Description:** If an unexpected (unhandled) Python exception ever reaches the top level — a bug the app did not anticipate — the tool shows this dialog instead of dying with only a terminal traceback. The complete crash report is displayed in the large read-only text area, using your configured monospace font (see [54. Font Selection Dialog](#54-font-selection-dialog)) and the current theme.
 
@@ -1311,4 +1317,12 @@ Notes:
 
 - Expected/recoverable errors (git failures, invalid arguments, missing files the app checks for, etc.) are already handled inside the app and do **not** show this dialog — it appears only for genuinely unexpected exceptions.
 - The crash report is also printed to the terminal (stderr), so the traceback is never lost even if the dialog itself cannot be shown.
-- OS-level crashes such as segmentation faults are not Python exceptions; those print a native traceback via `faulthandler` instead.
+
+### 56.2 Crash Handling
+
+**Description:** Some failures never reach Python's exception machinery — a segmentation fault, `kill -9`, a power loss, or a system shutdown kills the process before any dialog can appear. Two mechanisms cover that case:
+
+- **Native traceback via `faulthandler`:** OS-level faults such as segmentation faults are not Python exceptions. The application enables `faulthandler` at startup, so a native crash prints a native traceback to the terminal — and stays completely silent when nothing goes wrong.
+- **Previous Run detection:** at startup the tool writes a small marker file (`git-interactive-rebase-gui-<PID>.json`) into the system temp directory and removes it on a clean exit. If the previous run left a marker behind, the next launch checks whether that process is still alive — and, to guard against PID reuse, whether it is still *this* tool — then shows a single **Previous Run** dialog listing the old instance's tool version, location, command line, start time, and PID, cleans up the stale markers, and continues startup normally. Markers belonging to running instances are never touched, so two concurrently open copies of the tool never report each other.
+
+If the crashed run printed anything to the terminal (for example the `faulthandler` traceback above), include it when filing an issue via the dialog's **Open GitHub Issues** button — **Noted. Continue** just dismisses the dialog.
