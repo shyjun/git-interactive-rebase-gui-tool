@@ -63,6 +63,11 @@ class RescanMixin:
     def handle_rescan_repo(self):
         """Safely rescan repository state, prompting user for unstaged changes identically to app startup if found."""
         _log("[rescan] Rescanning repository...")
+
+        # crash testing code
+        #import ctypes
+        #ctypes.string_at(0)
+
         unstaged_files = get_unstaged_files(self.repo_path, ignore_submodules=True)
         _log(f"[rescan] Found {len(unstaged_files)} unstaged files")
         if unstaged_files:

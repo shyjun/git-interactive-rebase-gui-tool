@@ -1062,6 +1062,12 @@ class UIMixin:
         except Exception as e:
             output = f"Error running git status: {e}"
 
+        # crash testing code
+        #a = [1, 2, 3]
+        #print(a[100])
+        #import ctypes
+        #ctypes.string_at(0)
+
         dlg = QDialog(self)
         dlg.setWindowTitle("git status")
         dlg.setMinimumSize(600, 400)

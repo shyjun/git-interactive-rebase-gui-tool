@@ -221,6 +221,11 @@ class MenusMixin:
 
     def _configure_fonts(self):
         """Opens the Font selection dialog."""
+
+        # crash testing code
+        #import os
+        #os._exit(1)
+
         from lib.dialogs.font_dialog import FontDialog
         from lib.app_window.helpers import default_mono_family
         current = getattr(self, 'current_font_family', None) or default_mono_family()
