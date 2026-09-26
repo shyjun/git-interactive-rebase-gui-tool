@@ -189,10 +189,17 @@ class TestCrashDialog(unittest.TestCase):
         self.assertIn("ValueError: boom", query["title"][0])
         self.assertEqual(query["body"][0], self.report)
 
-    def test_close_button_closes_dialog(self):
+    def test_continue_button_dismisses_dialog(self):
         dialog = CrashDialog(self.report)
-        dialog.close_button.click()
+        dialog.show()
+        dialog.continue_button.click()
         self.assertFalse(dialog.isVisible())
+
+    def test_exit_button_quits_the_application(self):
+        dialog = CrashDialog(self.report)
+        with mock.patch.object(QApplication, "quit") as quit_app:
+            dialog.exit_button.click()
+        quit_app.assert_called_once()
 
 
 if __name__ == "__main__":

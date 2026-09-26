@@ -103,7 +103,7 @@ def format_crash_report(exc_type, exc_value, tb, source=None):
 
 
 class CrashDialog(QDialog):
-    """Read-only crash report with Copy / Open GitHub Issue / Close buttons."""
+    """Read-only crash report with Copy / Issue / Continue / Exit buttons."""
 
     def __init__(self, report, parent=None):
         super().__init__(parent)
@@ -128,20 +128,29 @@ class CrashDialog(QDialog):
         self.copy_button.clicked.connect(self.copy_to_clipboard)
         self.issue_button = QPushButton("Open GitHub Issue")
         self.issue_button.clicked.connect(self.open_github_issue)
-        self.close_button = QPushButton("Close")
-        self.close_button.clicked.connect(self.accept)
+        self.continue_button = QPushButton("Noted. Continue")
+        self.continue_button.clicked.connect(self.accept)
+        self.exit_button = QPushButton("Exit App")
+        self.exit_button.clicked.connect(self.exit_app)
 
         buttons = QHBoxLayout()
         buttons.addWidget(self.copy_button)
         buttons.addWidget(self.issue_button)
         buttons.addStretch(1)
-        buttons.addWidget(self.close_button)
+        buttons.addWidget(self.continue_button)
+        buttons.addWidget(self.exit_button)
         layout.addLayout(buttons)
 
     def copy_to_clipboard(self):
         # The crash dialog must never raise a secondary exception.
         try:
             QApplication.clipboard().setText(self._report)
+        except Exception:
+            pass
+
+    def exit_app(self):
+        try:
+            QApplication.quit()
         except Exception:
             pass
 
