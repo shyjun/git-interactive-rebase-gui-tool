@@ -78,6 +78,7 @@ Visual documentation for the Git Interactive Rebase GUI Tool. Each section descr
 53. [Collapsible File List in Branch/Commit Dialogs](#53-collapsible-file-list-in-branchcommit-dialogs)
 54. [Font Selection Dialog](#54-font-selection-dialog)
 55. [Keyboard Shortcuts](#55-keyboard-shortcuts)
+56. [Unexpected Error (Crash) Dialog](#56-unexpected-error-crash-dialog)
 
 ---
 
@@ -1288,3 +1289,26 @@ Keyboard shortcuts for faster navigation and workflow.
 
 - `Esc` behaves contextually and may close dialogs, clear filters, exit search, or exit multi-select mode depending on the active state. **Progress dialogs** shown during history-rewriting operations (rebase, reset, push, etc.) are not dismissible — they close automatically when the operation completes.
 - `Ctrl+F` focuses the diff search bar, which is available in every diff view (see [Diff Search Bar](#9-diff-search-bar)).
+
+---
+
+## 56. Unexpected Error (Crash) Dialog
+
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/crash-dialog.webp`
+
+![Unexpected Error (Crash) Dialog](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/crash-dialog.webp)
+
+**Description:** If an unexpected (unhandled) Python exception ever reaches the top level — a bug the app did not anticipate — the tool shows this dialog instead of dying with only a terminal traceback. The complete crash report is displayed in the large read-only text area, using your configured monospace font (see [54. Font Selection Dialog](#54-font-selection-dialog)) and the current theme.
+
+Buttons:
+
+- **Copy to Clipboard** → copies the complete crash report (tool version, Python version, OS/platform, exception, and full traceback) so it can be pasted into a bug report
+- **Open GitHub Issue** → opens the repository's *New issue* page in your default browser, with the issue title and body pre-filled from the crash report
+- **Noted. Continue** → dismisses the dialog and lets the application keep running
+- **Exit App** → cleanly terminates the application
+
+Notes:
+
+- Expected/recoverable errors (git failures, invalid arguments, missing files the app checks for, etc.) are already handled inside the app and do **not** show this dialog — it appears only for genuinely unexpected exceptions.
+- The crash report is also printed to the terminal (stderr), so the traceback is never lost even if the dialog itself cannot be shown.
+- OS-level crashes such as segmentation faults are not Python exceptions; those print a native traceback via `faulthandler` instead.

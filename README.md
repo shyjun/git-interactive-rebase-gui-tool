@@ -99,6 +99,7 @@ A Python-based Git Interactive Rebase GUI tool to visually manage commit history
 * **Per-window font zoom**: Adjust the code font-size with the **+/- (zoom)** buttons in the status bar.
 * **Visual feedback**: Instant "Copied" notifications for clipboard actions (SHA, message, or both).
 * **Resizable dialogs**: Long result/confirmation dialogs can be resized to read all the details.
+* **Crash report dialog**: If an unexpected error ever crashes the tool, a dialog shows the complete traceback (in your configured font) with **Copy to Clipboard** and **Open GitHub Issue** (issue title/body pre-filled), plus **Noted. Continue** to keep the app running or **Exit App** to quit cleanly.
 * **Auto-background on launch**: When run from a terminal, the tool automatically detaches and runs in the background, returning the terminal immediately.
 * **Tree view in file dialogs**: Stage files and commit staged changes dialogs include a Tree View tab with folder hierarchy, checkboxes, and stats.
 * **Full Height Diff View**: Toggle button below the diff pane maximizes diff viewing area by collapsing commit details and hiding bottom controls — click again to restore.
