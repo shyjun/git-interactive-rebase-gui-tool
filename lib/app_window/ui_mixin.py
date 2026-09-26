@@ -104,6 +104,24 @@ class UIMixin:
         self.commit_search_edit.textChanged.connect(self.filter_commits)
         search_row_layout.addWidget(self.commit_search_edit, 1)  # stretch to fill
 
+        # Jump-to-match buttons: move the selection to the next/previous
+        # commit flagged by the current filter (wraps around).
+        self.commit_search_prev_btn = QToolButton()
+        self.commit_search_prev_btn.setText("<")
+        self.commit_search_prev_btn.setFixedSize(28, 28)
+        self.commit_search_prev_btn.setAutoRepeat(True)
+        self.commit_search_prev_btn.setAutoRepeatInterval(150)
+        self.commit_search_prev_btn.setToolTip("Previous matching commit (wraps around)")
+        search_row_layout.addWidget(self.commit_search_prev_btn)
+
+        self.commit_search_next_btn = QToolButton()
+        self.commit_search_next_btn.setText(">")
+        self.commit_search_next_btn.setFixedSize(28, 28)
+        self.commit_search_next_btn.setAutoRepeat(True)
+        self.commit_search_next_btn.setAutoRepeatInterval(150)
+        self.commit_search_next_btn.setToolTip("Next matching commit (wraps around)")
+        search_row_layout.addWidget(self.commit_search_next_btn)
+
         # Search Options dropdown (HOW to search: Match Case / Whole Word / Display Only Matching)
         self.commit_search_options_btn = QToolButton()
         self.commit_search_options_btn.setText("Search Options ▼")
@@ -869,7 +887,8 @@ class UIMixin:
         self._filter_controller = CommitFilterController(
             self, self.list_widget, self.commit_cache, self.repo_path,
             self.commit_search_edit, self.commit_filter_by_files_cb, self.commit_filter_by_diff_cb,
-            self.commit_filter_by_author_cb, self.commit_filter_status_label,
+            self.commit_filter_by_author_cb, self.commit_search_prev_btn, self.commit_search_next_btn,
+            self.commit_filter_status_label,
             self.showing_commits_label, self.sep_merge, self.merge_commits_label,
             MATCH_ROLE, _diff_search_matches, get_commit_files_with_status,
             get_commit_diff, self.settings, self._sk)

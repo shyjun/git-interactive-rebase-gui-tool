@@ -27,6 +27,7 @@ class CommitFilterController(QObject):
     def __init__(self, parent, list_widget, commit_cache, repo_path,
                  commit_search_edit, commit_filter_by_files_cb,
                  commit_filter_by_diff_cb, commit_filter_by_author_cb,
+                 commit_search_prev_btn, commit_search_next_btn,
                  commit_filter_status_label,
                  showing_commits_label, sep_merge, merge_commits_label,
                  MATCH_ROLE, diff_search_matches_func,
@@ -41,6 +42,8 @@ class CommitFilterController(QObject):
         self._commit_filter_by_files_cb = commit_filter_by_files_cb
         self._commit_filter_by_diff_cb = commit_filter_by_diff_cb
         self._commit_filter_by_author_cb = commit_filter_by_author_cb
+        self._commit_search_prev_btn = commit_search_prev_btn
+        self._commit_search_next_btn = commit_search_next_btn
         self._commit_filter_status_label = commit_filter_status_label
         self._showing_commits_label = showing_commits_label
         self._sep_merge = sep_merge
@@ -67,6 +70,10 @@ class CommitFilterController(QObject):
         self._diff_search_timer.timeout.connect(self._run_filter_with_diff)
 
         self._commit_filter_status_label.setStyleSheet(self._DIFF_NEUTRAL_STYLE)
+
+        self._commit_search_prev_btn.clicked.connect(self.goto_prev_match)
+        self._commit_search_next_btn.clicked.connect(self.goto_next_match)
+        self._update_nav_buttons()
 
     def set_search_options(self, match_case, whole_word, display_only):
         """Set the three search-option flags without triggering a re-filter."""
@@ -132,6 +139,7 @@ class CommitFilterController(QObject):
                 item.setHidden(False)
                 item.setData(self._MATCH_ROLE, False)
             self._update_commit_counts()
+            self._update_nav_buttons()
             self._list_widget.viewport().update()
             return
 
@@ -176,7 +184,49 @@ class CommitFilterController(QObject):
                 item.setHidden(False)
 
         self._update_commit_counts()
+        self._update_nav_buttons()
         self._list_widget.viewport().update()
+
+    def _match_rows(self):
+        """Row indices currently flagged as matching by the active filter."""
+        rows = []
+        for i in range(self._list_widget.count()):
+            item = self._list_widget.item(i)
+            if item.isHidden() or not item.data(self._MATCH_ROLE):
+                continue
+            if item.data(Qt.UserRole + 9) == "load_more":
+                continue
+            rows.append(i)
+        return rows
+
+    def _update_nav_buttons(self):
+        """Enable the < / > match-navigation buttons only when matches exist."""
+        has_matches = bool(self._match_rows())
+        self._commit_search_prev_btn.setEnabled(has_matches)
+        self._commit_search_next_btn.setEnabled(has_matches)
+
+    def _select_match(self, row):
+        item = self._list_widget.item(row)
+        self._list_widget.setCurrentRow(row)
+        self._list_widget.scrollToItem(item)
+
+    def goto_next_match(self):
+        """Select the first matching commit after the current row (wraps)."""
+        rows = self._match_rows()
+        if not rows:
+            return
+        current = self._list_widget.currentRow()
+        target = next((r for r in rows if r > current), rows[0])
+        self._select_match(target)
+
+    def goto_prev_match(self):
+        """Select the last matching commit before the current row (wraps)."""
+        rows = self._match_rows()
+        if not rows:
+            return
+        current = self._list_widget.currentRow()
+        target = next((r for r in reversed(rows) if r < current), rows[-1])
+        self._select_match(target)
 
     def _run_filter_with_diff(self):
         """Debounced diff search."""
@@ -294,6 +344,7 @@ class CommitFilterController(QObject):
 
             self._commit_filter_status_label.setVisible(False)
             self._update_commit_counts()
+            self._update_nav_buttons()
             self._list_widget.viewport().update()
 
     def _update_commit_counts(self):
