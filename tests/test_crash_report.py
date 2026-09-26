@@ -12,12 +12,14 @@ from urllib.parse import parse_qs, urlparse
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 try:
+    from PySide6.QtCore import QSettings
     from PySide6.QtWidgets import QApplication
     HAS_PYSIDE = True
 except ImportError:
     HAS_PYSIDE = False
 
 if HAS_PYSIDE:
+    from lib.app_window.helpers import mono_font
     from lib.crash_report import (
         GITHUB_NEW_ISSUE_URL,
         CrashDialog,
@@ -157,6 +159,16 @@ class TestCrashDialog(unittest.TestCase):
         self.assertIn("crashed unexpectedly", dialog.message_label.text())
         self.assertIn("report this as a bug on GitHub",
                       dialog.message_label.text())
+
+    def test_text_area_uses_main_window_font(self):
+        settings = QSettings("shyjun", "GitInteractiveRebase")
+        expected = mono_font(
+            int(settings.value("font_size", 10)),
+            family=settings.value("font_family", None))
+        dialog = CrashDialog(self.report)
+        font = dialog.text_area.font()
+        self.assertEqual(font.family(), expected.family())
+        self.assertEqual(font.pointSize(), expected.pointSize())
 
     def test_copy_to_clipboard_contains_traceback(self):
         dialog = CrashDialog(self.report)

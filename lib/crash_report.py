@@ -20,6 +20,7 @@ from urllib.parse import urlencode
 
 from PySide6.QtCore import (
     QObject,
+    QSettings,
     Signal,
     Slot,
 )
@@ -43,6 +44,18 @@ CRASH_MESSAGE = (
     "Please report this as a bug on GitHub. The traceback below can help "
     "identify the problem."
 )
+
+
+def _main_window_font():
+    """The same monospace font (family + size) the main window uses."""
+    try:
+        settings = QSettings("shyjun", "GitInteractiveRebase")
+        size = int(settings.value("font_size", 10))
+        family = settings.value("font_family", None)
+        from lib.app_window.helpers import mono_font
+        return mono_font(size, family=family)
+    except Exception:
+        return QFontDatabase.systemFont(QFontDatabase.FixedFont)
 
 
 def _tool_version():
@@ -108,8 +121,7 @@ class CrashDialog(QDialog):
         self.text_area = QPlainTextEdit()
         self.text_area.setPlainText(report)
         self.text_area.setReadOnly(True)
-        self.text_area.setFont(
-            QFontDatabase.systemFont(QFontDatabase.FixedFont))
+        self.text_area.setFont(_main_window_font())
         layout.addWidget(self.text_area, 1)
 
         self.copy_button = QPushButton("Copy to Clipboard")
