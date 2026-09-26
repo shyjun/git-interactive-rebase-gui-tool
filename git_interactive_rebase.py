@@ -17,6 +17,7 @@ import os
 import time
 from datetime import datetime
 from lib.app_window.helpers import _log, set_verbose
+from lib.crash_report import install_excepthook
 
 from PySide6.QtWidgets import (
     QApplication,
@@ -64,6 +65,10 @@ import shutil
 
 
 def main():
+    # Last-resort safety net: unexpected/unhandled exceptions show a crash
+    # dialog with the traceback. Expected errors keep their try/except.
+    install_excepthook()
+
     # Print a native traceback if a native fault ever occurs (silent otherwise).
     faulthandler.enable()
 
