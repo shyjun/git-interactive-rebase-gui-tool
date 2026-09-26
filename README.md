@@ -61,7 +61,7 @@ A Python-based Git Interactive Rebase GUI tool to visually manage commit history
 ### 🔍 Discovery & Navigation
 
 * **Live search & filter**: Instantly find commits while you type.
-* **Advanced commit filtering**: Search by **SHA** (short, partial, or full 40-character), **commit message**, **filenames**, or **diff content** (with a per-keystroke debounce and a ≥3 character hint), plus **Match Case**, **Whole Word**, and **Display Only Matching** search options (matching commits are bolded). The **Whole Word** option always starts off on each app launch.
+* **Advanced commit filtering**: Search by **SHA** (short, partial, or full 40-character), **commit message**, **filenames**, or **diff content** (with a per-keystroke debounce and a ≥3 character hint), plus **Match Case**, **Whole Word**, and **Display Only Matching** search options (matching commits are bolded). The **Whole Word** option always starts off on each app launch. Use the **`<` / `>`** buttons next to the search bar to jump to the previous / next matching commit (wraps around).
 * **Search inside diffs**: Press **Ctrl+F** to search within the currently displayed diff, with match-case, whole-word, and next/previous navigation.
 * **File-wise diff viewer**: Browse commit changes file by file for easier review (renames shown as one `old => new` row).
 * **Consolidated Diff**: Set a start commit, then diff any range of history (or from HEAD down to any commit) in one combined view.

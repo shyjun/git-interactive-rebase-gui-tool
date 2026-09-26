@@ -171,7 +171,7 @@ The main window displays your commit history in an interactive list with action 
 
 ![Main Interface](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/main-interface.webp)
 
-**Description:** The main window shows the commit list with SHA, message, and branch indicators. The details panel displays commit metadata (SHA, author, date, changed files). A **diff pane** is docked on the right side (marked in the screenshot above) — click any commit to view its diff there (added lines in green, removed lines in red, with line numbers), in either **Plain Diff** or **File-wise Diff** mode (see [10](#10-diff-viewer) and [11](#11-diff-pane)). The top toolbar includes search, the **Search Options** dropdown (Match Case / Whole Word / Display Only Matching), theme toggle, zoom controls, a **Git Status** button (main window only — runs `git status` and shows the output in a dialog with a Copy to Clipboard button), a **Repo** menu (View PR Diff, View a Commit, Cherry-pick 1 Commit, Browse Branch, Browse File Log, Browse Log of a Commit, Browse Reflog, Browse Stashes, Find Merge-base), and reset options.
+**Description:** The main window shows the commit list with SHA, message, and branch indicators. The details panel displays commit metadata (SHA, author, date, changed files). A **diff pane** is docked on the right side (marked in the screenshot above) — click any commit to view its diff there (added lines in green, removed lines in red, with line numbers), in either **Plain Diff** or **File-wise Diff** mode (see [10](#10-diff-viewer) and [11](#11-diff-pane)). The top toolbar includes search (with **`<` / `>`** buttons to jump to the previous / next matching commit), the **Search Options** dropdown (Match Case / Whole Word / Display Only Matching), theme toggle, zoom controls, a **Git Status** button (main window only — runs `git status` and shows the output in a dialog with a Copy to Clipboard button), a **Repo** menu (View PR Diff, View a Commit, Cherry-pick 1 Commit, Browse Branch, Browse File Log, Browse Log of a Commit, Browse Reflog, Browse Stashes, Find Merge-base), and reset options.
 
 The status bar holds a **Configure** button whose **Show/Hide** menu lets you toggle which markers/columns and controls are visible — each choice is remembered across sessions:
 
@@ -341,6 +341,8 @@ Filtering supports the following modes (enable one or multiple at the same time 
 - **Match Case** → Match exact letter case
 - **Whole Word** → Match complete words only (always starts **off** on each launch)
 - **Display Only Matching** → Hide non-matching commits; matching commits are bolded when this is off
+
+**`<` / `>` buttons** (between the search bar and Search Options): jump to the previous / next matching commit. Navigation wraps around at the ends, skips hidden rows, and the buttons are disabled while there are no matches. Hold a button to keep stepping.
 
 This is especially useful when trying to locate where a change was introduced and you only remember a filename, symbol, function name, commit message, or code snippet.
 
