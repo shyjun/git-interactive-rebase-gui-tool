@@ -18,6 +18,7 @@ import time
 from datetime import datetime
 from lib.app_window.helpers import _log, set_verbose
 from lib.crash_report import install_excepthook
+from lib.unclean_exit import install_unclean_exit_detection
 
 from PySide6.QtWidgets import (
     QApplication,
@@ -65,6 +66,10 @@ import shutil
 
 
 def main():
+    # Detect a previous run that did not exit normally (lib/unclean_exit.py).
+    # Runs before any window exists; must never prevent startup.
+    install_unclean_exit_detection()
+
     # Last-resort safety net: unexpected/unhandled exceptions show a crash
     # dialog with the traceback. Expected errors keep their try/except.
     install_excepthook()
@@ -179,7 +184,9 @@ def main():
         tool_sha = "Unknown"
     _log(f"App started at {app_start_time} | Tool version: {tool_sha} | HEAD commit: {head_sha}")
 
-    app = QApplication(sys.argv)
+    # May already exist: install_unclean_exit_detection creates it for its
+    # previous-run notification dialog when needed.
+    app = QApplication.instance() or QApplication(sys.argv)
 
     # Global Ctrl+Q handler — closes the active window (any window)
     from PySide6.QtCore import QObject, QEvent
