@@ -59,10 +59,13 @@ _MARKER_SUFFIX = ".json"
 _START_TOLERANCE_SECONDS = 120
 
 NOTIFICATION_MESSAGE = (
-    "A previous run of Git Interactive Rebase GUI did not exit normally.\n\n"
+    "The previous run of Git Interactive Rebase GUI did not exit normally.\n\n"
     "The application may have crashed or been terminated before it could "
-    "shut down cleanly. The stale run(s) listed below have been cleaned up "
-    "and will not be reported again."
+    "shut down cleanly. The details below are from that run.\n\n"
+    "If you started the application from a terminal, please check the "
+    "terminal for any error messages, Python traceback, or crash/stack "
+    "dump. Including that information in a GitHub issue can help identify "
+    "the problem."
 )
 
 _current_marker_path = None
