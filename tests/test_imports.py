@@ -8,6 +8,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 MODULES_TO_TEST = [
     "lib.utils",
     "lib.widgets",
+    "lib.crash_report",
     "lib.commit_filter_controller",
     "lib.git_helpers",
     "lib.git_helpers.core",
