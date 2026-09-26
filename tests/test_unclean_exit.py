@@ -292,6 +292,8 @@ class TestNotificationDialog(_UncleanExitBase):
         self.assertEqual(dialog.open_button.text(), "Open GitHub Issues")
         self.assertEqual(dialog.noted_button.text(), "Noted. Continue")
         self.assertIn("did not exit normally", unclean_exit.NOTIFICATION_MESSAGE)
+        self.assertIn("check the terminal", unclean_exit.NOTIFICATION_MESSAGE)
+        self.assertIn("GitHub issue", unclean_exit.NOTIFICATION_MESSAGE)
         self.assertEqual(dialog.details_area.toPlainText(), "DETAILS-HERE")
         for button in (dialog.open_button, dialog.noted_button):
             self.assertEqual(button.property("class"), "dialog-btn")
