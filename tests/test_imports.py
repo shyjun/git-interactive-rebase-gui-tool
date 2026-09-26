@@ -9,6 +9,7 @@ MODULES_TO_TEST = [
     "lib.utils",
     "lib.widgets",
     "lib.crash_report",
+    "lib.unclean_exit",
     "lib.commit_filter_controller",
     "lib.git_helpers",
     "lib.git_helpers.core",
