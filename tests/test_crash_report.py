@@ -12,13 +12,14 @@ from urllib.parse import parse_qs, urlparse
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 try:
-    from PySide6.QtCore import QSettings
+    from PySide6.QtCore import QCoreApplication, QSettings
     from PySide6.QtWidgets import QApplication
     HAS_PYSIDE = True
 except ImportError:
     HAS_PYSIDE = False
 
 if HAS_PYSIDE:
+    import lib.crash_report as crash_report_mod
     from lib.app_window.helpers import mono_font
     from lib.crash_report import (
         GITHUB_NEW_ISSUE_URL,
@@ -65,6 +66,10 @@ class TestGlobalExceptionHandler(unittest.TestCase):
 
     def tearDown(self):
         sys.excepthook, threading.excepthook = self._prev_hooks
+        # Drop any still-queued crash notification: a later test pumping the
+        # event loop must never inherit a real dialog from this test class.
+        if QApplication.instance() is not None:
+            QCoreApplication.removePostedEvents(crash_report_mod._notifier)
 
     def test_unhandled_exception_reaches_global_handler(self):
         self.assertIsNot(sys.excepthook, sys.__excepthook__)
@@ -114,11 +119,19 @@ class TestGlobalExceptionHandler(unittest.TestCase):
                 worker = threading.Thread(target=boom, name="crash-test-worker")
                 worker.start()
                 worker.join(timeout=30)
-        # The dialog must never be shown directly from a worker thread.
-        show_dialog.assert_not_called()
-        self.assertIn("OSError: thread boom", err.getvalue())
-        self.assertIn("Source: background thread 'crash-test-worker'",
-                      err.getvalue())
+            # The dialog must never be shown directly from a worker thread.
+            show_dialog.assert_not_called()
+            self.assertIn("OSError: thread boom", err.getvalue())
+            self.assertIn("Source: background thread 'crash-test-worker'",
+                          err.getvalue())
+            # The notifier queues the dialog for the main thread. Deliver it
+            # while the patch is still active: draining the event loop here
+            # proves the marshaling works and guarantees a real dialog can
+            # never escape into a later test's processEvents().
+            app = QApplication.instance()
+            self.assertIsNotNone(app)
+            app.processEvents()
+            show_dialog.assert_called_once()
 
     def test_handled_exception_does_not_show_crash_dialog(self):
         with mock.patch("lib.crash_report.show_crash_dialog") as show_dialog:
