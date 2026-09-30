@@ -38,6 +38,7 @@ class RefineChangesDialog(QDialog):
         self.setWindowTitle(f"Refine/Edit Changes in File: {filepath}")
         self.setMinimumSize(920, 720)
         self.hunk_widgets = []
+        self.is_only_file = is_only_file
         self.result_action = None   # 'keep' or 'drop'
         self.kept_indices = []
 
@@ -215,10 +216,23 @@ class RefineChangesDialog(QDialog):
             return reply == QMessageBox.Yes
         return True
 
+    def _block_only_hunk_drop(self):
+        """Refuse a drop that would empty the commit (only file + only hunk)."""
+        QMessageBox.information(
+            self,
+            "Cannot Drop Hunk",
+            "This is the only hunk in the entire commit.\n\n"
+            "Dropping this hunk would effectively remove the whole commit. Please use the regular \"Drop Commit\" feature instead."
+        )
+
     def _on_drop(self):
+        kept = [i for i, hw in enumerate(self.hunk_widgets) if not hw.is_selected()]
+        if not kept and self.is_only_file:
+            self._block_only_hunk_drop()
+            return
         if not self._warn_single_hunk("Drop Selected"):
             return
-        self.kept_indices = [i for i, hw in enumerate(self.hunk_widgets) if not hw.is_selected()]
+        self.kept_indices = kept
         self.result_action = "keep"
         self.accept()
 
@@ -230,8 +244,13 @@ class RefineChangesDialog(QDialog):
         self.accept()
 
     def _on_drop_hunk(self, hunk_index):
-        # hunk_index is 1-based (HunkWidget label "Change 1"); drop just that
-        # hunk and keep every other one, regardless of the checkboxes.
+        # hunk_index is 1-based (HunkWidget label "Change 1")
+        if self.is_only_file and len(self.hunk_widgets) == 1:
+            # menu path already unticked this hunk before emitting
+            self.hunk_widgets[hunk_index - 1].set_selected(True)
+            self._block_only_hunk_drop()
+            return
+        # drop just that hunk, keep every other one, regardless of the checkboxes
         self.kept_indices = [i for i in range(len(self.hunk_widgets)) if i != hunk_index - 1]
         self.result_action = "keep"
         self.accept()
