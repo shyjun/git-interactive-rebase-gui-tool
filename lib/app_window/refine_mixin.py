@@ -54,6 +54,8 @@ class RefineMixin:
                 selected_file = dialog.get_selected_file()
                 if selected_file:
                     self.perform_refine_changes(sha, selected_file)
+                else:
+                    _log(f"Refine dialog accepted without a selected file ({sha}).")
             else:
                 _log(f"Cancelled refine {sha}.")
         except Exception as e:

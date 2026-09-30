@@ -1578,5 +1578,25 @@ class RefineFileSelectDialog(SplitCommitDialog):
         self._refine_file = filepath
         self.accept()
 
+    def accept(self):
+        """Refine works on one file: resolve the pick before closing.
+
+        The move button lands here too (wired to QDialog.accept in the base
+        class), so this is where the checkbox selection has to be recorded -
+        and refused with a hint whenever it is not exactly one file, keeping
+        the dialog open.
+        """
+        if self._refine_file is None:
+            checked = self._checked_filewise_files()
+            if len(checked) != 1:
+                QMessageBox.information(
+                    self, "Refine Changes",
+                    "Check exactly one file to refine.")
+                return
+            self._refine_file = checked[0]
+        super().accept()
+
     def get_selected_file(self):
-        return self._refine_file
+        if self._refine_file:
+            return self._refine_file
+        return super().get_selected_file()
