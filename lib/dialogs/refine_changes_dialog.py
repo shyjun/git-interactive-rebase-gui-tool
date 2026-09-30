@@ -229,6 +229,13 @@ class RefineChangesDialog(QDialog):
         self.result_action = "keep"
         self.accept()
 
+    def _on_drop_hunk(self, hunk_index):
+        # hunk_index is 1-based (HunkWidget label "Change 1"); drop just that
+        # hunk and keep every other one, regardless of the checkboxes.
+        self.kept_indices = [i for i in range(len(self.hunk_widgets)) if i != hunk_index - 1]
+        self.result_action = "keep"
+        self.accept()
+
     def _on_move(self):
         if not self._warn_single_hunk("Move Selected Changes to New Commit"):
             return
