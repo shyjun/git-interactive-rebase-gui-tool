@@ -605,9 +605,9 @@ Selectively refine changes/hunks inside a file within a commit.
 
 This is useful when a file accidentally contains mixed changes such as feature work, debug code, documentation updates, or unrelated edits.
 
-**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/refine-changes-in-file.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/refine-changes-in-file-1.webp`
 
-![Refine Changes in File](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/refine-changes-in-file.webp)
+![Refine Changes in File](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/refine-changes-in-file-1.webp)
 
 **Description:** Select one or more hunks using the checkboxes. Use **Select All / Deselect All** to quickly adjust selection. Depending on the action chosen, selected or unselected hunks are retained, removed, or moved.
 
@@ -656,9 +656,9 @@ Useful when a change accidentally landed in the wrong commit. Move it out, reord
 
 Edit a selected hunk using a lightweight patch editor.
 
-**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/edit-hunk.webp`
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/refine-changes-in-file-2.webp`
 
-![Edit Hunk](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/edit-hunk.webp)
+![Edit Hunk](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/refine-changes-in-file-2.webp)
 
 **Description:** Right-click a hunk and choose **"Edit Hunk"** to manually modify the patch content before applying changes.
 
