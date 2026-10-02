@@ -405,7 +405,7 @@ def get_theme_stylesheet(theme_name):
             QMenu::item:disabled {
                 color: #666666;
             }
-            QTextEdit {
+            QTextEdit, QPlainTextEdit {
                 background-color: #1e1e1e;
                 color: #d4d4d4;
                 border: 1px solid #3c3c3c;
@@ -426,6 +426,22 @@ def get_theme_stylesheet(theme_name):
             }
             QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
                 height: 0px;
+            }
+            QScrollBar:horizontal {
+                background: #1e1e1e;
+                height: 12px;
+                margin: 0px;
+            }
+            QScrollBar::handle:horizontal {
+                background: #37373d;
+                min-width: 20px;
+                border-radius: 6px;
+            }
+            QScrollBar::handle:horizontal:hover {
+                background: #4f4f4f;
+            }
+            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+                width: 0px;
             }
         """
     else:
@@ -509,7 +525,7 @@ def get_theme_stylesheet(theme_name):
             QMenu::item:disabled {
                 color: #aaaaaa;
             }
-            QTextEdit {
+            QTextEdit, QPlainTextEdit {
                 background-color: #ffffff;
                 color: #333;
                 border: 1px solid #ddd;
@@ -527,5 +543,18 @@ def get_theme_stylesheet(theme_name):
             }
             QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
                 height: 0px;
+            }
+            QScrollBar:horizontal {
+                background: #f5f5f7;
+                height: 12px;
+                margin: 0px;
+            }
+            QScrollBar::handle:horizontal {
+                background: #ccc;
+                min-width: 20px;
+                border-radius: 6px;
+            }
+            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+                width: 0px;
             }
         """
