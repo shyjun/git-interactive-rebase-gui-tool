@@ -251,8 +251,22 @@ class RescanMixin:
                 if answer != QMessageBox.Yes:
                     return
 
+            display_start = start_sha
+            if num_commits >= 2:
+                try:
+                    res = subprocess.run(
+                        ["git", "rev-list", "--reverse", f"{start_sha}..{end_sha}"],
+                        cwd=self.repo_path, capture_output=True, text=True,
+                        encoding="utf-8", errors="replace", check=True)
+                    lines = res.stdout.splitlines()
+                    if lines:
+                        display_start = lines[0].strip()
+                except Exception:
+                    pass
+
             dialog = BranchDiffDialog(self.repo_path, start_sha, end_sha, num_commits, diff_text, files,
-                                      file_stats, self.current_font_size, font_family=self.current_font_family, parent=self, title=title, description=description)
+                                      file_stats, self.current_font_size, font_family=self.current_font_family, parent=self, title=title, description=description,
+                                      display_start_sha=display_start)
             self._open_viewer(dialog)
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not fetch consolidated diff: {str(e)}")
