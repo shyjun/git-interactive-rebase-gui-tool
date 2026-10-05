@@ -30,7 +30,6 @@ from PySide6.QtWidgets import (
 )
 # pyrefly: ignore [missing-import]
 from PySide6.QtCore import (
-    QSettings,
     Qt,
 )
 # pyrefly: ignore [missing-import]
@@ -52,6 +51,7 @@ from lib.git_helpers import (
     get_unstaged_files,
 )
 from lib.app_window.helpers import mono_font
+from lib.settings_store import tool_settings
 from lib.widgets import (
     DiffHighlighter,
     DiffSearchBar,
@@ -84,7 +84,7 @@ class UnstagedChangesDialog(QDialog):
         self.managed_stash_exists = managed_stash_exists or bool(managed_stash_sha)
         self.viewer_mode = viewer_mode
         if font_size is None:
-            font_size = int(QSettings("shyjun", "GitInteractiveRebase").value("font_size", 10))
+            font_size = int(tool_settings().value("font_size", 10))
         self.font_size = font_size
         self.font_family = font_family
         self.setWindowTitle("Unstaged Changes Warning")
@@ -1528,7 +1528,7 @@ class StagedChangesDialog(QDialog):
         super().__init__(parent)
         self.repo_path = repo_path
         if font_size is None:
-            font_size = int(QSettings("shyjun", "GitInteractiveRebase").value("font_size", 10))
+            font_size = int(tool_settings().value("font_size", 10))
         self.font_size = font_size
         self.setWindowTitle("Handle Staged Changes")
         self.setMinimumWidth(600)

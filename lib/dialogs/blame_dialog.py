@@ -31,7 +31,6 @@ from PySide6.QtCore import (
     Qt,
     QTimer,
     QEvent,
-    QSettings,
 )
 # pyrefly: ignore [missing-import]
 from PySide6.QtGui import (
@@ -41,6 +40,7 @@ from PySide6.QtGui import (
 )
 
 from lib.app_window.helpers import mono_font, _log
+from lib.settings_store import tool_settings
 from lib.widgets import (
     BrowseDimOverlay,
     DiffHighlighter,
@@ -135,7 +135,7 @@ class BlameDialog(QDialog):
         _log(f"[blame] BlameDialog created: '{self.windowTitle()}', parent={type(parent).__name__ if parent else 'None'}")
 
         # Restore saved geometry
-        self._settings = QSettings("shyjun", "GitInteractiveRebase")
+        self._settings = tool_settings()
         geometry = self._settings.value("blame/geometry")
         if geometry:
             self.restoreGeometry(geometry)

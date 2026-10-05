@@ -1061,8 +1061,8 @@ class DiffFileAtRefDialog(QDialog):
 
     def _on_direct(self):
         """Run external diff tool (repo file vs target ref)."""
-        from PySide6.QtCore import QSettings
-        settings = QSettings("git-interactive-rebase-gui-tool", "config")
+        from lib.settings_store import tool_settings
+        settings = tool_settings()
         mode = settings.value("difftool/mode", "none")
         if mode == "none":
             QMessageBox.information(

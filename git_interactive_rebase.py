@@ -18,6 +18,7 @@ import time
 from datetime import datetime
 from lib.app_window.helpers import _log, set_verbose
 from lib.crash_report import install_excepthook
+from lib.settings_store import migrate_legacy_settings, tool_settings
 from lib.unclean_exit import install_unclean_exit_detection
 
 from PySide6.QtWidgets import (
@@ -27,7 +28,6 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import QIcon
 from PySide6.QtCore import (
     Qt,
-    QSettings,
     QTimer,
 )
 
@@ -66,6 +66,10 @@ import shutil
 
 
 def main():
+    # One-time: pull the old scattered .conf files into the one canonical
+    # store (lib/settings_store.py) before anything reads settings.
+    migrate_legacy_settings()
+
     # Detect a previous run that did not exit normally (lib/unclean_exit.py).
     # Runs before any window exists; must never prevent startup.
     install_unclean_exit_detection()
@@ -323,7 +327,7 @@ def main():
 
     # Apply global stylesheet before any dialog, so the startup unstaged-changes
     # dialog matches the themed look of the rest of the app.
-    theme_name = QSettings("git-interactive-rebase-gui-tool", "settings").value("theme", "light", type=str)
+    theme_name = tool_settings().value("theme", "light", type=str)
     QApplication.instance().setStyleSheet(get_theme_stylesheet(theme_name))
 
     # Check for unstaged changes (ignoring submodules as per design)
@@ -390,7 +394,7 @@ def main():
             startup_undo_sha = get_head_sha(repo_path)
             file_list = "\n".join(unstaged_files)
             default_msg = f"bulk commit (Number of modified files: {len(unstaged_files)})\n\nfiles:\n{file_list}"
-            _font_size = int(QSettings("shyjun", "GitInteractiveRebase").value("font_size", 10))
+            _font_size = int(tool_settings().value("font_size", 10))
             from lib.dialogs.commit_message_dialogs import NewCommitMessageDialog
             msg_dlg = NewCommitMessageDialog(
                 "Bulk Commit",

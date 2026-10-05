@@ -117,8 +117,8 @@ class MenusMixin:
         self.check_updates_action.setToolTip("Check for a newer version online.")
         self.check_updates_action.triggered.connect(lambda *_: self.handle_check_for_updates())
 
-        from PySide6.QtCore import QSettings
-        _settings = QSettings("git-interactive-rebase-gui-tool", "config")
+        from lib.settings_store import tool_settings
+        _settings = tool_settings()
         self.auto_check_updates_action = QAction("Check for updates at startup", self)
         self.auto_check_updates_action.setCheckable(True)
         self.auto_check_updates_action.setChecked(_settings.value("startup/auto_check_updates", True, type=bool))
@@ -153,8 +153,8 @@ class MenusMixin:
 
     def _on_auto_check_updates_toggled(self, checked):
         """Save the auto-check-for-updates preference."""
-        from PySide6.QtCore import QSettings
-        settings = QSettings("git-interactive-rebase-gui-tool", "config")
+        from lib.settings_store import tool_settings
+        settings = tool_settings()
         settings.setValue("startup/auto_check_updates", checked)
         _log(f"[startup_check] auto-check updates {'enabled' if checked else 'disabled'}")
 
@@ -251,10 +251,8 @@ class MenusMixin:
         )
         if reply != QMessageBox.Yes:
             return
-        from PySide6.QtCore import QSettings
-        QSettings("shyjun", "GitInteractiveRebase").clear()
-        QSettings("git-interactive-rebase-gui-tool", "config").clear()
-        QSettings("git-interactive-rebase-gui-tool", "settings").clear()
+        from lib.settings_store import clear_all_settings
+        clear_all_settings()
         from lib.app_window.helpers import _relaunch
         _relaunch()
 

@@ -157,8 +157,8 @@ class ConfigureDiffToolDialog(QDialog):
 
     def _load_settings(self):
         """Load saved difftool configuration from QSettings."""
-        from PySide6.QtCore import QSettings
-        settings = QSettings("git-interactive-rebase-gui-tool", "config")
+        from lib.settings_store import tool_settings
+        settings = tool_settings()
         mode = settings.value("difftool/mode", "none")
         command = settings.value("difftool/command", "")
         args = settings.value("difftool/args", "{file1} {file2}")
@@ -214,8 +214,8 @@ class ConfigureDiffToolDialog(QDialog):
 
     def _on_save(self):
         """Save the configuration and close."""
-        from PySide6.QtCore import QSettings
-        settings = QSettings("git-interactive-rebase-gui-tool", "config")
+        from lib.settings_store import tool_settings
+        settings = tool_settings()
 
         if self.none_radio.isChecked():
             settings.setValue("difftool/mode", "none")
@@ -239,8 +239,8 @@ class ConfigureDiffToolDialog(QDialog):
     @staticmethod
     def get_difftool_command(repo_path):
         """Read the saved difftool configuration and return (command_list, is_direct)."""
-        from PySide6.QtCore import QSettings
-        settings = QSettings("git-interactive-rebase-gui-tool", "config")
+        from lib.settings_store import tool_settings
+        settings = tool_settings()
         mode = settings.value("difftool/mode", "none")
 
         if mode == "custom":

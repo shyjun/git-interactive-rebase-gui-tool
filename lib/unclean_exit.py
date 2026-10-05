@@ -29,7 +29,6 @@ import tempfile
 import time
 import webbrowser
 
-from PySide6.QtCore import QSettings
 from PySide6.QtWidgets import (
     QApplication,
     QDialog,
@@ -46,6 +45,7 @@ from lib.crash_report import (
     _tool_version,
 )
 from lib.logger import _log
+from lib.settings_store import tool_settings
 
 # Set to False to disable the whole feature: no scan, no marker creation,
 # no cleanup, no log messages, no notification.
@@ -348,9 +348,7 @@ def _apply_tool_theme():
         app = QApplication.instance()
         if app is None:
             return
-        theme_name = QSettings(
-            "git-interactive-rebase-gui-tool", "settings"
-        ).value("theme", "light", type=str)
+        theme_name = tool_settings().value("theme", "light", type=str)
         from lib.app_window.helpers import get_theme_stylesheet
         app.setStyleSheet(get_theme_stylesheet(theme_name))
     except Exception:

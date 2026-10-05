@@ -393,9 +393,9 @@ def run_difftool_direct(repo_path, source_sha, source_file, dest_sha, dest_file,
     import os
     import shlex
     import tempfile
-    from PySide6.QtCore import QSettings
+    from lib.settings_store import tool_settings
     try:
-        settings = QSettings("git-interactive-rebase-gui-tool", "config")
+        settings = tool_settings()
         mode = settings.value("difftool/mode", "none")
         custom_cmd = settings.value("difftool/command", "") if mode == "custom" else ""
 
@@ -441,8 +441,8 @@ def run_configured_difftool(repo_path, source_sha, source_file, dest_sha, dest_f
 
     Returns (ok, message) where message is an error description on failure.
     """
-    from PySide6.QtCore import QSettings
-    settings = QSettings("git-interactive-rebase-gui-tool", "config")
+    from lib.settings_store import tool_settings
+    settings = tool_settings()
     mode = settings.value("difftool/mode", "none")
     command = settings.value("difftool/command", "")
     _log(f"[configured-difftool] mode={mode}, command={command!r}")

@@ -43,7 +43,6 @@ from PySide6.QtCore import (
     QEvent,
     QObject,
     QRect,
-    QSettings,
     QSize,
     Qt,
     QTimer,
@@ -92,6 +91,7 @@ from lib.git_helpers import (
 )
 from lib.utils import get_theme_colors
 from lib.app_window.helpers import PLAIN_DIFF_LINE_CAP, clean_binary_diff_lines, _log
+from lib.settings_store import tool_settings
 from lib.widgets import (
     BrowseDimOverlay,
     DiffHighlighter,
@@ -1826,7 +1826,7 @@ class UnstagedDiffDialog(BranchDiffDialog):
             if main_win and hasattr(main_win, 'current_theme_colors'):
                 colors = main_win.current_theme_colors
             else:
-                theme_name = QSettings("git-interactive-rebase-gui-tool", "settings").value("theme", "light", type=str)
+                theme_name = tool_settings().value("theme", "light", type=str)
                 colors = get_theme_colors(theme_name)
 
         super().__init__(
@@ -1898,7 +1898,7 @@ class StagedDiffDialog(BranchDiffDialog):
             if main_win and hasattr(main_win, 'current_theme_colors'):
                 colors = main_win.current_theme_colors
             else:
-                theme_name = QSettings("git-interactive-rebase-gui-tool", "settings").value("theme", "light", type=str)
+                theme_name = tool_settings().value("theme", "light", type=str)
                 colors = get_theme_colors(theme_name)
 
         super().__init__(

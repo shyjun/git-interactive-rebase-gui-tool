@@ -3,7 +3,6 @@ import subprocess
 import time
 
 from PySide6.QtCore import (
-    QSettings,
     Qt,
     QTimer,
 )
@@ -21,6 +20,7 @@ from lib.git_helpers import (
     get_head_sha,
     has_uncommitted_changes,
 )
+from lib.settings_store import tool_settings
 from lib.widgets import BrowseDimOverlay
 from lib.app_window.helpers import highlight_button_temporarily, _log, _wait_worker
 
@@ -107,7 +107,7 @@ class InitMixin:
         # Global application icon is handled in the main entry point
 
         # Persistence
-        self.settings = QSettings("shyjun", "GitInteractiveRebase")
+        self.settings = tool_settings()
         # Window-type specific key prefix so main and browse windows don't
         # clobber each other's saved size/position across sessions.
         self.settings_scope = "browse" if self.browse_mode else "main"
@@ -174,8 +174,7 @@ class InitMixin:
             QTimer.singleShot(0, self._notify_viewer_mode)
 
         # Check for updates on startup if enabled
-        from PySide6.QtCore import QSettings as _QS
-        _s = _QS("git-interactive-rebase-gui-tool", "config")
+        _s = tool_settings()
         if _s.value("startup/auto_check_updates", True, type=bool):
             QTimer.singleShot(500, self._check_updates_on_startup)
         else:

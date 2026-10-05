@@ -20,7 +20,6 @@ from urllib.parse import urlencode
 
 from PySide6.QtCore import (
     QObject,
-    QSettings,
     Signal,
     Slot,
 )
@@ -34,6 +33,8 @@ from PySide6.QtWidgets import (
     QPushButton,
     QVBoxLayout,
 )
+
+from lib.settings_store import tool_settings
 
 GITHUB_NEW_ISSUE_URL = (
     "https://github.com/shyjun/git-interactive-rebase-gui-tool/issues/new"
@@ -49,7 +50,7 @@ CRASH_MESSAGE = (
 def _main_window_font():
     """The same monospace font (family + size) the main window uses."""
     try:
-        settings = QSettings("shyjun", "GitInteractiveRebase")
+        settings = tool_settings()
         size = int(settings.value("font_size", 10))
         family = settings.value("font_family", None)
         from lib.app_window.helpers import mono_font
