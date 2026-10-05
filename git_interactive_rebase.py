@@ -162,6 +162,7 @@ def main():
     # One-time: pull the old scattered .conf files into the one canonical
     # store (lib/settings_store.py) before anything reads settings.
     migrate_legacy_settings()
+    _log(f"[settings] config file: {tool_settings().fileName()}")
 
     # Detect a previous run that did not exit normally (lib/unclean_exit.py).
     # Runs before any window exists; must never prevent startup.
