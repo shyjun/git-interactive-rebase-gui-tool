@@ -66,14 +66,6 @@ import shutil
 
 
 def main():
-    # One-time: pull the old scattered .conf files into the one canonical
-    # store (lib/settings_store.py) before anything reads settings.
-    migrate_legacy_settings()
-
-    # Detect a previous run that did not exit normally (lib/unclean_exit.py).
-    # Runs before any window exists; must never prevent startup.
-    install_unclean_exit_detection()
-
     # Last-resort safety net: unexpected/unhandled exceptions show a crash
     # dialog with the traceback. Expected errors keep their try/except.
     install_excepthook()
@@ -159,6 +151,21 @@ def main():
             )
             _log(f"Tool started in background (PID {proc.pid})")
             sys.exit(0)
+
+    # The background-launch block above exits the launcher process here, so
+    # from this point on this process IS the tool (the forked child, or a
+    # non-TTY run that never forked). Settings migration and the unclean-exit
+    # marker belong to the tool alone - the launcher would only create a
+    # marker to delete it again on its way out, which is pure noise (and a
+    # bogus "Previous Run" dialog if the launcher is ever killed in between).
+
+    # One-time: pull the old scattered .conf files into the one canonical
+    # store (lib/settings_store.py) before anything reads settings.
+    migrate_legacy_settings()
+
+    # Detect a previous run that did not exit normally (lib/unclean_exit.py).
+    # Runs before any window exists; must never prevent startup.
+    install_unclean_exit_detection()
 
     # Ignore SIGHUP so the app survives terminal close when launched with & (not available on Windows)
     import signal
