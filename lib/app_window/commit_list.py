@@ -1,5 +1,7 @@
 from PySide6.QtCore import (
     QEvent,
+    QPoint,
+    QRect,
     Qt,
     QTimer,
 )
@@ -11,7 +13,8 @@ from PySide6.QtWidgets import (
     QStyle,
     QStyleOptionViewItem,
 )
-from lib.app_window.helpers import _log
+from lib.app_window.helpers import _log, FULL_SHA_ROLE, SHA_RECT_ROLE
+from lib.widgets import ShaToast
 
 
 class CommitListWidget(QListWidget):
@@ -34,6 +37,11 @@ class CommitListWidget(QListWidget):
         self._resize_start_x = 0
         self._resize_start_width = 0
         self._cursor_override_active = False
+        # SHA pill click tracking
+        self._sha_press_pos = None      # QPoint of the LeftButton press
+        self._sha_press_index = None    # model index at press
+        # One toast per widget instance, re-used across clicks
+        self._sha_toast = ShaToast(self.viewport())
 
     def _get_text_rect_right(self):
         """Return text_rect.right() matching the delegate's coordinate origin.
@@ -159,6 +167,9 @@ class CommitListWidget(QListWidget):
                     self._cursor_override_active = True
                 event.accept()
                 return True
+            # Track press for SHA pill hit-test (done on release)
+            self._sha_press_pos = QPoint(int(event.position().x()), int(event.position().y()))
+            self._sha_press_index = self.indexAt(event.position().toPoint())
 
         elif etype == QEvent.MouseButtonRelease:
             if self._resizing:
@@ -167,6 +178,29 @@ class CommitListWidget(QListWidget):
                 self._restore_cursor()
                 event.accept()
                 return True
+            # SHA pill hit-test: only fire when the mouse hasn't moved (not a drag)
+            if (event.button() == Qt.LeftButton
+                    and self._sha_press_pos is not None
+                    and self._sha_press_index is not None
+                    and self._sha_press_index.isValid()):
+                rel_pos = QPoint(int(event.position().x()), int(event.position().y()))
+                dx = rel_pos.x() - self._sha_press_pos.x()
+                dy = rel_pos.y() - self._sha_press_pos.y()
+                if dx * dx + dy * dy <= 16:   # 4px drag guard
+                    idx = self._sha_press_index
+                    pill_rect = idx.data(SHA_RECT_ROLE)
+                    item_rect = self.visualRect(idx)
+                    if pill_rect is not None and not pill_rect.isNull():
+                        # pill_rect is row-local; convert to viewport coords
+                        global_pill = pill_rect.translated(item_rect.topLeft())
+                        if global_pill.contains(rel_pos):
+                            full_sha = idx.data(FULL_SHA_ROLE) or ""
+                            if full_sha:
+                                QApplication.clipboard().setText(full_sha)
+                                global_cursor_pos = self.viewport().mapToGlobal(rel_pos)
+                                self._sha_toast.show_below_cursor(global_cursor_pos)
+            self._sha_press_pos = None
+            self._sha_press_index = None
 
         elif etype in (QEvent.FocusOut, QEvent.WindowDeactivate):
             # Window/widget lost focus (e.g. a QMessageBox appeared while dragging

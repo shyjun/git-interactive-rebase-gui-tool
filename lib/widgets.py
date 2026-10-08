@@ -5,6 +5,7 @@ from PySide6.QtCore import (
     QEvent,
     QObject,
     QPoint,
+    QRectF,
     QRegularExpression,
     QRect,
     QSize,
@@ -71,6 +72,139 @@ class BrowseDimOverlay(QWidget):
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.fillRect(self.rect(), self._color)
+        painter.end()
+
+
+class ShaToast(QWidget):
+    """Lightweight, frameless toast that confirms a SHA was copied to clipboard.
+
+    Usage::
+
+        toast = ShaToast(list_widget.viewport())
+        toast.show_near(global_rect_of_sha_pill)
+
+    The toast auto-hides after ~1.4 s.  It never steals focus and does not
+    block any mouse interaction below it.
+    """
+
+    _HIDE_MS = 1400   # ms before auto-dismiss
+    _GAP_PX  = 4      # gap between pill bottom and toast top
+
+    def __init__(self, parent_viewport):
+        super().__init__(parent_viewport, Qt.ToolTip)
+        self.setAttribute(Qt.WA_TranslucentBackground, True)
+        self.setAttribute(Qt.WA_ShowWithoutActivating, True)
+        self.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+        self.setWindowFlags(
+            Qt.ToolTip
+            | Qt.FramelessWindowHint
+            | Qt.WindowStaysOnTopHint
+            | Qt.NoDropShadowWindowHint
+        )
+        self._timer = QTimer(self)
+        self._timer.setSingleShot(True)
+        self._timer.timeout.connect(self.hide)
+        self._text = "Copied!"
+        self._radius = 6
+        self._pad_h = 10
+        self._pad_v = 5
+        self._recalc_size()
+
+    # ------------------------------------------------------------------
+    def _is_dark(self):
+        app = QApplication.instance()
+        if app is None:
+            return True
+        # A bright window text on a dark background = dark theme
+        palette = app.palette()
+        bg = palette.color(QPalette.Window)
+        return bg.lightness() < 128
+
+    def _recalc_size(self):
+        fm = self.fontMetrics()
+        tw = fm.horizontalAdvance(self._text)
+        th = fm.height()
+        self.setFixedSize(
+            tw + self._pad_h * 2,
+            th + self._pad_v * 2,
+        )
+
+    # ------------------------------------------------------------------
+    def show_below_cursor(self, global_cursor_pos: QPoint):
+        """Position the toast centered horizontally below *global_cursor_pos*."""
+        self._recalc_size()
+        vp = self.parent()  # the list viewport
+        cursor_gap_y = 16    # px gap below cursor tip
+        toast_x = global_cursor_pos.x() - self.width() // 2
+        toast_y = global_cursor_pos.y() + cursor_gap_y
+
+        # Convert global → parent (viewport) local coords
+        if vp is not None:
+            origin = vp.mapFromGlobal(QPoint(toast_x, toast_y))
+            toast_x = origin.x()
+            toast_y = origin.y()
+
+            # Clamp so the toast stays within the viewport
+            vp_rect = vp.rect()
+            toast_x = max(0, min(toast_x, vp_rect.right() - self.width()))
+            if toast_y + self.height() > vp_rect.bottom():
+                # Not enough room below — show above cursor instead
+                cursor_local_y = vp.mapFromGlobal(global_cursor_pos).y()
+                toast_y = max(0, cursor_local_y - self.height() - 4)
+
+        self.move(toast_x, toast_y)
+        self.show()
+        self.raise_()
+        self._timer.stop()
+        self._timer.start(self._HIDE_MS)
+
+    def show_near(self, global_pill_rect: QRect):
+        """Position the toast just below *global_pill_rect* (in global coords)."""
+        self._recalc_size()
+        vp = self.parent()  # the list viewport
+        toast_x = global_pill_rect.left()
+        toast_y = global_pill_rect.bottom() + self._GAP_PX
+
+        # Convert global → parent (viewport) local coords
+        if vp is not None:
+            origin = vp.mapFromGlobal(QPoint(toast_x, toast_y))
+            toast_x = origin.x()
+            toast_y = origin.y()
+
+            # Clamp so the toast stays within the viewport
+            vp_rect = vp.rect()
+            toast_x = max(0, min(toast_x, vp_rect.right() - self.width()))
+            if toast_y + self.height() > vp_rect.bottom():
+                # Not enough room below — show above the pill instead
+                pill_local_top = vp.mapFromGlobal(
+                    QPoint(global_pill_rect.left(), global_pill_rect.top())
+                ).y()
+                toast_y = max(0, pill_local_top - self.height() - self._GAP_PX)
+
+        self.move(toast_x, toast_y)
+        self.show()
+        self.raise_()
+        self._timer.stop()
+        self._timer.start(self._HIDE_MS)
+
+    # ------------------------------------------------------------------
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        dark = self._is_dark()
+        bg   = QColor("#3a3a3a") if dark else QColor("#e8e8e8")
+        fg   = QColor("#dddddd") if dark else QColor("#333333")
+
+        # Background pill
+        painter.setBrush(bg)
+        painter.setPen(Qt.NoPen)
+        painter.drawRoundedRect(QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5),
+                                self._radius, self._radius)
+
+        # Text
+        painter.setPen(fg)
+        painter.drawText(self.rect(), Qt.AlignCenter, self._text)
         painter.end()
 
 
