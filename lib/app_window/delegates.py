@@ -288,8 +288,12 @@ class CommitItemDelegate(QStyledItemDelegate):
                 self._bold_font.setBold(True)
             painter.setFont(self._bold_font)
 
+        display_main = main_text
+        if sha and main_text.startswith(sha):
+            display_main = main_text[len(sha):].lstrip()
+
         main_rect = text_rect.adjusted(left_boundary - text_rect.left(), 0, right_boundary - text_rect.right() - 8, 0)
-        elided_main = painter.fontMetrics().elidedText(main_text, Qt.ElideRight, main_rect.width())
+        elided_main = painter.fontMetrics().elidedText(display_main, Qt.ElideRight, main_rect.width())
         painter.drawText(main_rect, Qt.AlignLeft | Qt.AlignVCenter, elided_main)
         painter.restore()
 
