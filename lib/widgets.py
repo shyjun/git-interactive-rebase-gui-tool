@@ -91,16 +91,10 @@ class ShaToast(QWidget):
     _GAP_PX  = 4      # gap between pill bottom and toast top
 
     def __init__(self, parent_viewport):
-        super().__init__(parent_viewport, Qt.ToolTip)
+        super().__init__(parent_viewport)
         self.setAttribute(Qt.WA_TranslucentBackground, True)
         self.setAttribute(Qt.WA_ShowWithoutActivating, True)
         self.setAttribute(Qt.WA_TransparentForMouseEvents, True)
-        self.setWindowFlags(
-            Qt.ToolTip
-            | Qt.FramelessWindowHint
-            | Qt.WindowStaysOnTopHint
-            | Qt.NoDropShadowWindowHint
-        )
         self._timer = QTimer(self)
         self._timer.setSingleShot(True)
         self._timer.timeout.connect(self.hide)
@@ -109,6 +103,7 @@ class ShaToast(QWidget):
         self._pad_h = 10
         self._pad_v = 5
         self._recalc_size()
+        self.hide()
 
     # ------------------------------------------------------------------
     def _is_dark(self):
@@ -130,27 +125,22 @@ class ShaToast(QWidget):
         )
 
     # ------------------------------------------------------------------
-    def show_below_cursor(self, global_cursor_pos: QPoint):
-        """Position the toast centered horizontally below *global_cursor_pos*."""
+    def show_below_pill(self, vp_pill_rect: QRect):
+        """Position the toast centered horizontally below *vp_pill_rect* (in viewport coords)."""
         self._recalc_size()
         vp = self.parent()  # the list viewport
-        cursor_gap_y = 16    # px gap below cursor tip
-        toast_x = global_cursor_pos.x() - self.width() // 2
-        toast_y = global_cursor_pos.y() + cursor_gap_y
 
-        # Convert global → parent (viewport) local coords
+        pill_center_x = vp_pill_rect.left() + vp_pill_rect.width() // 2
+        toast_x = pill_center_x - self.width() // 2
+        toast_y = vp_pill_rect.bottom() + self._GAP_PX
+
         if vp is not None:
-            origin = vp.mapFromGlobal(QPoint(toast_x, toast_y))
-            toast_x = origin.x()
-            toast_y = origin.y()
-
-            # Clamp so the toast stays within the viewport
             vp_rect = vp.rect()
+            # Clamp so the toast stays within viewport horizontal bounds
             toast_x = max(0, min(toast_x, vp_rect.right() - self.width()))
             if toast_y + self.height() > vp_rect.bottom():
-                # Not enough room below — show above cursor instead
-                cursor_local_y = vp.mapFromGlobal(global_cursor_pos).y()
-                toast_y = max(0, cursor_local_y - self.height() - 4)
+                # Not enough room below — show above the pill instead
+                toast_y = max(0, vp_pill_rect.top() - self.height() - self._GAP_PX)
 
         self.move(toast_x, toast_y)
         self.show()
@@ -159,33 +149,12 @@ class ShaToast(QWidget):
         self._timer.start(self._HIDE_MS)
 
     def show_near(self, global_pill_rect: QRect):
-        """Position the toast just below *global_pill_rect* (in global coords)."""
-        self._recalc_size()
-        vp = self.parent()  # the list viewport
-        toast_x = global_pill_rect.left()
-        toast_y = global_pill_rect.bottom() + self._GAP_PX
-
-        # Convert global → parent (viewport) local coords
+        """Backward-compatible helper taking global coords."""
+        vp = self.parent()
         if vp is not None:
-            origin = vp.mapFromGlobal(QPoint(toast_x, toast_y))
-            toast_x = origin.x()
-            toast_y = origin.y()
-
-            # Clamp so the toast stays within the viewport
-            vp_rect = vp.rect()
-            toast_x = max(0, min(toast_x, vp_rect.right() - self.width()))
-            if toast_y + self.height() > vp_rect.bottom():
-                # Not enough room below — show above the pill instead
-                pill_local_top = vp.mapFromGlobal(
-                    QPoint(global_pill_rect.left(), global_pill_rect.top())
-                ).y()
-                toast_y = max(0, pill_local_top - self.height() - self._GAP_PX)
-
-        self.move(toast_x, toast_y)
-        self.show()
-        self.raise_()
-        self._timer.stop()
-        self._timer.start(self._HIDE_MS)
+            origin = vp.mapFromGlobal(global_pill_rect.topLeft())
+            vp_rect = QRect(origin.x(), origin.y(), global_pill_rect.width(), global_pill_rect.height())
+            self.show_below_pill(vp_rect)
 
     # ------------------------------------------------------------------
     def paintEvent(self, event):

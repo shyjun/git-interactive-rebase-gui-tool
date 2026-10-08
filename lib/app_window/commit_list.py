@@ -197,8 +197,7 @@ class CommitListWidget(QListWidget):
                             full_sha = idx.data(FULL_SHA_ROLE) or ""
                             if full_sha:
                                 QApplication.clipboard().setText(full_sha)
-                                global_cursor_pos = self.viewport().mapToGlobal(rel_pos)
-                                self._sha_toast.show_below_cursor(global_cursor_pos)
+                                self._sha_toast.show_below_pill(global_pill)
             self._sha_press_pos = None
             self._sha_press_index = None
 
