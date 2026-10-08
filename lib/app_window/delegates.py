@@ -143,76 +143,82 @@ class CommitItemDelegate(QStyledItemDelegate):
         painter.setFont(opt.font)
         fm_normal = painter.fontMetrics()
 
-        # --- SHA pill ---
-        # Draw the short SHA as a subtle monospace pill between badges and message.
-        # Build a smaller monospace font (90% of item height, capped at ~11px).
-        pill_px = max(8, int(opt.rect.height() * 0.52))
-        if not hasattr(self, '_sha_font') or getattr(self, '_sha_font_px', 0) != pill_px:
-            from PySide6.QtGui import QFontDatabase
-            sha_fam = "Monospace"
-            # prefer platform mono families
-            avail = QFontDatabase.families()
-            for cand in ("Cascadia Code", "Consolas", "Menlo", "Monaco", "Monospace"):
-                if cand in avail:
-                    sha_fam = cand
-                    break
-            self._sha_font = QFont(sha_fam)
-            self._sha_font.setStyleHint(QFont.StyleHint.Monospace)
-            self._sha_font.setPixelSize(pill_px)
-            self._sha_font_px = pill_px
-        sha_font = self._sha_font
+        is_load_more = (index.data(Qt.UserRole + 9) == "load_more")
+        is_commit = not is_load_more and bool(sha) and all(c in "0123456789abcdefABCDEF" for c in sha)
 
-        painter.setFont(sha_font)
-        fm_sha = painter.fontMetrics()
-        sha_text = sha  # 7-char short SHA already extracted above
-        sha_text_w = fm_sha.horizontalAdvance(sha_text)
-        pad_h, pad_v = 5, 2
-        pill_w = sha_text_w + pad_h * 2
-        pill_h = fm_sha.height() + pad_v * 2
-        pill_top = text_rect.top() + (text_rect.height() - pill_h) // 2
-        pill_rect = QRect(current_x, pill_top, pill_w, pill_h)
+        if is_commit:
+            # --- SHA pill ---
+            # Draw the short SHA as a subtle monospace pill between badges and message.
+            # Build a smaller monospace font (90% of item height, capped at ~11px).
+            pill_px = max(8, int(opt.rect.height() * 0.52))
+            if not hasattr(self, '_sha_font') or getattr(self, '_sha_font_px', 0) != pill_px:
+                from PySide6.QtGui import QFontDatabase
+                sha_fam = "Monospace"
+                # prefer platform mono families
+                avail = QFontDatabase.families()
+                for cand in ("Cascadia Code", "Consolas", "Menlo", "Monaco", "Monospace"):
+                    if cand in avail:
+                        sha_fam = cand
+                        break
+                self._sha_font = QFont(sha_fam)
+                self._sha_font.setStyleHint(QFont.StyleHint.Monospace)
+                self._sha_font.setPixelSize(pill_px)
+                self._sha_font_px = pill_px
+            sha_font = self._sha_font
 
-        # Background fill (restrained, works for both light and dark themes)
-        is_selected = bool(opt.state & QStyle.State_Selected)
-        painter.save()
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        if is_selected:
-            pill_bg = QColor(255, 255, 255, 55)
-        elif is_dark:
-            pill_bg = QColor(180, 180, 180, 38)
+            painter.setFont(sha_font)
+            fm_sha = painter.fontMetrics()
+            sha_text = sha  # 7-char short SHA already extracted above
+            sha_text_w = fm_sha.horizontalAdvance(sha_text)
+            pad_h, pad_v = 5, 2
+            pill_w = sha_text_w + pad_h * 2
+            pill_h = fm_sha.height() + pad_v * 2
+            pill_top = text_rect.top() + (text_rect.height() - pill_h) // 2
+            pill_rect = QRect(current_x, pill_top, pill_w, pill_h)
+
+            # Background fill (restrained, works for both light and dark themes)
+            is_selected = bool(opt.state & QStyle.State_Selected)
+            painter.save()
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            if is_selected:
+                pill_bg = QColor(255, 255, 255, 55)
+            elif is_dark:
+                pill_bg = QColor(180, 180, 180, 38)
+            else:
+                pill_bg = QColor(80, 80, 80, 30)
+            painter.setBrush(pill_bg)
+            painter.setPen(Qt.NoPen)
+            painter.drawRoundedRect(QRectF(pill_rect).adjusted(0.5, 0.5, -0.5, -0.5), 3.0, 3.0)
+
+            # SHA text
+            if is_selected:
+                sha_text_color = opt.palette.highlightedText().color()
+                sha_text_color.setAlpha(200)
+            elif is_dark:
+                sha_text_color = QColor(180, 180, 180)
+            else:
+                sha_text_color = QColor(100, 100, 100)
+            painter.setPen(sha_text_color)
+            painter.setFont(sha_font)
+            painter.drawText(
+                QRect(current_x + pad_h, pill_top, sha_text_w, pill_h),
+                Qt.AlignLeft | Qt.AlignVCenter,
+                sha_text,
+            )
+            painter.restore()
+
+            # Cache pill rect for click hit-testing (relative to row top-left)
+            local_pill = QRect(
+                pill_rect.left() - option.rect.left(),
+                pill_rect.top() - option.rect.top(),
+                pill_rect.width(),
+                pill_rect.height(),
+            )
+            index.model().setData(index, local_pill, SHA_RECT_ROLE)
+
+            current_x += pill_w + 6  # 6px gap between pill and message
         else:
-            pill_bg = QColor(80, 80, 80, 30)
-        painter.setBrush(pill_bg)
-        painter.setPen(Qt.NoPen)
-        painter.drawRoundedRect(QRectF(pill_rect).adjusted(0.5, 0.5, -0.5, -0.5), 3.0, 3.0)
-
-        # SHA text
-        if is_selected:
-            sha_text_color = opt.palette.highlightedText().color()
-            sha_text_color.setAlpha(200)
-        elif is_dark:
-            sha_text_color = QColor(180, 180, 180)
-        else:
-            sha_text_color = QColor(100, 100, 100)
-        painter.setPen(sha_text_color)
-        painter.setFont(sha_font)
-        painter.drawText(
-            QRect(current_x + pad_h, pill_top, sha_text_w, pill_h),
-            Qt.AlignLeft | Qt.AlignVCenter,
-            sha_text,
-        )
-        painter.restore()
-
-        # Cache pill rect for click hit-testing (relative to row top-left)
-        local_pill = QRect(
-            pill_rect.left() - option.rect.left(),
-            pill_rect.top() - option.rect.top(),
-            pill_rect.width(),
-            pill_rect.height(),
-        )
-        index.model().setData(index, local_pill, SHA_RECT_ROLE)
-
-        current_x += pill_w + 6  # 6px gap between pill and message
+            index.model().setData(index, None, SHA_RECT_ROLE)
 
         painter.setFont(opt.font)
         fm_normal = painter.fontMetrics()
@@ -289,7 +295,7 @@ class CommitItemDelegate(QStyledItemDelegate):
             painter.setFont(self._bold_font)
 
         display_main = main_text
-        if sha and main_text.startswith(sha):
+        if is_commit and sha and main_text.startswith(sha):
             display_main = main_text[len(sha):].lstrip()
 
         main_rect = text_rect.adjusted(left_boundary - text_rect.left(), 0, right_boundary - text_rect.right() - 8, 0)
