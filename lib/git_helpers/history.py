@@ -27,7 +27,7 @@ def get_git_history(repo_path, start_sha, end_sha, limit=None):
             else ["git", "log", sha_to]
         )
         log_cmd += [
-            "--format=%h%x1f%cd%x1f%an <%ae>%x1f%s%x1f%P%x1f%B%x1f%D%x1e",
+            "--format=%h%x1f%H%x1f%cd%x1f%an <%ae>%x1f%s%x1f%P%x1f%B%x1f%D%x1e",
             "--date=format:%d %b %Y",
             "--shortstat",
         ]
@@ -66,7 +66,7 @@ def get_git_history_fast(repo_path, start_sha, end_sha, limit=None):
             else ["git", "log", "--first-parent", sha_to]
         )
         log_cmd += [
-            "--format=%h%x1f%cd%x1f%an <%ae>%x1f%s%x1f%P%x1f%B%x1f%D%x1e",
+            "--format=%h%x1f%H%x1f%cd%x1f%an <%ae>%x1f%s%x1f%P%x1f%B%x1f%D%x1e",
             "--date=format:%d %b %Y",
         ]
         if limit is not None:
@@ -160,7 +160,7 @@ def get_branch_history(repo_path, branch, limit=None):
     try:
         log_cmd = [
             "git", "log", "--first-parent", branch,
-            "--format=%h%x1f%cd%x1f%an <%ae>%x1f%s%x1f%P%x1f%B%x1f%D%x1e",
+            "--format=%h%x1f%H%x1f%cd%x1f%an <%ae>%x1f%s%x1f%P%x1f%B%x1f%D%x1e",
             "--date=format:%d %b %Y",
             "--shortstat"
         ]
@@ -182,7 +182,7 @@ def get_file_history(repo_path, filepath, limit=None, ref=None, follow=False):
         if follow:
             log_cmd.append("--follow")
         log_cmd += [
-            "--format=%h%x1f%cd%x1f%an <%ae>%x1f%s%x1f%P%x1f%B%x1f%D%x1e",
+            "--format=%h%x1f%H%x1f%cd%x1f%an <%ae>%x1f%s%x1f%P%x1f%B%x1f%D%x1e",
             "--date=format:%d %b %Y",
             "--shortstat"
         ]

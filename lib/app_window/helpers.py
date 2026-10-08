@@ -35,6 +35,8 @@ PR_DIFF_SIZE_WARN_THRESHOLD = 200_000
 PLAIN_DIFF_LINE_CAP = 10_000
 
 MATCH_ROLE = Qt.UserRole + 7
+FULL_SHA_ROLE = Qt.UserRole + 11   # full 40-char SHA (used for clipboard copy)
+SHA_RECT_ROLE = Qt.UserRole + 12   # QRect of the painted SHA pill (viewport-local)
 
 
 def _wait_worker(worker, label='worker', timeout_ms=3000):

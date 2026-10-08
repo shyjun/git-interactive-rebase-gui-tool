@@ -97,26 +97,28 @@ def _parse_combined_log(stdout):
 
         # ---- we have format fields — this is a new commit ----
         # Split all \x1f-separated fields.  Format is:
-        #   sha (in pre) | date | author | subject | parents | body | decorate\x1e...
-        # So after splitting post on \x1f we get: [date, author, subject, parents, body, decorate\x1e...]
+        #   sha (in pre) | full_sha | date | author | subject | parents | body | decorate\x1e...
+        # So after splitting post on \x1f we get:
+        #   [full_sha, date, author, subject, parents, body, decorate\x1e...]
         all_fields = post.split('\x1f')
-        if len(all_fields) < 5:
+        if len(all_fields) < 6:
             continue
 
         sha = pre.strip().split('\n')[-1].strip()
         if not sha or len(sha) < 7:
             continue
 
-        date = all_fields[0].strip()
-        author = all_fields[1].strip()
-        subject = all_fields[2].strip()
-        parents = all_fields[3].strip()
-        # Body is field 4; may span multiple lines
-        body = all_fields[4].strip() if len(all_fields) > 4 else ""
-        # Decorate is field 5 (after body, before \x1e)
+        full_sha = all_fields[0].strip()  # %H: full 40-char SHA
+        date = all_fields[1].strip()
+        author = all_fields[2].strip()
+        subject = all_fields[3].strip()
+        parents = all_fields[4].strip()
+        # Body is field 5; may span multiple lines
+        body = all_fields[5].strip() if len(all_fields) > 5 else ""
+        # Decorate is field 6 (after body, before \x1e)
         decorate = ""
-        if len(all_fields) > 5:
-            decorate = all_fields[5].split('\x1e')[0].strip().split('\n')[0].strip()
+        if len(all_fields) > 6:
+            decorate = all_fields[6].split('\x1e')[0].strip().split('\n')[0].strip()
 
         # Parse tags from decorate string
         if decorate:
@@ -133,6 +135,7 @@ def _parse_combined_log(stdout):
 
         commits.append({
             "sha": sha,
+            "full_sha": full_sha or sha,  # fall back to short sha if %H absent
             "date": date,
             "author": author,
             "message": body if body else subject,

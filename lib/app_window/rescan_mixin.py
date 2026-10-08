@@ -52,6 +52,7 @@ from lib.dialogs import (
 from lib.commit_filter_controller import CommitFilterController
 from lib.app_window.helpers import (
     _log,
+    FULL_SHA_ROLE,
     PR_DIFF_SIZE_WARN_THRESHOLD,
     highlight_button_temporarily,
 )
@@ -422,6 +423,9 @@ class RescanMixin:
                 parents = entry.get("parents", "")
                 item.setData(Qt.UserRole + 5, " " in parents)
                 item.setData(Qt.UserRole + 10, parents)
+                # Store full 40-char SHA for clipboard copy (UserRole+11)
+                full_sha = entry.get("full_sha") or sha
+                item.setData(FULL_SHA_ROLE, full_sha)
             else:
                 line = entry
                 sha = line.split()[0]
