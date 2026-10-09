@@ -747,6 +747,45 @@ class DiffMixin:
         set_tree_children_checked(item, checked)
         self.treewise_tree.blockSignals(False)
 
+    def _set_all_filewise_checks(self, state):
+        """Bulk check/uncheck every filewise row (floating strip all/none).
+
+        Signals blocked so the per-item handler doesn't rebuild both diff
+        panes N times; the checked set is rebuilt once and each pane
+        refreshes once — cost of a single manual click.
+        """
+        self.filewise_file_list.blockSignals(True)
+        for i in range(self.filewise_file_list.count()):
+            self.filewise_file_list.item(i).setCheckState(
+                Qt.Checked if state else Qt.Unchecked)
+        self.filewise_file_list.blockSignals(False)
+        self._checked_files_for_sha = (
+            set(self._checked_filewise_files()) if state else set())
+        current_item = self.list_widget.currentItem()
+        if current_item and current_item.data(Qt.UserRole + 9) != "load_more":
+            sha = current_item.text().split()[0]
+            if getattr(self, '_treewise_tree_sha', None) == sha:
+                self._apply_checked_set_to_tree(self._checked_files_for_sha)
+        self._refresh_filewise_diff()
+        self._refresh_treewise_diff()
+
+    def _set_all_treewise_checks(self, state):
+        """Bulk check/uncheck the whole treewise tree (strip all/none)."""
+        self.treewise_tree.blockSignals(True)
+        for i in range(self.treewise_tree.topLevelItemCount()):
+            item = self.treewise_tree.topLevelItem(i)
+            item.setCheckState(0, Qt.Checked if state else Qt.Unchecked)
+            set_tree_children_checked(item, state)
+        self.treewise_tree.blockSignals(False)
+        self._checked_files_for_sha = set(self._checked_treewise_files())
+        current_item = self.list_widget.currentItem()
+        if current_item and current_item.data(Qt.UserRole + 9) != "load_more":
+            sha = current_item.text().split()[0]
+            if getattr(self, '_filewise_list_sha', None) == sha:
+                self._sync_checked_set_to_filewise_list()
+        self._refresh_treewise_diff()
+        self._refresh_filewise_diff()
+
     def _sync_tree_checked_to_file_list(self):
         """Sync all tree check states to the filewise list."""
         self.filewise_file_list.blockSignals(True)

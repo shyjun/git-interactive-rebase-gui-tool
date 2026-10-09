@@ -20,6 +20,7 @@ from PySide6.QtGui import (
     QIcon,
     QKeySequence,
     QPainter,
+    QPainterPath,
     QPalette,
     QPen,
     QPixmap,
@@ -199,12 +200,22 @@ def filter_match_ranges(text, term):
     return ranges
 
 
-def list_filter_hidden(texts, term):
-    """One bool per text: True when the row should be hidden for *term*."""
-    if not term:
-        return [False] * len(texts)
-    needle = term.lower()
-    return [needle not in (t or "").lower() for t in texts]
+def list_filter_hidden(texts, term, checked=None, only_selected=False):
+    """One bool per text: True when the row should be hidden.
+
+    *term* hides non-matching rows (case-insensitive substring). When
+    *only_selected* is True, *checked* (a bool per row, aligned with
+    *texts*) additionally hides unchecked rows; both filters compose (AND).
+    """
+    needle = term.lower() if term else ""
+    hidden = []
+    for i, t in enumerate(texts):
+        hide = bool(needle) and needle not in (t or "").lower()
+        if not hide and only_selected:
+            hide = not (checked[i] if checked is not None and i < len(checked)
+                        else False)
+        hidden.append(hide)
+    return hidden
 
 
 def _path_ancestors(path):
@@ -212,17 +223,21 @@ def _path_ancestors(path):
     return ["/".join(parts[:i]) for i in range(1, len(parts))]
 
 
-def tree_filter_sets(file_paths, term):
+def tree_filter_sets(file_paths, term, checked_paths=None, only_selected=False):
     """Given full file paths, return (visible_files, visible_folders).
 
     A file is visible when *term* matches its full path (case-insensitive);
-    a folder is visible when at least one descendant file is visible.
+    a folder is visible when at least one descendant file is visible. When
+    *only_selected* is True, a file must also be a member of *checked_paths*;
+    both filters compose (AND).
     """
+    visible_files = set(file_paths)
     if term:
         needle = term.lower()
-        visible_files = {p for p in file_paths if needle in p.lower()}
-    else:
-        visible_files = set(file_paths)
+        visible_files = {p for p in visible_files if needle in p.lower()}
+    if only_selected:
+        keep = checked_paths or set()
+        visible_files = {p for p in visible_files if p in keep}
     visible_folders = set()
     for p in visible_files:
         visible_folders.update(_path_ancestors(p))
@@ -251,6 +266,61 @@ def _magnifier_icon(color, size=16, pen_width=1.8):
     _draw_magnifier(painter, color, pen_width)
     painter.end()
     return QIcon(pixmap)
+
+
+def _pen_icon(draw_fn, color, size=16, pen_width=1.8):
+    """Generic pen-drawn icon: *draw_fn(painter, color, pen_width)* in a
+    16x16 logical canvas scaled to *size* (same convention as the
+    magnifier icon)."""
+    pixmap = QPixmap(size, size)
+    pixmap.fill(Qt.transparent)
+    painter = QPainter(pixmap)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    if size != 16:
+        painter.scale(size / 16.0, size / 16.0)
+    draw_fn(painter, color, pen_width)
+    painter.end()
+    return QIcon(pixmap)
+
+
+def _draw_check_all(painter, color, pen_width=1.8):
+    """Rounded square with a check inside: select-all."""
+    pen = QPen(color, pen_width)
+    pen.setCapStyle(Qt.RoundCap)
+    pen.setJoinStyle(Qt.RoundJoin)
+    painter.setPen(pen)
+    painter.setBrush(Qt.NoBrush)
+    painter.drawRoundedRect(1.6, 1.6, 12.8, 12.8, 2.5, 2.5)
+    painter.drawPolyline(
+        [QPoint(4.4, 8.1), QPoint(7.0, 10.9), QPoint(12.0, 5.3)])
+
+
+def _draw_check_none(painter, color, pen_width=1.8):
+    """Rounded square with an X inside: select-none."""
+    pen = QPen(color, pen_width)
+    pen.setCapStyle(Qt.RoundCap)
+    pen.setJoinStyle(Qt.RoundJoin)
+    painter.setPen(pen)
+    painter.setBrush(Qt.NoBrush)
+    painter.drawRoundedRect(1.6, 1.6, 12.8, 12.8, 2.5, 2.5)
+    painter.drawLine(5.2, 5.2, 11.0, 11.0)
+    painter.drawLine(11.0, 5.2, 5.2, 11.0)
+
+
+def _draw_eye(painter, color, pen_width=1.8):
+    """Almond eye with pupil: show-only-selected."""
+    pen = QPen(color, pen_width)
+    pen.setCapStyle(Qt.RoundCap)
+    pen.setJoinStyle(Qt.RoundJoin)
+    painter.setPen(pen)
+    painter.setBrush(Qt.NoBrush)
+    path = QPainterPath()
+    path.moveTo(1.4, 8.0)
+    path.cubicTo(4.2, 3.2, 11.8, 3.2, 14.6, 8.0)
+    path.cubicTo(11.8, 12.8, 4.2, 12.8, 1.4, 8.0)
+    painter.drawPath(path)
+    painter.setBrush(color)
+    painter.drawEllipse(QRectF(6.1, 6.1, 3.8, 3.8))
 
 
 # Interactive accent colors from get_theme_stylesheet (lib/app_window/
@@ -1063,18 +1133,26 @@ _FILE_FILTERS = set()
 
 
 class FileListFilter(QObject):
-    """Hover-revealed "Filter files" control for a file QListWidget / QTreeWidget.
+    """Hover-revealed file-list toolbar for a QListWidget / QTreeWidget.
 
-    Mouse-only: a small magnifier button floats over the list while the mouse
-    is over it; clicking it opens a filter bar **docked as a row above the
+    Mouse-only: a small floating strip (filter / select-all / select-none /
+    show-only-selected) pins over the list's top-right while the mouse is
+    over it. The magnifier opens a filter bar **docked as a row above the
     list** (the list shrinks, so no file row is ever covered) that live-
     filters rows. Check states and selection on hidden rows are preserved.
-    A model reset (list repopulation, e.g. on commit change) closes the bar
+
+    Select-all / select-none delegate to the site via the *on_set_all*
+    callback (sites implement the bulk check + single refresh themselves);
+    without a callback only the magnifier is shown. Show-only-selected is a
+    sticky toggle: while on, unchecked rows are hidden but stay interactive
+    (untick them, then toggle the mode off); it re-applies on text-filter
+    changes and select-all/none, never on itemChanged. A model reset (list
+    repopulation, e.g. on commit change) closes the bar, clears the toggle
     and restores the full list."""
 
     DEBOUNCE_MS = 200
 
-    def __init__(self, widget, parent=None):
+    def __init__(self, widget, parent=None, on_set_all=None):
         super().__init__(parent or widget)
         self.widget = widget
         self.viewport = widget.viewport()
@@ -1085,24 +1163,58 @@ class FileListFilter(QObject):
         self._hidden_items = []
         self._matches = []
         self._current = -1
+        self._on_set_all = on_set_all
+        self._only_selected = False
         # Set by _dock_bar on first open: the wrapper row [bar, widget]
         # inserted where the widget sits in its splitter/layout.
         self._container = None
 
-        # The magnifier button is a child of the *widget* (not the viewport):
+        # The strip is a child of the *widget* (not the viewport):
         # QAbstractScrollArea::scrollContentsBy moves viewport children with
         # the scroll, widget children stay pinned. The bar becomes a real
         # layout row above the list when opened (see _dock_bar) so it never
         # covers file rows; parentless widgets (standalone/test embeds) keep
         # it as a pinned overlay over the viewport top.
-        self.button = QToolButton(widget)
+        self.strip = QWidget(widget)
+        strip_layout = QHBoxLayout(self.strip)
+        strip_layout.setContentsMargins(2, 2, 2, 2)
+        strip_layout.setSpacing(2)
+
+        self.button = QToolButton(self.strip)
         self.button.setToolTip("Filter files")
         # Same 28x28 as the Search in diff toolbar buttons; the accent-blue
-        # icon + border keeps it noticeable over white list rows.
+        # icon keeps it noticeable over white list rows.
         self.button.setFixedSize(28, 28)
-        self._refresh_button_icon()
-        self._style_hover_button()
         self.button.clicked.connect(self.open_bar)
+        strip_layout.addWidget(self.button)
+
+        self.btn_all = QToolButton(self.strip)
+        self.btn_all.setToolTip("Select all files")
+        self.btn_all.setFixedSize(28, 28)
+        self.btn_all.clicked.connect(lambda: self.set_all_checked(True))
+        strip_layout.addWidget(self.btn_all)
+
+        self.btn_none = QToolButton(self.strip)
+        self.btn_none.setToolTip("Select no files")
+        self.btn_none.setFixedSize(28, 28)
+        self.btn_none.clicked.connect(lambda: self.set_all_checked(False))
+        strip_layout.addWidget(self.btn_none)
+
+        self.btn_eye = QToolButton(self.strip)
+        self.btn_eye.setToolTip("Show only selected files")
+        self.btn_eye.setFixedSize(28, 28)
+        self.btn_eye.setCheckable(True)
+        self.btn_eye.clicked.connect(self._toggle_only_selected)
+        strip_layout.addWidget(self.btn_eye)
+
+        if on_set_all is None:
+            # Embeds without bulk semantics keep the plain magnifier.
+            self.btn_all.hide()
+            self.btn_none.hide()
+            self.btn_eye.hide()
+
+        self._refresh_button_icon()
+        self._style_strip()
 
         self.bar = QWidget(widget)
         self.bar.setObjectName("FileFilterBar")
@@ -1179,7 +1291,7 @@ class FileListFilter(QObject):
 
         widget.model().modelAboutToBeReset.connect(_on_model_reset)
 
-        self.button.hide()
+        self.strip.hide()
         self.bar.hide()
 
         _FILE_FILTERS.add(self)
@@ -1200,7 +1312,7 @@ class FileListFilter(QObject):
                     if not self.bar.isVisible():
                         self._refresh_button_icon()
                         self._position_button()
-                        self.button.show()
+                        self.strip.show()
                 elif etype == QEvent.Leave:
                     self._hover = False
                     if not self.bar.isVisible():
@@ -1211,7 +1323,7 @@ class FileListFilter(QObject):
                         self._position_bar()
                 elif etype in (QEvent.PaletteChange, QEvent.ApplicationPaletteChange):
                     self._refresh_button_icon()
-                    self._style_hover_button()
+                    self._style_strip()
                     if self._container is None:
                         self._style_bar()
         except (AttributeError, RuntimeError):
@@ -1224,8 +1336,9 @@ class FileListFilter(QObject):
 
     def _position_button(self):
         off = self._vp_offset()
-        self.button.move(
-            off.x() + self.viewport.width() - self.button.width() - 4,
+        self.strip.adjustSize()
+        self.strip.move(
+            off.x() + self.viewport.width() - self.strip.width() - 4,
             off.y() + 4)
 
     def _position_bar(self):
@@ -1283,43 +1396,67 @@ class FileListFilter(QObject):
 
     def _hide_button_if_cursor_away(self):
         pos = QCursor.pos()
-        for child in (self.button, self.bar):
+        for child in (self.strip, self.bar):
             if child.isVisible() and child.rect().contains(child.mapFromGlobal(pos)):
                 return
-        self.button.hide()
+        self.strip.hide()
 
     def _refresh_button_icon(self):
-        """(Re)draw the magnifier in the current theme's accent color.
+        """(Re)draw the strip icons in the current theme's accent color.
 
         Resolved on demand (init, hover, palette change) so a theme switch
-        is picked up even without a palette event.
+        is picked up even without a palette event. The eye keeps the accent
+        icon but is restyled separately when toggled (_style_strip).
         """
-        self.button.setIcon(_magnifier_icon(_accent_color(),
-                                            size=19, pen_width=2.2))
-        self.button.setIconSize(QSize(19, 19))
+        accent = _accent_color()
+        self.button.setIcon(_magnifier_icon(accent, size=19, pen_width=2.2))
+        self.btn_all.setIcon(_pen_icon(_draw_check_all, accent,
+                                       size=17, pen_width=2.0))
+        self.btn_none.setIcon(_pen_icon(_draw_check_none, accent,
+                                        size=17, pen_width=2.0))
+        self.btn_eye.setIcon(_pen_icon(_draw_eye, accent,
+                                       size=17, pen_width=2.0))
+        for b in (self.button, self.btn_all, self.btn_none, self.btn_eye):
+            b.setIconSize(QSize(19, 19))
+        self._style_eye_button()
 
-    def _style_hover_button(self):
-        """Opaque plate with an accent border for the hover button.
+    def _style_strip(self):
+        """Opaque plate around the strip with per-button hover states.
 
-        A fully transparent button let row text (stats, filenames) show
-        through and made the icon hard to see, especially over the stats
-        column. The plate adapts to the palette (light/dark); the border
-        uses the theme accent so the control reads as interactive.
+        A fully transparent control let row text (stats, filenames) show
+        through and made the icons hard to see, especially over the stats
+        column. The plate adapts to the palette (light/dark); the icons
+        use the theme accent so the control reads as interactive.
         """
         pal = self.widget.palette()
         bg = pal.color(QPalette.Button)
-        accent = _accent_color().name()
         light = bg.lightness() >= 128
         hover_bg = bg.darker(106) if light else bg.lighter(106)
         press_bg = bg.darker(115) if light else bg.lighter(115)
-        self.button.setStyleSheet(
-            "QToolButton { border: 1px solid %s; border-radius: 4px;"
-            " background: %s; }"
-            " QToolButton:hover { border: 1px solid %s; background: %s; }"
-            " QToolButton:pressed { border: 1px solid %s; background: %s; }"
-            % (accent, bg.name(),
-               accent, hover_bg.name(),
-               accent, press_bg.name()))
+        self.strip.setStyleSheet(
+            "QWidget { background: %s; border: 1px solid %s;"
+            " border-radius: 4px; }"
+            % (bg.name(), pal.color(QPalette.Mid).name()))
+        for b in (self.button, self.btn_all, self.btn_none, self.btn_eye):
+            b.setStyleSheet(
+                "QToolButton { border: none; border-radius: 3px;"
+                " background: transparent; }"
+                " QToolButton:hover { background: %s; }"
+                " QToolButton:pressed { background: %s; }"
+                % (hover_bg.name(), press_bg.name()))
+        self._style_eye_button()
+
+    def _style_eye_button(self):
+        """Accent plate while show-only-selected is toggled on."""
+        if self._only_selected:
+            accent = _accent_color().name()
+            self.btn_eye.setStyleSheet(
+                "QToolButton { border: none; border-radius: 3px;"
+                " background: %s; }" % accent)
+        else:
+            self.btn_eye.setStyleSheet(
+                "QToolButton { border: none; border-radius: 3px;"
+                " background: transparent; }")
 
     def _style_bar(self):
         """Overlay fallback plate (see _position_bar); docked bars stay
@@ -1344,7 +1481,7 @@ class FileListFilter(QObject):
             self._position_bar()
             self.bar.raise_()
         self.bar.show()
-        self.button.hide()
+        self.strip.hide()
         self.input.setFocus()
         self.input.selectAll()
 
@@ -1358,19 +1495,24 @@ class FileListFilter(QObject):
             # Child widgets already deleted during teardown; nothing to restore.
             return
         self._clear_filter()
+        if self._only_selected:
+            # The text filter is gone but the sticky toggle stays on:
+            # restore everything, then re-hide unchecked rows.
+            self._apply()
         self.bar.hide()
         if self._hover:
             self._position_button()
-            self.button.show()
+            self.strip.show()
         else:
-            self.button.hide()
+            self.strip.hide()
 
     def reset(self):
         """Close the bar on a model reset (list repopulation, commit change).
 
         Never touches items: modelAboutToBeReset can fire again after the
         old items are already deleted, and row-hidden state does not survive
-        a reset anyway (verified: the view clears it)."""
+        a reset anyway (verified: the view clears it). Also clears the
+        show-only-selected toggle — the new population is a new context."""
         try:
             self._debounce.stop()
             self.input.blockSignals(True)
@@ -1383,17 +1525,46 @@ class FileListFilter(QObject):
         self._hidden_items = []
         self._matches = []
         self._current = -1
+        self._only_selected = False
         try:
+            self.btn_eye.setChecked(False)
+            self._style_eye_button()
             self._update_counter()
             self._set_nav_enabled(False)
             self.bar.hide()
             if self._hover:
                 self._position_button()
-                self.button.show()
+                self.strip.show()
             else:
-                self.button.hide()
+                self.strip.hide()
         except (AttributeError, RuntimeError):
             return
+
+    # --- select-all / show-only-selected -----------------------------------
+
+    def set_all_checked(self, state):
+        """Bulk-check (True) or bulk-uncheck (False) via the site callback.
+
+        The site owns the mutation (blockSignals + single refresh); when
+        show-only-selected is active the visibility snapshot is re-applied
+        afterwards so hidden membership follows the new checks.
+        """
+        if self._on_set_all is None:
+            return
+        self._on_set_all(bool(state))
+        if self._only_selected:
+            self._apply()
+
+    def _toggle_only_selected(self):
+        self._only_selected = self.btn_eye.isChecked()
+        self._style_eye_button()
+        if self._only_selected:
+            self._apply()
+        else:
+            # Restore everything the toggle hid, keep any text filter.
+            self._clear_filter()
+            if self.input.text():
+                self._apply()
 
     # --- filtering ---------------------------------------------------------
 
@@ -1456,7 +1627,7 @@ class FileListFilter(QObject):
     def _apply(self):
         self._debounce.stop()
         term = self.input.text()
-        if not term:
+        if not term and not self._only_selected:
             self._clear_filter()
             return
         if self._is_tree:
@@ -1465,7 +1636,11 @@ class FileListFilter(QObject):
             self._apply_list(term)
         if self._matches:
             self._current = 0
-            self._select_current()
+            if term:
+                # Jump to the first text match. Show-only-selected alone
+                # must not steal the current row (that would rebuild the
+                # diff pane as a side effect of toggling).
+                self._select_current()
         else:
             self._current = -1
         self._update_counter()
@@ -1483,7 +1658,10 @@ class FileListFilter(QObject):
             self._hidden_rows = []
             count = widget.count()
             texts = [widget.item(i).text() for i in range(count)]
-            hidden = list_filter_hidden(texts, term)
+            checked = [widget.item(i).checkState() == Qt.Checked
+                       for i in range(count)]
+            hidden = list_filter_hidden(texts, term, checked,
+                                        self._only_selected)
             for row in range(count):
                 item = widget.item(row)
                 if hidden[row]:
@@ -1516,8 +1694,11 @@ class FileListFilter(QObject):
                         collect([item.child(i) for i in range(item.childCount())], path)
 
             collect(self._top_level_items(), "")
+            checked_paths = {p for item, p in files
+                             if item.checkState(0) == Qt.Checked}
             visible_files, visible_folders = tree_filter_sets(
-                [p for _, p in files], term)
+                [p for _, p in files], term, checked_paths,
+                self._only_selected)
 
             self._matches = []
             for item, path in files:
@@ -1543,7 +1724,11 @@ class FileListFilter(QObject):
                     if item.childCount() > 0:
                         if path in visible_folders:
                             item.setHidden(False)
-                            item.setExpanded(True)
+                            # Auto-expand for text matches only; the
+                            # show-only-selected toggle preserves the
+                            # user's expansion state.
+                            if term:
+                                item.setExpanded(True)
                             folder_ranges = filter_match_ranges(name, term)
                             item.setData(0, FILTER_MATCH_ROLE, folder_ranges)
                             if folder_ranges:

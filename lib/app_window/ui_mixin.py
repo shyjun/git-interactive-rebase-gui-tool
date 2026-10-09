@@ -281,7 +281,9 @@ class UIMixin:
             parent=self.filewise_file_list
         )
         self.filewise_file_list.setItemDelegate(self.filewise_stats_delegate)
-        self.filewise_filter = FileListFilter(self.filewise_file_list)
+        self.filewise_filter = FileListFilter(
+            self.filewise_file_list,
+            on_set_all=self._set_all_filewise_checks)
 
         # File diff
         self.filewise_diff_view = DiffView()
@@ -336,7 +338,9 @@ class UIMixin:
         self.treewise_tree.itemChanged.connect(self._on_treewise_item_changed)
         self.treewise_tree.setContextMenuPolicy(Qt.CustomContextMenu)
         self.treewise_tree.customContextMenuRequested.connect(self.show_treewise_context_menu)
-        self.treewise_filter = FileListFilter(self.treewise_tree)
+        self.treewise_filter = FileListFilter(
+            self.treewise_tree,
+            on_set_all=self._set_all_treewise_checks)
 
         self.treewise_diff_view = DiffView()
         self.treewise_diff_view.setReadOnly(True)

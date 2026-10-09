@@ -344,7 +344,7 @@ class CommitSelectivelyDialog(QDialog):
         )
         self.file_list.setItemDelegate(self.stats_delegate)
         self.file_list.itemChanged.connect(self._on_file_item_changed)
-        self.file_list_filter = FileListFilter(self.file_list)
+        self.file_list_filter = FileListFilter(self.file_list, on_set_all=self._set_all)
         file_list_layout.addWidget(self.file_list)
         self.tab_widget.addTab(file_list_widget, "File List")
 
@@ -363,7 +363,7 @@ class CommitSelectivelyDialog(QDialog):
         self.treewise_tree.setFont(mono_font(font_size, family=self.font_family))
         self.treewise_tree.setAnimated(True)
         self.treewise_tree.setItemDelegateForColumn(1, TreeStatsDelegate(parent=self.treewise_tree))
-        self.treewise_tree_filter = FileListFilter(self.treewise_tree)
+        self.treewise_tree_filter = FileListFilter(self.treewise_tree, on_set_all=self._set_all)
         self.treewise_tree.itemChanged.connect(self._on_tree_item_changed)
         tree_layout.addWidget(self.treewise_tree)
 
@@ -843,7 +843,7 @@ class CommitStagedSelectivelyDialog(QDialog):
         )
         self.file_list.setItemDelegate(self.stats_delegate)
         self.file_list.itemChanged.connect(self._on_file_item_changed)
-        self.file_list_filter = FileListFilter(self.file_list)
+        self.file_list_filter = FileListFilter(self.file_list, on_set_all=self._set_all)
         file_list_layout.addWidget(self.file_list)
         self.tab_widget.addTab(file_list_widget, "File List")
 
@@ -862,7 +862,7 @@ class CommitStagedSelectivelyDialog(QDialog):
         self.treewise_tree.setFont(mono_font(font_size, family=self.font_family))
         self.treewise_tree.setAnimated(True)
         self.treewise_tree.setItemDelegateForColumn(1, TreeStatsDelegate(parent=self.treewise_tree))
-        self.treewise_tree_filter = FileListFilter(self.treewise_tree)
+        self.treewise_tree_filter = FileListFilter(self.treewise_tree, on_set_all=self._set_all)
         self.treewise_tree.itemChanged.connect(self._on_tree_item_changed)
         tree_layout.addWidget(self.treewise_tree)
 
@@ -1220,7 +1220,7 @@ class StageFilesDialog(QDialog):
         )
         self.file_list.setItemDelegate(self.stats_delegate)
         self.file_list.itemChanged.connect(self._on_file_item_changed)
-        self.file_list_filter = FileListFilter(self.file_list)
+        self.file_list_filter = FileListFilter(self.file_list, on_set_all=self._set_all)
         file_list_layout.addWidget(self.file_list)
         self.tab_widget.addTab(file_list_widget, "File List")
 
@@ -1239,7 +1239,7 @@ class StageFilesDialog(QDialog):
         self.treewise_tree.setFont(mono_font(font_size, family=self.font_family))
         self.treewise_tree.setAnimated(True)
         self.treewise_tree.setItemDelegateForColumn(1, TreeStatsDelegate(parent=self.treewise_tree))
-        self.treewise_tree_filter = FileListFilter(self.treewise_tree)
+        self.treewise_tree_filter = FileListFilter(self.treewise_tree, on_set_all=self._set_all)
         self.treewise_tree.itemChanged.connect(self._on_tree_item_changed)
         tree_layout.addWidget(self.treewise_tree)
 
@@ -1461,12 +1461,17 @@ class StageFilesDialog(QDialog):
         self._refresh_diff()
 
     def _set_all(self, state):
+        self.file_list.blockSignals(True)
         for i in range(self.file_list.count()):
             self.file_list.item(i).setCheckState(Qt.Checked if state else Qt.Unchecked)
+        self.file_list.blockSignals(False)
+        self.treewise_tree.blockSignals(True)
         for i in range(self.treewise_tree.topLevelItemCount()):
             item = self.treewise_tree.topLevelItem(i)
             item.setCheckState(0, Qt.Checked if state else Qt.Unchecked)
-            self._set_tree_children_checked(item, state)
+            set_tree_children_checked(item, state)
+        self.treewise_tree.blockSignals(False)
+        self._update_counter()
         self._refresh_diff()
 
     def _refresh_diff(self, _=None):
@@ -1498,16 +1503,6 @@ class StageFilesDialog(QDialog):
             self.accept()
         else:
             QMessageBox.critical(self, "Add Failed", "Failed to add the selected files.")
-
-    def _set_all(self, state):
-        for i in range(self.file_list.count()):
-            self.file_list.item(i).setCheckState(Qt.Checked if state else Qt.Unchecked)
-        # Also update tree checkboxes
-        for i in range(self.treewise_tree.topLevelItemCount()):
-            item = self.treewise_tree.topLevelItem(i)
-            item.setCheckState(0, Qt.Checked if state else Qt.Unchecked)
-            self._set_tree_children_checked(item, state)
-        self._refresh_diff()
 
     def _update_counter(self, _=None):
         total = self.file_list.count()

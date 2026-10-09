@@ -255,9 +255,9 @@ class TestScrollPinning(unittest.TestCase):
     def _want(self):
         off = self.flt.viewport.mapTo(self.lw, QPoint(0, 0))
         bar = (off.x() + 4, off.y() + 4)
-        btn = (off.x() + self.flt.viewport.width()
-               - self.flt.button.width() - 4, off.y() + 4)
-        return bar, btn
+        strip = (off.x() + self.flt.viewport.width()
+                 - self.flt.strip.width() - 4, off.y() + 4)
+        return bar, strip
 
     def test_bar_pinned_while_scrolling(self):
         self.flt.open_bar()
@@ -279,14 +279,14 @@ class TestScrollPinning(unittest.TestCase):
     def test_button_pinned_while_scrolling(self):
         self.flt._hover = True
         self.flt._position_button()
-        self.flt.button.show()
+        self.flt.strip.show()
         app.processEvents()
-        _, want_btn = self._want()
-        self.assertEqual((self.flt.button.x(), self.flt.button.y()), want_btn)
+        _, want_strip = self._want()
+        self.assertEqual((self.flt.strip.x(), self.flt.strip.y()), want_strip)
 
         self.lw.verticalScrollBar().setValue(99)
         app.processEvents()
-        self.assertEqual((self.flt.button.x(), self.flt.button.y()), want_btn)
+        self.assertEqual((self.flt.strip.x(), self.flt.strip.y()), want_strip)
 
     def test_navigation_keeps_bar_pinned(self):
         # User report: pressing next-match repeatedly scrolled the pane and
@@ -639,6 +639,244 @@ class TestSignalSilence(unittest.TestCase):
         self.assertFalse(tree.signalsBlocked())
         tree.close()
         tree.deleteLater()
+
+
+class TestOnlySelectedHelpers(unittest.TestCase):
+    """Pure helpers: checked-state composition with the text term."""
+
+    def test_list_hidden_only_selected(self):
+        texts = ["a.c", "b.c", "c.c"]
+        checked = [True, False, True]
+        self.assertEqual(
+            list_filter_hidden(texts, "", checked, True),
+            [False, True, False])
+
+    def test_list_hidden_composes_with_term(self):
+        texts = ["gui_a.c", "gui_b.c", "core.c"]
+        checked = [True, False, True]
+        # "gui" matches first two; only-selected keeps only the checked one.
+        self.assertEqual(
+            list_filter_hidden(texts, "gui", checked, True),
+            [False, True, True])
+
+    def test_tree_sets_only_selected(self):
+        paths = ["src/a.c", "src/b.c", "lib/c.c"]
+        visible, folders = tree_filter_sets(
+            paths, "", {"src/a.c"}, True)
+        self.assertEqual(visible, {"src/a.c"})
+        self.assertEqual(folders, {"src"})
+
+    def test_tree_sets_only_selected_with_term(self):
+        paths = ["src/a.c", "src/b.c", "lib/c.c"]
+        visible, folders = tree_filter_sets(
+            paths, "src", {"src/b.c"}, True)
+        self.assertEqual(visible, {"src/b.c"})
+        self.assertEqual(folders, {"src"})
+
+
+class TestStripControls(unittest.TestCase):
+    """Strip buttons: select-all/none callback, show-only-selected toggle."""
+
+    PATHS = ["src/gui.c", "src/core.c", "lib/util.c", "lib/net.c"]
+
+    def setUp(self):
+        self.lw = _make_list(self.PATHS)
+        self.calls = []
+
+        def _on_set_all(state):
+            self.calls.append(state)
+            self.lw.blockSignals(True)
+            for i in range(self.lw.count()):
+                self.lw.item(i).setCheckState(
+                    Qt.Checked if state else Qt.Unchecked)
+            self.lw.blockSignals(False)
+
+        self.flt = FileListFilter(self.lw, on_set_all=_on_set_all)
+
+    def tearDown(self):
+        self.lw.close()
+        self.lw.deleteLater()
+
+    def _check(self, row, state):
+        self.lw.item(row).setCheckState(
+            Qt.Checked if state else Qt.Unchecked)
+
+    def test_without_callback_extra_buttons_hidden(self):
+        lw = _make_list(self.PATHS)
+        flt = FileListFilter(lw)
+        self.assertTrue(flt.button.isVisibleTo(flt.strip))
+        self.assertFalse(flt.btn_all.isVisibleTo(flt.strip))
+        self.assertFalse(flt.btn_none.isVisibleTo(flt.strip))
+        self.assertFalse(flt.btn_eye.isVisibleTo(flt.strip))
+        lw.close()
+        lw.deleteLater()
+
+    def test_select_all_calls_callback_once(self):
+        self._check(0, False)
+        self.flt.set_all_checked(True)
+        self.assertEqual(self.calls, [True])
+        self.assertEqual(
+            [self.lw.item(i).checkState() for i in range(4)],
+            [Qt.Checked] * 4)
+
+    def test_select_none_calls_callback_once(self):
+        self.flt.set_all_checked(False)
+        self.assertEqual(self.calls, [False])
+        self.assertEqual(
+            [self.lw.item(i).checkState() for i in range(4)],
+            [Qt.Unchecked] * 4)
+
+    def test_only_selected_hides_unchecked(self):
+        self._check(1, False)
+        self._check(3, False)
+        self.flt.btn_eye.setChecked(True)
+        self.flt._toggle_only_selected()
+        hidden = [self.lw.item(i).isHidden() for i in range(4)]
+        self.assertEqual(hidden, [False, True, False, True])
+
+    def test_only_selected_is_sticky_on_untick(self):
+        self._check(0, True)
+        self._check(1, True)
+        self.flt.btn_eye.setChecked(True)
+        self.flt._toggle_only_selected()
+        # Untick one row: it stays visible (sticky snapshot) so the user
+        # can work through the ticked rows, then toggle the mode off.
+        self._check(0, False)
+        app.processEvents()
+        self.assertFalse(self.lw.item(0).isHidden())
+        self.assertFalse(self.lw.item(1).isHidden())
+
+    def test_only_selected_reapplies_after_set_all(self):
+        self._check(0, False)
+        self._check(1, False)
+        self._check(3, False)
+        self.flt.btn_eye.setChecked(True)
+        self.flt._toggle_only_selected()
+        self.assertTrue(self.lw.item(0).isHidden())
+        self.flt.set_all_checked(True)
+        self.assertEqual(
+            [self.lw.item(i).isHidden() for i in range(4)], [False] * 4)
+
+    def test_only_selected_off_restores_all(self):
+        self._check(1, False)
+        self.flt.btn_eye.setChecked(True)
+        self.flt._toggle_only_selected()
+        self.assertTrue(self.lw.item(1).isHidden())
+        self.flt.btn_eye.setChecked(False)
+        self.flt._toggle_only_selected()
+        self.assertEqual(
+            [self.lw.item(i).isHidden() for i in range(4)], [False] * 4)
+
+    def test_only_selected_composes_with_text_filter(self):
+        self._check(1, False)  # uncheck src/core.c
+        self._check(3, False)  # uncheck lib/net.c
+        self.flt.btn_eye.setChecked(True)
+        self.flt._toggle_only_selected()
+        self.flt.open_bar()
+        self.flt.input.setText("src")
+        self.flt._apply()
+        hidden = [self.lw.item(i).isHidden() for i in range(4)]
+        self.assertEqual(hidden, [False, True, True, True])
+
+    def test_close_bar_keeps_only_selected(self):
+        self._check(1, False)
+        self.flt.btn_eye.setChecked(True)
+        self.flt._toggle_only_selected()
+        self.flt.open_bar()
+        self.flt.input.setText("c")
+        self.flt._apply()
+        self.flt.close_bar()
+        # Text filter dropped, toggle stays on: still only checked rows.
+        self.assertTrue(self.lw.item(1).isHidden())
+        self.assertTrue(self.flt.btn_eye.isChecked())
+
+    def test_reset_clears_only_selected(self):
+        self._check(1, False)
+        self.flt.btn_eye.setChecked(True)
+        self.flt._toggle_only_selected()
+        self.assertTrue(self.lw.item(1).isHidden())
+        # reset() runs on modelAboutToBeReset and deliberately never touches
+        # items (they may already be doomed); simulate the real path — a
+        # clear() fires the reset, and the view discards hidden state.
+        self.lw.clear()
+        self.assertFalse(self.flt.btn_eye.isChecked())
+        self.assertFalse(self.flt._only_selected)
+        for name in self.PATHS:
+            self.lw.addItem(QListWidgetItem(name))
+        self.assertEqual(
+            [self.lw.item(i).isHidden() for i in range(4)], [False] * 4)
+
+    def test_only_selected_does_not_steal_current_row(self):
+        self.lw.setCurrentRow(2)
+        self._check(0, False)
+        self._check(1, False)
+        self.flt.btn_eye.setChecked(True)
+        self.flt._toggle_only_selected()
+        self.assertEqual(self.lw.currentRow(), 2)
+
+
+class TestTreeOnlySelected(unittest.TestCase):
+
+    def setUp(self):
+        self.tw = QTreeWidget()
+        self.tw.setHeaderLabels(["Name", "Stats"])
+        self.tw.setColumnCount(2)
+        src = QTreeWidgetItem(["src", ""])
+        src.setFlags(src.flags() | Qt.ItemIsUserCheckable)
+        src.setCheckState(0, Qt.Checked)
+        self.tw.addTopLevelItem(src)
+        self.children = []
+        for name, checked in (("a.c", True), ("b.c", False)):
+            child = QTreeWidgetItem([name, "+1 -1"])
+            child.setFlags(child.flags() | Qt.ItemIsUserCheckable)
+            child.setCheckState(0, Qt.Checked if checked else Qt.Unchecked)
+            src.addChild(child)
+            self.children.append(child)
+        lib = QTreeWidgetItem(["lib", ""])
+        lib.setFlags(lib.flags() | Qt.ItemIsUserCheckable)
+        lib.setCheckState(0, Qt.Unchecked)
+        self.tw.addTopLevelItem(lib)
+        leaf = QTreeWidgetItem(["net.c", "+2 -0"])
+        leaf.setFlags(leaf.flags() | Qt.ItemIsUserCheckable)
+        leaf.setCheckState(0, Qt.Unchecked)
+        lib.addChild(leaf)
+        self.children.append(leaf)
+
+        def _on_set_all(state):
+            self.tw.blockSignals(True)
+            for i in range(self.tw.topLevelItemCount()):
+                top = self.tw.topLevelItem(i)
+                top.setCheckState(0, Qt.Checked if state else Qt.Unchecked)
+                for j in range(top.childCount()):
+                    top.child(j).setCheckState(
+                        0, Qt.Checked if state else Qt.Unchecked)
+            self.tw.blockSignals(False)
+
+        self.flt = FileListFilter(self.tw, on_set_all=_on_set_all)
+
+    def tearDown(self):
+        self.tw.close()
+        self.tw.deleteLater()
+
+    def test_only_selected_hides_unchecked_leaves_and_folders(self):
+        self.flt.btn_eye.setChecked(True)
+        self.flt._toggle_only_selected()
+        src, lib = (self.tw.topLevelItem(0), self.tw.topLevelItem(1))
+        self.assertFalse(src.isHidden())
+        self.assertFalse(self.children[0].isHidden())  # src/a.c checked
+        self.assertTrue(self.children[1].isHidden())    # src/b.c unchecked
+        self.assertTrue(lib.isHidden())                 # no checked leaves
+        self.assertTrue(self.children[2].isHidden())
+        # Sticky toggle preserves expansion state.
+        self.assertFalse(src.isExpanded())
+
+    def test_only_selected_off_restores_tree(self):
+        self.flt.btn_eye.setChecked(True)
+        self.flt._toggle_only_selected()
+        self.flt.btn_eye.setChecked(False)
+        self.flt._toggle_only_selected()
+        self.assertFalse(self.tw.topLevelItem(1).isHidden())
+        self.assertFalse(self.children[2].isHidden())
 
 
 if __name__ == "__main__":

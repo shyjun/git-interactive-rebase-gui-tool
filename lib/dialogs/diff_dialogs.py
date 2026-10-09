@@ -352,7 +352,7 @@ class BranchDiffDialog(QDialog):
         )
         self.filewise_file_list.setItemDelegate(stats_delegate)
         self.filewise_file_list.itemChanged.connect(self._on_filewise_item_changed)
-        self.filewise_file_list_filter = FileListFilter(self.filewise_file_list)
+        self.filewise_file_list_filter = FileListFilter(self.filewise_file_list, on_set_all=self._set_all)
         self.filewise_splitter.addWidget(self.filewise_file_list)
 
         # File diff view + search
@@ -406,7 +406,7 @@ class BranchDiffDialog(QDialog):
         self.treewise_tree.itemChanged.connect(self._on_treewise_item_changed)
         self.treewise_tree.setContextMenuPolicy(Qt.CustomContextMenu)
         self.treewise_tree.customContextMenuRequested.connect(self.show_treewise_context_menu)
-        self.treewise_tree_filter = FileListFilter(self.treewise_tree)
+        self.treewise_tree_filter = FileListFilter(self.treewise_tree, on_set_all=self._set_all)
         self.treewise_splitter.addWidget(self.treewise_tree)
 
         treewise_right_widget = QWidget()
@@ -796,6 +796,22 @@ class BranchDiffDialog(QDialog):
         self._refresh_treewise_diff()
         self._refresh_filewise_diff()
 
+    def _set_all(self, state):
+        """Bulk check/uncheck (floating strip all/none): one refresh, not N."""
+        self.filewise_file_list.blockSignals(True)
+        for i in range(self.filewise_file_list.count()):
+            self.filewise_file_list.item(i).setCheckState(
+                Qt.Checked if state else Qt.Unchecked)
+        self.filewise_file_list.blockSignals(False)
+        self.treewise_tree.blockSignals(True)
+        for i in range(self.treewise_tree.topLevelItemCount()):
+            item = self.treewise_tree.topLevelItem(i)
+            item.setCheckState(0, Qt.Checked if state else Qt.Unchecked)
+            set_tree_children_checked(item, state)
+        self.treewise_tree.blockSignals(False)
+        self._refresh_filewise_diff()
+        self._refresh_treewise_diff()
+
     def _set_tree_children_checked(self, item, checked):
         """Recursively set check state for all children."""
         self.treewise_tree.blockSignals(True)
@@ -1101,7 +1117,7 @@ class SingleCommitViewDialog(QDialog):
         self.filewise_file_list.itemChanged.connect(self._on_filewise_item_changed)
         self.filewise_file_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.filewise_file_list.customContextMenuRequested.connect(self.show_filewise_context_menu)
-        self.filewise_file_list_filter = FileListFilter(self.filewise_file_list)
+        self.filewise_file_list_filter = FileListFilter(self.filewise_file_list, on_set_all=self._set_all)
         self.filewise_splitter.addWidget(self.filewise_file_list)
 
         file_right_widget = QWidget()
@@ -1157,7 +1173,7 @@ class SingleCommitViewDialog(QDialog):
         self.treewise_tree.itemChanged.connect(self._on_treewise_item_changed)
         self.treewise_tree.setContextMenuPolicy(Qt.CustomContextMenu)
         self.treewise_tree.customContextMenuRequested.connect(self.show_treewise_context_menu)
-        self.treewise_tree_filter = FileListFilter(self.treewise_tree)
+        self.treewise_tree_filter = FileListFilter(self.treewise_tree, on_set_all=self._set_all)
         self.treewise_splitter.addWidget(self.treewise_tree)
 
         treewise_right_widget = QWidget()
@@ -1439,6 +1455,22 @@ class SingleCommitViewDialog(QDialog):
                 p = p.parent()
         self._refresh_treewise_diff()
         self._refresh_filewise_diff()
+
+    def _set_all(self, state):
+        """Bulk check/uncheck (floating strip all/none): one refresh, not N."""
+        self.filewise_file_list.blockSignals(True)
+        for i in range(self.filewise_file_list.count()):
+            self.filewise_file_list.item(i).setCheckState(
+                Qt.Checked if state else Qt.Unchecked)
+        self.filewise_file_list.blockSignals(False)
+        self.treewise_tree.blockSignals(True)
+        for i in range(self.treewise_tree.topLevelItemCount()):
+            item = self.treewise_tree.topLevelItem(i)
+            item.setCheckState(0, Qt.Checked if state else Qt.Unchecked)
+            set_tree_children_checked(item, state)
+        self.treewise_tree.blockSignals(False)
+        self._refresh_filewise_diff()
+        self._refresh_treewise_diff()
 
     def _set_tree_children_checked(self, item, checked):
         """Recursively set check state for all children."""
@@ -2057,7 +2089,7 @@ class FileWiseViewDialog(QDialog):
         self.file_list.itemChanged.connect(self._on_file_item_changed)
         self.file_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.file_list.customContextMenuRequested.connect(self.show_file_context_menu)
-        self.file_list_filter = FileListFilter(self.file_list)
+        self.file_list_filter = FileListFilter(self.file_list, on_set_all=self._set_all)
         file_layout.addWidget(self.file_list)
 
         self.main_splitter.addWidget(file_widget)
