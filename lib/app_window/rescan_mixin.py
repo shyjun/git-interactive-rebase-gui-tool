@@ -802,22 +802,30 @@ class RescanMixin:
                     QMetaObject,
                     Qt,
                 )
-                QMetaObject.invokeMethod(
-                    self, "_set_total_commit_count",
-                    Qt.QueuedConnection,
-                    Q_ARG(str, total)
-                )
+                try:
+                    QMetaObject.invokeMethod(
+                        self, "_set_total_commit_count",
+                        Qt.QueuedConnection,
+                        Q_ARG(str, total)
+                    )
+                except RuntimeError:
+                    # Window already destroyed while this daemon thread was
+                    # still running the git command — nothing to deliver to.
+                    return
             except Exception:
                 from PySide6.QtCore import (
                     Q_ARG,
                     QMetaObject,
                     Qt,
                 )
-                QMetaObject.invokeMethod(
-                    self, "_set_total_commit_count",
-                    Qt.QueuedConnection,
-                    Q_ARG(str, "?")
-                )
+                try:
+                    QMetaObject.invokeMethod(
+                        self, "_set_total_commit_count",
+                        Qt.QueuedConnection,
+                        Q_ARG(str, "?")
+                    )
+                except RuntimeError:
+                    return
         _log("Trying to find out total commit count ...")
         thread = threading.Thread(target=worker, daemon=True)
         thread.start()

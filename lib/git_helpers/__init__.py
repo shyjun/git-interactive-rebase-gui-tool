@@ -47,6 +47,7 @@ from .commits import (
     get_file_diff_only_in_commit,
     parse_commit_diff_into_files,
     parse_commit_mode_changes,
+    get_commit_mode_changes,
     format_file_mode,
     build_file_tree,
 )
