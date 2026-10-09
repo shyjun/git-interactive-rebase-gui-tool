@@ -11,6 +11,7 @@ from unittest import mock
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 try:
+    from PySide6.QtCore import QSettings
     from PySide6.QtWidgets import QApplication, QDialog
     HAS_PYSIDE = True
 except ImportError:
@@ -307,7 +308,7 @@ class TestNotificationDialog(_UncleanExitBase):
         previous = app.styleSheet()
         try:
             unclean_exit._apply_tool_theme()
-            theme_name = unclean_exit.QSettings(
+            theme_name = QSettings(
                 "git-interactive-rebase-gui-tool", "settings"
             ).value("theme", "light", type=str)
             self.assertEqual(app.styleSheet(), get_theme_stylesheet(theme_name))

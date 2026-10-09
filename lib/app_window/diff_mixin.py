@@ -306,30 +306,11 @@ class DiffMixin:
                     self._apply_checked_set_to_tree(getattr(self, '_checked_files_for_sha', set()))
             self._refresh_treewise_diff()
 
-    def _ensure_filewise_list_populated(self, sha, cache_entry):
-        """Populate filewise list if not already done for this sha."""
-        if getattr(self, '_filewise_list_sha', None) == sha:
-            return
-
-        if 'files' not in cache_entry:
-            cache_entry['files'] = get_commit_files_with_status(self.repo_path, sha, stash=self.browse_stash)
-            self.commit_cache[sha] = cache_entry
-
-        file_entries = cache_entry['files']
-        if getattr(self, 'browse_is_dir', False) and self.browse_file:
-            prefix = self.browse_file.rstrip('/') + '/'
-            file_entries = [e for e in file_entries
-                           if e[1].startswith(prefix) or e[1] == self.browse_file.rstrip('/')]
     def _get_mode_map_for_sha(self, sha, cache_entry):
         """Extract file mode changes for a commit sha."""
         if 'mode_map' not in cache_entry:
-            if 'diff' not in cache_entry:
-                try:
-                    cache_entry['diff'] = get_commit_diff(self.repo_path, sha)
-                except Exception:
-                    cache_entry['diff'] = ""
-            from lib.git_helpers import parse_commit_mode_changes
-            cache_entry['mode_map'] = parse_commit_mode_changes(cache_entry.get('diff', ''))
+            from lib.git_helpers import get_commit_mode_changes
+            cache_entry['mode_map'] = get_commit_mode_changes(self.repo_path, sha)
             self.commit_cache[sha] = cache_entry
         return cache_entry.get('mode_map', {})
 

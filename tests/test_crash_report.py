@@ -174,7 +174,8 @@ class TestCrashDialog(unittest.TestCase):
                       dialog.message_label.text())
 
     def test_text_area_uses_main_window_font(self):
-        settings = QSettings("shyjun", "GitInteractiveRebase")
+        from lib.settings_store import tool_settings
+        settings = tool_settings()
         expected = mono_font(
             int(settings.value("font_size", 10)),
             family=settings.value("font_family", None))

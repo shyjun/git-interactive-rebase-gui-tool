@@ -214,8 +214,7 @@ def get_commit_file_stats(repo_path, commit_sha):
             _fill_binary_sizes(repo_path, commit_sha, binary_files, stats, is_commit=True)
 
         try:
-            diff_text = get_commit_diff(repo_path, commit_sha)
-            mode_map = parse_commit_mode_changes(diff_text)
+            mode_map = get_commit_mode_changes(repo_path, commit_sha)
             if mode_map:
                 for f, m in mode_map.items():
                     s = stats.get(f)
@@ -329,6 +328,56 @@ def format_file_mode(mode_str):
     return mode_str
 
 
+def _extract_git_diff_paths(first_line):
+    """Extract (path1, path2) from a 'diff --git a/... b/...' header line, handling quoted paths."""
+    if not first_line.startswith('diff --git '):
+        return "", ""
+    rest = first_line[11:]
+    m_quoted = re.match(r'^(?:"a/(.*?)"|a/(.*?))\s+(?:"b/(.*?)"|b/(.*?))$', rest)
+    if m_quoted:
+        p1 = m_quoted.group(1) or m_quoted.group(2) or ""
+        p2 = m_quoted.group(3) or m_quoted.group(4) or ""
+        return p1, p2
+    return "", ""
+
+
+def parse_git_raw_mode_changes(raw_output):
+    """Parses output of 'git diff --raw' or 'git diff-tree --raw'.
+
+    Returns dict mapping filepath -> (old_mode, new_mode).
+    """
+    if not raw_output:
+        return {}
+    mode_map = {}
+    for line in raw_output.strip().split('\n'):
+        if not line.startswith(':'):
+            continue
+        parts = line.split('\t')
+        meta = parts[0].split()
+        if len(meta) >= 2:
+            old_mode = meta[0].lstrip(':')
+            new_mode = meta[1]
+            if old_mode != new_mode and old_mode != "000000" and new_mode != "000000":
+                path1 = parts[1] if len(parts) >= 2 else ""
+                path2 = parts[2] if len(parts) >= 3 else ""
+                filepath = path2 if path2 else path1
+                if filepath:
+                    mode_map[filepath] = (old_mode, new_mode)
+                    if path1 and path1 != filepath:
+                        mode_map[path1] = (old_mode, new_mode)
+    return mode_map
+
+
+def get_commit_mode_changes(repo_path, commit_sha):
+    """Fetch file mode changes for a commit using lightweight git diff-tree --raw."""
+    try:
+        cmd = ["git", "diff-tree", "-r", "-m", "--no-commit-id", "--raw", commit_sha]
+        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
+        return parse_git_raw_mode_changes(result.stdout)
+    except Exception:
+        return {}
+
+
 def parse_commit_mode_changes(diff_text):
     """Parses full commit diff text to extract old_mode and new_mode for files.
 
@@ -342,15 +391,14 @@ def parse_commit_mode_changes(diff_text):
         if not chunk.startswith('diff --git'):
             continue
         first_line = chunk.split('\n', 1)[0]
-        m = re.match(r'^diff --git a/(.*?) b/(.*?)$', first_line)
-        if m:
-            path1, path2 = m.group(1), m.group(2)
-            filepath = path2 if path2 else path1
+        path1, path2 = _extract_git_diff_paths(first_line)
+        filepath = path2 if path2 else path1
+        if filepath:
             old_m = re.search(r'^old mode (\d+)', chunk, re.MULTILINE)
             new_m = re.search(r'^new mode (\d+)', chunk, re.MULTILINE)
             if old_m and new_m:
                 mode_map[filepath] = (old_m.group(1), new_m.group(1))
-                if path1 != filepath:
+                if path1 and path1 != filepath:
                     mode_map[path1] = (old_m.group(1), new_m.group(1))
     return mode_map
 

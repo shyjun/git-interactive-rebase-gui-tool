@@ -6,7 +6,6 @@ from PySide6.QtCore import (
 from PySide6.QtGui import (
     QColor,
     QFont,
-    QFontDatabase,
     QPainter,
     QPainterPath,
     QPen,
@@ -17,10 +16,20 @@ from PySide6.QtWidgets import (
     QStyledItemDelegate,
     QStyleOptionViewItem,
 )
-from lib.app_window.helpers import MATCH_ROLE, SHA_RECT_ROLE
+from lib.app_window.helpers import (
+    MATCH_ROLE,
+    LOAD_MORE_ROLE,
+    SHA_RECT_ROLE,
+    default_mono_family,
+)
 
 
 class CommitItemDelegate(QStyledItemDelegate):
+    def get_sha_pill_rect(self, index):
+        if not hasattr(self, '_sha_pill_rects') or not index.isValid():
+            return None
+        return self._sha_pill_rects.get(index.row())
+
     def paint(self, painter, option, index):
         opt = QStyleOptionViewItem(option)
         self.initStyleOption(opt, index)
@@ -143,7 +152,7 @@ class CommitItemDelegate(QStyledItemDelegate):
         painter.setFont(opt.font)
         fm_normal = painter.fontMetrics()
 
-        is_load_more = (index.data(Qt.UserRole + 9) == "load_more")
+        is_load_more = (index.data(LOAD_MORE_ROLE) == "load_more")
         is_commit = not is_load_more and bool(sha) and all(c in "0123456789abcdefABCDEF" for c in sha)
 
         if is_commit:
@@ -152,14 +161,7 @@ class CommitItemDelegate(QStyledItemDelegate):
             # Build a smaller monospace font (90% of item height, capped at ~11px).
             pill_px = max(8, int(opt.rect.height() * 0.52))
             if not hasattr(self, '_sha_font') or getattr(self, '_sha_font_px', 0) != pill_px:
-                from PySide6.QtGui import QFontDatabase
-                sha_fam = "Monospace"
-                # prefer platform mono families
-                avail = QFontDatabase.families()
-                for cand in ("Cascadia Code", "Consolas", "Menlo", "Monaco", "Monospace"):
-                    if cand in avail:
-                        sha_fam = cand
-                        break
+                sha_fam = default_mono_family()
                 self._sha_font = QFont(sha_fam)
                 self._sha_font.setStyleHint(QFont.StyleHint.Monospace)
                 self._sha_font.setPixelSize(pill_px)
@@ -214,11 +216,14 @@ class CommitItemDelegate(QStyledItemDelegate):
                 pill_rect.width(),
                 pill_rect.height(),
             )
-            index.model().setData(index, local_pill, SHA_RECT_ROLE)
+            if not hasattr(self, '_sha_pill_rects'):
+                self._sha_pill_rects = {}
+            self._sha_pill_rects[index.row()] = local_pill
 
             current_x += pill_w + 6  # 6px gap between pill and message
         else:
-            index.model().setData(index, None, SHA_RECT_ROLE)
+            if hasattr(self, '_sha_pill_rects'):
+                self._sha_pill_rects.pop(index.row(), None)
 
         painter.setFont(opt.font)
         fm_normal = painter.fontMetrics()

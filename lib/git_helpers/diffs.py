@@ -140,9 +140,8 @@ def get_file_stats_between(repo_path, start_sha, end_sha):
                 new_size = _get_file_size(repo_path, end_sha, filepath)
                 stats[filepath] = (0, 0, old_size, new_size)
 
-        diff_text = get_diff_between(repo_path, start_sha, end_sha)
-        from .commits import parse_commit_mode_changes
-        mode_map = parse_commit_mode_changes(diff_text)
+        from .commits import parse_git_raw_mode_changes
+        mode_map = get_mode_changes_between(repo_path, start_sha, end_sha)
         if mode_map:
             for f, m in mode_map.items():
                 s = stats.get(f)
@@ -154,6 +153,17 @@ def get_file_stats_between(repo_path, start_sha, end_sha):
     except subprocess.CalledProcessError as exc:
         err = exc.stderr.strip() if exc.stderr else str(exc)
         _log(f"[git_helpers] get_file_stats_between: git diff --numstat failed between {start_sha} and {end_sha}: {err}")
+        return {}
+
+
+def get_mode_changes_between(repo_path, start_sha, end_sha):
+    """Fetch file mode changes between two commits using git diff --raw."""
+    try:
+        cmd = ["git", "diff", "--raw", start_sha, end_sha]
+        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
+        from .commits import parse_git_raw_mode_changes
+        return parse_git_raw_mode_changes(result.stdout)
+    except Exception:
         return {}
 
 
@@ -186,6 +196,19 @@ def get_unstaged_diff(repo_path, ignore_submodules=False):
         raise Exception(f"Failed to fetch unstaged diff: {e.stderr}")
 
 
+def get_unstaged_mode_changes(repo_path, ignore_submodules=False):
+    """Fetch file mode changes for unstaged files using git diff --raw."""
+    try:
+        cmd = ["git", "diff", "--raw"]
+        if ignore_submodules:
+            cmd.append("--ignore-submodules=all")
+        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
+        from .commits import parse_git_raw_mode_changes
+        return parse_git_raw_mode_changes(result.stdout)
+    except Exception:
+        return {}
+
+
 def get_unstaged_file_stats(repo_path, ignore_submodules=False):
     """Returns a dict mapping filepath -> (added_lines, deleted_lines, old_size, new_size, old_mode, new_mode) for unstaged changes."""
     try:
@@ -214,9 +237,7 @@ def get_unstaged_file_stats(repo_path, ignore_submodules=False):
                 new_size = _get_working_tree_file_size(repo_path, filepath)
                 stats[filepath] = (0, 0, old_size, new_size)
 
-        diff_text = get_unstaged_diff(repo_path, ignore_submodules=ignore_submodules)
-        from .commits import parse_commit_mode_changes
-        mode_map = parse_commit_mode_changes(diff_text)
+        mode_map = get_unstaged_mode_changes(repo_path, ignore_submodules=ignore_submodules)
         if mode_map:
             for f, m in mode_map.items():
                 s = stats.get(f)
@@ -230,6 +251,17 @@ def get_unstaged_file_stats(repo_path, ignore_submodules=False):
     except subprocess.CalledProcessError as exc:
         err = exc.stderr.strip() if exc.stderr else str(exc)
         _log(f"[git_helpers] get_unstaged_file_stats: git diff --numstat failed: {err}")
+        return {}
+
+
+def get_staged_mode_changes(repo_path):
+    """Fetch file mode changes for staged files using git diff --cached --raw."""
+    try:
+        cmd = ["git", "diff", "--cached", "--raw"]
+        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
+        from .commits import parse_git_raw_mode_changes
+        return parse_git_raw_mode_changes(result.stdout)
+    except Exception:
         return {}
 
 
@@ -259,9 +291,7 @@ def get_staged_file_stats(repo_path):
                 new_size = _get_staged_file_size(repo_path, filepath)
                 stats[filepath] = (0, 0, old_size, new_size)
 
-        diff_text = get_staged_diff(repo_path)
-        from .commits import parse_commit_mode_changes
-        mode_map = parse_commit_mode_changes(diff_text)
+        mode_map = get_staged_mode_changes(repo_path)
         if mode_map:
             for f, m in mode_map.items():
                 s = stats.get(f)

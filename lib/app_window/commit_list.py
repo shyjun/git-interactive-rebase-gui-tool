@@ -188,7 +188,8 @@ class CommitListWidget(QListWidget):
                 dy = rel_pos.y() - self._sha_press_pos.y()
                 if dx * dx + dy * dy <= 16:   # 4px drag guard
                     idx = self._sha_press_index
-                    pill_rect = idx.data(SHA_RECT_ROLE)
+                    delegate = self.itemDelegate(idx)
+                    pill_rect = delegate.get_sha_pill_rect(idx) if hasattr(delegate, 'get_sha_pill_rect') else idx.data(SHA_RECT_ROLE)
                     item_rect = self.visualRect(idx)
                     if pill_rect is not None and not pill_rect.isNull():
                         # pill_rect is row-local; convert to viewport coords

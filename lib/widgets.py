@@ -108,10 +108,14 @@ class ShaToast(QWidget):
 
     # ------------------------------------------------------------------
     def _is_dark(self):
+        vp = self.parent()
+        if vp is not None and hasattr(vp, "palette"):
+            bg = vp.palette().color(QPalette.Window)
+            if bg.isValid() and bg.alpha() > 0:
+                return bg.lightness() < 128
         app = QApplication.instance()
         if app is None:
             return True
-        # A bright window text on a dark background = dark theme
         palette = app.palette()
         bg = palette.color(QPalette.Window)
         return bg.lightness() < 128
@@ -148,14 +152,6 @@ class ShaToast(QWidget):
         self.raise_()
         self._timer.stop()
         self._timer.start(self._HIDE_MS)
-
-    def show_near(self, global_pill_rect: QRect):
-        """Backward-compatible helper taking global coords."""
-        vp = self.parent()
-        if vp is not None:
-            origin = vp.mapFromGlobal(global_pill_rect.topLeft())
-            vp_rect = QRect(origin.x(), origin.y(), global_pill_rect.width(), global_pill_rect.height())
-            self.show_below_pill(vp_rect)
 
     # ------------------------------------------------------------------
     def paintEvent(self, event):
