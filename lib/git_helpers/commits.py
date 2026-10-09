@@ -286,6 +286,46 @@ def get_file_diff_only_in_commit(repo_path, commit_sha, filepath):
                      "Failed to get file diff"))
 
 
+def format_file_mode(mode_str):
+    """Format git file mode code into human-readable permission string (e.g. 100755 -> 755)."""
+    if not mode_str:
+        return ""
+    mode_str = str(mode_str).strip()
+    if mode_str == "120000":
+        return "symlink"
+    if mode_str == "160000":
+        return "submodule"
+    if len(mode_str) >= 3 and mode_str.isdigit():
+        return mode_str[-3:]
+    return mode_str
+
+
+def parse_commit_mode_changes(diff_text):
+    """Parses full commit diff text to extract old_mode and new_mode for files.
+
+    Returns dict mapping filepath -> (old_mode, new_mode).
+    """
+    if not diff_text:
+        return {}
+    mode_map = {}
+    chunks = re.split(r'(?m)^(?=diff --git )', diff_text)
+    for chunk in chunks:
+        if not chunk.startswith('diff --git'):
+            continue
+        first_line = chunk.split('\n', 1)[0]
+        m = re.match(r'^diff --git a/(.*?) b/(.*?)$', first_line)
+        if m:
+            path1, path2 = m.group(1), m.group(2)
+            filepath = path2 if path2 else path1
+            old_m = re.search(r'^old mode (\d+)', chunk, re.MULTILINE)
+            new_m = re.search(r'^new mode (\d+)', chunk, re.MULTILINE)
+            if old_m and new_m:
+                mode_map[filepath] = (old_m.group(1), new_m.group(1))
+                if path1 != filepath:
+                    mode_map[path1] = (old_m.group(1), new_m.group(1))
+    return mode_map
+
+
 def parse_commit_diff_into_files(diff_text):
     """Parses a full commit diff string into a dict mapping filepaths to diff text chunks.
 
@@ -338,6 +378,8 @@ def build_file_tree(files, file_stats):
         stats = file_stats.get(path1, (0, 0, 0, 0))
         added, deleted = stats[0], stats[1]
         old_size, new_size = stats[2] if len(stats) > 2 else 0, stats[3] if len(stats) > 3 else 0
+        old_mode = stats[4] if len(stats) > 4 else None
+        new_mode = stats[5] if len(stats) > 5 else None
         is_binary = (old_size != 0 or new_size != 0) and added == 0 and deleted == 0
 
         node = root
@@ -355,6 +397,9 @@ def build_file_tree(files, file_stats):
         node["children"][basename]["added"] += added
         node["children"][basename]["deleted"] += deleted
         node["children"][basename]["entries"].append(entry)
+        if old_mode and new_mode:
+            node["children"][basename]["old_mode"] = old_mode
+            node["children"][basename]["new_mode"] = new_mode
         if is_binary:
             node["children"][basename]["old_size"] = old_size
             node["children"][basename]["new_size"] = new_size

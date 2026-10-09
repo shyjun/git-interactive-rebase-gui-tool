@@ -810,8 +810,12 @@ class StatsItemDelegate(QStyledItemDelegate):
         is_binary = False
         old_size = new_size = 0
         added = deleted = 0
+        old_mode = new_mode = None
         if stats and isinstance(stats, tuple):
-            if len(stats) == 4:
+            if len(stats) >= 6:
+                added, deleted, old_size, new_size, old_mode, new_mode = stats[:6]
+                is_binary = (old_size != 0 or new_size != 0) and added == 0 and deleted == 0
+            elif len(stats) == 4:
                 added, deleted, old_size, new_size = stats
                 is_binary = (old_size != 0 or new_size != 0) and added == 0 and deleted == 0
             elif len(stats) == 2:
@@ -834,12 +838,27 @@ class StatsItemDelegate(QStyledItemDelegate):
                 Qt.AlignLeft | Qt.AlignVCenter, stats_text)
             filename_rect = QRect(rect.left(), rect.top(),
                                   rect.width() - stats_w - 8, rect.height())
+        elif not is_binary and not (added or deleted) and old_mode and new_mode and old_mode != new_mode:
+            from lib.git_helpers import format_file_mode
+            stats_text = f"mode: {format_file_mode(old_mode)} -> {format_file_mode(new_mode)}"
+            stats_w = fm.horizontalAdvance(stats_text) + 4
+            is_dark = getattr(opt.widget.window(), 'is_dark_theme', True) if opt.widget else True
+            mode_color = QColor("white") if is_selected else (QColor("#f59e0b") if is_dark else QColor("#d97706"))
+            painter.setPen(mode_color)
+            painter.drawText(
+                QRect(rect.right() - stats_w, rect.top(), stats_w, rect.height()),
+                Qt.AlignLeft | Qt.AlignVCenter, stats_text)
+            filename_rect = QRect(rect.left(), rect.top(),
+                                  rect.width() - stats_w - 8, rect.height())
         elif added or deleted:
+            from lib.git_helpers import format_file_mode
+            mode_str = f" (mode: {format_file_mode(old_mode)} -> {format_file_mode(new_mode)})" if old_mode and new_mode and old_mode != new_mode else ""
             added_str = f"+{added}"
             deleted_str = f" -{deleted}"
+            mode_w = fm.horizontalAdvance(mode_str) if mode_str else 0
             deleted_w = fm.horizontalAdvance(deleted_str)
             added_w = fm.horizontalAdvance(added_str)
-            stats_total_w = added_w + deleted_w + 4
+            stats_total_w = added_w + deleted_w + mode_w + 4
 
             # Draw +N (green / white-on-select)
             painter.setPen(QColor("white") if is_selected else self.added_color)
@@ -850,8 +869,16 @@ class StatsItemDelegate(QStyledItemDelegate):
             # Draw -M (red / white-on-select)
             painter.setPen(QColor("white") if is_selected else self.removed_color)
             painter.drawText(
-                QRect(rect.right() - deleted_w, rect.top(), deleted_w, rect.height()),
+                QRect(rect.right() - stats_total_w + added_w, rect.top(), deleted_w, rect.height()),
                 Qt.AlignLeft | Qt.AlignVCenter, deleted_str)
+
+            if mode_str:
+                is_dark = getattr(opt.widget.window(), 'is_dark_theme', True) if opt.widget else True
+                mode_color = QColor("white") if is_selected else (QColor("#f59e0b") if is_dark else QColor("#d97706"))
+                painter.setPen(mode_color)
+                painter.drawText(
+                    QRect(rect.right() - mode_w, rect.top(), mode_w, rect.height()),
+                    Qt.AlignLeft | Qt.AlignVCenter, mode_str)
 
             filename_rect = QRect(rect.left(), rect.top(),
                                   rect.width() - stats_total_w - 8, rect.height())
@@ -931,6 +958,10 @@ class TreeStatsDelegate(QStyledItemDelegate):
                 painter.setPen(QColor("white") if is_selected else self.added_color)
             elif stats_text.startswith("-"):
                 painter.setPen(QColor("white") if is_selected else self.removed_color)
+            elif "mode:" in stats_text:
+                is_dark = getattr(opt.widget.window(), 'is_dark_theme', True) if opt.widget else True
+                mode_color = QColor("white") if is_selected else (QColor("#f59e0b") if is_dark else QColor("#d97706"))
+                painter.setPen(mode_color)
             else:
                 painter.setPen(QColor("white") if is_selected else option.palette.text().color())
             text_w = fm.horizontalAdvance(stats_text) + 4

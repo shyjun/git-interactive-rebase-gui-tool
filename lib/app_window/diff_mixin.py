@@ -191,6 +191,18 @@ class DiffMixin:
         cache_entry['file_stats'] = file_stats
         self.commit_cache[commit_sha] = cache_entry
 
+        mode_map = self._get_mode_map_for_sha(commit_sha, cache_entry)
+        combined_file_stats = {}
+        for p, s in file_stats.items():
+            m = mode_map.get(p)
+            if m:
+                combined_file_stats[p] = (s[0], s[1], s[2], s[3], m[0], m[1])
+            else:
+                combined_file_stats[p] = s
+        for p, m in mode_map.items():
+            if p not in combined_file_stats:
+                combined_file_stats[p] = (0, 0, 0, 0, m[0], m[1])
+
         # Update filewise list items with stats (in-place, no rebuild)
         self.filewise_file_list.setUpdatesEnabled(False)
         self.filewise_file_list.blockSignals(True)
@@ -199,7 +211,7 @@ class DiffMixin:
             entry = item.data(FILE_ENTRY_ROLE)
             if entry:
                 _, path1, _ = entry
-                item.setData(Qt.UserRole, file_stats.get(path1))
+                item.setData(Qt.UserRole, combined_file_stats.get(path1))
         self.filewise_file_list.blockSignals(False)
         self.filewise_file_list.setUpdatesEnabled(True)
 
@@ -209,7 +221,7 @@ class DiffMixin:
         removed_color = self.current_theme_colors.get("removed", "#cb2431") if hasattr(self, 'current_theme_colors') else "#cb2431"
         self.treewise_tree.setUpdatesEnabled(False)
         self.treewise_tree.blockSignals(True)
-        self._update_treewise_stats(self.treewise_tree.invisibleRootItem(), file_stats, added_color, removed_color)
+        self._update_treewise_stats(self.treewise_tree.invisibleRootItem(), combined_file_stats, added_color, removed_color)
         self.treewise_tree.blockSignals(False)
         self.treewise_tree.setUpdatesEnabled(True)
 
@@ -308,11 +320,40 @@ class DiffMixin:
             prefix = self.browse_file.rstrip('/') + '/'
             file_entries = [e for e in file_entries
                            if e[1].startswith(prefix) or e[1] == self.browse_file.rstrip('/')]
+    def _get_mode_map_for_sha(self, sha, cache_entry):
+        """Extract file mode changes for a commit sha."""
+        if 'mode_map' not in cache_entry:
+            if 'diff' not in cache_entry:
+                try:
+                    cache_entry['diff'] = get_commit_diff(self.repo_path, sha)
+                except Exception:
+                    cache_entry['diff'] = ""
+            from lib.git_helpers import parse_commit_mode_changes
+            cache_entry['mode_map'] = parse_commit_mode_changes(cache_entry.get('diff', ''))
+            self.commit_cache[sha] = cache_entry
+        return cache_entry.get('mode_map', {})
+
+    def _ensure_filewise_list_populated(self, sha, cache_entry):
+        """Populate filewise list if not already done for this sha."""
+        if getattr(self, '_filewise_list_sha', None) == sha:
+            return
+
+        if 'files' not in cache_entry:
+            cache_entry['files'] = get_commit_files_with_status(self.repo_path, sha, stash=self.browse_stash)
+            self.commit_cache[sha] = cache_entry
+
+        file_entries = cache_entry['files']
+        if getattr(self, 'browse_is_dir', False) and self.browse_file:
+            prefix = self.browse_file.rstrip('/') + '/'
+            file_entries = [e for e in file_entries
+                           if e[1].startswith(prefix) or e[1] == self.browse_file.rstrip('/')]
         if 'file_stats' in cache_entry:
             file_stats = cache_entry['file_stats']
         else:
             file_stats = {}
             self._launch_numstat_worker(sha, file_entries)
+
+        mode_map = self._get_mode_map_for_sha(sha, cache_entry)
 
         checked_set = getattr(self, '_checked_files_for_sha', set())
         self._filewise_entries_map = {}
@@ -335,7 +376,19 @@ class DiffMixin:
                 display = path1
             fitem = QListWidgetItem(display)
             fitem.setToolTip(path1)
-            fitem.setData(Qt.UserRole, file_stats.get(path1))
+
+            stat_val = file_stats.get(path1)
+            mode_val = mode_map.get(path1) or mode_map.get(path)
+            if stat_val and mode_val:
+                user_data = (stat_val[0], stat_val[1], stat_val[2], stat_val[3], mode_val[0], mode_val[1])
+            elif stat_val:
+                user_data = stat_val
+            elif mode_val:
+                user_data = (0, 0, 0, 0, mode_val[0], mode_val[1])
+            else:
+                user_data = None
+
+            fitem.setData(Qt.UserRole, user_data)
             fitem.setData(FILE_ENTRY_ROLE, entry)
             fitem.setFlags(fitem.flags() | Qt.ItemIsUserCheckable)
             is_checked = (path in checked_set) or (path1 in checked_set)
@@ -366,8 +419,20 @@ class DiffMixin:
             file_stats = {}
             self._launch_numstat_worker(sha, file_entries)
 
+        mode_map = self._get_mode_map_for_sha(sha, cache_entry)
+        combined_file_stats = {}
+        for p, s in file_stats.items():
+            m = mode_map.get(p)
+            if m:
+                combined_file_stats[p] = (s[0], s[1], s[2], s[3], m[0], m[1])
+            else:
+                combined_file_stats[p] = s
+        for p, m in mode_map.items():
+            if p not in combined_file_stats:
+                combined_file_stats[p] = (0, 0, 0, 0, m[0], m[1])
+
         self.treewise_tree.setUpdatesEnabled(False)
-        self._populate_treewise_tree(file_entries, file_stats)
+        self._populate_treewise_tree(file_entries, combined_file_stats)
         checked_set = getattr(self, '_checked_files_for_sha', set())
         if checked_set:
             self._apply_checked_set_to_tree(checked_set)
@@ -852,19 +917,24 @@ class DiffMixin:
         for i in range(self.treewise_tree.topLevelItemCount()):
             self.treewise_tree.topLevelItem(i).setExpanded(True)
 
-    def _set_stats_column(self, item, added, deleted, added_color, removed_color, old_size=0, new_size=0):
+    def _set_stats_column(self, item, added, deleted, added_color, removed_color, old_size=0, new_size=0, old_mode=None, new_mode=None):
         """Set colored stats text in column 1 of a tree widget item."""
         is_binary = (old_size != 0 or new_size != 0) and added == 0 and deleted == 0
+        from lib.git_helpers import format_binary_size, format_file_mode
         if is_binary:
-            from lib.git_helpers import format_binary_size
             if old_size >= 0 and new_size >= 0 and old_size != new_size:
                 item.setText(1, f"size: {format_binary_size(old_size)} -> {format_binary_size(new_size)}")
             elif new_size >= 0:
                 item.setText(1, f"size: {format_binary_size(new_size)}")
             elif old_size >= 0:
                 item.setText(1, f"size: {format_binary_size(old_size)}")
-        else:
-            item.setText(1, f"+{added} / -{deleted}")
+        elif added or deleted:
+            text = f"+{added} / -{deleted}"
+            if old_mode and new_mode and old_mode != new_mode:
+                text += f" (mode: {format_file_mode(old_mode)} -> {format_file_mode(new_mode)})"
+            item.setText(1, text)
+        elif old_mode and new_mode and old_mode != new_mode:
+            item.setText(1, f"mode: {format_file_mode(old_mode)} -> {format_file_mode(new_mode)}")
         item.setTextAlignment(1, Qt.AlignRight | Qt.AlignVCenter)
 
     def _update_treewise_stats(self, parent_item, file_stats, added_color, removed_color):
@@ -891,7 +961,11 @@ class DiffMixin:
                     path1 = entry[1]
                     stats = file_stats.get(path1)
                     if stats:
-                        self._set_stats_column(child, stats[0], stats[1], added_color, removed_color)
+                        old_size = stats[2] if len(stats) > 2 else 0
+                        new_size = stats[3] if len(stats) > 3 else 0
+                        old_mode = stats[4] if len(stats) > 4 else None
+                        new_mode = stats[5] if len(stats) > 5 else None
+                        self._set_stats_column(child, stats[0], stats[1], added_color, removed_color, old_size, new_size, old_mode, new_mode)
                         folder_added += stats[0]
                         folder_deleted += stats[1]
         return folder_added, folder_deleted
@@ -949,9 +1023,11 @@ class DiffMixin:
                 item.setData(0, Qt.UserRole + 10, {"type": "file", "entry": entry})
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
                 item.setCheckState(0, Qt.Unchecked)
-                if node["added"] or node["deleted"] or node.get("old_size") or node.get("new_size"):
+                old_m = node.get("old_mode")
+                new_m = node.get("new_mode")
+                if node["added"] or node["deleted"] or node.get("old_size") or node.get("new_size") or (old_m and new_m and old_m != new_m):
                     self._set_stats_column(item, node['added'], node['deleted'], added_color, removed_color,
-                                           node.get('old_size', 0), node.get('new_size', 0))
+                                           node.get('old_size', 0), node.get('new_size', 0), old_m, new_m)
                 if parent_item:
                     parent_item.addChild(item)
                 else:
