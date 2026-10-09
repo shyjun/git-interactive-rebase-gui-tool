@@ -40,6 +40,20 @@ index 123456..789abc
         self.assertEqual(script_node.get("old_mode"), "100644")
         self.assertEqual(script_node.get("new_mode"), "100755")
 
+    def test_format_tree_node_stats_binary_mode_change(self):
+        from lib.git_helpers.commits import format_tree_node_stats
+        node = {
+            "added": 0,
+            "deleted": 0,
+            "old_size": 138240,
+            "new_size": 138240,
+            "old_mode": "100755",
+            "new_mode": "100644",
+        }
+        res = format_tree_node_stats(node)
+        self.assertIn("135.0 KB", res)
+        self.assertIn("mode: 755 -> 644", res)
+
 
 if __name__ == "__main__":
     unittest.main()

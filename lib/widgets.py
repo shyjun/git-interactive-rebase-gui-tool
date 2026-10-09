@@ -822,15 +822,24 @@ class StatsItemDelegate(QStyledItemDelegate):
                 added, deleted = stats
 
         if is_binary:
-            from lib.git_helpers import format_binary_size
+            from lib.git_helpers import format_binary_size, format_file_mode
             if old_size >= 0 and new_size >= 0 and old_size != new_size:
-                stats_text = f"size: {format_binary_size(old_size)} -> {format_binary_size(new_size)}"
-            elif new_size >= 0:
-                stats_text = f"size: {format_binary_size(new_size)}"
-            elif old_size >= 0:
-                stats_text = f"size: {format_binary_size(old_size)}"
+                base_text = f"size: {format_binary_size(old_size)} -> {format_binary_size(new_size)}"
+            elif new_size > 0:
+                base_text = f"size: {format_binary_size(new_size)}"
+            elif old_size > 0:
+                base_text = f"size: {format_binary_size(old_size)}"
+            else:
+                base_text = ""
+
+            mode_str = f" (mode: {format_file_mode(old_mode)} -> {format_file_mode(new_mode)})" if old_mode and new_mode and old_mode != new_mode else ""
+            if base_text:
+                stats_text = f"{base_text}{mode_str}"
+            elif mode_str:
+                stats_text = f"mode: {format_file_mode(old_mode)} -> {format_file_mode(new_mode)}"
             else:
                 stats_text = ""
+
             stats_w = fm.horizontalAdvance(stats_text) + 4
             painter.setPen(QColor("white") if is_selected else option.palette.text().color())
             painter.drawText(

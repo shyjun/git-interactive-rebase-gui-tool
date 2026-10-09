@@ -15,25 +15,35 @@ def format_tree_node_stats(node):
     """Format stats text for a tree node (folder or file).
 
     Returns a string like '+5 / -3' for text files or
-    'old: 1.2 KB, new: 1.5 KB' for binary files.
+    'size: 1.2 KB' for binary files, appending mode changes if present.
     Returns '' if no stats to display.
     """
     added = node.get("added", 0)
     deleted = node.get("deleted", 0)
     old_size = node.get("old_size", 0)
     new_size = node.get("new_size", 0)
+    old_mode = node.get("old_mode")
+    new_mode = node.get("new_mode")
     is_binary = (old_size != 0 or new_size != 0) and added == 0 and deleted == 0
+
+    mode_suffix = ""
+    if old_mode and new_mode and old_mode != new_mode:
+        mode_suffix = f" (mode: {format_file_mode(old_mode)} -> {format_file_mode(new_mode)})"
 
     if is_binary:
         if old_size >= 0 and new_size >= 0 and old_size != new_size:
-            return f"size: {_format_bytes(old_size)} -> {_format_bytes(new_size)}"
-        elif new_size >= 0:
-            return f"size: {_format_bytes(new_size)}"
-        elif old_size >= 0:
-            return f"size: {_format_bytes(old_size)}"
+            return f"size: {_format_bytes(old_size)} -> {_format_bytes(new_size)}{mode_suffix}"
+        elif new_size > 0:
+            return f"size: {_format_bytes(new_size)}{mode_suffix}"
+        elif old_size > 0:
+            return f"size: {_format_bytes(old_size)}{mode_suffix}"
+        elif mode_suffix:
+            return f"mode: {format_file_mode(old_mode)} -> {format_file_mode(new_mode)}"
         return ""
     elif added or deleted:
-        return f"+{added} / -{deleted}"
+        return f"+{added} / -{deleted}{mode_suffix}"
+    elif old_mode and new_mode and old_mode != new_mode:
+        return f"mode: {format_file_mode(old_mode)} -> {format_file_mode(new_mode)}"
     return ""
 
 
