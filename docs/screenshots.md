@@ -400,6 +400,10 @@ The commit diff can be viewed in three modes (tabs):
 
 Select all, Select none, and Show only selected are available wherever the toolbar appears, including the Commit Selectively, Split, and Drop dialogs.
 
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/file-list-hover-toolbar.webp`
+
+![File list hover toolbar](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/file-list-hover-toolbar.webp)
+
 ---
 
 ### 10.1 Plain Diff
