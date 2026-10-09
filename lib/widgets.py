@@ -821,9 +821,25 @@ class StatsItemDelegate(QStyledItemDelegate):
             elif len(stats) == 2:
                 added, deleted = stats
 
-        if is_binary:
+        has_mode_change = bool(old_mode and new_mode and old_mode != new_mode)
+        has_line_changes = bool(added or deleted)
+        has_size_change = bool(old_size >= 0 and new_size >= 0 and old_size != new_size)
+
+        if has_mode_change and not has_line_changes and not has_size_change:
+            from lib.git_helpers import format_file_mode
+            stats_text = f"mode: {format_file_mode(old_mode)} -> {format_file_mode(new_mode)}"
+            stats_w = fm.horizontalAdvance(stats_text) + 4
+            is_dark = getattr(opt.widget.window(), 'is_dark_theme', True) if opt.widget else True
+            mode_color = QColor("white") if is_selected else (QColor("#f59e0b") if is_dark else QColor("#d97706"))
+            painter.setPen(mode_color)
+            painter.drawText(
+                QRect(rect.right() - stats_w, rect.top(), stats_w, rect.height()),
+                Qt.AlignLeft | Qt.AlignVCenter, stats_text)
+            filename_rect = QRect(rect.left(), rect.top(),
+                                  rect.width() - stats_w - 8, rect.height())
+        elif is_binary:
             from lib.git_helpers import format_binary_size, format_file_mode
-            if old_size >= 0 and new_size >= 0 and old_size != new_size:
+            if has_size_change:
                 base_text = f"size: {format_binary_size(old_size)} -> {format_binary_size(new_size)}"
             elif new_size > 0:
                 base_text = f"size: {format_binary_size(new_size)}"
@@ -832,7 +848,7 @@ class StatsItemDelegate(QStyledItemDelegate):
             else:
                 base_text = ""
 
-            mode_str = f" (mode: {format_file_mode(old_mode)} -> {format_file_mode(new_mode)})" if old_mode and new_mode and old_mode != new_mode else ""
+            mode_str = f" (mode: {format_file_mode(old_mode)} -> {format_file_mode(new_mode)})" if has_mode_change else ""
             if base_text:
                 stats_text = f"{base_text}{mode_str}"
             elif mode_str:
@@ -842,18 +858,6 @@ class StatsItemDelegate(QStyledItemDelegate):
 
             stats_w = fm.horizontalAdvance(stats_text) + 4
             painter.setPen(QColor("white") if is_selected else option.palette.text().color())
-            painter.drawText(
-                QRect(rect.right() - stats_w, rect.top(), stats_w, rect.height()),
-                Qt.AlignLeft | Qt.AlignVCenter, stats_text)
-            filename_rect = QRect(rect.left(), rect.top(),
-                                  rect.width() - stats_w - 8, rect.height())
-        elif not is_binary and not (added or deleted) and old_mode and new_mode and old_mode != new_mode:
-            from lib.git_helpers import format_file_mode
-            stats_text = f"mode: {format_file_mode(old_mode)} -> {format_file_mode(new_mode)}"
-            stats_w = fm.horizontalAdvance(stats_text) + 4
-            is_dark = getattr(opt.widget.window(), 'is_dark_theme', True) if opt.widget else True
-            mode_color = QColor("white") if is_selected else (QColor("#f59e0b") if is_dark else QColor("#d97706"))
-            painter.setPen(mode_color)
             painter.drawText(
                 QRect(rect.right() - stats_w, rect.top(), stats_w, rect.height()),
                 Qt.AlignLeft | Qt.AlignVCenter, stats_text)

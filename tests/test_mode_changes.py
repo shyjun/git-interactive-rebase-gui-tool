@@ -51,8 +51,7 @@ index 123456..789abc
             "new_mode": "100644",
         }
         res = format_tree_node_stats(node)
-        self.assertIn("135.0 KB", res)
-        self.assertIn("mode: 755 -> 644", res)
+        self.assertEqual(res, "mode: 755 -> 644")
 
     def test_branch_diff_dialog_enriches_mode_map(self):
         diff_text = """diff --git a/ls b/ls

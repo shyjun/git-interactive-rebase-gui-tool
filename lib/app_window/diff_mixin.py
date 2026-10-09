@@ -919,21 +919,31 @@ class DiffMixin:
 
     def _set_stats_column(self, item, added, deleted, added_color, removed_color, old_size=0, new_size=0, old_mode=None, new_mode=None):
         """Set colored stats text in column 1 of a tree widget item."""
-        is_binary = (old_size != 0 or new_size != 0) and added == 0 and deleted == 0
+        has_mode_change = bool(old_mode and new_mode and old_mode != new_mode)
+        has_line_changes = bool(added or deleted)
+        has_size_change = bool(old_size >= 0 and new_size >= 0 and old_size != new_size)
+
         from lib.git_helpers import format_binary_size, format_file_mode
-        if is_binary:
-            if old_size >= 0 and new_size >= 0 and old_size != new_size:
-                item.setText(1, f"size: {format_binary_size(old_size)} -> {format_binary_size(new_size)}")
-            elif new_size >= 0:
-                item.setText(1, f"size: {format_binary_size(new_size)}")
-            elif old_size >= 0:
-                item.setText(1, f"size: {format_binary_size(old_size)}")
-        elif added or deleted:
+
+        if has_mode_change and not has_line_changes and not has_size_change:
+            item.setText(1, f"mode: {format_file_mode(old_mode)} -> {format_file_mode(new_mode)}")
+        elif (old_size != 0 or new_size != 0) and not has_line_changes:
+            if has_size_change:
+                text = f"size: {format_binary_size(old_size)} -> {format_binary_size(new_size)}"
+                if has_mode_change:
+                    text += f" (mode: {format_file_mode(old_mode)} -> {format_file_mode(new_mode)})"
+                item.setText(1, text)
+            elif not has_mode_change:
+                if new_size > 0:
+                    item.setText(1, f"size: {format_binary_size(new_size)}")
+                elif old_size > 0:
+                    item.setText(1, f"size: {format_binary_size(old_size)}")
+        elif has_line_changes:
             text = f"+{added} / -{deleted}"
-            if old_mode and new_mode and old_mode != new_mode:
+            if has_mode_change:
                 text += f" (mode: {format_file_mode(old_mode)} -> {format_file_mode(new_mode)})"
             item.setText(1, text)
-        elif old_mode and new_mode and old_mode != new_mode:
+        elif has_mode_change:
             item.setText(1, f"mode: {format_file_mode(old_mode)} -> {format_file_mode(new_mode)}")
         item.setTextAlignment(1, Qt.AlignRight | Qt.AlignVCenter)
 
