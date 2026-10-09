@@ -469,13 +469,13 @@ class TestAccentFromStylesheet(unittest.TestCase):
 
 class TestHoverButtonAppearance(unittest.TestCase):
 
-    def test_button_is_28_with_icon(self):
+    def test_button_is_32_with_icon(self):
         lw = QListWidget()
         lw.resize(200, 120)
         lw.show()
         lw.addItem(QListWidgetItem("a.c"))
         flt = FileListFilter(lw)
-        self.assertEqual(flt.button.size().toTuple(), (28, 28))
+        self.assertEqual(flt.button.size().toTuple(), (32, 32))
         self.assertFalse(flt.button.icon().pixmap(1, 1).isNull())
         flt._refresh_button_icon()
         self.assertFalse(flt.button.icon().pixmap(1, 1).isNull())

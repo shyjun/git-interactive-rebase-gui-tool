@@ -283,44 +283,74 @@ def _pen_icon(draw_fn, color, size=16, pen_width=1.8):
     return QIcon(pixmap)
 
 
-def _draw_check_all(painter, color, pen_width=1.8):
-    """Rounded square with a check inside: select-all."""
-    pen = QPen(color, pen_width)
+# Unified toolbar blue for the file-list strip icons (reference design:
+# every glyph shares one blue, filled squares carry white marks).
+_STRIP_BLUE = QColor("#1a73e8")
+
+
+def _draw_tile(painter, tile_color="#ffffff", inset=0.6, radius=3.4):
+    """Rounded tile filling the 16x16 canvas."""
+    painter.setPen(Qt.NoPen)
+    painter.setBrush(QColor(tile_color))
+    painter.drawRoundedRect(inset, inset, 16 - 2 * inset,
+                            16 - 2 * inset, radius, radius)
+
+
+def _draw_search_tile(painter, color, pen_width=1.8):
+    """White tile with a blue magnifier: filter files."""
+    _draw_tile(painter)
+    pen = QPen(_STRIP_BLUE, 1.9)
     pen.setCapStyle(Qt.RoundCap)
     pen.setJoinStyle(Qt.RoundJoin)
     painter.setPen(pen)
     painter.setBrush(Qt.NoBrush)
-    painter.drawRoundedRect(1.6, 1.6, 12.8, 12.8, 2.5, 2.5)
+    painter.drawEllipse(3.9, 3.7, 5.4, 5.4)
+    painter.drawLine(8.0, 8.0, 11.6, 11.6)
+
+
+def _draw_check_all(painter, color, pen_width=1.8):
+    """White tile, blue filled square, white check: select-all."""
+    _draw_tile(painter)
+    painter.setPen(Qt.NoPen)
+    painter.setBrush(_STRIP_BLUE)
+    painter.drawRoundedRect(2.6, 2.6, 10.8, 10.8, 2.6, 2.6)
+    pen = QPen(QColor("#ffffff"), 1.9)
+    pen.setCapStyle(Qt.RoundCap)
+    pen.setJoinStyle(Qt.RoundJoin)
+    painter.setPen(pen)
     painter.drawPolyline(
-        [QPoint(4.4, 8.1), QPoint(7.0, 10.9), QPoint(12.0, 5.3)])
+        [QPoint(5.2, 8.3), QPoint(7.3, 10.4), QPoint(11.0, 6.1)])
 
 
 def _draw_check_none(painter, color, pen_width=1.8):
-    """Rounded square with an X inside: select-none."""
-    pen = QPen(color, pen_width)
+    """White tile, blue filled square, white X: select-none."""
+    _draw_tile(painter)
+    painter.setPen(Qt.NoPen)
+    painter.setBrush(_STRIP_BLUE)
+    painter.drawRoundedRect(2.6, 2.6, 10.8, 10.8, 2.6, 2.6)
+    pen = QPen(QColor("#ffffff"), 1.9)
     pen.setCapStyle(Qt.RoundCap)
     pen.setJoinStyle(Qt.RoundJoin)
     painter.setPen(pen)
-    painter.setBrush(Qt.NoBrush)
-    painter.drawRoundedRect(1.6, 1.6, 12.8, 12.8, 2.5, 2.5)
-    painter.drawLine(5.2, 5.2, 11.0, 11.0)
-    painter.drawLine(11.0, 5.2, 5.2, 11.0)
+    painter.drawLine(5.9, 5.9, 10.1, 10.1)
+    painter.drawLine(10.1, 5.9, 5.9, 10.1)
 
 
 def _draw_eye(painter, color, pen_width=1.8):
-    """Almond eye with pupil: show-only-selected."""
-    pen = QPen(color, pen_width)
+    """White tile with a blue eye outline: show-only-selected."""
+    _draw_tile(painter)
+    pen = QPen(_STRIP_BLUE, 1.6)
     pen.setCapStyle(Qt.RoundCap)
     pen.setJoinStyle(Qt.RoundJoin)
     painter.setPen(pen)
     painter.setBrush(Qt.NoBrush)
     path = QPainterPath()
-    path.moveTo(1.4, 8.0)
-    path.cubicTo(4.2, 3.2, 11.8, 3.2, 14.6, 8.0)
-    path.cubicTo(11.8, 12.8, 4.2, 12.8, 1.4, 8.0)
+    path.moveTo(2.4, 8.0)
+    path.cubicTo(4.6, 4.6, 11.4, 4.6, 13.6, 8.0)
+    path.cubicTo(11.4, 11.4, 4.6, 11.4, 2.4, 8.0)
     painter.drawPath(path)
-    painter.setBrush(color)
-    painter.drawEllipse(QRectF(6.1, 6.1, 3.8, 3.8))
+    painter.setBrush(_STRIP_BLUE)
+    painter.drawEllipse(QRectF(6.5, 6.5, 3.0, 3.0))
 
 
 # Interactive accent colors from get_theme_stylesheet (lib/app_window/
@@ -1182,27 +1212,25 @@ class FileListFilter(QObject):
 
         self.button = QToolButton(self.strip)
         self.button.setToolTip("Filter files")
-        # Same 28x28 as the Search in diff toolbar buttons; the accent-blue
-        # icon keeps it noticeable over white list rows.
-        self.button.setFixedSize(28, 28)
+        self.button.setFixedSize(32, 32)
         self.button.clicked.connect(self.open_bar)
         strip_layout.addWidget(self.button)
 
         self.btn_all = QToolButton(self.strip)
         self.btn_all.setToolTip("Select all files")
-        self.btn_all.setFixedSize(28, 28)
+        self.btn_all.setFixedSize(32, 32)
         self.btn_all.clicked.connect(lambda: self.set_all_checked(True))
         strip_layout.addWidget(self.btn_all)
 
         self.btn_none = QToolButton(self.strip)
         self.btn_none.setToolTip("Select no files")
-        self.btn_none.setFixedSize(28, 28)
+        self.btn_none.setFixedSize(32, 32)
         self.btn_none.clicked.connect(lambda: self.set_all_checked(False))
         strip_layout.addWidget(self.btn_none)
 
         self.btn_eye = QToolButton(self.strip)
         self.btn_eye.setToolTip("Show only selected files")
-        self.btn_eye.setFixedSize(28, 28)
+        self.btn_eye.setFixedSize(32, 32)
         self.btn_eye.setCheckable(True)
         self.btn_eye.clicked.connect(self._toggle_only_selected)
         strip_layout.addWidget(self.btn_eye)
@@ -1402,61 +1430,57 @@ class FileListFilter(QObject):
         self.strip.hide()
 
     def _refresh_button_icon(self):
-        """(Re)draw the strip icons in the current theme's accent color.
+        """(Re)draw the strip icons (pastel tiles, fixed brand palette).
 
         Resolved on demand (init, hover, palette change) so a theme switch
-        is picked up even without a palette event. The eye keeps the accent
-        icon but is restyled separately when toggled (_style_strip).
+        is picked up even without a palette event. The eye keeps a visual
+        pressed state via _style_eye_button.
         """
-        accent = _accent_color()
-        self.button.setIcon(_magnifier_icon(accent, size=19, pen_width=2.2))
-        self.btn_all.setIcon(_pen_icon(_draw_check_all, accent,
-                                       size=17, pen_width=2.0))
-        self.btn_none.setIcon(_pen_icon(_draw_check_none, accent,
-                                        size=17, pen_width=2.0))
-        self.btn_eye.setIcon(_pen_icon(_draw_eye, accent,
-                                       size=17, pen_width=2.0))
+        self.button.setIcon(_pen_icon(_draw_search_tile, None, size=24))
+        self.btn_all.setIcon(_pen_icon(_draw_check_all, None, size=24))
+        self.btn_none.setIcon(_pen_icon(_draw_check_none, None, size=24))
+        self.btn_eye.setIcon(_pen_icon(_draw_eye, None, size=24))
         for b in (self.button, self.btn_all, self.btn_none, self.btn_eye):
-            b.setIconSize(QSize(19, 19))
+            b.setIconSize(QSize(24, 24))
         self._style_eye_button()
 
-    def _style_strip(self):
-        """Opaque plate around the strip with per-button hover states.
+    def _strip_button_sheet(self, divider):
+        """One button's QSS: transparent, faint hover wash, optional
+        1px divider on its right edge (segmented-control look)."""
+        right = " border-right: 1px solid %s;" % (
+            self.widget.palette().color(QPalette.Mid).name()) if divider else ""
+        return (
+            "QToolButton { border: none;%s border-radius: 7px;"
+            " background: transparent; }"
+            " QToolButton:hover { background: rgba(127, 127, 127, 30); }"
+            " QToolButton:pressed { background: rgba(127, 127, 127, 55); }"
+            % right)
 
-        A fully transparent control let row text (stats, filenames) show
-        through and made the icons hard to see, especially over the stats
-        column. The plate adapts to the palette (light/dark); the icons
-        use the theme accent so the control reads as interactive.
-        """
+    def _style_strip(self):
+        """Segmented white card: pane-colored plate, thin dividers between
+        the four icon buttons. The plate follows the list background so it
+        reads as a floating panel in both themes."""
         pal = self.widget.palette()
-        bg = pal.color(QPalette.Button)
-        light = bg.lightness() >= 128
-        hover_bg = bg.darker(106) if light else bg.lighter(106)
-        press_bg = bg.darker(115) if light else bg.lighter(115)
         self.strip.setStyleSheet(
             "QWidget { background: %s; border: 1px solid %s;"
-            " border-radius: 4px; }"
-            % (bg.name(), pal.color(QPalette.Mid).name()))
-        for b in (self.button, self.btn_all, self.btn_none, self.btn_eye):
-            b.setStyleSheet(
-                "QToolButton { border: none; border-radius: 3px;"
-                " background: transparent; }"
-                " QToolButton:hover { background: %s; }"
-                " QToolButton:pressed { background: %s; }"
-                % (hover_bg.name(), press_bg.name()))
+            " border-radius: 8px; }"
+            % (pal.color(QPalette.Base).name(),
+               pal.color(QPalette.Mid).name()))
+        for b in (self.button, self.btn_all, self.btn_none):
+            b.setStyleSheet(self._strip_button_sheet(divider=True))
+        self.btn_eye.setStyleSheet(self._strip_button_sheet(divider=False))
         self._style_eye_button()
 
     def _style_eye_button(self):
-        """Accent plate while show-only-selected is toggled on."""
+        """Accent ring while show-only-selected is toggled on."""
         if self._only_selected:
             accent = _accent_color().name()
             self.btn_eye.setStyleSheet(
-                "QToolButton { border: none; border-radius: 3px;"
-                " background: %s; }" % accent)
+                "QToolButton { border: 2px solid %s; border-radius: 7px;"
+                " background: transparent; }" % accent)
         else:
             self.btn_eye.setStyleSheet(
-                "QToolButton { border: none; border-radius: 3px;"
-                " background: transparent; }")
+                self._strip_button_sheet(divider=False))
 
     def _style_bar(self):
         """Overlay fallback plate (see _position_bar); docked bars stay
