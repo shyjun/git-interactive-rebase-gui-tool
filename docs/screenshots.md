@@ -391,7 +391,14 @@ The commit diff can be viewed in three modes (tabs):
 
 ![Plain / File-wise / Tree-wise Diff](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/plain-file-tree-diff.webp)
 
-**File list filter:** Every file list in the diff viewer — the File-wise list, the Tree-wise tree, and the equivalent lists in dialogs such as Branch Diff, Single Commit View, Split/Drop, Commit Selectively, Commit Staged Selectively, and Add Untracked Files — has a **hover-revealed filter**. Move the mouse over the list to reveal a magnifier button, click it to open a filter bar **docked as a row above the list** (the list shrinks, so no file row — including the selected one — is ever covered; closing the row collapses it again), and type to narrow the list live: matching names are highlighted in yellow, an `N/M` counter shows matches out of visible entries, and the `<` / `>` buttons jump between matches. In the tree, typing a folder name shows all of its files with the tree auto-expanded to them. Checkboxes on hidden rows are preserved, and the filter closes automatically when the list reloads (e.g. switching commits). Press **Esc** in the filter input, or click ✕, to clear it.
+**File list toolbar:** Every file list in the diff viewer — the File-wise list, the Tree-wise tree, and the equivalent lists in dialogs such as Branch Diff, Single Commit View, Split/Drop, Commit Selectively, Commit Staged Selectively, and Add Untracked Files — has a **hover-revealed floating toolbar**. Move the mouse over the list to reveal a small four-button strip pinned to the list's top-right corner:
+
+- **Filter files** (magnifier) — opens a filter bar **docked as a row above the list** (the list shrinks, so no file row — including the selected one — is ever covered; closing the row collapses it again), and type to narrow the list live: matching names are highlighted in yellow, an `N/M` counter shows matches out of visible entries, and the `<` / `>` buttons jump between matches. In the tree, typing a folder name shows all of its files with the tree auto-expanded to them. Checkboxes on hidden rows are preserved, and the filter closes automatically when the list reloads (e.g. switching commits). Press **Esc** in the filter input, or click ✕, to clear it.
+- **Select all** (✓) — check every file in the list in one click (both the file list and the tree stay in sync, and the diff pane refreshes once).
+- **Select none** (✗) — uncheck every file in one click.
+- **Show only selected** (eye) — a **sticky toggle**: while it is on, unchecked rows are hidden so you can see and untick exactly what is still selected — unticked rows stay visible until you toggle the mode off. It combines with the text filter (both must match), re-applies after Select all / Select none, does not change your current selection, and turns off automatically when the list reloads (e.g. switching commits). The eye gets an accent ring while active.
+
+Select all, Select none, and Show only selected are available wherever the toolbar appears, including the Commit Selectively, Split, and Drop dialogs.
 
 ---
 
