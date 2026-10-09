@@ -207,6 +207,20 @@ def get_commit_file_stats(repo_path, commit_sha):
         # Get file sizes for binary files
         if binary_files:
             _fill_binary_sizes(repo_path, commit_sha, binary_files, stats, is_commit=True)
+
+        try:
+            diff_text = get_commit_diff(repo_path, commit_sha)
+            mode_map = parse_commit_mode_changes(diff_text)
+            if mode_map:
+                for f, m in mode_map.items():
+                    s = stats.get(f)
+                    if s:
+                        stats[f] = (s[0], s[1], s[2], s[3], m[0], m[1])
+                    else:
+                        stats[f] = (0, 0, 0, 0, m[0], m[1])
+        except Exception:
+            pass
+
         return stats
     except Exception as exc:
         _log(f"[git_helpers] get_commit_file_stats: failed for {commit_sha}: {exc}")

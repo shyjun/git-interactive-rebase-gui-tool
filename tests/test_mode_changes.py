@@ -54,6 +54,15 @@ index 123456..789abc
         self.assertIn("135.0 KB", res)
         self.assertIn("mode: 755 -> 644", res)
 
+    def test_branch_diff_dialog_enriches_mode_map(self):
+        diff_text = """diff --git a/ls b/ls
+old mode 100755
+new mode 100644
+"""
+        from lib.git_helpers import parse_commit_mode_changes
+        mode_map = parse_commit_mode_changes(diff_text)
+        self.assertEqual(mode_map["ls"], ("100755", "100644"))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -115,7 +115,7 @@ def get_file_diff_between(repo_path, start_sha, end_sha, filepath):
 
 
 def get_file_stats_between(repo_path, start_sha, end_sha):
-    """Returns a dict mapping filepath -> (added_lines, deleted_lines, old_size, new_size) between *start_sha* and *end_sha*."""
+    """Returns a dict mapping filepath -> (added_lines, deleted_lines, old_size, new_size, old_mode, new_mode) between *start_sha* and *end_sha*."""
     try:
         cmd = ["git", "diff", "--numstat", start_sha, end_sha]
         result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
@@ -139,6 +139,17 @@ def get_file_stats_between(repo_path, start_sha, end_sha):
                 old_size = _get_file_size(repo_path, start_sha, filepath)
                 new_size = _get_file_size(repo_path, end_sha, filepath)
                 stats[filepath] = (0, 0, old_size, new_size)
+
+        diff_text = get_diff_between(repo_path, start_sha, end_sha)
+        from .commits import parse_commit_mode_changes
+        mode_map = parse_commit_mode_changes(diff_text)
+        if mode_map:
+            for f, m in mode_map.items():
+                s = stats.get(f)
+                if s:
+                    stats[f] = (s[0], s[1], s[2], s[3], m[0], m[1])
+                else:
+                    stats[f] = (0, 0, 0, 0, m[0], m[1])
         return stats
     except subprocess.CalledProcessError as exc:
         err = exc.stderr.strip() if exc.stderr else str(exc)
@@ -176,7 +187,7 @@ def get_unstaged_diff(repo_path, ignore_submodules=False):
 
 
 def get_unstaged_file_stats(repo_path, ignore_submodules=False):
-    """Returns a dict mapping filepath -> (added_lines, deleted_lines, old_size, new_size) for unstaged changes."""
+    """Returns a dict mapping filepath -> (added_lines, deleted_lines, old_size, new_size, old_mode, new_mode) for unstaged changes."""
     try:
         cmd = ["git", "diff", "--numstat"]
         if ignore_submodules:
@@ -202,6 +213,19 @@ def get_unstaged_file_stats(repo_path, ignore_submodules=False):
                 old_size = _get_file_size(repo_path, "HEAD", filepath)
                 new_size = _get_working_tree_file_size(repo_path, filepath)
                 stats[filepath] = (0, 0, old_size, new_size)
+
+        diff_text = get_unstaged_diff(repo_path, ignore_submodules=ignore_submodules)
+        from .commits import parse_commit_mode_changes
+        mode_map = parse_commit_mode_changes(diff_text)
+        if mode_map:
+            for f, m in mode_map.items():
+                s = stats.get(f)
+                if s:
+                    stats[f] = (s[0], s[1], s[2], s[3], m[0], m[1])
+                else:
+                    old_s = _get_file_size(repo_path, "HEAD", f)
+                    new_s = _get_working_tree_file_size(repo_path, f)
+                    stats[f] = (0, 0, old_s if old_s >= 0 else 0, new_s if new_s >= 0 else 0, m[0], m[1])
         return stats
     except subprocess.CalledProcessError as exc:
         err = exc.stderr.strip() if exc.stderr else str(exc)
@@ -210,7 +234,7 @@ def get_unstaged_file_stats(repo_path, ignore_submodules=False):
 
 
 def get_staged_file_stats(repo_path):
-    """Returns a dict mapping filepath -> (added_lines, deleted_lines, old_size, new_size) for staged changes."""
+    """Returns a dict mapping filepath -> (added_lines, deleted_lines, old_size, new_size, old_mode, new_mode) for staged changes."""
     try:
         cmd = ["git", "diff", "--cached", "--numstat"]
         result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
@@ -234,6 +258,19 @@ def get_staged_file_stats(repo_path):
                 old_size = _get_file_size(repo_path, "HEAD", filepath)
                 new_size = _get_staged_file_size(repo_path, filepath)
                 stats[filepath] = (0, 0, old_size, new_size)
+
+        diff_text = get_staged_diff(repo_path)
+        from .commits import parse_commit_mode_changes
+        mode_map = parse_commit_mode_changes(diff_text)
+        if mode_map:
+            for f, m in mode_map.items():
+                s = stats.get(f)
+                if s:
+                    stats[f] = (s[0], s[1], s[2], s[3], m[0], m[1])
+                else:
+                    old_s = _get_file_size(repo_path, "HEAD", f)
+                    new_s = _get_staged_file_size(repo_path, f)
+                    stats[f] = (0, 0, old_s if old_s >= 0 else 0, new_s if new_s >= 0 else 0, m[0], m[1])
         return stats
     except subprocess.CalledProcessError as exc:
         err = exc.stderr.strip() if exc.stderr else str(exc)

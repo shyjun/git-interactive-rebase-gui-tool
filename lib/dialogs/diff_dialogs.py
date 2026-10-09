@@ -280,6 +280,18 @@ class BranchDiffDialog(QDialog):
                 colors = {"added": "#a6e22e", "removed": "#f92672", "header": "#66d9ef", "separator": "#444444"}
         self.colors = colors
 
+        if diff_text:
+            from lib.git_helpers import parse_commit_mode_changes
+            mode_map = parse_commit_mode_changes(diff_text)
+            if mode_map:
+                file_stats = dict(file_stats) if file_stats else {}
+                for f, m in mode_map.items():
+                    s = file_stats.get(f)
+                    if s:
+                        file_stats[f] = (s[0], s[1], s[2] if len(s) > 2 else 0, s[3] if len(s) > 3 else 0, m[0], m[1])
+                    else:
+                        file_stats[f] = (0, 0, 0, 0, m[0], m[1])
+
         layout = QVBoxLayout(self)
 
         # Header
