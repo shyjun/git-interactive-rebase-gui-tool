@@ -20,7 +20,6 @@ from lib.app_window.helpers import (
     MATCH_ROLE,
     LOAD_MORE_ROLE,
     SHA_RECT_ROLE,
-    default_mono_family,
 )
 
 
@@ -157,18 +156,9 @@ class CommitItemDelegate(QStyledItemDelegate):
 
         if is_commit:
             # --- SHA pill ---
-            # Draw the short SHA as a subtle monospace pill between badges and message.
-            # Build a smaller monospace font (90% of item height, capped at ~11px).
-            pill_px = max(8, int(opt.rect.height() * 0.52))
-            if not hasattr(self, '_sha_font') or getattr(self, '_sha_font_px', 0) != pill_px:
-                sha_fam = default_mono_family()
-                self._sha_font = QFont(sha_fam)
-                self._sha_font.setStyleHint(QFont.StyleHint.Monospace)
-                self._sha_font.setPixelSize(pill_px)
-                self._sha_font_px = pill_px
-            sha_font = self._sha_font
-
-            painter.setFont(sha_font)
+            # Draw the short SHA as a pill between badges and message, using the
+            # exact same configured font/size as the message; the background
+            # pill is the only visual distinction.
             fm_sha = painter.fontMetrics()
             sha_text = sha  # 7-char short SHA already extracted above
             sha_text_w = fm_sha.horizontalAdvance(sha_text)
@@ -201,7 +191,6 @@ class CommitItemDelegate(QStyledItemDelegate):
             else:
                 sha_text_color = QColor(100, 100, 100)
             painter.setPen(sha_text_color)
-            painter.setFont(sha_font)
             painter.drawText(
                 QRect(current_x + pad_h, pill_top, sha_text_w, pill_h),
                 Qt.AlignLeft | Qt.AlignVCenter,
