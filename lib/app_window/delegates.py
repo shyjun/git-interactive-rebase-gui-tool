@@ -157,8 +157,11 @@ class CommitItemDelegate(QStyledItemDelegate):
         if is_commit:
             # --- SHA pill ---
             # Draw the short SHA as a pill between badges and message, using the
-            # exact same configured font/size as the message; the background
-            # pill is the only visual distinction.
+            # configured font at 90% of the message size; the background pill
+            # is the only visual distinction.
+            pill_font = QFont(opt.font)
+            pill_font.setPointSizeF(max(6.0, opt.font.pointSizeF() * 0.9))
+            painter.setFont(pill_font)
             fm_sha = painter.fontMetrics()
             sha_text = sha  # 7-char short SHA already extracted above
             sha_text_w = fm_sha.horizontalAdvance(sha_text)
