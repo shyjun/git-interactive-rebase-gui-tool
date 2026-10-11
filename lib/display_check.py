@@ -1,30 +1,66 @@
-"""Pre-flight graphical-display check (Linux only).
+"""Pre-flight graphical-display check.
 
 Qt aborts the process (SIGABRT, not a Python exception) when no platform
 plugin can initialize — e.g. a headless SSH session, or DISPLAY set but
-authorization missing.  Call ``check_display()`` before creating a
-QApplication so such cases exit cleanly with a message instead.
+authorization missing.  A Python ``try/except`` around ``QApplication()``
+cannot catch this, so the check must happen *before* the QApplication is
+created.  Call ``check_display()`` there so such cases exit cleanly with a
+message instead.
+
+Checks are cheap OS-specific heuristics (env vars / one small subprocess);
+none of them instantiate Qt.  Returns ``(ok, message)`` and never raises.
 """
 import ctypes
 import ctypes.util
 import os
 import platform
 import socket
+import subprocess
 
 
-def check_display():
-    """Best-effort check that a GUI display can be opened.
+def _check_windows():
+    """Detect a headless Windows session (OpenSSH server / service).
 
-    Returns (ok, message).  Never raises.  On failure, ``message`` explains
-    the problem for the user.
+    OpenSSH server runs sessions in the non-interactive ``Services``
+    window station; ``Console`` (local) and ``RDP-Tcp#N`` (RDP) are
+    interactive desktops where Qt can draw.
     """
-    if platform.system() != "Linux":
-        return True, ""
+    session = os.environ.get("SESSIONNAME", "")
+    if session.upper() == "SERVICES" or os.environ.get("SSH_CONNECTION") or os.environ.get("SSH_CLIENT"):
+        return False, (
+            "Cannot open a graphical display: this looks like an SSH or "
+            "service session with no desktop.\n"
+            "Run the tool in a local console or RDP session instead."
+        )
+    return True, ""
 
-    if os.environ.get("QT_QPA_PLATFORM"):
-        # Explicit Qt platform override (offscreen, vnc, ...) — skip probing.
-        return True, ""
 
+def _check_macos():
+    """Detect a headless macOS session via ``launchctl managername``.
+
+    Only an ``Aqua`` session has WindowServer access; an SSH session
+    reports ``Background``.  Errors fall through to "assume ok" so a
+    missing/failing ``launchctl`` never causes a false reject.
+    """
+    try:
+        res = subprocess.run(
+            ["launchctl", "managername"],
+            capture_output=True, text=True, timeout=2,
+            encoding="utf-8", errors="replace",
+        )
+        name = res.stdout.strip() if res.returncode == 0 else ""
+    except Exception:
+        return True, ""
+    if name and name != "Aqua":
+        return False, (
+            f"Cannot open a graphical display: session type is {name!r} "
+            "(no WindowServer access).\n"
+            "Run the tool from a logged-in desktop session on this Mac."
+        )
+    return True, ""
+
+
+def _check_linux():
     wayland_display = os.environ.get("WAYLAND_DISPLAY")
     if wayland_display:
         xdg = os.environ.get("XDG_RUNTIME_DIR") or f"/run/user/{os.getuid()}"
@@ -76,3 +112,21 @@ def check_display():
     except (OSError, AttributeError):
         # Cannot load libX11 — cannot probe; let Qt decide.
         return True, ""
+
+
+def check_display():
+    """Best-effort check that a GUI display can be opened.
+
+    Returns (ok, message).  Never raises.  On failure, ``message`` explains
+    the problem for the user.
+    """
+    if os.environ.get("QT_QPA_PLATFORM"):
+        # Explicit Qt platform override (offscreen, vnc, ...) — skip probing.
+        return True, ""
+
+    system = platform.system()
+    if system == "Windows":
+        return _check_windows()
+    if system == "Darwin":
+        return _check_macos()
+    return _check_linux()

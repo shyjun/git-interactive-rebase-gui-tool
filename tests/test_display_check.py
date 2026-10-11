@@ -11,12 +11,6 @@ class TestCheckDisplay(unittest.TestCase):
     def _env(self, **overrides):
         return mock.patch.dict(os.environ, overrides, clear=False)
 
-    def test_non_linux_skips(self):
-        with mock.patch("platform.system", return_value="Windows"):
-            ok, msg = check_display()
-        self.assertTrue(ok)
-        self.assertEqual(msg, "")
-
     def test_qt_platform_override_skips(self):
         with mock.patch("platform.system", return_value="Linux"):
             with self._env(QT_QPA_PLATFORM="offscreen", DISPLAY=":99"):
@@ -93,6 +87,65 @@ class TestCheckDisplay(unittest.TestCase):
                     os.environ.pop("QT_QPA_PLATFORM", None)
                     os.environ.pop("WAYLAND_DISPLAY", None)
                     ok, msg = check_display()
+        self.assertTrue(ok)
+
+
+class TestCheckDisplayWindows(unittest.TestCase):
+    def _check(self, **env):
+        with mock.patch("platform.system", return_value="Windows"):
+            with mock.patch.dict(os.environ, env, clear=False):
+                for k in ("QT_QPA_PLATFORM", "SSH_CONNECTION", "SSH_CLIENT", "SESSIONNAME"):
+                    if k not in env:
+                        os.environ.pop(k, None)
+                return check_display()
+
+    def test_services_session_fails(self):
+        ok, msg = self._check(SESSIONNAME="Services")
+        self.assertFalse(ok)
+        self.assertIn("SSH", msg)
+
+    def test_ssh_connection_fails(self):
+        ok, msg = self._check(SSH_CONNECTION="1.2.3.4 5 6.7.8.9 22")
+        self.assertFalse(ok)
+
+    def test_console_session_passes(self):
+        ok, msg = self._check(SESSIONNAME="Console")
+        self.assertTrue(ok)
+        self.assertEqual(msg, "")
+
+    def test_rdp_session_passes(self):
+        ok, msg = self._check(SESSIONNAME="RDP-Tcp#3")
+        self.assertTrue(ok)
+
+
+class TestCheckDisplayMacOS(unittest.TestCase):
+    def _check(self, managername="Aqua", rc=0, raises=False):
+        res = mock.MagicMock()
+        res.returncode = rc
+        res.stdout = managername + "\n"
+        run = mock.MagicMock(side_effect=Exception("boom") if raises else None, return_value=res)
+        with mock.patch("platform.system", return_value="Darwin"):
+            with mock.patch.dict(os.environ, {"QT_QPA_PLATFORM": ""}, clear=False):
+                os.environ.pop("QT_QPA_PLATFORM", None)
+                with mock.patch("subprocess.run", run):
+                    return check_display()
+
+    def test_aqua_session_passes(self):
+        ok, msg = self._check(managername="Aqua")
+        self.assertTrue(ok)
+        self.assertEqual(msg, "")
+
+    def test_background_session_fails(self):
+        ok, msg = self._check(managername="Background")
+        self.assertFalse(ok)
+        self.assertIn("WindowServer", msg)
+
+    def test_launchctl_error_passes(self):
+        ok, msg = self._check(raises=True)
+        self.assertTrue(ok)
+
+    def test_launchctl_nonzero_passes(self):
+        ok, msg = self._check(managername="", rc=1)
         self.assertTrue(ok)
 
 
