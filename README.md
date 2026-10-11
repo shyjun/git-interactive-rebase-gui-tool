@@ -215,6 +215,14 @@ Then run:
 git_interactive_rebase
 ```
 
+If the command is not found (common on Windows — the console-script `.exe` lives in a Python `Scripts` folder that may not be on your PATH), run the tool as a module instead. It works no matter where pip installed the launcher:
+
+```bash
+python -m git_interactive_rebase
+```
+
+All arguments work the same with either launch form.
+
 ---
 
 ## 🧪 Running Without Installation
