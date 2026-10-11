@@ -17,8 +17,6 @@ from PySide6.QtWidgets import (
     QMessageBox,
 )
 from lib.git_helpers import (
-    amend_with_head,
-    bulk_commit_all,
     commit_file,
     discard_changes,
     get_branch_history,
@@ -49,7 +47,7 @@ from lib.dialogs import (
     ProgressDialog,
     UnstagedChangesDialog,
 )
-from lib.app_window.workers import BulkCommitWorker
+from lib.app_window.workers import BulkCommitWorker, AmendWorker
 from lib.commit_filter_controller import CommitFilterController
 from lib.app_window.helpers import (
     _log,
@@ -186,17 +184,28 @@ class RescanMixin:
             elif result == UnstagedChangesDialog.AmendResult:
                 self.save_undo_state()
                 old_head = self.get_head_sha()
-                success, detail = amend_with_head(self.repo_path)
+                # Mirror the bulk-commit pattern: amend runs off-thread so
+                # the ProgressDialog's exec() event loop stays live and paints.
+                progress = ProgressDialog("Amending", "Staging and amending into HEAD...", self)
 
-                if success:
-                    QMessageBox.information(
-                        self, "Amend Successful",
-                        f"Done. Changes amended into HEAD commit.\n\n"
-                        f"OLD COMMIT: {old_head[:8]}\nNEW COMMIT: {self.get_head_sha()[:8]}"
-                    )
-                else:
-                    QMessageBox.critical(self, "Error", f"Amend failed.\n\n{detail}")
-                    return
+                def _on_amend_finished(success, detail):
+                    if hasattr(self, 'amend_progress_dialog'):
+                        self.amend_progress_dialog.close()
+                    if success:
+                        QMessageBox.information(
+                            self, "Amend Successful",
+                            f"Done. Changes amended into HEAD commit.\n\n"
+                            f"OLD COMMIT: {old_head[:8]}\nNEW COMMIT: {self.get_head_sha()[:8]}"
+                        )
+                    else:
+                        QMessageBox.critical(self, "Error", f"Amend failed.\n\n{detail}")
+
+                self.amend_progress_dialog = progress
+                self.amend_worker = AmendWorker(self.repo_path, self)
+                self.amend_worker.git_finished.connect(_on_amend_finished)
+                self.amend_worker.start()
+                progress.exec()
+                return
             elif result == UnstagedChangesDialog.DiscardResult:
                 self.save_undo_state()
                 success, detail = discard_changes(self.repo_path)

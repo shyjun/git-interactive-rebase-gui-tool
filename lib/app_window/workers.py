@@ -3,7 +3,7 @@ from PySide6.QtCore import (
     QThread,
     Signal,
 )
-from lib.git_helpers import perform_self_update, bulk_commit_all
+from lib.git_helpers import perform_self_update, bulk_commit_all, amend_with_head
 
 
 class BulkCommitWorker(QThread):
@@ -19,6 +19,23 @@ class BulkCommitWorker(QThread):
     def run(self):
         try:
             ok, detail = bulk_commit_all(self.repo_path, self.message)
+            self.git_finished.emit(ok, detail)
+        except Exception as e:
+            self.git_finished.emit(False, str(e))
+
+
+class AmendWorker(QThread):
+    """Runs amend_with_head (git add -u + git commit --amend) off the UI
+    thread so a ProgressDialog's exec() event loop stays live and paints."""
+    git_finished = Signal(bool, str)
+
+    def __init__(self, repo_path, parent=None):
+        super().__init__(parent)
+        self.repo_path = repo_path
+
+    def run(self):
+        try:
+            ok, detail = amend_with_head(self.repo_path)
             self.git_finished.emit(ok, detail)
         except Exception as e:
             self.git_finished.emit(False, str(e))

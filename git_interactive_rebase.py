@@ -39,8 +39,6 @@ from lib.git_helpers import (
     get_unstaged_files,
     classify_tracked_changes,
     commit_file,
-    bulk_commit_all,
-    amend_with_head,
     stash_pop,
     stash_pop_can_apply,
     get_full_head_sha,
@@ -61,7 +59,7 @@ from lib.dialogs import (
     ProgressDialog,
     StashNoticeDialog,
 )
-from lib.app_window.workers import BulkCommitWorker
+from lib.app_window.workers import BulkCommitWorker, AmendWorker
 
 import shutil
 
@@ -471,7 +469,20 @@ def main():
         elif result == UnstagedChangesDialog.AmendResult:
             startup_undo_sha = get_head_sha(repo_path)
             old_head = get_head_sha(repo_path)
-            ok, detail = amend_with_head(repo_path)
+            # Mirror the bulk-commit pattern: amend runs off-thread so the
+            # ProgressDialog's exec() event loop stays live and paints.
+            progress = ProgressDialog("Amending", "Staging and amending into HEAD...", None)
+            _amend_result = {}
+
+            def _on_amend_finished(success, detail):
+                _amend_result["ok"], _amend_result["detail"] = success, detail
+                progress.close()
+
+            amend_worker = AmendWorker(repo_path)
+            amend_worker.git_finished.connect(_on_amend_finished)
+            amend_worker.start()
+            progress.exec()
+            ok, detail = _amend_result["ok"], _amend_result["detail"]
             if ok:
                 new_head = get_head_sha(repo_path)
                 _log("Amend successful.")
