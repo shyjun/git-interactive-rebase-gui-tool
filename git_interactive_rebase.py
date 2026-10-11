@@ -61,6 +61,7 @@ from lib.dialogs import (
     ProgressDialog,
     StashNoticeDialog,
 )
+from lib.app_window.workers import BulkCommitWorker
 
 import shutil
 
@@ -444,7 +445,21 @@ def main():
                 ack_messages = []
                 sys.exit(0)
 
-            ok, detail = bulk_commit_all(repo_path, msg)
+            # Mirror the working reset-HEAD pattern: run the blocking git work
+            # in a background thread (BulkCommitWorker) so the ProgressDialog's
+            # exec() event loop stays live and paints.
+            progress = ProgressDialog("Bulk Commit", "Staging and committing all changes...", None)
+            _bulk_result = {}
+
+            def _on_bulk_finished(success, detail):
+                _bulk_result["ok"], _bulk_result["detail"] = success, detail
+                progress.close()
+
+            bulk_worker = BulkCommitWorker(repo_path, msg)
+            bulk_worker.git_finished.connect(_on_bulk_finished)
+            bulk_worker.start()
+            progress.exec()
+            ok, detail = _bulk_result["ok"], _bulk_result["detail"]
             if ok:
                 _log("Bulk commit successful.")
                 ack_messages.append(("info", "Bulk Commit Successful",

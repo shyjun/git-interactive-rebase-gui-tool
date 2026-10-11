@@ -49,6 +49,7 @@ from lib.dialogs import (
     ProgressDialog,
     UnstagedChangesDialog,
 )
+from lib.app_window.workers import BulkCommitWorker
 from lib.commit_filter_controller import CommitFilterController
 from lib.app_window.helpers import (
     _log,
@@ -160,16 +161,28 @@ class RescanMixin:
                 if not msg:
                     return
 
-                success, detail = bulk_commit_all(self.repo_path, msg)
+                # Mirror the working reset-HEAD pattern: run the blocking git
+                # work in a background thread (BulkCommitWorker) so the
+                # ProgressDialog's exec() event loop stays live and paints.
+                progress = ProgressDialog("Bulk Commit", "Staging and committing all changes...", self)
 
-                if success:
-                    QMessageBox.information(
-                        self, "Bulk Commit Successful",
-                        f"Done. Bulk commit successful.\n\nCommit ID:\n{self.get_head_sha()[:8]}"
-                    )
-                else:
-                    QMessageBox.critical(self, "Error", f"Bulk commit failed.\n\n{detail}")
-                    return
+                def _on_bulk_finished(success, detail):
+                    if hasattr(self, 'bulk_progress_dialog'):
+                        self.bulk_progress_dialog.close()
+                    if success:
+                        QMessageBox.information(
+                            self, "Bulk Commit Successful",
+                            f"Done. Bulk commit successful.\n\nCommit ID:\n{self.get_head_sha()[:8]}"
+                        )
+                    else:
+                        QMessageBox.critical(self, "Error", f"Bulk commit failed.\n\n{detail}")
+
+                self.bulk_progress_dialog = progress
+                self.bulk_worker = BulkCommitWorker(self.repo_path, msg, self)
+                self.bulk_worker.git_finished.connect(_on_bulk_finished)
+                self.bulk_worker.start()
+                progress.exec()
+                return
             elif result == UnstagedChangesDialog.AmendResult:
                 self.save_undo_state()
                 old_head = self.get_head_sha()
