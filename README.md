@@ -200,6 +200,7 @@ feature work + debug code, code + documentation, or unrelated edits inside the s
 * Python 3.10+
 * Git CLI installed and available in PATH (`git --version` should work).
 * `PySide6` installed (`pip install PySide6`).
+* A graphical desktop session (X11/Wayland on Linux, console/RDP on Windows, logged-in GUI session on macOS). It cannot run over plain SSH or in a headless (`init 3`) session — the tool detects this at startup and exits with a clear error instead of crashing.
 
 ---
 

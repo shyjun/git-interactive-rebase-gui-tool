@@ -90,6 +90,8 @@ Launch the application with auto-detected arguments, or start in read-only Viewe
 
 **Launch forms:** after `pip install`, run `git_interactive_rebase`. If the command isn't found (common on Windows — the console-script exe lives in a Python `Scripts` folder that may not be on PATH), use `python -m git_interactive_rebase` instead; it works regardless of where pip installed the launcher. When running from a clone, use `python3 git_interactive_rebase.py` (as in the examples below).
 
+**Requires a graphical display.** Plain SSH or headless (`init 3`) sessions are detected at startup and the tool exits cleanly with an error — SSH X forwarding (`ssh -X`) works on Linux.
+
 ### Option 1: Auto-detect branch base (default, recommended)
 
 Just run the tool with **no arguments** — it automatically detects the base branch (for example, `main` or `master`) and shows the commits since the branch divergence point.
