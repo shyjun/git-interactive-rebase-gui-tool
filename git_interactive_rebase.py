@@ -282,7 +282,15 @@ def main():
         # No args: auto-detect base
         _log("No args provided. Will detect branch base after window opens.")
         _t = time.monotonic()
-        base_sha = get_recent_history_start(repo_path, count=200)
+        try:
+            base_sha = get_recent_history_start(repo_path, count=200)
+        except Exception as e:
+            _log(f"[error] could not read repository: {e}")
+            QMessageBox.critical(None, "Repository error",
+                f"Something went wrong reading this repository.\n\n{e}\n\n"
+                "If a clone or other git operation is still running, "
+                "wait for it to finish and try again.")
+            sys.exit(1)
         _log(f"[perf] get_recent_history_start: {time.monotonic()-_t:.3f}s")
         commit_sha = base_sha
         detect_base = True
@@ -302,8 +310,16 @@ def main():
             browse_tag_name = arg
         elif _is_commit_ref(repo_path, arg):
             _log(f"Arg '{arg}' is a commit ref. Resolving...")
-            res = subprocess.run(["git", "rev-parse", arg], cwd=repo_path, check=True,
-                                 capture_output=True, encoding='utf-8', errors='replace')
+            try:
+                res = subprocess.run(["git", "rev-parse", arg], cwd=repo_path, check=True,
+                                     capture_output=True, encoding='utf-8', errors='replace')
+            except Exception as e:
+                _log(f"[error] could not read repository: {e}")
+                QMessageBox.critical(None, "Repository error",
+                    f"Something went wrong reading this repository.\n\n{e}\n\n"
+                    "If a clone or other git operation is still running, "
+                    "wait for it to finish and try again.")
+                sys.exit(1)
             commit_sha = res.stdout.strip()
             _log(f"Resolved '{arg}' -> {commit_sha}")
         else:
