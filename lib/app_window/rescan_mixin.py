@@ -168,6 +168,7 @@ class RescanMixin:
                     if hasattr(self, 'bulk_progress_dialog'):
                         self.bulk_progress_dialog.close()
                     if success:
+                        self.load_history()
                         QMessageBox.information(
                             self, "Bulk Commit Successful",
                             f"Done. Bulk commit successful.\n\nCommit ID:\n{self.get_head_sha()[:8]}"
@@ -192,6 +193,7 @@ class RescanMixin:
                     if hasattr(self, 'amend_progress_dialog'):
                         self.amend_progress_dialog.close()
                     if success:
+                        self.load_history()
                         QMessageBox.information(
                             self, "Amend Successful",
                             f"Done. Changes amended into HEAD commit.\n\n"
