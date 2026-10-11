@@ -126,6 +126,15 @@ def main():
 
     repo_path = os.path.abspath(os.path.expanduser(args.location))
 
+    # Fail fast, before forking, if no GUI display can be opened — Qt would
+    # otherwise abort() with a fatal, uncatchable SIGABRT (headless SSH,
+    # DISPLAY set but authorization missing, etc.).
+    from lib.display_check import check_display
+    ok, msg = check_display()
+    if not ok:
+        print(f"[error] {msg}", file=sys.stderr)
+        sys.exit(1)
+
     # --- Background launch so the terminal is not blocked ---
     # Re-launch ourselves as a detached child process so the shell gets its
     # prompt back immediately.  stdout/stderr are intentionally inherited so
