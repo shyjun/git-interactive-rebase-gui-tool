@@ -324,6 +324,7 @@ class CherryPickMixin:
                         break
             self.load_history()
             self._browse_load_post_action = restore_single_selection
+            self._refresh_parent_main_window()
             self._show_cherry_pick_result("Cherry-pick succeeded.", [sha], [])
         else:
             message = self._cherry_pick_failure_message(sha, err)
