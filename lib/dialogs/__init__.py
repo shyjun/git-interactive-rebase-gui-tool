@@ -67,3 +67,7 @@ from .configure_dialogs import (
 from .font_dialog import (
     FontDialog,
 )
+
+from .push_dialog import (
+    PushDialog,
+)

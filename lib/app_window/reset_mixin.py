@@ -12,7 +12,7 @@ from lib.git_helpers import (
     get_full_head_sha,
     rebase_in_progress,
 )
-from lib.dialogs import ProgressDialog
+from lib.dialogs import ProgressDialog, PushDialog
 from lib.app_window.workers import GitWorker
 from lib.app_window.helpers import _log
 
@@ -98,39 +98,42 @@ class ResetMixin:
             _log(f"Cancelled reset hard to {origin_ref}.")
 
     def handle_git_push_force(self):
-        """Runs git push --force."""
+        """Opens push options dialog and executes the chosen git push command."""
         if not self._check_not_viewer_mode():
             return
-        reply = QMessageBox.question(
-            self,
-            "Confirm Force Push",
-            "Are you sure you want to <b>push --force</b>?<br><br>"
-            "This can overwrite history on the remote repository. Proceed with caution.",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No
-        )
-        if reply == QMessageBox.Yes:
-            _log("Performing git push --force...")
-            self.progress_dialog = ProgressDialog("Git Pushing", "git push --force in progress...", self)
 
-            self.worker = GitWorker(["git", "push", "--force"], self.repo_path)
-            self.worker.git_finished.connect(self.on_push_finished)
-            _log("[thread] GitWorker.start()")
-            self.worker.start()
+        remote = "origin"
+        dlg = PushDialog(parent=self, is_dark=getattr(self, 'is_dark_theme', False), remote=remote)
+        if dlg.exec() != QDialog.Accepted:
+            _log("Cancelled push.")
+            return
 
-            self.progress_dialog.exec()
-        else:
-            _log("Cancelled force push.")
+        cmd, cmd_label = dlg.get_git_command()
+        _log(f"Performing {cmd_label}...")
+        self.progress_dialog = ProgressDialog("Git Pushing", f"{cmd_label} in progress...", self)
 
-    def on_push_finished(self, success, stdout, stderr):
+        if not hasattr(self, '_active_workers'):
+            self._active_workers = set()
+
+        worker = GitWorker(cmd, self.repo_path)
+        self._active_workers.add(worker)
+        worker.git_finished.connect(lambda *a: self._active_workers.discard(worker))
+        worker.git_finished.connect(lambda success, stdout, stderr, lbl=cmd_label: self.on_push_finished(success, stdout, stderr, lbl))
+        self.worker = worker
+        _log("[thread] GitWorker.start()")
+        worker.start()
+
+        self.progress_dialog.exec()
+
+    def on_push_finished(self, success, stdout, stderr, cmd_label="git push"):
         if hasattr(self, 'progress_dialog'):
             self.progress_dialog.close()
 
         if success:
-            QMessageBox.information(self, "Success", "Successfully ran 'git push --force'.")
+            QMessageBox.information(self, "Success", f"Successfully ran '{cmd_label}'.")
             self.load_history()
         else:
-            QMessageBox.critical(self, "Push Failed", f"Could not perform git push --force.\n\nError: {stderr}")
+            QMessageBox.critical(self, "Push Failed", f"Could not perform {cmd_label}.\n\nError: {stderr}")
 
 
     def update_rebase_buttons(self):

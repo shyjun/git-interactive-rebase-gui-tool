@@ -32,6 +32,7 @@ MODULES_TO_TEST = [
     "lib.dialogs.history_branch_dialogs",
     "lib.dialogs.hunk_file_dialogs",
     "lib.dialogs.hunk_widgets",
+    "lib.dialogs.push_dialog",
     "lib.dialogs.refine_changes_dialog",
     "lib.dialogs.split_drop_dialogs",
     "lib.dialogs.unstaged_dialogs",

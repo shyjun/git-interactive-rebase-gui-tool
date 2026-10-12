@@ -694,8 +694,8 @@ class UIMixin:
         self.fetch_btn.setToolTip("git fetch from the remote.")
         self.reset_origin_btn = QPushButton("git reset --hard origin")
         self.reset_origin_btn.setToolTip("Reset hard to the remote-tracking branch.")
-        self.push_force_btn = QPushButton("git push --force")
-        self.push_force_btn.setToolTip("Force-push the branch to the remote.")
+        self.push_force_btn = QPushButton("git push [--force]")
+        self.push_force_btn.setToolTip("Push commits to remote (options: normal, force, force-with-lease).")
         for btn in [self.fetch_btn, self.reset_origin_btn, self.push_force_btn]:
             btn.setMinimumHeight(40)
             btn.setMinimumWidth(120)
