@@ -22,8 +22,8 @@ from PySide6.QtWidgets import (
 )
 
 
-def create_warning_pixmap(size=44):
-    """Draw a vector warning triangle icon with exclamation mark."""
+def create_warning_pixmap(size=44, color="#f48771"):
+    """Draw a flat warning triangle icon filled with a theme-aware color."""
     pixmap = QPixmap(size, size)
     pixmap.fill(Qt.transparent)
     painter = QPainter(pixmap)
@@ -43,10 +43,16 @@ def create_warning_pixmap(size=44):
     path.quadTo(4.0, 41.0, 8.5, 41.0)
     path.closeSubpath()
 
+    # Derive subtle top/bottom shades from the theme warning color so the
+    # icon stays flat and on-palette instead of a hardcoded amber gradient.
+    base = QColor(color)
+    top = base.lighter(115)
+    bottom = base.darker(115)
+
     gradient = QLinearGradient(24.0, 4.0, 24.0, 41.0)
-    gradient.setColorAt(0.0, QColor("#fbbf24"))  # Warm amber/yellow
-    gradient.setColorAt(0.5, QColor("#f59e0b"))  # Amber
-    gradient.setColorAt(1.0, QColor("#d97706"))  # Deep orange
+    gradient.setColorAt(0.0, top)
+    gradient.setColorAt(0.5, base)
+    gradient.setColorAt(1.0, bottom)
 
     painter.setPen(Qt.NoPen)
     painter.setBrush(QBrush(gradient))
@@ -86,8 +92,8 @@ class PushDialog(QDialog):
         self.setModal(True)
         self.setMinimumWidth(460)
 
-        # is_dark kept for test compatibility; actual styling comes from
-        # the global QApplication stylesheet set by apply_theme().
+        # Colors come from the global app stylesheet; is_dark only selects the
+        # fallback warning color when no theme-aware parent is available.
         if is_dark is None:
             if hasattr(parent, 'is_dark_theme'):
                 is_dark = bool(parent.is_dark_theme)
@@ -95,6 +101,12 @@ class PushDialog(QDialog):
                 is_dark = False
         self.is_dark = is_dark
         self.remote = remote or "origin"
+
+        theme_colors = getattr(parent, 'current_theme_colors', None)
+        if isinstance(theme_colors, dict):
+            self.warning_color = theme_colors.get("removed", "#f48771")
+        else:
+            self.warning_color = "#f48771" if is_dark else "#b22222"
 
         self._build_ui()
 
@@ -108,8 +120,9 @@ class PushDialog(QDialog):
         header_layout.setSpacing(12)
 
         self.icon_label = QLabel()
-        self.icon_label.setPixmap(create_warning_pixmap(36))
+        self.icon_label.setPixmap(create_warning_pixmap(36, self.warning_color))
         self.icon_label.setFixedSize(36, 36)
+        self.icon_label.setToolTip("Pushing can overwrite commits already on the remote.")
         header_layout.addWidget(self.icon_label)
 
         self.header_title = QLabel("Push can overwrite remote history")
@@ -129,15 +142,27 @@ class PushDialog(QDialog):
 
         self.normal_radio = QRadioButton("Normal push  (git push)")
         self.normal_radio.setChecked(True)
+        self.normal_radio.setToolTip(
+            "Standard push. Succeeds only if the remote can fast-forward; "
+            "rejected if remote commits are not on your branch."
+        )
         self.button_group.addButton(self.normal_radio, 0)
         layout.addWidget(self.normal_radio)
 
         self.force_radio = QRadioButton("Force push  (git push --force)")
+        self.force_radio.setToolTip(
+            "Overwrites the remote branch, discarding commits that exist only "
+            "on the remote. Use with caution."
+        )
         self.button_group.addButton(self.force_radio, 1)
         layout.addWidget(self.force_radio)
 
         self.lease_radio = QRadioButton(
             "Force push with lease  (git push --force-with-lease)"
+        )
+        self.lease_radio.setToolTip(
+            "Like force push, but aborts if someone else pushed to the remote "
+            "branch since your last fetch. Safer than --force."
         )
         self.button_group.addButton(self.lease_radio, 2)
         layout.addWidget(self.lease_radio)
@@ -147,11 +172,15 @@ class PushDialog(QDialog):
         btn_layout.addStretch()
 
         self.cancel_btn = QPushButton("Cancel")
+        self.cancel_btn.setProperty("class", "dialog-btn")
+        self.cancel_btn.setToolTip("Close without pushing.")
         self.cancel_btn.clicked.connect(self.reject)
         btn_layout.addWidget(self.cancel_btn)
 
         self.push_btn = QPushButton("Push")
+        self.push_btn.setProperty("class", "dialog-btn")
         self.push_btn.setDefault(True)
+        self.push_btn.setToolTip("Run the selected git push command.")
         self.push_btn.clicked.connect(self.accept)
         btn_layout.addWidget(self.push_btn)
 

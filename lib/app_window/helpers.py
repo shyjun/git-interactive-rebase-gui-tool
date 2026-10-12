@@ -386,6 +386,41 @@ def get_theme_stylesheet(theme_name):
                 background-color: #007acc;
                 color: white;
             }
+            QPushButton.dialog-btn-secondary {
+                background-color: transparent;
+                border: 1px solid #444444;
+                color: #cccccc;
+            }
+            QPushButton.dialog-btn-secondary:hover {
+                background-color: #333333;
+                border: 1px solid #007acc;
+            }
+            QRadioButton {
+                background-color: transparent;
+                color: #cccccc;
+                spacing: 8px;
+            }
+            QRadioButton::indicator {
+                width: 15px;
+                height: 15px;
+                border-radius: 8px;
+                border: 1px solid #3c3c3c;
+                background-color: #252526;
+            }
+            QRadioButton::indicator:hover {
+                border: 1px solid #007acc;
+            }
+            QRadioButton::indicator:checked {
+                border: 1px solid #007acc;
+                background-color: #007acc;
+            }
+            QRadioButton:disabled {
+                color: #666666;
+            }
+            QRadioButton::indicator:disabled {
+                border: 1px solid #444444;
+                background-color: #2a2a2a;
+            }
             QLabel {
                 font-weight: bold;
                 color: #cccccc;
@@ -505,6 +540,41 @@ def get_theme_stylesheet(theme_name):
             QPushButton.dialog-btn:hover {
                 background-color: #007aff;
                 color: white;
+            }
+            QPushButton.dialog-btn-secondary {
+                background-color: transparent;
+                border: 1px solid #ccc;
+                color: #333;
+            }
+            QPushButton.dialog-btn-secondary:hover {
+                background-color: #f0f0f0;
+                border: 1px solid #007aff;
+            }
+            QRadioButton {
+                background-color: transparent;
+                color: #333;
+                spacing: 8px;
+            }
+            QRadioButton::indicator {
+                width: 15px;
+                height: 15px;
+                border-radius: 8px;
+                border: 1px solid #bbb;
+                background-color: #ffffff;
+            }
+            QRadioButton::indicator:hover {
+                border: 1px solid #007aff;
+            }
+            QRadioButton::indicator:checked {
+                border: 1px solid #007aff;
+                background-color: #007aff;
+            }
+            QRadioButton:disabled {
+                color: #aaaaaa;
+            }
+            QRadioButton::indicator:disabled {
+                border: 1px solid #ccc;
+                background-color: #f0f0f0;
             }
             QLabel {
                 font-weight: bold;
