@@ -131,7 +131,10 @@ def main():
     from lib.display_check import check_display
     ok, msg = check_display()
     if not ok:
-        print(f"[error] {msg}", file=sys.stderr)
+        try:
+            print(f"[error] {msg}", file=sys.stderr)
+        except Exception:
+            pass  # stderr may point at a dead terminal/pty
         sys.exit(1)
 
     # --- Background launch so the terminal is not blocked ---
