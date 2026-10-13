@@ -12,6 +12,7 @@ OS-level faults (SIGSEGV etc.) are the job of ``faulthandler``, not here.
 import json
 import os
 import platform
+import socket
 import sys
 import threading
 import traceback
@@ -83,12 +84,17 @@ def _tool_version():
 def format_crash_report(exc_type, exc_value, tb, source=None):
     """Build the full crash report text (environment info + traceback)."""
     exc_name = getattr(exc_type, "__name__", str(exc_type))
+    try:
+        hostname = socket.gethostname()
+    except Exception:
+        hostname = "unknown"
     header = [
         "Git Interactive Rebase GUI — crash report",
         "=" * 44,
         f"Tool version: {_tool_version()}",
         f"Python: {sys.version.splitlines()[0]}",
         f"Platform: {platform.platform()}",
+        f"Hostname: {hostname}",
         f"Exception: {exc_name}: {exc_value}",
     ]
     if source:

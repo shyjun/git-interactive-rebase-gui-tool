@@ -1,6 +1,7 @@
 import contextlib
 import io
 import os
+import socket
 import subprocess
 import sys
 import tempfile
@@ -49,6 +50,7 @@ class TestCrashReportFormat(unittest.TestCase):
         self.assertIn("Tool version:", report)
         self.assertIn(f"Python: {sys.version.splitlines()[0]}", report)
         self.assertIn("Platform:", report)
+        self.assertIn(f"Hostname: {socket.gethostname()}", report)
         self.assertIn("Exception: ValueError: boom", report)
         self.assertIn("Traceback (most recent call last)", report)
         self.assertIn("raise ValueError(\"boom\")", report)
