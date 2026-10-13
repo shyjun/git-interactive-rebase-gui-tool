@@ -49,6 +49,7 @@ from lib.app_window.helpers import (
     _log,
     _diff_search_matches,
     MATCH_ROLE,
+    mono_font,
 )
 from lib.widgets import (
     BrowseDimOverlay,
@@ -67,6 +68,22 @@ from lib.git_helpers import (
     get_commit_metadata_and_message,
     get_file_diff_only_in_commit,
 )
+
+# Sizing-only QSS for toolbar dropdown menus (fetch/pull, theme, etc.).
+# Deliberately omits color/background/font rules so the active theme's
+# QMenu/QMenu::item:selected colors (see helpers.get_theme_stylesheet)
+# and the app menu font still apply; widget-level stylesheets only
+# override the listed props. No min-width: the popup shrink-wraps to
+# its longest action so short menus stay compact.
+_BIG_MENU_QSS = """
+    QMenu {
+        padding: 4px;
+    }
+    QMenu::item {
+        padding: 6px 16px;
+        min-height: 20px;
+    }
+"""
 
 
 class UIMixin:
@@ -713,6 +730,14 @@ class UIMixin:
         self.pull_menu.addAction(self.pull_rebase_action)
         self.fetch_menu.addAction(self.fetch_action)
         self.fetch_menu.addMenu(self.pull_menu)
+        # Roomier hit targets than the stock menu, but same monospace
+        # menu font as every other menu (see menus_mixin) and theme
+        # colors from the app QSS.
+        menu_font = mono_font(max(8, self.current_font_size - 2))
+        self.fetch_menu.setFont(menu_font)
+        self.pull_menu.setFont(menu_font)
+        self.fetch_menu.setStyleSheet(_BIG_MENU_QSS)
+        self.pull_menu.setStyleSheet(_BIG_MENU_QSS)
         self.fetch_btn.setMenu(self.fetch_menu)
         self.reset_origin_btn = QPushButton("git reset --hard origin")
         self.reset_origin_btn.setToolTip("Reset hard to the remote-tracking branch.")
