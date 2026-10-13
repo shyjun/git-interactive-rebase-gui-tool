@@ -99,6 +99,7 @@ from .status import (
     classify_tracked_changes,
     get_unstaged_files,
     get_untracked_files,
+    merge_would_conflict,
 )
 
 from .commit_ops import (

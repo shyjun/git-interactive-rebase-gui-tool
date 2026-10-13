@@ -696,11 +696,23 @@ class UIMixin:
         self.fetch_action = QAction("git fetch", self)
         self.fetch_action.setToolTip("git fetch from the remote.")
         self.fetch_action.triggered.connect(self.handle_git_fetch)
+        self.pull_menu = QMenu("git pull", self)
         self.pull_action = QAction("git pull", self)
-        self.pull_action.setToolTip("git pull from the remote. (not yet implemented)")
-        self.pull_action.setEnabled(False)
+        self.pull_action.setToolTip(
+            "Fetch and merge from origin (conflict-checked first; "
+            "asks you to resolve manually if conflicts are likely).")
+        self.pull_action.triggered.connect(
+            lambda: self.handle_git_pull(rebase=False))
+        self.pull_rebase_action = QAction("git pull --rebase", self)
+        self.pull_rebase_action.setToolTip(
+            "Fetch and rebase onto origin (conflict-checked first; "
+            "asks you to resolve manually if conflicts are likely).")
+        self.pull_rebase_action.triggered.connect(
+            lambda: self.handle_git_pull(rebase=True))
+        self.pull_menu.addAction(self.pull_action)
+        self.pull_menu.addAction(self.pull_rebase_action)
         self.fetch_menu.addAction(self.fetch_action)
-        self.fetch_menu.addAction(self.pull_action)
+        self.fetch_menu.addMenu(self.pull_menu)
         self.fetch_btn.setMenu(self.fetch_menu)
         self.reset_origin_btn = QPushButton("git reset --hard origin")
         self.reset_origin_btn.setToolTip("Reset hard to the remote-tracking branch.")

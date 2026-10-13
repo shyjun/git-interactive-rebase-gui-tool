@@ -257,3 +257,45 @@ def get_untracked_files(repo_path, ignore_submodules=False):
     except Exception as exc:
         _log(f"[git_helpers] get_untracked_files: git status failed: {exc}")
         return []
+
+
+def merge_would_conflict(repo_path, ours_ref, theirs_ref):
+    """Uses 'git merge-tree' (read-only, no working-tree changes) to predict
+    whether merging *theirs_ref* into *ours_ref* would produce conflicts.
+
+    Returns (has_conflict, files): has_conflict is True when the preview
+    shows conflicting hunks, and files lists the conflicting paths (best
+    effort - may be empty). Conservative: any failure to determine the
+    answer is reported as a conflict risk, so callers never run a pull
+    that might leave the repository in a conflicted state."""
+    try:
+        base = subprocess.run(
+            ["git", "merge-base", ours_ref, theirs_ref],
+            cwd=repo_path, capture_output=True, text=True,
+            encoding='utf-8', errors='replace'
+        )
+        if base.returncode != 0 or not base.stdout.strip():
+            # No common ancestor (unrelated histories) - treat as risky.
+            return True, []
+        base_sha = base.stdout.strip()
+        result = subprocess.run(
+            ["git", "merge-tree", base_sha, ours_ref, theirs_ref],
+            cwd=repo_path, capture_output=True, text=True,
+            encoding='utf-8', errors='replace'
+        )
+        out = result.stdout or ""
+        if ("changed in both" not in out and "added in both" not in out
+                and "+<<<<<<<" not in out):
+            return False, []
+        files = []
+        for line in out.splitlines():
+            stripped = line.strip()
+            # "base   100644 <sha> <path>" / "our  100644 ..." / "their ..."
+            if stripped.startswith(("base ", "our ", "their ")) and len(stripped.split()) >= 4:
+                path = stripped.split(None, 3)[-1]
+                if path not in files:
+                    files.append(path)
+        return True, files
+    except Exception as exc:
+        _log(f"[git_helpers] merge_would_conflict: {exc}")
+        return True, []

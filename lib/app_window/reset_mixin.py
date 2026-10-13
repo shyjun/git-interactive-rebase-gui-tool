@@ -10,6 +10,7 @@ from lib.git_helpers import (
     branch_exists,
     get_current_branch,
     get_full_head_sha,
+    merge_would_conflict,
     rebase_in_progress,
 )
 from lib.dialogs import ProgressDialog, PushDialog
@@ -45,6 +46,114 @@ class ResetMixin:
             self.load_history()
         else:
             QMessageBox.critical(self, "Fetch Failed", f"Could not perform git fetch.\n\nError: {stderr}")
+
+    def handle_git_pull(self, rebase=False):
+        """Runs git pull (optionally --rebase) with a conflict pre-check.
+
+        Stage 1 fetches so remote-tracking refs are current; the pull is then
+        previewed with 'git merge-tree' (read-only). If the preview shows any
+        chance of conflict, the pull is NOT run and the user is asked to do it
+        manually - the tool never leaves the repo in a conflicted state."""
+        if not self._check_not_viewer_mode():
+            return
+        if not self._check_head_unchanged():
+            return
+        if not self._check_no_unstaged_changes():
+            return
+
+        branch = get_current_branch(self.repo_path)
+        if not branch:
+            QMessageBox.warning(self, "Pull", "Not currently on a branch; cannot pull.")
+            return
+        upstream = f"origin/{branch}"
+        if not branch_exists(self.repo_path, upstream):
+            QMessageBox.warning(
+                self, "Pull",
+                f"No upstream branch '{upstream}' found.\n"
+                "Fetch first, or set up an upstream for this branch."
+            )
+            return
+
+        self._pull_rebase = rebase
+        label = "git pull --rebase" if rebase else "git pull"
+        _log(f"Running {label} (fetch first)...")
+        self.progress_dialog = ProgressDialog(
+            "Git Pull", f"{label}: fetching remote...", self)
+
+        if not hasattr(self, '_active_workers'):
+            self._active_workers = set()
+
+        worker = GitWorker(["git", "fetch"], self.repo_path)
+        self._active_workers.add(worker)
+        worker.git_finished.connect(lambda *a: self._active_workers.discard(worker))
+        worker.git_finished.connect(self._on_pull_fetch_finished)
+        self.worker = worker
+        _log("[thread] GitWorker.start()")
+        worker.start()
+
+        self.progress_dialog.exec()
+
+    def _on_pull_fetch_finished(self, success, stdout, stderr):
+        if hasattr(self, 'progress_dialog'):
+            self.progress_dialog.close()
+
+        if not success:
+            QMessageBox.critical(
+                self, "Pull Failed",
+                f"git fetch (before pull) failed.\n\nError: {stderr}"
+            )
+            return
+
+        branch = get_current_branch(self.repo_path)
+        upstream = f"origin/{branch}"
+        rebase = getattr(self, '_pull_rebase', False)
+        label = "git pull --rebase" if rebase else "git pull"
+
+        has_conflict, files = merge_would_conflict(self.repo_path, "HEAD", upstream)
+        if has_conflict:
+            detail = "\n".join(f"  {f}" for f in files) if files else "  (specific files could not be determined)"
+            QMessageBox.warning(
+                self, "Pull May Conflict",
+                f"Pulling from '<b>{upstream}</b>' would likely cause conflicts "
+                f"with your local commits.\n\n"
+                f"Conflicting file(s):\n{detail}\n\n"
+                f"The pull was <b>not</b> run. Please run '<b>{label}</b>' "
+                "yourself and resolve any conflicts."
+            )
+            return
+
+        _log(f"Conflict check clean; running {label}...")
+        self.progress_dialog = ProgressDialog(
+            "Git Pull", f"{label} in progress...", self)
+
+        # git >= 2.27 refuses plain `git pull` on divergent branches without an
+        # explicit strategy; --no-rebase (= merge) matches the default behavior.
+        cmd = ["git", "pull", "--rebase"] if rebase else ["git", "pull", "--no-rebase"]
+        worker = GitWorker(cmd, self.repo_path)
+        self._active_workers.add(worker)
+        worker.git_finished.connect(lambda *a: self._active_workers.discard(worker))
+        worker.git_finished.connect(self._on_pull_finished)
+        self.worker = worker
+        _log("[thread] GitWorker.start()")
+        worker.start()
+
+        self.progress_dialog.exec()
+
+    def _on_pull_finished(self, success, stdout, stderr):
+        if hasattr(self, 'progress_dialog'):
+            self.progress_dialog.close()
+
+        rebase = getattr(self, '_pull_rebase', False)
+        label = "git pull --rebase" if rebase else "git pull"
+        if success:
+            QMessageBox.information(self, "Success", f"Successfully ran '{label}'.")
+        else:
+            QMessageBox.critical(
+                self, "Pull Failed",
+                f"Could not perform '{label}'.\n\nError: {stderr}"
+            )
+        self.load_history()
+        self._notify_browse_windows()
 
 
     def handle_git_reset_hard_origin(self):
