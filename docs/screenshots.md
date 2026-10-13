@@ -44,43 +44,44 @@ Visual documentation for the Git Interactive Rebase GUI Tool. Each section descr
         - [19.3.1 Hunk-level commit with git add -p](#hunk-level-commit-with-git-add--p)
 20. [Reset Options](#20-reset-options)
 21. [Rebase Options](#21-rebase-options)
-22. [Browse Branch](#22-browse-branch)
-23. [Browse File Log](#23-browse-file-log)
-24. [Browse Log of a Commit](#24-browse-log-of-a-commit)
-25. [Browse Reflog](#25-browse-reflog)
-26. [Browse Stashes](#26-browse-stashes)
-27. [PR Diff / PR Preview](#27-pr-diff--pr-preview)
-28. [Consolidated Diff](#28-consolidated-diff)
-29. [Find Merge-base](#29-find-merge-base)
-30. [Cherry-pick](#30-cherry-pick)
-31. [Apply Patch](#31-apply-patch)
-32. [Create Patch](#32-create-patch)
-33. [Viewer Mode](#33-viewer-mode)
-34. [Themes (Light / Dark)](#34-themes-light--dark)
-35. [Zoom Controls](#35-zoom-controls)
-36. [Mark / Unmark Commit](#36-mark--unmark-commit)
-37. [Show Local Branches](#37-show-local-branches)
-38. [Copy to Clipboard](#38-copy-to-clipboard)
-39. [Update the Tool](#39-update-the-tool)
-40. [Tag Commit](#40-tag-commit)
-41. [Blame a file](#41-blame-a-file)
-42. [Browse Tags](#42-browse-tags)
-43. [External Tools Dialog](#43-external-tools-dialog)
-44. [Handle Staged Changes](#44-handle-staged-changes)
-45. [Commit Staged Changes Selectively](#45-commit-staged-changes-selectively)
-46. [Add Untracked Files Dialog](#46-add-untracked-files-dialog)
-47. [Staged / Unstaged Changes Warning at Startup / Rescan](#47-staged--unstaged-changes-warning-at-startup--rescan)
-48. [Destructive Operations Blocked When Staged Changes Exist](#48-destructive-operations-blocked-when-staged-changes-exist)
-49. [Auto-background on Launch](#49-auto-background-on-launch)
-50. [Full Height Diff View](#50-full-height-diff-view)
-51. [Collapsible Commit Details Header](#51-collapsible-commit-details-header)
-52. [Collapsible File List in Diff Tabs](#52-collapsible-file-list-in-diff-tabs)
-53. [Collapsible File List in Branch/Commit Dialogs](#53-collapsible-file-list-in-branchcommit-dialogs)
-54. [Font Selection Dialog](#54-font-selection-dialog)
-55. [Fault Handling](#55-fault-handling)
-    - [55.1 Exception Handling](#551-exception-handling)
-    - [55.2 Crash Handling](#552-crash-handling)
-56. [Keyboard Shortcuts](#56-keyboard-shortcuts)
+22. [Origin Options](#22-origin-options)
+23. [Browse Branch](#23-browse-branch)
+24. [Browse File Log](#24-browse-file-log)
+25. [Browse Log of a Commit](#25-browse-log-of-a-commit)
+26. [Browse Reflog](#26-browse-reflog)
+27. [Browse Stashes](#27-browse-stashes)
+28. [PR Diff / PR Preview](#28-pr-diff--pr-preview)
+29. [Consolidated Diff](#29-consolidated-diff)
+30. [Find Merge-base](#30-find-merge-base)
+31. [Cherry-pick](#31-cherry-pick)
+32. [Apply Patch](#32-apply-patch)
+33. [Create Patch](#33-create-patch)
+34. [Viewer Mode](#34-viewer-mode)
+35. [Themes (Light / Dark)](#35-themes-light--dark)
+36. [Zoom Controls](#36-zoom-controls)
+37. [Mark / Unmark Commit](#37-mark--unmark-commit)
+38. [Show Local Branches](#38-show-local-branches)
+39. [Copy to Clipboard](#39-copy-to-clipboard)
+40. [Update the Tool](#40-update-the-tool)
+41. [Tag Commit](#41-tag-commit)
+42. [Blame a file](#42-blame-a-file)
+43. [Browse Tags](#43-browse-tags)
+44. [External Tools Dialog](#44-external-tools-dialog)
+45. [Handle Staged Changes](#45-handle-staged-changes)
+46. [Commit Staged Changes Selectively](#46-commit-staged-changes-selectively)
+47. [Add Untracked Files Dialog](#47-add-untracked-files-dialog)
+48. [Staged / Unstaged Changes Warning at Startup / Rescan](#48-staged--unstaged-changes-warning-at-startup--rescan)
+49. [Destructive Operations Blocked When Staged Changes Exist](#49-destructive-operations-blocked-when-staged-changes-exist)
+50. [Auto-background on Launch](#50-auto-background-on-launch)
+51. [Full Height Diff View](#51-full-height-diff-view)
+52. [Collapsible Commit Details Header](#52-collapsible-commit-details-header)
+53. [Collapsible File List in Diff Tabs](#53-collapsible-file-list-in-diff-tabs)
+54. [Collapsible File List in Branch/Commit Dialogs](#54-collapsible-file-list-in-branchcommit-dialogs)
+55. [Font Selection Dialog](#55-font-selection-dialog)
+56. [Fault Handling](#56-fault-handling)
+    - [56.1 Exception Handling](#561-exception-handling)
+    - [56.2 Crash Handling](#562-crash-handling)
+57. [Keyboard Shortcuts](#57-keyboard-shortcuts)
 
 ---
 
@@ -137,7 +138,7 @@ python3 git_interactive_rebase.py HEAD^^^
 
 ### Option 3: Start in Viewer Mode (read-only)
 
-Launch the tool with all history-modifying operations disabled. Useful for safely browsing a repository (see [Viewer Mode](#33-viewer-mode)).
+Launch the tool with all history-modifying operations disabled. Useful for safely browsing a repository (see [Viewer Mode](#34-viewer-mode)).
 
 ```bash
 python3 git_interactive_rebase.py --viewer-mode
@@ -238,18 +239,18 @@ The **Repo** button in the main window's toolbar groups the repository-wide tool
 
 **Description:** Click **Repo** in the toolbar to open the menu (see [Context Menu](#3-context-menu) screenshot). It offers:
 
-- **View PR Diff** → Open a read-only **PR Preview** showing the combined branch diff versus its merge-base (see [PR Diff / PR Preview](#27-pr-diff--pr-preview))
+- **View PR Diff** → Open a read-only **PR Preview** showing the combined branch diff versus its merge-base (see [PR Diff / PR Preview](#28-pr-diff--pr-preview))
 - **View a Commit…** → Open any commit by SHA in a read-only tabbed viewer (Plain / File-wise diff)
-- **Cherry-pick 1 Commit** → Cherry-pick a single commit by SHA (see [Cherry-pick](#30-cherry-pick))
-- **Browse Branch** → Open a read-only window of another branch's history (see [Browse Branch](#22-browse-branch))
-- **Browse File Log** → Open a read-only window of a single file's history (see [Browse File Log](#23-browse-file-log))
-- **Blame a File** → Open a read-only blame viewer for a single file (see [Blame a file](#41-blame-a-file))
-- **Browse Log of a Commit** → Open a read-only history window for any commit SHA or ref, prompted with the number of commits to show (see [Browse Log of a Commit](#24-browse-log-of-a-commit))
-- **Browse Reflog** → Open a read-only window of the repository's HEAD reflog (see [Browse Reflog](#25-browse-reflog))
-- **Browse Stashes** → Open a read-only window of the repository's stash list (see [Browse Stashes](#26-browse-stashes))
+- **Cherry-pick 1 Commit** → Cherry-pick a single commit by SHA (see [Cherry-pick](#31-cherry-pick))
+- **Browse Branch** → Open a read-only window of another branch's history (see [Browse Branch](#23-browse-branch))
+- **Browse File Log** → Open a read-only window of a single file's history (see [Browse File Log](#24-browse-file-log))
+- **Blame a File** → Open a read-only blame viewer for a single file (see [Blame a file](#42-blame-a-file))
+- **Browse Log of a Commit** → Open a read-only history window for any commit SHA or ref, prompted with the number of commits to show (see [Browse Log of a Commit](#25-browse-log-of-a-commit))
+- **Browse Reflog** → Open a read-only window of the repository's HEAD reflog (see [Browse Reflog](#26-browse-reflog))
+- **Browse Stashes** → Open a read-only window of the repository's stash list (see [Browse Stashes](#27-browse-stashes))
 - **Browse Tags** → Open a read-only window listing all tags with their commit info (see [Browse Tags](#43-browse-tags))
 - **Open File at Commit…** → Browse and open a file at any commit, branch, or tag with the system default app. Enter a SHA/branch/tag, type or browse for a file, and open that version of the file (see [Open with System Default App](#102-file-wise-diff))
-- **Find Merge-base…** → Compute the merge-base between the current branch and another branch (see [Find Merge-base](#29-find-merge-base))
+- **Find Merge-base…** → Compute the merge-base between the current branch and another branch (see [Find Merge-base](#30-find-merge-base))
 
 ---
 
@@ -262,15 +263,15 @@ The **Configure** button in the status bar controls which markers, columns, and 
 - **Show Origin** → origin markers
 - **Show Rebase** → rebase markers (see [Rebase Options](#21-rebase-options))
 - **Show Multi-Select** → multi-select controls for squashing, marking, dropping, or moving commits
-- **Show Local Branches** → local/remote branch names next to commits (see [Show Local Branches](#37-show-local-branches))
-- **Show Tags** → tag names next to commits (see [Tag Commit](#40-tag-commit))
+- **Show Local Branches** → local/remote branch names next to commits (see [Show Local Branches](#38-show-local-branches))
+- **Show Tags** → tag names next to commits (see [Tag Commit](#41-tag-commit))
 - **Show Stats** → per-commit line stats
 - **Show Date** → commit dates
 - **Show Diffs** → the right-side diff pane (see [Diff Pane](#11-diff-pane))
 
 The menu also includes:
 
-- **Fonts** → Choose the monospace font family and size (see [Font Selection Dialog](#54-font-selection-dialog))
+- **Fonts** → Choose the monospace font family and size (see [Font Selection Dialog](#55-font-selection-dialog))
 - **External tools integration** → Configure diff tool (Not configured / Git configured / Custom command)
 - **Help** → links to the demo video, README, and contact
 - **Check for updates** → compares the running version against the remote
@@ -288,7 +289,7 @@ The **Perform action on selected commits** menu lists the actions that can be ap
 **Description:** Enter multi-select mode with **Select multiple commits**, then open the **Perform action on selected commits** menu (next to the selection button). Each commit gets a tick box, and the menu offers the following actions based on how many commits are checked:
 
 - **Squash selected commits** → Available when **2 or more** adjacent commits are checked (see [Squash Commits](#16-squash-commits))
-- **Mark selected commits** → Available when **1 or more** commits are checked (see [Mark / Unmark Commit](#36-mark--unmark-commit))
+- **Mark selected commits** → Available when **1 or more** commits are checked (see [Mark / Unmark Commit](#37-mark--unmark-commit))
 - **Drop selected commits** → Available when **1 or more** commits are checked (see [Drop Commit](#13-drop-commit))
 - **Move selected commits** → Shows a hint explaining that a contiguous (adjacent) block of checked commits can be dragged to a new position (see [Reorder Commits](#14-reorder-commits))
 
@@ -309,7 +310,7 @@ Right-click a file in the **File-wise Diff** tab for per-file actions.
 **Always available (all modes):**
 
 - **Open → With System Default App** — opens the file using the system's default application. When the viewer is browsing a different branch or commit, the file is extracted via `git show` to a temp location first.
-- **Blame file** → Opens a read-only blame viewer (see [Blame a file](#41-blame-a-file))
+- **Blame file** → Opens a read-only blame viewer (see [Blame a file](#42-blame-a-file))
 - **Diff against a different version of this file** → Opens a dialog to diff the file against a different commit, branch, or tag using `git difftool`. The dialog matches the "Open File at Commit" layout: ref combo on top, editable file path with Browse (resolves files at the selected ref, so renamed files are handled). Warns if no difftool is configured, verifies the file exists at the target ref before running, and shows a message if the file content is identical at both versions.
 - **Copy filename to clipboard**
 - **Copy fullpath to clipboard** — copies the full repository path of the file
@@ -497,12 +498,12 @@ Perform an action on multiple commits at once — squash an adjacent range, mark
 Enter multi-selection mode with the **Select multiple commits** button in the toolbar (or via the context menu), then check the commits you want to act on. Each commit gets a tick box; the **Perform action on selected commits** menu (next to the selection button) offers the available actions based on how many commits are checked:
 
 - **Squash selected commits** → Available when **2 or more** adjacent commits are checked. Opens the squash dialog to combine them into one (see [Squash Commits](#16-squash-commits))
-- **Mark selected commits** → Available when **1 or more** commits are checked. Marks all checked commits at once (see [Mark / Unmark Commit](#36-mark--unmark-commit))
+- **Mark selected commits** → Available when **1 or more** commits are checked. Marks all checked commits at once (see [Mark / Unmark Commit](#37-mark--unmark-commit))
 - **Drop selected commits** → Available when **1 or more** commits are checked. Drops the checked commits one by one, **newest first**. If a drop fails part-way through, you can **skip that commit and continue** with the remaining pending ones, or **stop** and handle it manually (see [Drop Commit](#13-drop-commit))
 - **Move selected commits** → Available when **1 or more** commits are checked. Shows a hint explaining that a contiguous (adjacent) block of checked commits can be dragged to a new position to reorder them together (see [Reorder Commits](#14-reorder-commits)).
 - **Create patch(s) from selected commits** → Available when **1 or more** commits are checked. Opens a submenu with two options:
   - **Consolidated single patch** → Combines all selected commits into one unified-diff file (requires **2 or more** commits). A save dialog lets you choose the output file.
-  - **Multiple patches** → Creates one format-patch file per commit in a chosen folder (requires **1 or more** commits). Each patch carries the commit's own message, so it round-trips through [Apply Patch](#31-apply-patch).
+  - **Multiple patches** → Creates one format-patch file per commit in a chosen folder (requires **1 or more** commits). Each patch carries the commit's own message, so it round-trips through [Apply Patch](#32-apply-patch).
 - **Git Difftool (requires exactly 2 commits)** → Available when **exactly 2** commits are checked. Shows a confirmation dialog with the command, then runs `git difftool <sha1> <sha2>` to open your configured difftool.
 - **Drag to reorder** → In multi-select mode you can also click and drag the checked commits as a group to a new position. The checked commits must form one **adjacent (contiguous) block**; dragging works like the normal reorder drag (see [Reorder Commits](#14-reorder-commits)). A confirmation dialog shows the range being moved before it is applied.
 
@@ -711,7 +712,7 @@ these operations are disabled with a warning directing you to handle them first.
 
 ### At Startup
 
-**Description:** If unstaged or uncommitted changes are detected during launch, the tool shows a warning dialog and provides multiple ways to safely proceed. See [Staged / Unstaged Changes Warning at Startup / Rescan](#47-staged--unstaged-changes-warning-at-startup--rescan) for the screenshot.
+**Description:** If unstaged or uncommitted changes are detected during launch, the tool shows a warning dialog and provides multiple ways to safely proceed. See [Staged / Unstaged Changes Warning at Startup / Rescan](#48-staged--unstaged-changes-warning-at-startup--rescan) for the screenshot.
 
 Available options include:
 
@@ -721,7 +722,7 @@ Available options include:
 - **Commit all unstaged changes to a single "bulk" commit** → Opens a commit message dialog (pre-filled with file list) and saves all current changes into one commit
 - **Amend all changes to the current `HEAD` commit** → Amend HEAD commit with the unstaged changes
 - **Discard changes** → Discard the unstaged changes
-- **Start in Viewer Mode** → Start the app in viewer mode. No history modifying operations will be allowed (see [Viewer Mode](#33-viewer-mode))
+- **Start in Viewer Mode** → Start the app in viewer mode. No history modifying operations will be allowed (see [Viewer Mode](#34-viewer-mode))
 - **Exit** → Cancel launch and resolve changes manually
 
 > **Note:** Untracked files are **not considered** during this process and are left untouched (not stashed or modified).
@@ -734,7 +735,7 @@ Available options include:
 
 **Description:** The application can remain open while you continue working in your editor or terminal. If new unstaged or uncommitted changes are introduced outside the tool, use **Rescan Repository** to re-evaluate the repository state.
 
-When unstaged changes are detected, the tool provides the same safe handling options available during startup (see [Staged / Unstaged Changes Warning at Startup / Rescan](#47-staged--unstaged-changes-warning-at-startup--rescan)). When only staged changes are present (no unstaged changes), a warning dialog appears with the **Repo** button highlighted, directing you to **Repo → Handle Staged Changes**.
+When unstaged changes are detected, the tool provides the same safe handling options available during startup (see [Staged / Unstaged Changes Warning at Startup / Rescan](#48-staged--unstaged-changes-warning-at-startup--rescan)). When only staged changes are present (no unstaged changes), a warning dialog appears with the **Repo** button highlighted, directing you to **Repo → Handle Staged Changes**.
 
 - Stash changes and continue
 - Commit Selectively (choose which files / hunks to commit)
@@ -745,7 +746,7 @@ When unstaged changes are detected, the tool provides the same safe handling opt
 - Switch to Viewer Mode
 - Cancel and resolve changes manually
 
-If an app-created stash already exists, new changes are **merged into the existing stash** rather than creating a second one. In **Viewer Mode**, history-modifying rescan options are disabled (see [Viewer Mode](#33-viewer-mode)).
+If an app-created stash already exists, new changes are **merged into the existing stash** rather than creating a second one. In **Viewer Mode**, history-modifying rescan options are disabled (see [Viewer Mode](#34-viewer-mode)).
 
 This makes it easy to keep the application open throughout a development session while safely incorporating newly created changes into your interactive rebase workflow.
 
@@ -825,7 +826,30 @@ The Rebase button can be hidden or shown via **Configure → Show/Hide → Show 
 
 ---
 
-## 22. Browse Branch
+## 22. Origin Options
+Keep your branch in sync with the remote: fetch, pull, push, and reset.
+
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/origin-options.webp` (Origin group)
+
+![Origin Options](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/origin-options.webp)
+
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/push-dialog.webp` (push dialog)
+
+![Push Dialog](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/push-dialog.webp)
+
+**Description:** The **Origin** group in the toolbar provides remote operations. All of them run in the background with a progress dialog, are disabled in viewer mode, and refresh the commit list (and any open browse windows) when done.
+
+- **git fetch/pull** (menu button):
+  - **git fetch** — updates remote-tracking refs only; never touches your branch or working tree.
+  - **git pull** — runs `git fetch`, then previews the merge with the read-only `git merge-tree`. If any conflict is likely, the pull is **not run** and a warning lists the conflicting files so you can resolve them yourself; otherwise the merge runs.
+  - **git pull --rebase** — same fetch + conflict pre-check, then rebases your local commits on top of `origin/<branch>` when safe.
+  - Pull requires an upstream (`origin/<current-branch>`) and a clean working tree (no unstaged changes).
+- **git reset --hard origin** — moves the current branch hard to `origin/<branch>` after a confirmation warning (discards uncommitted changes). An undo snapshot is taken first, and the app says "nothing to do" if you're already in sync.
+- **git push [--force]** — opens a dialog to choose between a normal `git push`, `git push --force`, and the safer `git push --force-with-lease`.
+
+---
+
+## 23. Browse Branch
 Open any other branch's history in a separate read-only window.
 
 **Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/browse-branch.webp`
@@ -852,7 +876,7 @@ Click **Select commits** to enter checkbox selection mode, then tick the commits
 
 ---
 
-## 23. Browse File Log
+## 24. Browse File Log
 View the complete history of a single file.
 
 **Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/browse-file-log.webp`
@@ -863,14 +887,14 @@ View the complete history of a single file.
 
 ---
 
-## 24. Browse Log of a Commit
+## 25. Browse Log of a Commit
 Open a read-only history window for any commit.
 
-**Description:** Use **Repo → Browse Log of a Commit**, enter a commit SHA (or ref like `HEAD` or a branch name), and choose how many of the most recent commits to show. The commit is validated before opening, and its history opens in a read-only window (same style as [Browse Branch](#22-browse-branch) / [Browse File Log](#23-browse-file-log)). Right-click any commit to **View Commit** in a tabbed diff viewer, or copy SHA / message to the clipboard.
+**Description:** Use **Repo → Browse Log of a Commit**, enter a commit SHA (or ref like `HEAD` or a branch name), and choose how many of the most recent commits to show. The commit is validated before opening, and its history opens in a read-only window (same style as [Browse Branch](#23-browse-branch) / [Browse File Log](#24-browse-file-log)). Right-click any commit to **View Commit** in a tabbed diff viewer, or copy SHA / message to the clipboard.
 
 ---
 
-## 25. Browse Reflog
+## 26. Browse Reflog
 Open a read-only window of the repository's HEAD reflog.
 
 **Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/browse-reflog.webp`
@@ -887,7 +911,7 @@ Right-click an entry for **Show log** / **Copy SHA to clipboard**.
 
 ---
 
-## 26. Browse Stashes
+## 27. Browse Stashes
 Open a read-only window of the repository's stash list.
 
 **Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/browse-stash.webp`
@@ -907,7 +931,7 @@ If an apply fails, the stash is **never dropped** and you are told so explicitly
 
 ---
 
-## 27. PR Diff / PR Preview
+## 28. PR Diff / PR Preview
 Preview the combined diff of your current branch against its merge-base.
 
 **Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/pr-diff.webp`
@@ -920,7 +944,7 @@ When the tool is launched **without** a commit argument, it auto-detects your br
 
 ---
 
-## 28. Consolidated Diff
+## 29. Consolidated Diff
 Diff any range of history in one combined view.
 
 **Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/consolidated-diff.webp`
@@ -939,7 +963,7 @@ The result opens in a read-only combined view. You can also set the start commit
 
 ---
 
-## 29. Find Merge-base
+## 30. Find Merge-base
 Compute the merge-base between your current branch and any other branch.
 
 **Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/find-merge-base.webp`
@@ -950,7 +974,7 @@ Compute the merge-base between your current branch and any other branch.
 
 ---
 
-## 30. Cherry-pick
+## 31. Cherry-pick
 Apply commits from another branch (or by SHA) onto your current branch.
 
 **Description:** Cherry-pick in two ways:
@@ -962,7 +986,7 @@ Before applying, a **pre-flight confirmation** shows the exact order the selecte
 
 ---
 
-## 31. Apply Patch
+## 32. Apply Patch
 Apply a unified-diff or format-patch file to your repository.
 
 **Description:** Use **Repo → Apply Patch…** to apply a patch file, mirroring the browse-file-log workflow:
@@ -975,7 +999,7 @@ Apply a unified-diff or format-patch file to your repository.
 
 ---
 
-## 32. Create Patch
+## 33. Create Patch
 Save any commit as a patch file from the context menu.
 
 **Description:** Right-click a commit and choose **Create Patch** (right below **Show / View commit**) to export it as a format-patch file:
@@ -987,7 +1011,7 @@ Save any commit as a patch file from the context menu.
 
 ---
 
-## 33. Viewer Mode
+## 34. Viewer Mode
 Run the tool as a read-only browser.
 
 **Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/viewer-mode.webp`
@@ -998,7 +1022,7 @@ Run the tool as a read-only browser.
 
 ---
 
-## 34. Themes (Light / Dark)
+## 35. Themes (Light / Dark)
 Toggle between light and dark themes for comfortable viewing.
 
 > **Note:** Most screenshots in this documentation use the **light theme (default)**.
@@ -1011,14 +1035,14 @@ Toggle between light and dark themes for comfortable viewing.
 
 ---
 
-## 35. Zoom Controls
+## 36. Zoom Controls
 Adjust the font size for better readability.
 
 **Description:** Use the zoom controls (+/- buttons) in the toolbar to increase or decrease the font size (see [Main Interface](#2-main-interface) screenshot). Font size preference is automatically saved across sessions.
 
 ---
 
-## 36. Mark / Unmark Commit
+## 37. Mark / Unmark Commit
 Mark commits for easy identification.
 
 **Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/mark-commits.webp`
@@ -1031,7 +1055,7 @@ Mark commits for easy identification.
 
 ---
 
-## 37. Show Local Branches
+## 38. Show Local Branches
 Display local and remote branch names alongside commits.
 
 **Description:** Toggle the "show local branches" option (via **Configure → Show/Hide → Show Local Branches** in the main window, see [2. Main Interface](#2-main-interface)) to display branch names next to commits. Local branches are shown in green, and remote branches (e.g., origin/main, origin/master) are shown in orange. This helps you identify which branch a commit belongs to or originated from, making it easier to understand the commit's context and lineage. This option is **enabled by default**.
@@ -1040,7 +1064,7 @@ Display local and remote branch names alongside commits.
 
 ---
 
-## 38. Copy to Clipboard
+## 39. Copy to Clipboard
 Quickly copy commit details for sharing, debugging, or reference.
 
 **Description:** Right-click any commit and select one of the following options (visible in [Main Menus](#3-context-menu)):
@@ -1053,7 +1077,7 @@ A brief **"Copied!"** notification appears to confirm the action.
 
 ---
 
-## 39. Update the Tool
+## 40. Update the Tool
 
 **Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/update-available-dialog.webp`
 
@@ -1075,7 +1099,7 @@ When running from a cloned repository, press **Ctrl+F9** after updating to resta
 
 ---
 
-## 40. Tag Commit
+## 41. Tag Commit
 
 **Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/tag-commit.webp`
 
@@ -1087,7 +1111,7 @@ Use **Browse Tags** (Repo menu) to see all tags in the repository (see [Browse T
 
 ---
 
-## 41. Blame a file
+## 42. Blame a file
 
 Open a per-line blame viewer for any file in a commit, with search, filtering, and commit inspection.
 
@@ -1114,7 +1138,7 @@ The bottom bar also includes **Always On Top**, **Show Author / Date / Subject**
 
 ---
 
-## 42. Browse Tags
+## 43. Browse Tags
 
 **Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/browse-tags.webp`
 
@@ -1131,7 +1155,7 @@ Right-click a tag to open its commit log or copy details. Double-click a tag to 
 
 ---
 
-## 43. External Tools Dialog
+## 44. External Tools Dialog
 
 **Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/external-tools-dialog.webp`
 
@@ -1147,7 +1171,7 @@ Click **Refresh** to re-detect the Git difftool, **Save** to persist the choice,
 
 ---
 
-## 44. Handle Staged Changes
+## 45. Handle Staged Changes
 
 **Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/handle-staged-changes.webp`
 
@@ -1166,7 +1190,7 @@ Buttons are disabled when no staged files remain. All history-modifying operatio
 
 ---
 
-## 45. Commit Staged Changes Selectively
+## 46. Commit Staged Changes Selectively
 
 **Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/commit_or_unstage-staged-selectively.webp`
 
@@ -1184,7 +1208,7 @@ Features:
 
 ---
 
-## 46. Add Untracked Files Dialog
+## 47. Add Untracked Files Dialog
 
 **Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/add-untracked-files.webp`
 
@@ -1197,7 +1221,7 @@ Select files and click **Add/Stage Selected Files** to run `git add` on them. If
 
 ---
 
-## 47. Staged / Unstaged Changes Warning at Startup / Rescan
+## 48. Staged / Unstaged Changes Warning at Startup / Rescan
 
 **Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/staged-unstaged-changes-warning.webp`
 
@@ -1207,7 +1231,7 @@ The **Repo** button is also highlighted with an orange blink to draw attention. 
 
 ---
 
-## 48. Destructive Operations Blocked When Staged Changes Exist
+## 49. Destructive Operations Blocked When Staged Changes Exist
 
 **Description:** When staged changes are present in the repository, history-modifying (destructive) operations are blocked with a warning dialog. The **Repo** button is highlighted to guide you to **Repo → Handle Staged Changes**.
 
@@ -1228,13 +1252,13 @@ This prevents accidental data loss when the staging area contains changes that c
 
 ---
 
-## 49. Auto-background on Launch
+## 50. Auto-background on Launch
 
 **Description:** When run from a terminal, the tool automatically detaches and runs in the background. The terminal returns immediately with a message like `Tool started in background (PID xxx)`. This works on both Linux (`os.fork`) and Windows (`subprocess.Popen` with `DETACHED_PROCESS`). The `--version` and `--update` flags skip auto-background to keep terminal output.
 
 ---
 
-## 50. Full Height Diff View
+## 51. Full Height Diff View
 
 **Description:** A **▼ Full Height ▼** toggle button sits below the commit list and diff pane, spanning the full window width. The button is **always visible** in the main window (regardless of diff pane visibility). Clicking it collapses the commit message header and hides all bottom control groups (failsafe, origin, multi-select, rebase) to maximize the diff viewing area. The button text changes to **▲ Show buttons ▲**.
 
@@ -1244,7 +1268,7 @@ This is useful when reviewing large diffs where you need maximum vertical space.
 
 ---
 
-## 51. Collapsible Commit Details Header
+## 52. Collapsible Commit Details Header
 
 **Description:** The commit details header in the right-side pane (and in the Single Commit View dialog) has a clickable disclosure arrow (▼/▶). Clicking the arrow collapses the commit message, leaving only the compact metadata header visible. This gives more space to the diff pane without using the Full Height toggle. Click again to expand.
 
@@ -1252,7 +1276,7 @@ The splitter handle is locked when collapsed to prevent accidental resizing. Dra
 
 ---
 
-## 52. Collapsible File List in Diff Tabs
+## 53. Collapsible File List in Diff Tabs
 
 **Description:** The **File-wise Diff** and **Tree-wise Diff** tab titles act as toggle buttons. Each tab title shows a ▼ or ▶ prefix indicating whether the file list is visible. Clicking the active tab toggles the file list visibility:
 
@@ -1263,13 +1287,13 @@ Clicking a different tab switches normally without toggling. This works in the m
 
 ---
 
-## 53. Collapsible File List in Branch/Commit Dialogs
+## 54. Collapsible File List in Branch/Commit Dialogs
 
-**Description:** The Branch Diff dialog and Single Commit View dialog also support the collapsible file list toggle on their File-wise Diff and Tree-wise Diff tabs, identically to the main window behavior described in [Collapsible File List in Diff Tabs](#52-collapsible-file-list-in-diff-tabs).
+**Description:** The Branch Diff dialog and Single Commit View dialog also support the collapsible file list toggle on their File-wise Diff and Tree-wise Diff tabs, identically to the main window behavior described in [Collapsible File List in Diff Tabs](#53-collapsible-file-list-in-diff-tabs).
 
 ---
 
-## 54. Font Selection Dialog
+## 55. Font Selection Dialog
 
 **Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/font-selection-dialog.webp`
 
@@ -1287,17 +1311,17 @@ The selected font is used across the main window and all browse/viewer windows. 
 
 ---
 
-## 55. Fault Handling
+## 56. Fault Handling
 
 **Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/fault-handling.webp`
 
 ![Fault Handling](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/fault-handling.webp)
 
-**Description:** The tool has two layers of fault handling: **[55.1 Exception Handling](#551-exception-handling)** deals with unexpected Python exceptions *inside* the running application and shows a dialog with the full traceback, while **[55.2 Crash Handling](#552-crash-handling)** covers failures that kill the process outright — those print a native traceback to the terminal, and the next launch detects that the previous run did not exit normally.
+**Description:** The tool has two layers of fault handling: **[56.1 Exception Handling](#561-exception-handling)** deals with unexpected Python exceptions *inside* the running application and shows a dialog with the full traceback, while **[56.2 Crash Handling](#562-crash-handling)** covers failures that kill the process outright — those print a native traceback to the terminal, and the next launch detects that the previous run did not exit normally.
 
-### 55.1 Exception Handling
+### 56.1 Exception Handling
 
-**Description:** If an unexpected (unhandled) Python exception ever reaches the top level — a bug the app did not anticipate — the tool shows this dialog instead of dying with only a terminal traceback. The complete crash report is displayed in the large read-only text area, using your configured monospace font (see [54. Font Selection Dialog](#54-font-selection-dialog)) and the current theme.
+**Description:** If an unexpected (unhandled) Python exception ever reaches the top level — a bug the app did not anticipate — the tool shows this dialog instead of dying with only a terminal traceback. The complete crash report is displayed in the large read-only text area, using your configured monospace font (see [55. Font Selection Dialog](#55-font-selection-dialog)) and the current theme.
 
 Buttons:
 
@@ -1311,7 +1335,7 @@ Notes:
 - Expected/recoverable errors (git failures, invalid arguments, missing files the app checks for, etc.) are already handled inside the app and do **not** show this dialog — it appears only for genuinely unexpected exceptions.
 - The crash report is also printed to the terminal (stderr), so the traceback is never lost even if the dialog itself cannot be shown.
 
-### 55.2 Crash Handling
+### 56.2 Crash Handling
 
 **Description:** Some failures never reach Python's exception machinery — a segmentation fault, `kill -9`, a power loss, or a system shutdown kills the process before any dialog can appear. Two mechanisms cover that case:
 
@@ -1322,7 +1346,7 @@ If the crashed run printed anything to the terminal (for example the `faulthandl
 
 ---
 
-## 56. Keyboard Shortcuts
+## 57. Keyboard Shortcuts
 Keyboard shortcuts for faster navigation and workflow.
 
 | Shortcut | Action |
