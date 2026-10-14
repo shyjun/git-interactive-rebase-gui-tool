@@ -3,7 +3,6 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QApplication,
     QDialog,
-    QInputDialog,
     QMessageBox,
 )
 from lib.git_helpers import (
@@ -13,7 +12,7 @@ from lib.git_helpers import (
     merge_would_conflict,
     rebase_in_progress,
 )
-from lib.dialogs import ProgressDialog, PushDialog
+from lib.dialogs import ProgressDialog, PushDialog, RefTargetDialog
 from lib.app_window.workers import GitWorker
 from lib.app_window.helpers import _log
 
@@ -263,9 +262,12 @@ class ResetMixin:
         self.perform_rebase("main")
 
     def handle_git_rebase_custom(self):
-        target, ok = QInputDialog.getText(self, 'Rebase', 'Enter branch or commit SHA to rebase on top of:')
-        if ok and target.strip():
-            self.perform_rebase(target.strip())
+        dlg = RefTargetDialog(
+            self.repo_path, "Rebase On Top Of",
+            "Rebase current branch on top of:",
+            ok_text="Rebase", exclude_current=True, parent=self)
+        if dlg.exec() == QDialog.Accepted:
+            self.perform_rebase(dlg.ref)
 
     def perform_rebase(self, target):
         """Performs git rebase <target> with confirmation."""
@@ -445,18 +447,22 @@ class ResetMixin:
         self.progress_dialog.exec()
 
     def handle_custom_reset(self):
-        commit_id, ok = QInputDialog.getText(self, 'Input Dialog', 'Enter commit ID to reset hard to:')
-        if ok and commit_id.strip():
-            sha = commit_id.strip()
-            reply = QMessageBox.question(
-                self,
-                "Confirm Custom Reset",
-                f"Are you sure you want to <b>reset --hard</b> to <b>{sha}</b>?<br><br>"
-                "This will discard all uncommitted changes and move your branch to this state.",
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.No
-            )
-            if reply == QMessageBox.Yes:
-                self.perform_reset(sha)
-            else:
-                _log(f"Cancelled custom reset to {sha}.")
+        dlg = RefTargetDialog(
+            self.repo_path, "Reset --hard",
+            "Commit to reset --hard to:",
+            ok_text="Reset", exclude_current=True, parent=self)
+        if dlg.exec() != QDialog.Accepted:
+            return
+        sha = dlg.ref
+        reply = QMessageBox.question(
+            self,
+            "Confirm Custom Reset",
+            f"Are you sure you want to <b>reset --hard</b> to <b>{sha}</b>?<br><br>"
+            "This will discard all uncommitted changes and move your branch to this state.",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+        if reply == QMessageBox.Yes:
+            self.perform_reset(sha)
+        else:
+            _log(f"Cancelled custom reset to {sha}.")

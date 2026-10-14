@@ -38,6 +38,7 @@ from .history_branch_dialogs import (
     MergeBaseDialog,
     MergeBaseResultDialog,
     OpenFileAtRefDialog,
+    RefTargetDialog,
     StashNoticeDialog,
     TagCommitDialog,
 )

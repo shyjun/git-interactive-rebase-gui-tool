@@ -24,9 +24,10 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 
 from lib.git_helpers import (
+    commit_exists,
     get_branch_names,
     get_current_branch,
 )
@@ -564,6 +565,138 @@ class MergeBaseResultDialog(QDialog):
         btn_layout.addWidget(copy_btn)
         btn_layout.addWidget(ok_btn)
         layout.addLayout(btn_layout)
+
+
+class RefTargetDialog(QDialog):
+    """Ref picker with a live detail panel: pick a branch from the combo or
+    type any tag / SHA / HEAD~n, and the panel below shows the short SHA,
+    subject, age and ahead/behind vs the current branch. OK stays disabled
+    until the text resolves to a commit, so a typo can never reach a git
+    command."""
+
+    def __init__(self, repo_path, title, label_text, ok_text="OK",
+                 exclude_current=True, parent=None):
+        super().__init__(parent)
+        self.repo_path = repo_path
+        self.setWindowTitle(title)
+        self.setMinimumWidth(480)
+        self.setModal(True)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
+
+        prompt = QLabel(label_text)
+        layout.addWidget(prompt)
+
+        self.ref_combo = QComboBox()
+        self.ref_combo.setEditable(True)
+        self.ref_combo.addItem("")
+        current = get_current_branch(repo_path)
+        for name in get_branch_names(repo_path):
+            if exclude_current and name == current:
+                continue
+            self.ref_combo.addItem(name)
+        if self.ref_combo.lineEdit():
+            self.ref_combo.lineEdit().setPlaceholderText(
+                "e.g. feature/login, origin/dev, v1.2.3, or a commit SHA")
+        self.ref_combo.setToolTip("Pick a branch, or type any tag, SHA, or HEAD~n.")
+        layout.addWidget(self.ref_combo)
+
+        self.detail_label = QLabel()
+        self.detail_label.setWordWrap(True)
+        layout.addWidget(self.detail_label)
+
+        self._debounce = QTimer(self)
+        self._debounce.setSingleShot(True)
+        self._debounce.setInterval(150)
+        self._debounce.timeout.connect(self._validate)
+
+        self.ok_btn = QPushButton(ok_text)
+        self.ok_btn.setDefault(True)
+        self.ok_btn.clicked.connect(self.accept)
+
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(self.reject)
+
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+        btn_layout.addWidget(cancel_btn)
+        btn_layout.addWidget(self.ok_btn)
+        layout.addLayout(btn_layout)
+
+        self.ref_combo.editTextChanged.connect(self._schedule_validate)
+        self.ref_combo.currentIndexChanged.connect(self._schedule_validate)
+        self.ref_combo.setFocus()
+
+        self._validate()
+
+    @property
+    def ref(self):
+        return self.ref_combo.currentText().strip()
+
+    def accept(self):
+        self._debounce.stop()
+        self._validate()
+        if not self.ok_btn.isEnabled():
+            return
+        super().accept()
+
+    def _schedule_validate(self, *_):
+        self._debounce.start()
+
+    def _set_detail(self, text, style):
+        self.detail_label.setText(text)
+        self.detail_label.setStyleSheet(style)
+
+    def _validate(self):
+        text = self.ref
+        if not text:
+            self._set_detail(
+                "Type or pick a branch, tag, or commit SHA.",
+                "color: gray; font-size: 13px;")
+            self.ok_btn.setEnabled(False)
+            return
+        if not commit_exists(self.repo_path, text):
+            self._set_detail(
+                f"'{text}' is not a valid ref",
+                "color: #c0392b; font-size: 13px;")
+            self.ok_btn.setEnabled(False)
+            return
+        self._set_detail(self._fetch_detail(text), "font-size: 13px;")
+        self.ok_btn.setEnabled(True)
+
+    def _fetch_detail(self, ref):
+        """One line of detail (short sha, subject, age) plus, when the ref and
+        HEAD differ, an ahead/behind line. Conservative: any failure just
+        falls back to showing the ref as typed."""
+        import subprocess
+        try:
+            result = subprocess.run(
+                ["git", "log", "-1", "--format=%h%x1f%s%x1f%cr", f"{ref}^{{commit}}"],
+                cwd=self.repo_path, capture_output=True, text=True,
+                encoding="utf-8", errors="replace")
+            fields = result.stdout.rstrip("\n").split("\x1f")
+            if result.returncode != 0 or len(fields) != 3:
+                return ref
+            short_sha, subject, age = fields
+            line = f"{short_sha} \u2014 {subject} ({age})"
+            counts = subprocess.run(
+                ["git", "rev-list", "--left-right", "--count", f"HEAD...{ref}^{{commit}}"],
+                cwd=self.repo_path, capture_output=True, text=True,
+                encoding="utf-8", errors="replace")
+            if counts.returncode == 0:
+                nums = counts.stdout.split()
+                if len(nums) == 2:
+                    left, right = int(nums[0]), int(nums[1])
+                    if left == 0 and right == 0:
+                        line += "\nmatches current branch tip"
+                    else:
+                        line += (f"\nyour branch: \u2191 {left} ahead \u00b7 "
+                                 f"\u2193 {right} behind of this ref")
+            return line
+        except Exception:
+            return ref
 
 
 class OpenFileAtRefDialog(QDialog):

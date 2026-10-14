@@ -6,7 +6,6 @@ from PySide6.QtWidgets import (
     QApplication,
     QDialog,
     QFileDialog,
-    QInputDialog,
     QMessageBox,
 )
 from lib.git_helpers import (
@@ -20,6 +19,7 @@ from lib.git_helpers import (
 from lib.dialogs import (
     ApplyPatchDialog,
     ProgressDialog,
+    RefTargetDialog,
     RephraseDialog,
     RevertCommitDialog,
     SingleCommitViewDialog,
@@ -333,15 +333,15 @@ class CommitOpsMixin:
         self.load_history()
 
     def handle_view_commit_by_sha(self):
-        """Opens the file-wise view of any commit entered by the user.
-        Validates the SHA/ref exists in the repository before opening."""
-        text, ok = QInputDialog.getText(self, "View a Commit", "Enter the commit SHA:")
-        if not ok:
+        """Opens the file-wise view of any commit selected in the ref picker.
+        The picker validates the SHA/ref exists before it can be accepted."""
+        dlg = RefTargetDialog(
+            self.repo_path, "View a Commit",
+            "Commit SHA or ref to view:",
+            ok_text="View", exclude_current=False, parent=self)
+        if dlg.exec() != QDialog.Accepted:
             return
-        ref = text.strip()
-        if not ref:
-            QMessageBox.warning(self, "No SHA", "Please enter a commit SHA to view.")
-            return
+        ref = dlg.ref
         sha = resolve_ref(self.repo_path, ref)
         if not sha:
             QMessageBox.critical(self, "Commit not found", f"'{ref}' is not a valid SHA or ref in this repository.")
