@@ -122,6 +122,9 @@ class ResetMixin:
             return
 
         _log(f"Conflict check clean; running {label}...")
+        # Snapshot HEAD pre-pull so Undo reverts the pull itself, not
+        # whatever operation ran before it (same pattern as reset/rebase).
+        self.save_undo_state()
         self.progress_dialog = ProgressDialog(
             "Git Pull", f"{label} in progress...", self)
 

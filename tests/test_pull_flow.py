@@ -91,6 +91,14 @@ class _FakePullWindow(ResetMixin):
         self.worker = None
         self._active_workers = set()
         self._pull_rebase = False
+        self.last_head = None
+
+    def save_undo_state(self):
+        """Mirrors UndoMixin.save_undo_state: snapshot HEAD pre-operation."""
+        self.calls.append("save_undo_state")
+        self.last_head = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=self.repo_path,
+            text=True).strip()
 
     def _check_not_viewer_mode(self):
         return True
@@ -213,6 +221,8 @@ class TestPullFlow(unittest.TestCase):
         self.assertEqual(self._head(repo), head_before)
         self.assertFalse(self._merge_head(repo))
         self.assertNotIn("load_history", win.calls)
+        self.assertNotIn("save_undo_state", win.calls,
+                         "a refused pull must not arm undo")
 
     def test_conflict_rebase_pull_refused(self):
         """Same for git pull --rebase: the pre-check runs before any
@@ -231,8 +241,10 @@ class TestPullFlow(unittest.TestCase):
 
     def test_clean_divergence_merges(self):
         """Non-overlapping local/origin commits: fetch then
-        git pull --no-rebase runs, succeeds, and refreshes."""
+        git pull --no-rebase runs, succeeds, refreshes, and arms undo
+        with the pre-pull HEAD."""
         repo = self._build_repo("clean")
+        head_before = self._head(repo)
         win = _FakePullWindow(repo)
         win.handle_git_pull(rebase=False)
         self.assertEqual(self._worker_cmds(),
@@ -245,6 +257,10 @@ class TestPullFlow(unittest.TestCase):
         log = _git(repo, "log", "--oneline").stdout
         self.assertIn("remote commit", log)
         self.assertTrue(os.path.exists(os.path.join(repo, "remote.txt")))
+        self.assertIn("save_undo_state", win.calls)
+        self.assertEqual(win.last_head, head_before,
+                         "undo must snapshot the pre-pull HEAD")
+        self.assertNotEqual(self._head(repo), head_before)
 
     def test_clean_divergence_rebases(self):
         """git pull --rebase: local commit is replayed on top, history
@@ -262,6 +278,8 @@ class TestPullFlow(unittest.TestCase):
         log = _git(repo, "log", "--oneline").stdout
         self.assertIn("remote commit", log)
         self.assertIn("local commit", log)
+        self.assertIn("save_undo_state", win.calls,
+                      "pull --rebase must arm undo too")
 
     def test_fast_forward_pull(self):
         """Local behind origin with no local commits: pull fast-forwards."""
@@ -270,12 +288,15 @@ class TestPullFlow(unittest.TestCase):
         # until the flow's fetch refreshes it)
         origin_sha = _git(os.path.join(self.root, "origin.git"),
                           "rev-parse", "main").stdout.strip()
+        head_before = self._head(repo)
         win = _FakePullWindow(repo)
         win.handle_git_pull(rebase=False)
         self.assertEqual(self._worker_cmds(),
                          [["git", "fetch"], ["git", "pull", "--no-rebase"]])
         self.assertEqual(self._head(repo), origin_sha)
         self.assertIn("load_history", win.calls)
+        self.assertEqual(win.last_head, head_before,
+                         "undo must snapshot the pre-fast-forward HEAD")
 
     def test_no_upstream_warns_without_running(self):
         """No origin/<branch>: warning, zero workers started."""
@@ -307,6 +328,8 @@ class TestPullFlow(unittest.TestCase):
         self.assertEqual(len(crits), 1)
         self.assertIn("Pull Failed", crits[0][1])
         self.assertNotIn("load_history", win.calls)
+        self.assertNotIn("save_undo_state", win.calls,
+                         "a failed fetch must not arm undo")
 
 
 if __name__ == "__main__":
