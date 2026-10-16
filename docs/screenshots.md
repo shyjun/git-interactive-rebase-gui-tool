@@ -1216,8 +1216,12 @@ Features:
 - **File List tab** — checkboxes with per-file stats
 - **Tree View tab** — folder/file hierarchy with checkboxes
 - **File list filter** — hover either list and click the magnifier to narrow it by name
+- **git commit selected files** — stage only the checked files and commit them with a new message (`git commit --only`)
+- **git commit --amend selected files** — stage only the checked files and amend them into the HEAD commit, message pre-filled from HEAD (`git commit --amend --only`)
+- **Add/Stage Selected Files** — stage only the checked files (`git add`)
+- **Cancel** — close without changes
 
-Select files and click **Add/Stage Selected Files** to run `git add` on them. If unstaged changes exist in tracked files, the tool warns and blocks this operation.
+Select files and click **Add/Stage Selected Files** to run `git add` on them, **git commit selected files** to stage and commit just the checked files with a new message, or **git commit --amend selected files** to stage and amend them into the HEAD commit (message editable). The two commit buttons are disabled until at least one file is checked, and changes already staged in other files are never swept into the commit or the amend. Committing or amending saves undo state, so **Undo** (`Ctrl+Z`) reverses them. If unstaged changes exist in tracked files, the tool warns and blocks this operation.
 
 ---
 

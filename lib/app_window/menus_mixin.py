@@ -279,7 +279,10 @@ class MenusMixin:
         apply_patch_action.triggered.connect(lambda *_: self.handle_apply_patch())
 
         stage_files_action = QAction("Add Untracked File(s)…", self)
-        stage_files_action.setToolTip("Add untracked files to the repository (git add).")
+        stage_files_action.setToolTip(
+            "Add untracked files to the repository: stage them (git add), or stage and "
+            "commit them (git commit --only / git commit --amend --only)."
+        )
         stage_files_action.triggered.connect(lambda *_: self.handle_stage_files())
 
         staged_changes_action = QAction("Handle Staged Changes…", self)

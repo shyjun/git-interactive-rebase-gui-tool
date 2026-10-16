@@ -1177,7 +1177,8 @@ class StageFilesDialog(QDialog):
         branch = get_current_branch(repo_path) or "HEAD"
         header = QLabel(
             f"Untracked Files: <b>{branch}</b> - {len(self.files)} file{'s' if len(self.files) != 1 else ''}<br>"
-            "Select files to add (<code>git add</code>)."
+            "Select files to add (<code>git add</code>), or commit / amend them "
+            "into a new or existing commit."
         )
         header.setTextFormat(Qt.RichText)
         header.setWordWrap(True)
