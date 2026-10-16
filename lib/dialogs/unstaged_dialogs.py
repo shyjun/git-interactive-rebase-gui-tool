@@ -1168,7 +1168,7 @@ class StageFilesDialog(QDialog):
         self.colors = colors
 
         self.setWindowTitle("Add Untracked File(s)")
-        self.setMinimumSize(700, 500)
+        self.setMinimumSize(860, 500)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(12, 12, 12, 12)
@@ -1291,6 +1291,14 @@ class StageFilesDialog(QDialog):
             "QPushButton:hover { background-color: #eef4ff; }"
         )
 
+        self.amend_btn = QPushButton("git commit --amend selected files")
+        self.amend_btn.setToolTip("Stage the checked files and amend them into the HEAD commit, message editable (git commit --amend --only).")
+        self.amend_btn.setStyleSheet(
+            "QPushButton { color: #8e44ad; border: 2px solid #8e44ad; padding: 10px 18px; "
+            "border-radius: 6px; font-weight: bold; } "
+            "QPushButton:hover { background-color: #f6eefb; }"
+        )
+
         stage_btn = QPushButton("Add/Stage Selected Files")
         stage_btn.setDefault(True)
         stage_btn.setToolTip("Run 'git add' on the checked files.")
@@ -1309,11 +1317,13 @@ class StageFilesDialog(QDialog):
         )
 
         self.commit_btn.clicked.connect(self._on_commit_selected)
+        self.amend_btn.clicked.connect(self._on_amend_selected)
         stage_btn.clicked.connect(self._on_stage)
         cancel_btn.clicked.connect(self.reject)
 
         bot_row.addStretch()
         bot_row.addWidget(self.commit_btn)
+        bot_row.addWidget(self.amend_btn)
         bot_row.addWidget(stage_btn)
         bot_row.addWidget(cancel_btn)
         layout.addLayout(bot_row)
@@ -1525,12 +1535,23 @@ class StageFilesDialog(QDialog):
         self.action = "commit"
         self.accept()
 
+    def _on_amend_selected(self):
+        """Hand the checked files to the caller for 'git commit --amend --only'."""
+        files = self.checked_files()
+        if not files:
+            QMessageBox.information(self, "No Files Selected", "Please check at least one file to amend.")
+            return
+        self.selected_files = files
+        self.action = "amend"
+        self.accept()
+
     def _update_counter(self, _=None):
         total = self.file_list.count()
         sel = len(self.checked_files())
         self.counter_label.setText(f"<b>Selected:</b> {sel}&nbsp;&nbsp;<b>Total:</b> {total}")
         self.counter_label.setTextFormat(Qt.RichText)
         self.commit_btn.setEnabled(bool(sel))
+        self.amend_btn.setEnabled(bool(sel))
 
     def checked_files(self):
         return [self.file_list.item(i).text()

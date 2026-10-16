@@ -734,6 +734,13 @@ class StashMixin:
                 return
             self._stage_files_commit(dialog.selected_files)
             return
+        if getattr(dialog, "action", "stage") == "amend":
+            if not self._check_not_viewer_mode():
+                return
+            if not self._check_head_unchanged():
+                return
+            self._stage_files_amend(dialog.selected_files)
+            return
         if not dialog.selected_files:
             return
         self.load_history()
@@ -794,5 +801,64 @@ class StashMixin:
         QMessageBox.information(
             self, "Commit Successful",
             f"Done. Successfully committed {len(files)} file(s).\n\n"
+            f"Commit ID:\n{self.get_head_sha()[:8]}"
+        )
+
+    def _stage_files_amend(self, files):
+        """Amend only the given (just added) untracked files into the HEAD commit.
+
+        Uses git commit --amend --only with a pathspec so any pre-staged
+        changes in other files are NOT included in the amend."""
+        if not files:
+            return
+        try:
+            default_msg = get_full_commit_message(self.repo_path, "HEAD")
+        except Exception:
+            default_msg = ""
+        msg_dlg = NewCommitMessageDialog(
+            "Amend Selected Files",
+            "Enter the new commit message for the amend:",
+            default_msg,
+            self.current_font_size,
+            self.current_font_family,
+            self
+        )
+        if msg_dlg.exec() != QDialog.Accepted:
+            return  # Cancelled - nothing staged yet
+        message = msg_dlg.get_message()
+        if not message:
+            return
+        if not stage_files(self.repo_path, files):
+            QMessageBox.critical(self, "Add Failed", "Failed to add the selected files.")
+            return
+
+        self.save_undo_state()
+        progress = ProgressDialog("Amending Changes", "Amending selected files...", self)
+        progress.show()
+        QApplication.processEvents()
+        try:
+            import tempfile
+            msg_fd, msg_path = tempfile.mkstemp(prefix='git_amend_msg_', text=True)
+            try:
+                with os.fdopen(msg_fd, 'w', encoding='utf-8') as f:
+                    f.write(message)
+                subprocess.run(
+                    ["git", "commit", "--amend", "--only", "-F", msg_path, "--"] + list(files),
+                    cwd=self.repo_path, check=True, capture_output=True)
+            finally:
+                os.unlink(msg_path)
+        except subprocess.CalledProcessError as e:
+            progress.close()
+            self.load_history()
+            QMessageBox.critical(
+                self, "Amend Failed",
+                f"Amend failed: {e.stderr.decode('utf-8', errors='replace')}\n\n"
+                "The files were left staged so nothing is lost.")
+            return
+        progress.close()
+        self.load_history()
+        QMessageBox.information(
+            self, "Amend Successful",
+            f"Done. Selected {len(files)} file(s) were amended into the HEAD commit.\n\n"
             f"Commit ID:\n{self.get_head_sha()[:8]}"
         )

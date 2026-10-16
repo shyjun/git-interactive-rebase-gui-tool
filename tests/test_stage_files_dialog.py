@@ -142,10 +142,12 @@ class TestStageFilesDialogButtons(unittest.TestCase):
         self.assertIsNotNone(texts)
         self.assertIn("git commit selected files", texts)
 
-    def test_commit_button_before_stage_button(self):
+    def test_button_order_commit_amend_stage_cancel(self):
         dlg = self._dialog()
         texts = self._bottom_row_texts(dlg)
         self.assertLess(texts.index("git commit selected files"),
+                        texts.index("git commit --amend selected files"))
+        self.assertLess(texts.index("git commit --amend selected files"),
                         texts.index("Add/Stage Selected Files"))
         self.assertLess(texts.index("Add/Stage Selected Files"),
                         texts.index("Cancel"))
@@ -153,16 +155,20 @@ class TestStageFilesDialogButtons(unittest.TestCase):
     def test_commit_button_disabled_until_something_checked(self):
         dlg = self._dialog()
         self.assertFalse(dlg.commit_btn.isEnabled())
+        self.assertFalse(dlg.amend_btn.isEnabled())
         self._check(dlg, 0)
         self.assertTrue(dlg.commit_btn.isEnabled())
+        self.assertTrue(dlg.amend_btn.isEnabled())
         dlg.file_list.item(0).setCheckState(Qt.Unchecked)
         self.assertFalse(dlg.commit_btn.isEnabled())
+        self.assertFalse(dlg.amend_btn.isEnabled())
 
     def test_stage_button_stays_default(self):
         dlg = self._dialog()
         btns = {b.text(): b for b in dlg.findChildren(QPushButton)}
         self.assertTrue(btns["Add/Stage Selected Files"].isDefault())
         self.assertFalse(dlg.commit_btn.isDefault())
+        self.assertFalse(dlg.amend_btn.isDefault())
 
     def test_commit_click_sets_action_and_selection(self):
         dlg = self._dialog()
@@ -172,6 +178,14 @@ class TestStageFilesDialogButtons(unittest.TestCase):
         self.assertEqual(dlg.action, "commit")
         self.assertEqual(sorted(dlg.selected_files),
                          ["new_a.txt", "new_b.txt"])
+        self.assertEqual(dlg.result(), QDialog.Accepted)
+
+    def test_amend_click_sets_action_and_selection(self):
+        dlg = self._dialog()
+        self._check(dlg, 1)
+        dlg.amend_btn.click()
+        self.assertEqual(dlg.action, "amend")
+        self.assertEqual(dlg.selected_files, ["new_b.txt"])
         self.assertEqual(dlg.result(), QDialog.Accepted)
 
     def test_cancel_keeps_stage_action(self):
@@ -262,6 +276,8 @@ class TestHandleStageFilesCommitFlow(unittest.TestCase):
                 dlg._on_stage()          # real handler: git add + accept
             elif action == "commit":
                 dlg._on_commit_selected()  # real handler: set action + accept
+            elif action == "amend":
+                dlg._on_amend_selected()   # real handler: set action + accept
             else:
                 dlg.action = action
                 dlg.accept()
@@ -330,6 +346,48 @@ class TestHandleStageFilesCommitFlow(unittest.TestCase):
         self.assertNotIn("save_undo_state", win.calls)
         infos = [e for e in _FakeMessageBox.events if e[0] == "information"]
         self.assertTrue(any("Files Added" in e[1] for e in infos))
+
+    def test_amend_replaces_head_message_and_keeps_parent(self):
+        pre_head = self._head()
+        win = self._run("amend")
+        self.assertNotEqual(self._head(), pre_head)
+        self.assertEqual(
+            _git(self.repo, "rev-list", "--count", "HEAD").stdout.strip(), "1",
+            "amend must replace HEAD, not add a commit on top")
+        shown = [ln for ln in _git(
+            self.repo, "show", "--name-only", "--format=%s",
+            "HEAD").stdout.splitlines() if ln]
+        self.assertEqual(shown[0], "commit the new files")
+        self.assertEqual(sorted(shown[1:]),
+                         ["base.txt", "new_a.txt", "new_b.txt"])
+        self.assertNotIn("new_", self._status(),
+                         "amended files must leave the untracked set")
+        self.assertIn("save_undo_state", win.calls)
+        self.assertEqual(win.last_head, pre_head,
+                         "undo must snapshot the pre-amend HEAD")
+        infos = [e for e in _FakeMessageBox.events if e[0] == "information"]
+        self.assertTrue(any("Amend Successful" in e[1] for e in infos))
+
+    def test_amend_not_swept_pre_staged_other(self):
+        with open(os.path.join(self.repo, "base.txt"), "w") as fh:
+            fh.write("staged elsewhere\n")
+        _git(self.repo, "add", "base.txt")
+        self._run("amend")
+        in_head = _git(self.repo, "show", "HEAD:base.txt").stdout
+        self.assertEqual(in_head, "base\n",
+                         "pre-staged base.txt change must not be swept into "
+                         "the amend")
+        self.assertIn("M  base.txt", self._status(),
+                      "pre-staged change must stay staged, untouched")
+
+    def test_amend_message_cancel_stages_nothing(self):
+        _FakeMessageDialog.accepted = False
+        pre_head = self._head()
+        win = self._run("amend")
+        self.assertEqual(self._head(), pre_head)
+        self.assertEqual(self._status().count("??"), 2,
+                         "both files must remain untracked")
+        self.assertNotIn("save_undo_state", win.calls)
 
 
 if __name__ == "__main__":
