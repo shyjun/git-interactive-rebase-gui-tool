@@ -725,17 +725,74 @@ class StashMixin:
             self.repo_path, untracked_files, file_stats,
             font_size=self.current_font_size, font_family=self.current_font_family, parent=self,
         )
-        if dialog.exec() == QDialog.Accepted:
+        if dialog.exec() != QDialog.Accepted:
+            return
+        if getattr(dialog, "action", "stage") == "commit":
+            if not self._check_not_viewer_mode():
+                return
+            if not self._check_head_unchanged():
+                return
+            self._stage_files_commit(dialog.selected_files)
+            return
+        if not dialog.selected_files:
+            return
+        self.load_history()
+        highlight_button_temporarily(self.repo_btn, blinks=5)
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Information)
+        box.setWindowTitle("Files Added")
+        box.setTextFormat(Qt.RichText)
+        box.setText(
+            f"Successfully added/staged {len(dialog.selected_files)} file(s).<br><br>"
+            "Please go to<br><b>Repo -> Handle Staged Changes</b><br><br>"
+            "to handle the files."
+        )
+        box.exec()
+
+    def _stage_files_commit(self, files):
+        """Commit only the given (just added) untracked files as one commit.
+
+        Uses git commit --only with a pathspec so any pre-staged changes in
+        other files are NOT swept into this commit."""
+        if not files:
+            return
+        msg_dlg = NewCommitMessageDialog(
+            "Commit Selected Files",
+            "Enter commit message for the selected files:",
+            self._selective_default_message(files),
+            self.current_font_size,
+            self.current_font_family,
+            self
+        )
+        if msg_dlg.exec() != QDialog.Accepted:
+            return  # Cancelled - nothing staged yet
+        message = msg_dlg.get_message()
+        if not message:
+            return
+        if not stage_files(self.repo_path, files):
+            QMessageBox.critical(self, "Add Failed", "Failed to add the selected files.")
+            return
+
+        self.save_undo_state()
+        progress = ProgressDialog("Committing Changes", "Committing selected files...", self)
+        progress.show()
+        QApplication.processEvents()
+        try:
+            subprocess.run(
+                ["git", "commit", "--only", "-m", message, "--"] + list(files),
+                cwd=self.repo_path, check=True, capture_output=True)
+        except subprocess.CalledProcessError as e:
+            progress.close()
             self.load_history()
-            from lib.app_window.helpers import highlight_button_temporarily, _log
-            highlight_button_temporarily(self.repo_btn, blinks=5)
-            box = QMessageBox(self)
-            box.setIcon(QMessageBox.Information)
-            box.setWindowTitle("Files Added")
-            box.setTextFormat(Qt.RichText)
-            box.setText(
-                f"Successfully added/staged {len(dialog.selected_files)} file(s).<br><br>"
-                "Please go to<br><b>Repo -> Handle Staged Changes</b><br><br>"
-                "to handle the files."
-            )
-            box.exec()
+            QMessageBox.critical(
+                self, "Commit Failed",
+                f"Commit failed: {e.stderr.decode('utf-8', errors='replace')}\n\n"
+                "The files were left staged so nothing is lost.")
+            return
+        progress.close()
+        self.load_history()
+        QMessageBox.information(
+            self, "Commit Successful",
+            f"Done. Successfully committed {len(files)} file(s).\n\n"
+            f"Commit ID:\n{self.get_head_sha()[:8]}"
+        )

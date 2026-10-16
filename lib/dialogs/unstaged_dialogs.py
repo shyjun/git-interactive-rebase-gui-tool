@@ -1155,6 +1155,7 @@ class StageFilesDialog(QDialog):
         self.files = list(files)
         self.file_stats = file_stats or {}
         self.selected_files = []
+        self.action = "stage"
         self.font_size = font_size
         self.font_family = font_family
 
@@ -1282,6 +1283,14 @@ class StageFilesDialog(QDialog):
         bot_row = QHBoxLayout()
         bot_row.setSpacing(10)
 
+        self.commit_btn = QPushButton("git commit selected files")
+        self.commit_btn.setToolTip("Stage the checked files and commit them with a new message (git commit --only).")
+        self.commit_btn.setStyleSheet(
+            "QPushButton { color: #0055cc; border: 2px solid #0055cc; padding: 10px 18px; "
+            "border-radius: 6px; font-weight: bold; } "
+            "QPushButton:hover { background-color: #eef4ff; }"
+        )
+
         stage_btn = QPushButton("Add/Stage Selected Files")
         stage_btn.setDefault(True)
         stage_btn.setToolTip("Run 'git add' on the checked files.")
@@ -1299,10 +1308,12 @@ class StageFilesDialog(QDialog):
             "QPushButton:hover { background-color: #f5f5f5; }"
         )
 
+        self.commit_btn.clicked.connect(self._on_commit_selected)
         stage_btn.clicked.connect(self._on_stage)
         cancel_btn.clicked.connect(self.reject)
 
         bot_row.addStretch()
+        bot_row.addWidget(self.commit_btn)
         bot_row.addWidget(stage_btn)
         bot_row.addWidget(cancel_btn)
         layout.addLayout(bot_row)
@@ -1504,11 +1515,22 @@ class StageFilesDialog(QDialog):
         else:
             QMessageBox.critical(self, "Add Failed", "Failed to add the selected files.")
 
+    def _on_commit_selected(self):
+        """Hand the checked files to the caller for 'git commit --only'."""
+        files = self.checked_files()
+        if not files:
+            QMessageBox.information(self, "No Files Selected", "Please check at least one file to commit.")
+            return
+        self.selected_files = files
+        self.action = "commit"
+        self.accept()
+
     def _update_counter(self, _=None):
         total = self.file_list.count()
         sel = len(self.checked_files())
         self.counter_label.setText(f"<b>Selected:</b> {sel}&nbsp;&nbsp;<b>Total:</b> {total}")
         self.counter_label.setTextFormat(Qt.RichText)
+        self.commit_btn.setEnabled(bool(sel))
 
     def checked_files(self):
         return [self.file_list.item(i).text()
