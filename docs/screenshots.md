@@ -733,7 +733,7 @@ Available options include:
 
 ![Rescan Repository for Changes](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/rescan-repository.webp)
 
-**Description:** The application can remain open while you continue working in your editor or terminal. If new unstaged or uncommitted changes are introduced outside the tool, use **Rescan Repository** to re-evaluate the repository state.
+**Description:** The application can remain open while you continue working in your editor or terminal. If new unstaged or uncommitted changes are introduced outside the tool, use **Rescan Repository** to re-evaluate the repository state. The rescan first refreshes the commit history (same as the **Refresh** button), then checks the working tree.
 
 When unstaged changes are detected, the tool provides the same safe handling options available during startup (see [Staged / Unstaged Changes Warning at Startup / Rescan](#48-staged--unstaged-changes-warning-at-startup--rescan)). When only staged changes are present (no unstaged changes), a warning dialog appears with the **Repo** button highlighted, directing you to **Repo → Handle Staged Changes**.
 
@@ -1362,7 +1362,7 @@ Keyboard shortcuts for faster navigation and workflow.
 | `Ctrl+Z` | Undo the last operation (disabled while editing text) |
 | `Ctrl+Y` | Redo the last undone operation |
 | `F5` | Refresh commit list |
-| `Shift+F5` | Rescan repository (checks for unstaged changes) |
+| `Shift+F5` | Rescan repository (refreshes history first, then checks for unstaged changes) |
 | `Ctrl+F9` | Restart with latest code (cloned repos only, when update detected) |
 
 **Notes:**

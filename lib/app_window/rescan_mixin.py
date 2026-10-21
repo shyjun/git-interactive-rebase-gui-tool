@@ -68,6 +68,9 @@ class RescanMixin:
         #import ctypes
         #ctypes.string_at(0)
 
+        self.handle_manual_refresh()
+        history_mutated = False
+
         unstaged_files = get_unstaged_files(self.repo_path, ignore_submodules=True)
         _log(f"[rescan] Found {len(unstaged_files)} unstaged files")
         if unstaged_files:
@@ -91,13 +94,16 @@ class RescanMixin:
 
             if result == UnstagedChangesDialog.MergeResult:
                 self._merge_into_managed_stash()
+                history_mutated = True
             elif result == UnstagedChangesDialog.SelectiveCommitResult:
                 self._commit_selectively_from_dialog()
+                history_mutated = True
             elif result == UnstagedChangesDialog.Accepted:
                 created_stash_sha, stash_err = stash_changes(
                     self.repo_path,
                     message=f"git-interactive-rebase-gui-tool: Rescan stash ({datetime.now().strftime('%H:%M:%S %Y-%m-%d')})")
                 if created_stash_sha is not None and created_stash_sha is not STASH_NOTHING_STASHED:
+                    history_mutated = True
                     self.app_managed_stash_sha = created_stash_sha
                     self._update_stash_btn_visibility()
                     self._flash_pop_stash_btn()
@@ -111,6 +117,7 @@ class RescanMixin:
                     QMessageBox.critical(self, "Error", f"Failed to stash changes. Please stash or commit manually.{detail}")
                     return
             elif result == UnstagedChangesDialog.CommitEachResult:
+                history_mutated = True
                 self.save_undo_state()
                 progress = ProgressDialog("Committing Changes", f"Committing {len(unstaged_files)} files individually...", self)
                 progress.show()
@@ -213,6 +220,7 @@ class RescanMixin:
                 success, detail = discard_changes(self.repo_path)
 
                 if success:
+                    history_mutated = True
                     QMessageBox.information(self, "Discard Successful", "Done. Unstaged changes discarded (git checkout .).")
                 else:
                     QMessageBox.critical(self, "Error", f"Discard failed.\n\n{detail}")
@@ -238,11 +246,13 @@ class RescanMixin:
                     "Please use Repo -> 'Handle Staged Changes' to process them first."
                 )
 
-        # Finally, we reload the tree to correctly align matching local state
-        if self.browse_mode:
-            self.load_browse_history_async()
-        else:
-            self.load_history()
+        # Reload only if a dialog action changed the repo (the history was
+        # already refreshed at the start of the rescan).
+        if history_mutated:
+            if self.browse_mode:
+                self.load_browse_history_async()
+            else:
+                self.load_history()
 
     def show_consolidated_diff(self, start_sha, end_sha, title=None, description=None):
         """Displays the consolidated diff between *start_sha* and *end_sha* using the shared diff dialog."""

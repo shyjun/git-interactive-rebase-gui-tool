@@ -130,7 +130,8 @@ Screenshots: [docs/screenshots.md §22 Origin Options](docs/screenshots.md#22-or
 | `Ctrl+F` | Focus the diff search bar (available in every diff view) |
 | `Ctrl+Q` | Exit application |
 | `Ctrl+Z` | Undo last operation (disabled while editing text) |
-| `F5` | Refresh / rescan commit history |
+| `F5` | Refresh commit history |
+| `Shift+F5` | Rescan repository (refreshes history first, then checks for unstaged changes) |
 
 ## 🖱️ Right-Click (Context) Menu
 
