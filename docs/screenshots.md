@@ -744,7 +744,7 @@ When unstaged changes are detected, the tool provides the same safe handling opt
 - Amend all changes to the current `HEAD` commit
 - Discard the changes
 - Switch to Viewer Mode
-- Cancel and resolve changes manually
+- **Close** the dialog and resolve changes manually — the last button reads **Close** here (at startup the same button reads **Exit**, which quits the tool)
 
 If an app-created stash already exists, new changes are **merged into the existing stash** rather than creating a second one. In **Viewer Mode**, history-modifying rescan options are disabled (see [Viewer Mode](#34-viewer-mode)).
 

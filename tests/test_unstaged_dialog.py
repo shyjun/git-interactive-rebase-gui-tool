@@ -108,5 +108,39 @@ class TestUnstagedDialogImport(unittest.TestCase):
         self._assert_tree_stats_delegate_owned_by_tree(dlg.treewise_tree)
 
 
+class TestExitButtonLabel(unittest.TestCase):
+    """Startup shows 'Exit' (rejecting quits the tool); Rescan shows 'Close'
+    (rejecting just closes the dialog and the tool keeps running)."""
+
+    @classmethod
+    def setUpClass(cls):
+        if HAS_PYSIDE and not QApplication.instance():
+            cls.app = QApplication([])
+
+    def _dialog(self, **kwargs):
+        from lib.dialogs.unstaged_dialogs import UnstagedChangesDialog
+        return UnstagedChangesDialog(2, font_size=10, **kwargs)
+
+    def test_startup_dialog_shows_exit(self):
+        if not HAS_PYSIDE:
+            self.skipTest("PySide6 not available")
+        dlg = self._dialog(from_rescan=False)
+        self.assertEqual(dlg.exit_btn.text(), "Exit")
+        self.assertEqual(dlg.exit_btn.toolTip(), "Exit the application.")
+
+    def test_rescan_dialog_shows_close(self):
+        if not HAS_PYSIDE:
+            self.skipTest("PySide6 not available")
+        dlg = self._dialog(from_rescan=True)
+        self.assertEqual(dlg.exit_btn.text(), "Close")
+        self.assertEqual(dlg.exit_btn.toolTip(), "Close this dialog and return to the tool.")
+
+    def test_default_is_startup_exit(self):
+        if not HAS_PYSIDE:
+            self.skipTest("PySide6 not available")
+        dlg = self._dialog()
+        self.assertEqual(dlg.exit_btn.text(), "Exit")
+
+
 if __name__ == "__main__":
     unittest.main()

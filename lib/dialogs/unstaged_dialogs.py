@@ -140,8 +140,12 @@ class UnstagedChangesDialog(QDialog):
         self.viewer_mode_btn = QPushButton(f"{viewer_label} Viewer Mode (No history-modifying operations will be allowed)")
         self.viewer_mode_btn.setToolTip(f"{viewer_label} Viewer Mode. Warning: no history-modifying operations are allowed.")
 
-        self.exit_btn = QPushButton("Exit")
-        self.exit_btn.setToolTip("Exit the application.")
+        if from_rescan:
+            self.exit_btn = QPushButton("Close")
+            self.exit_btn.setToolTip("Close this dialog and return to the tool.")
+        else:
+            self.exit_btn = QPushButton("Exit")
+            self.exit_btn.setToolTip("Exit the application.")
 
         # Style buttons a bit
         for btn in [self.view_changes_btn, self.stash_btn, self.commit_selectively_btn, self.commit_each_btn, self.bulk_commit_btn, self.amend_btn, self.discard_btn, self.viewer_mode_btn, self.exit_btn]:
