@@ -839,11 +839,11 @@ Keep your branch in sync with the remote: fetch, pull, push, and reset.
 
 **Description:** The **Origin** group in the toolbar provides remote operations. All of them run in the background with a progress dialog, are disabled in viewer mode, and refresh the commit list (and any open browse windows) when done.
 
-- **git fetch/pull** (menu button):
-  - **git fetch** — updates remote-tracking refs only; never touches your branch or working tree.
-  - **git pull** — runs `git fetch`, then previews the merge with the read-only `git merge-tree`. If any conflict is likely, the pull is **not run** and a warning lists the conflicting files so you can resolve them yourself; otherwise the merge runs.
-  - **git pull --rebase** — same fetch + conflict pre-check, then rebases your local commits on top of `origin/<branch>` when safe.
-  - Pull requires an upstream (`origin/<current-branch>`) and a clean working tree (no unstaged changes).
+- **git fetch/pull** (the button opens the **Pull** dialog — yellow icon, three radio options, Cancel/action buttons where the action reads **Fetch** for the fetch option and **Pull** otherwise):
+  - **Fetch only** (`git fetch`) — updates remote-tracking refs only; never touches your branch or working tree, and needs no upstream.
+  - **Fetch and merge** (default, `git pull --no-rebase`) — runs `git fetch`, then previews the merge with the read-only `git merge-tree`. If any conflict is likely, the pull is **not run** and a warning lists the conflicting files so you can resolve them yourself; otherwise the merge runs.
+  - **Fetch and rebase** (`git pull --rebase`) — same fetch + conflict pre-check, then rebases your local commits on top of `origin/<branch>` when safe.
+  - The merge/rebase options require an upstream (`origin/<current-branch>`) and a clean working tree (no unstaged changes).
 - **git reset --hard origin** — moves the current branch hard to `origin/<branch>` after a confirmation warning (discards uncommitted changes). An undo snapshot is taken first, and the app says "nothing to do" if you're already in sync.
 - **git push [--force]** — opens a dialog to choose between a normal `git push`, `git push --force`, and the safer `git push --force-with-lease`.
 

@@ -81,7 +81,7 @@ A Python-based Git Interactive Rebase GUI tool to visually manage commit history
 ### ⚡ Git Integration
 
 * **Rebase onto**: One-click `git rebase main` / `git rebase master`, or rebase onto any branch/SHA you type.
-* **Origin helpers**: `git fetch`, `git pull` / `git pull --rebase` (with automatic conflict pre-check), `git reset --hard origin/<branch>`, and `git push` (`--force` / `--force-with-lease`) — see [Origin Operations](#-origin-operations).
+* **Origin helpers**: `git fetch` / `git pull` / `git pull --rebase` via the **Pull** strategy dialog (with automatic conflict pre-check), `git reset --hard origin/<branch>`, and `git push` (`--force` / `--force-with-lease`) — see [Origin Operations](#-origin-operations).
 * **Stash management**: Unstaged changes at startup can be **stashed**, **committed** (per file or all at once), **amended into HEAD**, or **discarded**. The app-created stash is tracked and offered for pop at exit, with conflict warnings before doing so.
 * **Commit Selectively**: Instead of committing everything at once, choose exactly what to commit from the unstaged-changes dialog:
   * Per-file **checkboxes** with `+N -M` stats; the bottom pane previews the **combined diff** of the checked files, with separator lines between files (like the main diff pane)
@@ -96,11 +96,11 @@ A Python-based Git Interactive Rebase GUI tool to visually manage commit history
 
 The **Origin** group in the toolbar keeps your branch in sync with `origin`. All operations run in the background with a progress dialog, are disabled in viewer mode, and refresh the commit list when done.
 
-* **git fetch/pull** (menu button):
-  * **git fetch** — updates remote-tracking refs only; never touches your branch or working tree.
-  * **git pull** — runs `git fetch`, then previews the merge with the read-only `git merge-tree`. If any conflict is likely, the pull is **not run** and a warning lists the conflicting files so you can resolve them yourself; otherwise the merge runs (`git pull --no-rebase`).
-  * **git pull --rebase** — same fetch + conflict pre-check, then rebases your local commits on top of `origin/<branch>` when safe.
-  * Pull requires an upstream (`origin/<current-branch>`) and a clean working tree (no unstaged changes).
+* **git fetch/pull** (the button opens the **Pull** dialog):
+  * **Fetch only** (`git fetch`) — updates remote-tracking refs only; never touches your branch or working tree, and needs no upstream.
+  * **Fetch and merge** (default, `git pull --no-rebase`) — runs `git fetch`, then previews the merge with the read-only `git merge-tree`. If any conflict is likely, the pull is **not run** and a warning lists the conflicting files so you can resolve them yourself; otherwise the merge runs.
+  * **Fetch and rebase** (`git pull --rebase`) — same fetch + conflict pre-check, then rebases your local commits on top of `origin/<branch>` when safe.
+  * The merge/rebase options require an upstream (`origin/<current-branch>`) and a clean working tree (no unstaged changes).
 * **git reset --hard origin** — moves the current branch hard to `origin/<branch>` after a confirmation warning (discards uncommitted changes). An undo snapshot is taken first, and the app says "nothing to do" if you're already in sync.
 * **git push [--force]** — opens a dialog to choose between a normal `git push`, `git push --force`, and the safer `git push --force-with-lease`.
 
