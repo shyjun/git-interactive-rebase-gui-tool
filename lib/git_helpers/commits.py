@@ -1,6 +1,5 @@
 import re
 import subprocess
-from subprocess import Popen, PIPE
 
 from .core import (
     _git_capture,
@@ -74,7 +73,7 @@ def get_commit_diff(repo_path, commit_sha):
     Caps output at MAX_DIFF_BYTES to prevent hangs on large merges."""
     try:
         cmd = ["git", "show", "-m", commit_sha, "--format="]
-        proc = Popen(cmd, cwd=repo_path, stdout=PIPE, stderr=PIPE,
+        proc = subprocess.Popen(cmd, cwd=repo_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                      encoding='utf-8', errors='replace')
         data = proc.stdout.read(MAX_DIFF_BYTES)
         # Detect truncation from data length, not process liveness.
@@ -181,7 +180,7 @@ def get_commit_file_stats(repo_path, commit_sha):
     """
     try:
         cmd = ["git", "show", "-m", "--numstat", "--format=", commit_sha]
-        proc = Popen(cmd, cwd=repo_path, stdout=PIPE, stderr=PIPE,
+        proc = subprocess.Popen(cmd, cwd=repo_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                      encoding='utf-8', errors='replace')
         try:
             stdout, stderr = proc.communicate(timeout=30)

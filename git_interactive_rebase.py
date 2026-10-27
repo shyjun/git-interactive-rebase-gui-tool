@@ -20,6 +20,7 @@ from lib.app_window.helpers import _log, set_verbose
 from lib.crash_report import install_excepthook
 from lib.settings_store import migrate_legacy_settings, tool_settings
 from lib.unclean_exit import install_unclean_exit_detection
+from lib.win_spawn import install as install_quiet_spawn
 
 from PySide6.QtWidgets import (
     QApplication,
@@ -71,6 +72,10 @@ def main():
 
     # Print a native traceback if a native fault ever occurs (silent otherwise).
     faulthandler.enable()
+
+    # Windows: suppress the console-window flash every git.exe child would
+    # otherwise open. Must run before the first spawn (git #1 below).
+    install_quiet_spawn()
 
     # 1. Runtime check for Git CLI
     if not shutil.which("git"):
