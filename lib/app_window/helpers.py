@@ -90,8 +90,22 @@ def _relaunch():
     import sys
     import os
     import platform
-    from PySide6.QtCore import QProcess
+    import subprocess
     from PySide6.QtWidgets import QApplication
+    from lib.win_spawn import CREATE_NO_WINDOW
+
+    def _start_detached(cmd):
+        # Windows: QProcess.startDetached cannot pass creation flags, so the
+        # relaunched console-script/python would flash a console window.
+        # Popen can suppress it; fall back to QProcess if spawning fails.
+        if platform.system() == "Windows":
+            try:
+                subprocess.Popen(cmd, creationflags=CREATE_NO_WINDOW)
+                return True
+            except OSError:
+                pass
+        from PySide6.QtCore import QProcess
+        return QProcess.startDetached(cmd[0], cmd[1:])
 
     script = os.path.abspath(sys.argv[0])
 
@@ -100,16 +114,16 @@ def _relaunch():
         # Try running the .exe entry point directly.
         exe_path = script + ".exe"
         if os.path.isfile(exe_path):
-            QProcess.startDetached(exe_path, sys.argv[1:])
+            _start_detached([exe_path] + sys.argv[1:])
             QApplication.quit()
             return
         # Fallback: re-run via python -m
         module = os.path.splitext(os.path.basename(script))[0]
-        QProcess.startDetached(sys.executable, ["-m", module] + sys.argv[1:])
+        _start_detached([sys.executable, "-m", module] + sys.argv[1:])
         QApplication.quit()
         return
 
-    QProcess.startDetached(sys.executable, [script] + sys.argv[1:])
+    _start_detached([sys.executable, script] + sys.argv[1:])
     QApplication.quit()
 
 
