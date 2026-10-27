@@ -71,21 +71,6 @@ from lib.git_helpers import (
 
 # Sizing-only QSS for toolbar dropdown menus (fetch/pull, theme, etc.).
 # Deliberately omits color/background/font rules so the active theme's
-# QMenu/QMenu::item:selected colors (see helpers.get_theme_stylesheet)
-# and the app menu font still apply; widget-level stylesheets only
-# override the listed props. No min-width: the popup shrink-wraps to
-# its longest action so short menus stay compact.
-_BIG_MENU_QSS = """
-    QMenu {
-        padding: 4px;
-    }
-    QMenu::item {
-        padding: 6px 16px;
-        min-height: 20px;
-    }
-"""
-
-
 class UIMixin:
     """setup_ui and related UI methods for GitInteractiveRebaseApp."""
 
@@ -708,37 +693,9 @@ class UIMixin:
         self.origin_group.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
         origin_layout = QHBoxLayout()
         self.fetch_btn = QPushButton("git fetch/pull")
-        self.fetch_btn.setToolTip("git fetch or git pull from the remote.")
-        self.fetch_menu = QMenu(self.fetch_btn)
-        self.fetch_action = QAction("git fetch", self)
-        self.fetch_action.setToolTip("git fetch from the remote.")
-        self.fetch_action.triggered.connect(self.handle_git_fetch)
-        self.pull_menu = QMenu("git pull", self)
-        self.pull_action = QAction("git pull", self)
-        self.pull_action.setToolTip(
-            "Fetch and merge from origin (conflict-checked first; "
-            "asks you to resolve manually if conflicts are likely).")
-        self.pull_action.triggered.connect(
-            lambda: self.handle_git_pull(rebase=False))
-        self.pull_rebase_action = QAction("git pull --rebase", self)
-        self.pull_rebase_action.setToolTip(
-            "Fetch and rebase onto origin (conflict-checked first; "
-            "asks you to resolve manually if conflicts are likely).")
-        self.pull_rebase_action.triggered.connect(
-            lambda: self.handle_git_pull(rebase=True))
-        self.pull_menu.addAction(self.pull_action)
-        self.pull_menu.addAction(self.pull_rebase_action)
-        self.fetch_menu.addAction(self.fetch_action)
-        self.fetch_menu.addMenu(self.pull_menu)
-        # Roomier hit targets than the stock menu, but same monospace
-        # menu font as every other menu (see menus_mixin) and theme
-        # colors from the app QSS.
-        menu_font = mono_font(max(8, self.current_font_size - 2))
-        self.fetch_menu.setFont(menu_font)
-        self.pull_menu.setFont(menu_font)
-        self.fetch_menu.setStyleSheet(_BIG_MENU_QSS)
-        self.pull_menu.setStyleSheet(_BIG_MENU_QSS)
-        self.fetch_btn.setMenu(self.fetch_menu)
+        self.fetch_btn.setToolTip(
+            "Fetch from the remote and integrate changes — choose merge, "
+            "rebase, or fetch only.")
         self.reset_origin_btn = QPushButton("git reset --hard origin")
         self.reset_origin_btn.setToolTip("Reset hard to the remote-tracking branch.")
         self.push_force_btn = QPushButton("git push [--force]")
@@ -746,6 +703,7 @@ class UIMixin:
         for btn in [self.fetch_btn, self.reset_origin_btn, self.push_force_btn]:
             btn.setMinimumHeight(40)
             btn.setMinimumWidth(120)
+        self.fetch_btn.clicked.connect(self.handle_git_pull)
         self.reset_origin_btn.clicked.connect(self.handle_git_reset_hard_origin)
         self.push_force_btn.clicked.connect(self.handle_git_push_force)
         origin_layout.addWidget(self.fetch_btn)

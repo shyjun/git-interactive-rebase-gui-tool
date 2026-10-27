@@ -81,6 +81,24 @@ class _FakeMessageBox:
         cls.events.append(("critical", title, text))
 
 
+class _FakePullDialog:
+    """Scripted stand-in for PullDialog; carries the real option ids."""
+    OPTION_FETCH = "fetch"
+    OPTION_MERGE = "merge"
+    OPTION_REBASE = "rebase"
+    option = "merge"
+    result = 1  # QDialog.Accepted
+
+    def __init__(self, parent=None, branch=None):
+        pass
+
+    def exec(self):
+        return type(self).result
+
+    def get_selected_option(self):
+        return type(self).option
+
+
 class _FakePullWindow(ResetMixin):
     """ResetMixin bound to a repo path, with the real conflict-check and
     pull chain intact; only window-side hooks are stubbed."""
@@ -136,10 +154,13 @@ class TestPullFlow(unittest.TestCase):
             self.skipTest("PySide6 not available")
         _FakeGitWorker.made = []
         _FakeMessageBox.events = []
+        _FakePullDialog.option = "merge"
+        _FakePullDialog.result = 1
         for target, fake in (
             ("GitWorker", _FakeGitWorker),
             ("ProgressDialog", _FakeProgressDialog),
             ("QMessageBox", _FakeMessageBox),
+            ("PullDialog", _FakePullDialog),
         ):
             patcher = mock.patch.object(reset_mixin, target, fake)
             patcher.start()
@@ -211,7 +232,7 @@ class TestPullFlow(unittest.TestCase):
         repo = self._build_repo("conflict")
         head_before = self._head(repo)
         win = _FakePullWindow(repo)
-        win.handle_git_pull(rebase=False)
+        win.handle_git_pull()
         self.assertEqual(self._worker_cmds(), [["git", "fetch"]])
         warnings = [e for e in _FakeMessageBox.events if e[0] == "warning"]
         self.assertEqual(len(warnings), 1)
@@ -230,7 +251,8 @@ class TestPullFlow(unittest.TestCase):
         repo = self._build_repo("conflict")
         head_before = self._head(repo)
         win = _FakePullWindow(repo)
-        win.handle_git_pull(rebase=True)
+        _FakePullDialog.option = "rebase"
+        win.handle_git_pull()
         self.assertEqual(self._worker_cmds(), [["git", "fetch"]])
         warnings = [e for e in _FakeMessageBox.events if e[0] == "warning"]
         self.assertEqual(len(warnings), 1)
@@ -246,7 +268,7 @@ class TestPullFlow(unittest.TestCase):
         repo = self._build_repo("clean")
         head_before = self._head(repo)
         win = _FakePullWindow(repo)
-        win.handle_git_pull(rebase=False)
+        win.handle_git_pull()
         self.assertEqual(self._worker_cmds(),
                          [["git", "fetch"], ["git", "pull", "--no-rebase"]])
         infos = [e for e in _FakeMessageBox.events if e[0] == "information"]
@@ -267,7 +289,8 @@ class TestPullFlow(unittest.TestCase):
         stays linear."""
         repo = self._build_repo("clean")
         win = _FakePullWindow(repo)
-        win.handle_git_pull(rebase=True)
+        _FakePullDialog.option = "rebase"
+        win.handle_git_pull()
         self.assertEqual(self._worker_cmds(),
                          [["git", "fetch"], ["git", "pull", "--rebase"]])
         infos = [e for e in _FakeMessageBox.events if e[0] == "information"]
@@ -290,7 +313,7 @@ class TestPullFlow(unittest.TestCase):
                           "rev-parse", "main").stdout.strip()
         head_before = self._head(repo)
         win = _FakePullWindow(repo)
-        win.handle_git_pull(rebase=False)
+        win.handle_git_pull()
         self.assertEqual(self._worker_cmds(),
                          [["git", "fetch"], ["git", "pull", "--no-rebase"]])
         self.assertEqual(self._head(repo), origin_sha)
@@ -309,7 +332,7 @@ class TestPullFlow(unittest.TestCase):
         _git(repo, "add", ".")
         _git(repo, "commit", "-m", "base")
         win = _FakePullWindow(repo)
-        win.handle_git_pull(rebase=False)
+        win.handle_git_pull()
         self.assertEqual(self._worker_cmds(), [])
         warnings = [e for e in _FakeMessageBox.events if e[0] == "warning"]
         self.assertEqual(len(warnings), 1)
@@ -322,7 +345,7 @@ class TestPullFlow(unittest.TestCase):
         _git(repo, "remote", "set-url", "origin",
              os.path.join(self.root, "gone.git"))
         win = _FakePullWindow(repo)
-        win.handle_git_pull(rebase=False)
+        win.handle_git_pull()
         self.assertEqual(self._worker_cmds(), [["git", "fetch"]])
         crits = [e for e in _FakeMessageBox.events if e[0] == "critical"]
         self.assertEqual(len(crits), 1)
@@ -330,6 +353,57 @@ class TestPullFlow(unittest.TestCase):
         self.assertNotIn("load_history", win.calls)
         self.assertNotIn("save_undo_state", win.calls,
                          "a failed fetch must not arm undo")
+
+    def test_fetch_only_runs_fetch_no_pull_no_undo(self):
+        """The fetch option reuses the fetch-only flow: one fetch worker,
+        no conflict check, no undo, no pull."""
+        repo = self._build_repo("clean")
+        win = _FakePullWindow(repo)
+        _FakePullDialog.option = "fetch"
+        win.handle_git_pull()
+        self.assertEqual(self._worker_cmds(), [["git", "fetch"]])
+        infos = [e for e in _FakeMessageBox.events if e[0] == "information"]
+        self.assertEqual(len(infos), 1)
+        self.assertIn("git fetch", infos[0][2])
+        self.assertNotIn("save_undo_state", win.calls)
+        self.assertNotIn("notify_browse_windows", win.calls)
+        self.assertIn("load_history", win.calls,
+                      "fetch refreshes the history list")
+
+    def test_fetch_only_works_without_upstream(self):
+        """Fetch-only must not require an origin/<branch> upstream."""
+        self.root = tempfile.mkdtemp(prefix="pullflow_")
+        origin = os.path.join(self.root, "origin.git")
+        repo = os.path.join(self.root, "repo")
+        os.makedirs(repo)
+        subprocess.run(["git", "init", "-q", "--bare", origin], check=True)
+        _git(repo, "init", "-qb", "main")
+        with open(os.path.join(repo, "a.txt"), "w") as f:
+            f.write("a\n")
+        _git(repo, "add", ".")
+        _git(repo, "commit", "-m", "base")
+        _git(repo, "remote", "add", "origin", origin)
+        _git(repo, "push", "-qu", "origin", "main")
+        # A branch with no upstream: main tracks origin/main, use a new one
+        _git(repo, "checkout", "-qb", "feature")
+        win = _FakePullWindow(repo)
+        _FakePullDialog.option = "fetch"
+        win.handle_git_pull()
+        self.assertEqual(self._worker_cmds(), [["git", "fetch"]])
+        warnings = [e for e in _FakeMessageBox.events if e[0] == "warning"]
+        self.assertEqual(warnings, [], "fetch must not demand an upstream")
+        infos = [e for e in _FakeMessageBox.events if e[0] == "information"]
+        self.assertEqual(len(infos), 1)
+
+    def test_dialog_cancel_runs_nothing(self):
+        """Rejecting the PullDialog starts no workers at all."""
+        repo = self._build_repo("clean")
+        win = _FakePullWindow(repo)
+        _FakePullDialog.result = 0
+        win.handle_git_pull()
+        self.assertEqual(self._worker_cmds(), [])
+        self.assertEqual(_FakeMessageBox.events, [])
+        self.assertNotIn("save_undo_state", win.calls)
 
 
 if __name__ == "__main__":

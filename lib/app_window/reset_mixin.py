@@ -12,7 +12,7 @@ from lib.git_helpers import (
     merge_would_conflict,
     rebase_in_progress,
 )
-from lib.dialogs import ProgressDialog, PushDialog, RefTargetDialog
+from lib.dialogs import ProgressDialog, PullDialog, PushDialog, RefTargetDialog
 from lib.app_window.workers import GitWorker
 from lib.app_window.helpers import _log
 
@@ -46,13 +46,14 @@ class ResetMixin:
         else:
             QMessageBox.critical(self, "Fetch Failed", f"Could not perform git fetch.\n\nError: {stderr}")
 
-    def handle_git_pull(self, rebase=False):
-        """Runs git pull (optionally --rebase) with a conflict pre-check.
+    def handle_git_pull(self):
+        """Lets the user choose fetch / merge / rebase, then runs it.
 
-        Stage 1 fetches so remote-tracking refs are current; the pull is then
-        previewed with 'git merge-tree' (read-only). If the preview shows any
-        chance of conflict, the pull is NOT run and the user is asked to do it
-        manually - the tool never leaves the repo in a conflicted state."""
+        Pull options fetch first so remote-tracking refs are current; the pull
+        is then previewed with 'git merge-tree' (read-only). If the preview
+        shows any chance of conflict, the pull is NOT run and the user is
+        asked to do it manually - the tool never leaves the repo in a
+        conflicted state."""
         if not self._check_not_viewer_mode():
             return
         if not self._check_head_unchanged():
@@ -61,7 +62,16 @@ class ResetMixin:
             return
 
         branch = get_current_branch(self.repo_path)
-        if not branch:
+        dialog = PullDialog(self, branch=branch)
+        if dialog.exec() != QDialog.Accepted:
+            return
+        option = dialog.get_selected_option()
+
+        if option == PullDialog.OPTION_FETCH:
+            self.handle_git_fetch()
+            return
+
+        if not branch or branch == "DETACHED":
             QMessageBox.warning(self, "Pull", "Not currently on a branch; cannot pull.")
             return
         upstream = f"origin/{branch}"
@@ -73,8 +83,8 @@ class ResetMixin:
             )
             return
 
-        self._pull_rebase = rebase
-        label = "git pull --rebase" if rebase else "git pull"
+        self._pull_rebase = option == PullDialog.OPTION_REBASE
+        label = "git pull --rebase" if self._pull_rebase else "git pull"
         _log(f"Running {label} (fetch first)...")
         self.progress_dialog = ProgressDialog(
             "Git Pull", f"{label}: fetching remote...", self)

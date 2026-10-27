@@ -72,3 +72,7 @@ from .font_dialog import (
 from .push_dialog import (
     PushDialog,
 )
+
+from .pull_dialog import (
+    PullDialog,
+)
