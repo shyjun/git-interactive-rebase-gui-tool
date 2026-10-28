@@ -526,8 +526,6 @@ class UIMixin:
             btn.setMinimumWidth(100)
         controls_layout.addWidget(self.browse_select_btn)
         controls_layout.addWidget(self.browse_cancel_select_btn)
-        for btn in [self.browse_select_btn, self.browse_cancel_select_btn]:
-            btn.setVisible(bool(self.browse_branch) and not self.cli_mode)
         self.reflog_copy_sha_btn = QPushButton("Copy SHA to clipboard")
         self.reflog_copy_sha_btn.setToolTip("Copy the selected reflog entry's SHA to the clipboard.")
         self.reflog_copy_sha_btn.clicked.connect(self.handle_reflog_copy_sha)
@@ -539,8 +537,6 @@ class UIMixin:
             btn.setMinimumWidth(100)
         controls_layout.addWidget(self.reflog_copy_sha_btn)
         controls_layout.addWidget(self.reflog_show_log_btn)
-        for btn in [self.reflog_copy_sha_btn, self.reflog_show_log_btn]:
-            btn.setVisible(bool(self.browse_reflog or self.browse_tags))
         self.stash_copy_sha_btn = QPushButton("Copy")
         self.stash_copy_sha_btn.setToolTip("Copy the selected stash's SHA to the clipboard.")
         self.stash_copy_sha_btn.clicked.connect(self.handle_stash_copy_sha)
@@ -561,16 +557,12 @@ class UIMixin:
         controls_layout.addWidget(self.stash_apply_keep_btn)
         controls_layout.addWidget(self.stash_apply_drop_btn)
         controls_layout.addWidget(self.stash_drop_btn)
-        for btn in [self.stash_copy_sha_btn, self.stash_apply_keep_btn,
-                    self.stash_apply_drop_btn, self.stash_drop_btn]:
-            btn.setVisible(bool(self.browse_stash))
         self.blame_file_btn = QPushButton("Blame File")
         self.blame_file_btn.setToolTip("Open a blame viewer for this file.")
         self.blame_file_btn.setMinimumHeight(40)
         self.blame_file_btn.setMinimumWidth(100)
         self.blame_file_btn.clicked.connect(self._blame_browse_file)
         controls_layout.addWidget(self.blame_file_btn)
-        self.blame_file_btn.setVisible(bool(self.browse_file) and not getattr(self, 'browse_is_dir', False))
 
         sep = QFrame()
         sep.setFrameShape(QFrame.VLine)
@@ -585,15 +577,12 @@ class UIMixin:
         self.follow_cb.setChecked(False)
         self.follow_cb.toggled.connect(self._on_follow_toggled)
         controls_layout.addWidget(self.follow_cb)
-        self.follow_cb.setVisible(bool(self.browse_file) and not getattr(self, 'browse_is_dir', False))
 
         controls_layout.addStretch()
         controls_layout.addWidget(self.pop_stash_btn)
         controls_layout.addWidget(self.git_status_btn)
-        self.git_status_btn.setVisible(not self.browse_mode)
         controls_layout.addWidget(self.repo_btn)
         controls_layout.addWidget(self.exit_viewer_mode_btn)
-        self.exit_viewer_mode_btn.setVisible(self.viewer_mode and not self.browse_mode)
         self.browse_cherry_pick_btn = QPushButton("Cherry-pick selected commit(s)")
         self.browse_cherry_pick_btn.setToolTip(
             "Cherry-pick the currently selected commit (single) or the checked "
@@ -602,7 +591,6 @@ class UIMixin:
         self.browse_cherry_pick_btn.setMinimumHeight(40)
         self.browse_cherry_pick_btn.setMinimumWidth(100)
         controls_layout.addWidget(self.browse_cherry_pick_btn)
-        self.browse_cherry_pick_btn.setVisible(bool(self.browse_branch) and not self.cli_mode)
         controls_layout.addWidget(self.rescan_btn)
         controls_layout.addWidget(self.undo_btn)
         controls_layout.addWidget(self.redo_btn)
@@ -614,6 +602,25 @@ class UIMixin:
                 btn.setVisible(False)
 
         layout.addLayout(controls_layout)
+
+        # controls_layout is a parentless QHBoxLayout; its children are only
+        # reparented (cease being top-level) once the layout is installed on
+        # `layout` above. setVisible(True) on a parentless widget opens a real
+        # top-level window that is destroyed again on reparent - a visible
+        # flash on Windows. All mode-specific show/hide calls must come after
+        # addLayout, never between addWidget and addLayout.
+        for btn in [self.browse_select_btn, self.browse_cancel_select_btn]:
+            btn.setVisible(bool(self.browse_branch) and not self.cli_mode)
+        for btn in [self.reflog_copy_sha_btn, self.reflog_show_log_btn]:
+            btn.setVisible(bool(self.browse_reflog or self.browse_tags))
+        for btn in [self.stash_copy_sha_btn, self.stash_apply_keep_btn,
+                    self.stash_apply_drop_btn, self.stash_drop_btn]:
+            btn.setVisible(bool(self.browse_stash))
+        self.blame_file_btn.setVisible(bool(self.browse_file) and not getattr(self, 'browse_is_dir', False))
+        self.follow_cb.setVisible(bool(self.browse_file) and not getattr(self, 'browse_is_dir', False))
+        self.git_status_btn.setVisible(not self.browse_mode)
+        self.exit_viewer_mode_btn.setVisible(self.viewer_mode and not self.browse_mode)
+        self.browse_cherry_pick_btn.setVisible(bool(self.browse_branch) and not self.cli_mode)
 
         # Add failsafe options as a distinct row below the other controls
         self.failsafe_group = QGroupBox("Fail-safe")
