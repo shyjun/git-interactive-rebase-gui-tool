@@ -393,9 +393,8 @@ class UIMixin:
 
         self.right_panel.setMinimumWidth(150)
 
-        self.right_panel.setVisible(not (self.browse_reflog or self.browse_tags))
-
         self.main_splitter.addWidget(self.right_panel)
+        self.right_panel.setVisible(not (self.browse_reflog or self.browse_tags))
         # default split ratio: history 60%, diff 40%
         self.main_splitter.setSizes([600, 400])
 
@@ -408,8 +407,8 @@ class UIMixin:
         self.full_view_btn.setStyleSheet("QPushButton { font-size: 10px; padding: 0px; }")
         self.full_view_btn.setToolTip("Expand diff pane to full height, hiding the commit message.")
         self.full_view_btn.clicked.connect(self._toggle_full_diff_view)
-        self.full_view_btn.setVisible(not self.browse_mode)
         layout.addWidget(self.full_view_btn)
+        self.full_view_btn.setVisible(not self.browse_mode)
 
         # In browse (read-only) mode use only the right-side pane for details;
         # no commit-viewer dialog on double-click. In reflog mode, double-click
@@ -452,7 +451,6 @@ class UIMixin:
         self.exit_viewer_mode_btn = QPushButton("Exit Viewer Mode")
         self.exit_viewer_mode_btn.setToolTip("Re-enable history-modifying operations.")
         self._set_exit_viewer_mode_icon(self.exit_viewer_mode_btn)
-        self.exit_viewer_mode_btn.setVisible(self.viewer_mode and not self.browse_mode)
         self.rescan_btn = QPushButton("Rescan Repo")
         self.rescan_btn.setToolTip("Re-scan the repository and rebuild the commit list.")
         self._set_rescan_icon(self.rescan_btn)
@@ -464,7 +462,6 @@ class UIMixin:
         self.git_status_btn.setToolTip("Run 'git status' and show the output.")
         self.git_status_btn.setMinimumHeight(40)
         self._set_git_status_icon(self.git_status_btn)
-        self.git_status_btn.setVisible(not self.browse_mode)
         self.pop_stash_btn = QPushButton("Pop app created stash")
         self.pop_stash_btn.setToolTip("Pop the app-created stash (git stash pop).")
         self._set_pop_stash_icon(self.pop_stash_btn)
@@ -527,9 +524,10 @@ class UIMixin:
         for btn in [self.browse_select_btn, self.browse_cancel_select_btn]:
             btn.setMinimumHeight(40)
             btn.setMinimumWidth(100)
-            btn.setVisible(bool(self.browse_branch) and not self.cli_mode)
         controls_layout.addWidget(self.browse_select_btn)
         controls_layout.addWidget(self.browse_cancel_select_btn)
+        for btn in [self.browse_select_btn, self.browse_cancel_select_btn]:
+            btn.setVisible(bool(self.browse_branch) and not self.cli_mode)
         self.reflog_copy_sha_btn = QPushButton("Copy SHA to clipboard")
         self.reflog_copy_sha_btn.setToolTip("Copy the selected reflog entry's SHA to the clipboard.")
         self.reflog_copy_sha_btn.clicked.connect(self.handle_reflog_copy_sha)
@@ -539,9 +537,10 @@ class UIMixin:
         for btn in [self.reflog_copy_sha_btn, self.reflog_show_log_btn]:
             btn.setMinimumHeight(40)
             btn.setMinimumWidth(100)
-            btn.setVisible(bool(self.browse_reflog or self.browse_tags))
         controls_layout.addWidget(self.reflog_copy_sha_btn)
         controls_layout.addWidget(self.reflog_show_log_btn)
+        for btn in [self.reflog_copy_sha_btn, self.reflog_show_log_btn]:
+            btn.setVisible(bool(self.browse_reflog or self.browse_tags))
         self.stash_copy_sha_btn = QPushButton("Copy")
         self.stash_copy_sha_btn.setToolTip("Copy the selected stash's SHA to the clipboard.")
         self.stash_copy_sha_btn.clicked.connect(self.handle_stash_copy_sha)
@@ -558,18 +557,20 @@ class UIMixin:
                     self.stash_apply_drop_btn, self.stash_drop_btn]:
             btn.setMinimumHeight(40)
             btn.setMinimumWidth(100)
-            btn.setVisible(bool(self.browse_stash))
         controls_layout.addWidget(self.stash_copy_sha_btn)
         controls_layout.addWidget(self.stash_apply_keep_btn)
         controls_layout.addWidget(self.stash_apply_drop_btn)
         controls_layout.addWidget(self.stash_drop_btn)
+        for btn in [self.stash_copy_sha_btn, self.stash_apply_keep_btn,
+                    self.stash_apply_drop_btn, self.stash_drop_btn]:
+            btn.setVisible(bool(self.browse_stash))
         self.blame_file_btn = QPushButton("Blame File")
         self.blame_file_btn.setToolTip("Open a blame viewer for this file.")
         self.blame_file_btn.setMinimumHeight(40)
         self.blame_file_btn.setMinimumWidth(100)
-        self.blame_file_btn.setVisible(bool(self.browse_file) and not getattr(self, 'browse_is_dir', False))
         self.blame_file_btn.clicked.connect(self._blame_browse_file)
         controls_layout.addWidget(self.blame_file_btn)
+        self.blame_file_btn.setVisible(bool(self.browse_file) and not getattr(self, 'browse_is_dir', False))
 
         sep = QFrame()
         sep.setFrameShape(QFrame.VLine)
@@ -582,15 +583,17 @@ class UIMixin:
         self.follow_cb.setFont(bold_font)
         self.follow_cb.setToolTip("Include --follow in git log (tracks renames).")
         self.follow_cb.setChecked(False)
-        self.follow_cb.setVisible(bool(self.browse_file) and not getattr(self, 'browse_is_dir', False))
         self.follow_cb.toggled.connect(self._on_follow_toggled)
         controls_layout.addWidget(self.follow_cb)
+        self.follow_cb.setVisible(bool(self.browse_file) and not getattr(self, 'browse_is_dir', False))
 
         controls_layout.addStretch()
         controls_layout.addWidget(self.pop_stash_btn)
         controls_layout.addWidget(self.git_status_btn)
+        self.git_status_btn.setVisible(not self.browse_mode)
         controls_layout.addWidget(self.repo_btn)
         controls_layout.addWidget(self.exit_viewer_mode_btn)
+        self.exit_viewer_mode_btn.setVisible(self.viewer_mode and not self.browse_mode)
         self.browse_cherry_pick_btn = QPushButton("Cherry-pick selected commit(s)")
         self.browse_cherry_pick_btn.setToolTip(
             "Cherry-pick the currently selected commit (single) or the checked "
@@ -598,8 +601,8 @@ class UIMixin:
         self.browse_cherry_pick_btn.clicked.connect(self.handle_browse_cherry_pick)
         self.browse_cherry_pick_btn.setMinimumHeight(40)
         self.browse_cherry_pick_btn.setMinimumWidth(100)
-        self.browse_cherry_pick_btn.setVisible(bool(self.browse_branch) and not self.cli_mode)
         controls_layout.addWidget(self.browse_cherry_pick_btn)
+        self.browse_cherry_pick_btn.setVisible(bool(self.browse_branch) and not self.cli_mode)
         controls_layout.addWidget(self.rescan_btn)
         controls_layout.addWidget(self.undo_btn)
         controls_layout.addWidget(self.redo_btn)
