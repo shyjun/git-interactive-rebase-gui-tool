@@ -1125,6 +1125,15 @@ class UIMixin:
 
     def showEvent(self, event):
         super().showEvent(event)
+        # On Windows, polishing a widget while the app stylesheet is active
+        # silently resets its explicit font to the app default. For every
+        # window except the first, apply_theme() skips setStyleSheet (the
+        # stylesheet is already installed), so the first polish happens right
+        # here at show() and would wipe the fonts set during load_settings().
+        # Re-apply them post-polish so the configured font sticks (the first
+        # window already gets this via the setStyleSheet re-polish inside its
+        # apply_theme()). Harmless and idempotent elsewhere.
+        self.update_font()
         if getattr(self, '_browse_overlay', None) is not None:
             self._browse_overlay.setGeometry(self.rect())
             self._browse_overlay.raise_()
