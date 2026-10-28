@@ -78,16 +78,26 @@ class AppearanceMixin:
         family = getattr(self, 'current_font_family', None)
         font = mono_font(self.current_font_size, family=family)
         self.list_widget.setFont(font)
+        # QAbstractScrollArea subclasses (QPlainTextEdit / QTextEdit) render
+        # their text in the internal viewport widget. On Windows, setFont() on
+        # the scroll-area parent does NOT propagate to the viewport, so the
+        # rendered text keeps the old font. Set the viewport font explicitly
+        # (same pattern as lib/widgets.py DockableSearchBar). Harmless on
+        # X11/Wayland where it already inherits.
         if hasattr(self, 'side_diff_view'):
             self.side_diff_view.setFont(font)
+            self.side_diff_view.viewport().setFont(font)
         if hasattr(self, 'side_commit_msg'):
             self.side_commit_msg.setFont(font)
+            self.side_commit_msg.viewport().setFont(font)
         if hasattr(self, 'filewise_diff_view'):
             self.filewise_diff_view.setFont(font)
+            self.filewise_diff_view.viewport().setFont(font)
         if hasattr(self, 'filewise_file_list'):
             self.filewise_file_list.setFont(font)
         if hasattr(self, 'treewise_diff_view'):
             self.treewise_diff_view.setFont(font)
+            self.treewise_diff_view.viewport().setFont(font)
         if hasattr(self, 'treewise_tree'):
             self.treewise_tree.setFont(font)
         # Save persistence (font size and family are app-wide, not window-scoped)
