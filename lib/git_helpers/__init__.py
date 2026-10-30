@@ -132,6 +132,19 @@ from .blame import (
     get_git_blame,
 )
 
+from .submodules import (
+    STATUS_CLEAN,
+    STATUS_POINTER,
+    STATUS_DIRTY,
+    STATUS_UNINITIALIZED,
+    STATUS_CONFLICT,
+    list_submodules,
+    has_submodule_changes,
+    stage_submodule_pointers,
+    commit_submodule_pointers,
+    discard_submodule_changes,
+)
+
 
 def format_binary_size(size_bytes):
     """Format a byte count into a human-readable string."""
