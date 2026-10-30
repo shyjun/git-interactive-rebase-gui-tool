@@ -72,6 +72,7 @@ class SubmodulesDialog(QDialog):
         # Tickable rows render bright (white on dark / near-black on light);
         # disabled rows render grey so the two are visually distinct.
         is_dark = getattr(parent, "is_dark_theme", True)
+        self._is_dark = is_dark
         self._enabled_fg = QColor("#ffffff" if is_dark else "#333333")
         self._disabled_fg = QColor("#808080")
 
@@ -98,6 +99,47 @@ class SubmodulesDialog(QDialog):
         self.table = QTableWidget(0, 5)
         self.table.setHorizontalHeaderLabels(["✓", "Path", "Status", "Current SHA", "Recorded SHA"])
         self.table.setFont(mono_font(self.font_size, family=self.font_family))
+        # The global stylesheet paints QListWidget (white on light / #252526 on
+        # dark) but has no QTableWidget rule, so the table would inherit the
+        # muted QWidget grey and the whole window looks washed out. Mirror the
+        # QListWidget panel style here.
+        if self._is_dark:
+            self.table.setStyleSheet("""
+                QTableWidget {
+                    background-color: #252526;
+                    border: 1px solid #3c3c3c;
+                    border-radius: 8px;
+                    color: #cccccc;
+                    gridline-color: #333333;
+                }
+                QTableWidget::item { border-bottom: 1px solid #333333; }
+                QHeaderView::section {
+                    background-color: #252526;
+                    color: #cccccc;
+                    border: none;
+                    border-bottom: 1px solid #3c3c3c;
+                    padding: 4px;
+                }
+            """)
+        else:
+            self.table.setStyleSheet("""
+                QTableWidget {
+                    background-color: #ffffff;
+                    border: 1px solid #ddd;
+                    border-radius: 8px;
+                    color: #333333;
+                    gridline-color: #eeeeee;
+                }
+                QTableWidget::item { border-bottom: 1px solid #eeeeee; }
+                QHeaderView::section {
+                    background-color: #ffffff;
+                    color: #333333;
+                    border: none;
+                    border-bottom: 1px solid #dddddd;
+                    padding: 4px;
+                }
+            """)
+        self.table.setShowGrid(False)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setSelectionMode(QTableWidget.ExtendedSelection)
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
