@@ -76,3 +76,7 @@ from .push_dialog import (
 from .pull_dialog import (
     PullDialog,
 )
+
+from .submodule_dialogs import (
+    SubmodulesDialog,
+)

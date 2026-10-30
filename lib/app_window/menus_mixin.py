@@ -326,11 +326,19 @@ class MenusMixin:
         merge_base_action.setToolTip("Find the merge-base of the current branch and another branch.")
         merge_base_action.triggered.connect(lambda *_: self.handle_find_merge_base())
 
+        submodules_action = QAction("Submodules…", self)
+        submodules_action.setToolTip(
+            "View and manage submodules: stage / commit / discard pointer changes "
+            "(excluded from all unstaged-change flows)."
+        )
+        submodules_action.triggered.connect(lambda *_: self.handle_submodules())
+
         menu.addAction(pr_diff_action)
         menu.addAction(view_commit_action)
         menu.addAction(cherry_pick_action)
         menu.addAction(apply_patch_action)
         menu.addAction(stage_files_action)
+        menu.addAction(staged_changes_action)
         menu.addAction(browse_action)
         menu.addAction(browse_file_action)
         menu.addAction(blame_file_action)
@@ -340,6 +348,8 @@ class MenusMixin:
         menu.addAction(browse_stash_action)
         menu.addAction(open_file_ref_action)
         menu.addAction(merge_base_action)
+        menu.addSeparator()
+        menu.addAction(submodules_action)
         return menu
 
     def _on_always_on_top_toggled(self, checked):

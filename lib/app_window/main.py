@@ -17,6 +17,7 @@ from lib.app_window.rebase_mixin import RebaseMixin
 from lib.app_window.stash_mixin import StashMixin
 from lib.app_window.rescan_mixin import RescanMixin
 from lib.app_window.menus_mixin import MenusMixin
+from lib.app_window.submodule_mixin import SubmoduleMixin
 
 
 class GitInteractiveRebaseApp(
@@ -36,6 +37,7 @@ class GitInteractiveRebaseApp(
     RebaseMixin,
     StashMixin,
     RescanMixin,
+    SubmoduleMixin,
     MenusMixin,
     QMainWindow,
 ):
