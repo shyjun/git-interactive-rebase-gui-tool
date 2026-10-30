@@ -486,7 +486,7 @@ def main():
                 _amend_result["ok"], _amend_result["detail"] = success, detail
                 progress.close()
 
-            amend_worker = AmendWorker(repo_path)
+            amend_worker = AmendWorker(repo_path, unstaged_files)
             amend_worker.git_finished.connect(_on_amend_finished)
             amend_worker.start()
             progress.exec()

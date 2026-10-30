@@ -210,7 +210,7 @@ class RescanMixin:
                         QMessageBox.critical(self, "Error", f"Amend failed.\n\n{detail}")
 
                 self.amend_progress_dialog = progress
-                self.amend_worker = AmendWorker(self.repo_path, self)
+                self.amend_worker = AmendWorker(self.repo_path, unstaged_files, self)
                 self.amend_worker.git_finished.connect(_on_amend_finished)
                 self.amend_worker.start()
                 progress.exec()

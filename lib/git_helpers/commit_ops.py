@@ -65,15 +65,22 @@ def bulk_commit_all(repo_path, message, files):
         return False, err
 
 
-def amend_with_head(repo_path):
-    """Stages all modified files and amends them into the current HEAD commit.
+def amend_with_head(repo_path, files):
+    """Amends exactly the given files (the detected unstaged-change list) into
+    the current HEAD commit via `git commit --amend --only -- <files>`.
+
+    Submodule gitlink changes are never included (see bulk_commit_all). Any
+    unrelated pre-staged changes are left staged and untouched.
 
     Returns (True, "") on success, or (False, detail) where detail carries the
     git error text."""
+    if not files:
+        return False, "No files to amend."
     try:
         before = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo_path, capture_output=True, text=True, check=True).stdout.strip()
-        subprocess.run(["git", "add", "-u"], cwd=repo_path, check=True, capture_output=True)
-        subprocess.run(["git", "commit", "--amend", "--no-edit"], cwd=repo_path, check=True, capture_output=True)
+        subprocess.run(
+            ["git", "commit", "--amend", "--only", "--no-edit", "--"] + list(files),
+            cwd=repo_path, check=True, capture_output=True)
         after = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo_path, capture_output=True, text=True, check=True).stdout.strip()
         _log(f"Amended HEAD: {before[:8]} -> {after[:8]}")
         return True, ""
@@ -111,7 +118,7 @@ def commit_staged(repo_path, message):
 def amend_staged(repo_path, message):
     """Amends HEAD with the currently staged changes using the given message.
 
-    Unlike amend_with_head(), this does NOT run 'git add -u' - the caller is
+    Unlike amend_with_head(), this does NOT stage anything - the caller is
     responsible for staging exactly the changes that should be amended."""
     msg_fd, msg_path = tempfile.mkstemp(prefix='git_amend_msg_', text=True)
     try:
