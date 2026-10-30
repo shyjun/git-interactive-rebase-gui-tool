@@ -113,11 +113,15 @@ class SubmodulesDialog(QDialog):
                     color: #cccccc;
                     gridline-color: #333333;
                 }
+                QHeaderView::section:hover {
+                    background-color: #2d2d30;
+                }
                 QTableWidget::item { border-bottom: 1px solid #333333; }
                 QHeaderView::section {
                     background-color: #252526;
                     color: #cccccc;
                     border: none;
+                    border-right: 1px solid #5a5a5a;
                     border-bottom: 1px solid #3c3c3c;
                     padding: 4px;
                 }
@@ -131,11 +135,15 @@ class SubmodulesDialog(QDialog):
                     color: #333333;
                     gridline-color: #eeeeee;
                 }
+                QHeaderView::section:hover {
+                    background-color: #f0f0f0;
+                }
                 QTableWidget::item { border-bottom: 1px solid #eeeeee; }
                 QHeaderView::section {
                     background-color: #ffffff;
                     color: #333333;
                     border: none;
+                    border-right: 1px solid #c0c0c0;
                     border-bottom: 1px solid #dddddd;
                     padding: 4px;
                 }
