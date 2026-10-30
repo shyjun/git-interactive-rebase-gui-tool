@@ -7,18 +7,20 @@ from lib.git_helpers import perform_self_update, bulk_commit_all, amend_with_hea
 
 
 class BulkCommitWorker(QThread):
-    """Runs bulk_commit_all (git add -u + git commit) off the UI thread so a
-    ProgressDialog's exec() event loop stays live and keeps painting."""
+    """Runs bulk_commit_all (git commit --only -- <files> + commit) off the UI
+    thread so a ProgressDialog's exec() event loop stays live and keeps painting.
+    Only the given (submodule-excluded) files are committed."""
     git_finished = Signal(bool, str)
 
-    def __init__(self, repo_path, message, parent=None):
+    def __init__(self, repo_path, message, files, parent=None):
         super().__init__(parent)
         self.repo_path = repo_path
         self.message = message
+        self.files = files
 
     def run(self):
         try:
-            ok, detail = bulk_commit_all(self.repo_path, self.message)
+            ok, detail = bulk_commit_all(self.repo_path, self.message, self.files)
             self.git_finished.emit(ok, detail)
         except Exception as e:
             self.git_finished.emit(False, str(e))

@@ -461,7 +461,7 @@ def main():
                 _bulk_result["ok"], _bulk_result["detail"] = success, detail
                 progress.close()
 
-            bulk_worker = BulkCommitWorker(repo_path, msg)
+            bulk_worker = BulkCommitWorker(repo_path, msg, unstaged_files)
             bulk_worker.git_finished.connect(_on_bulk_finished)
             bulk_worker.start()
             progress.exec()

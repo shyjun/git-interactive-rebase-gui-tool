@@ -42,16 +42,23 @@ def get_revert_commit_message(repo_path, commit_sha):
     except subprocess.CalledProcessError as e:
         raise Exception(f"Failed to generate revert message: {e.stderr}")
 
-def bulk_commit_all(repo_path, message):
-    """Stages all modified files and commits them as a single bulk commit.
+def bulk_commit_all(repo_path, message, files):
+    """Commits exactly the given files (the detected unstaged-change list) as a
+    single bulk commit via `git commit --only -- <files>`.
+
+    The file list comes from get_unstaged_files(..., ignore_submodules=True),
+    so submodule gitlink changes are never staged or committed here (the old
+    `git add -u` swept them in silently). Any unrelated pre-staged changes are
+    left staged and untouched.
 
     Returns (True, "") on success, or (False, detail) where detail carries the
     git error text."""
+    if not files:
+        return False, "No files to commit."
     try:
-        # Stage all changes (excluding untracked files as per --untracked-files=no in checks)
-        subprocess.run(["git", "add", "-u"], cwd=repo_path, check=True, capture_output=True)
-        # Commit
-        subprocess.run(["git", "commit", "-m", message], cwd=repo_path, check=True, capture_output=True)
+        subprocess.run(
+            ["git", "commit", "--only", "-m", message, "--"] + list(files),
+            cwd=repo_path, check=True, capture_output=True)
         return True, ""
     except subprocess.CalledProcessError as e:
         err = e.stderr.decode('utf-8', errors='replace') if e.stderr else str(e)

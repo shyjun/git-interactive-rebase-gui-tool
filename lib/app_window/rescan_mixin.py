@@ -184,7 +184,7 @@ class RescanMixin:
                         QMessageBox.critical(self, "Error", f"Bulk commit failed.\n\n{detail}")
 
                 self.bulk_progress_dialog = progress
-                self.bulk_worker = BulkCommitWorker(self.repo_path, msg, self)
+                self.bulk_worker = BulkCommitWorker(self.repo_path, msg, unstaged_files, self)
                 self.bulk_worker.git_finished.connect(_on_bulk_finished)
                 self.bulk_worker.start()
                 progress.exec()
