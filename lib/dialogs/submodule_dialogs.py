@@ -96,8 +96,9 @@ class SubmodulesDialog(QDialog):
         self.header.setWordWrap(True)
         layout.addWidget(self.header)
 
-        self.table = QTableWidget(0, 5)
-        self.table.setHorizontalHeaderLabels(["✓", "Path", "Status", "Current SHA", "Recorded SHA"])
+        self.table = QTableWidget(0, 6)
+        self.table.setHorizontalHeaderLabels(
+            ["✓", "Path", "Type", "Status", "Current SHA", "Recorded SHA"])
         self.table.setFont(mono_font(self.font_size, family=self.font_family))
         # The global stylesheet paints QListWidget (white on light / #252526 on
         # dark) but has no QTableWidget rule, so the table would inherit the
@@ -146,9 +147,10 @@ class SubmodulesDialog(QDialog):
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
         header.setSectionResizeMode(1, QHeaderView.Stretch)
-        header.setSectionResizeMode(2, QHeaderView.Stretch)
-        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(3, QHeaderView.Stretch)
         header.setSectionResizeMode(4, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(5, QHeaderView.ResizeToContents)
         self.table.itemChanged.connect(self._update_buttons)
         layout.addWidget(self.table)
 
@@ -199,8 +201,6 @@ class SubmodulesDialog(QDialog):
             self.table.setRowCount(len(self.submodules))
             for row, sub in enumerate(self.submodules):
                 status_text = _STATUS_LABELS.get(sub["status"], sub["status"])
-                if sub.get("embedded"):
-                    status_text += " · embedded (no .gitmodules)"
                 tickable = sub["status"] in (STATUS_POINTER, STATUS_DIRTY)
                 fg = self._enabled_fg if tickable else self._disabled_fg
 
@@ -213,7 +213,9 @@ class SubmodulesDialog(QDialog):
                 check_item.setForeground(fg)
                 self.table.setItem(row, 0, check_item)
 
-                values = [sub["path"], status_text,
+                values = [sub["path"],
+                          "embedded" if sub.get("embedded") else "submodule",
+                          status_text,
                           (sub["current_sha"] or "")[:8], sub["record_sha"][:8]]
                 for col, value in enumerate(values, start=1):
                     item = QTableWidgetItem(value)
