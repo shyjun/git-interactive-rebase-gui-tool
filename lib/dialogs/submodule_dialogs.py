@@ -22,6 +22,11 @@ from PySide6.QtCore import (
     Signal,
 )
 
+# pyrefly: ignore [missing-import]
+from PySide6.QtGui import (
+    QColor,
+)
+
 from lib.app_window.helpers import mono_font
 from lib.git_helpers import (
     STATUS_POINTER,
@@ -64,6 +69,11 @@ class SubmodulesDialog(QDialog):
         self.can_modify = can_modify
         self.submodules = []
         self._populating = False
+        # Tickable rows render bright (white on dark / near-black on light);
+        # disabled rows render grey so the two are visually distinct.
+        is_dark = getattr(parent, "is_dark_theme", True)
+        self._enabled_fg = QColor("#ffffff" if is_dark else "#333333")
+        self._disabled_fg = QColor("#808080")
 
         self.setWindowTitle("Submodules")
         self.setMinimumSize(720, 360)
@@ -150,6 +160,7 @@ class SubmodulesDialog(QDialog):
                 if sub.get("embedded"):
                     status_text += " · embedded (no .gitmodules)"
                 tickable = sub["status"] in (STATUS_POINTER, STATUS_DIRTY)
+                fg = self._enabled_fg if tickable else self._disabled_fg
 
                 check_item = QTableWidgetItem()
                 check_item.setFlags(
@@ -157,6 +168,7 @@ class SubmodulesDialog(QDialog):
                     else Qt.NoItemFlags)
                 check_item.setCheckState(
                     Qt.Checked if tickable else Qt.Unchecked)
+                check_item.setForeground(fg)
                 self.table.setItem(row, 0, check_item)
 
                 values = [sub["path"], status_text,
@@ -165,6 +177,7 @@ class SubmodulesDialog(QDialog):
                     item = QTableWidgetItem(value)
                     if not tickable:
                         item.setFlags(item.flags() & ~Qt.ItemIsEnabled)
+                    item.setForeground(fg)
                     self.table.setItem(row, col, item)
         finally:
             self._populating = False
