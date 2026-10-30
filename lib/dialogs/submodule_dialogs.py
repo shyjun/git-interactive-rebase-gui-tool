@@ -38,8 +38,8 @@ from lib.git_helpers import (
 )
 
 _STATUS_LABELS = {
-    "clean": "clean",
-    "pointer": "new commits (pointer changed)",
+    "clean": "no change",
+    "pointer": "pointer changed",
     "dirty": "modified content",
     "uninitialized": "not initialized",
     "conflict": "conflict",
@@ -144,13 +144,16 @@ class SubmodulesDialog(QDialog):
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setSelectionMode(QTableWidget.ExtendedSelection)
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
+        # All columns interactive so the user can resize them freely.
         header = self.table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(1, QHeaderView.Stretch)
-        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(3, QHeaderView.Stretch)
-        header.setSectionResizeMode(4, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(5, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(QHeaderView.Interactive)
+        header.setStretchLastSection(False)
+        self.table.setColumnWidth(0, 30)
+        self.table.setColumnWidth(1, 220)
+        self.table.setColumnWidth(2, 110)
+        self.table.setColumnWidth(3, 190)
+        self.table.setColumnWidth(4, 120)
+        self.table.setColumnWidth(5, 120)
         self.table.itemChanged.connect(self._update_buttons)
         layout.addWidget(self.table)
 
