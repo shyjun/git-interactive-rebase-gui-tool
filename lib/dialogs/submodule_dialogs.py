@@ -134,6 +134,8 @@ class SubmodulesDialog(QDialog):
         self.table.setRowCount(len(self.submodules))
         for row, sub in enumerate(self.submodules):
             status_text = _STATUS_LABELS.get(sub["status"], sub["status"])
+            if sub.get("embedded"):
+                status_text += " · embedded (no .gitmodules)"
             values = [
                 sub["path"],
                 status_text,

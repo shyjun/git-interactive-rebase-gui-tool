@@ -165,5 +165,89 @@ class TestSubmoduleHelpers(SubmoduleRepoFixture):
         self.assertEqual(sub["current_sha"], self.sha_v2)
 
 
+class TestEmbeddedRepo(unittest.TestCase):
+    """A gitlink added via plain `git add` (no `git submodule add`, no
+    .gitmodules mapping) — `git submodule status` fatals on these, but they
+    must still be listed and manageable."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.repo = os.path.join(self.tmp, "main")
+        os.makedirs(self.repo)
+        self.nested = os.path.join(self.repo, "nested")
+
+        _git(self.repo, "init", "-q")
+        _git(self.repo, "config", "user.email", "t@t.com")
+        _git(self.repo, "config", "user.name", "t")
+        with open(os.path.join(self.repo, "f.txt"), "w") as f:
+            f.write("base\n")
+        _git(self.repo, "add", "f.txt")
+        _git(self.repo, "commit", "-qm", "base")
+
+        os.makedirs(self.nested)
+        _git(self.nested, "init", "-q")
+        _git(self.nested, "config", "user.email", "t@t.com")
+        _git(self.nested, "config", "user.name", "t")
+        with open(os.path.join(self.nested, "a.txt"), "w") as f:
+            f.write("v1\n")
+        _git(self.nested, "add", ".")
+        _git(self.nested, "commit", "-qm", "v1")
+        self.sha_v1 = _git(self.nested, "rev-parse", "HEAD").stdout.strip()
+        with open(os.path.join(self.nested, "a.txt"), "w") as f:
+            f.write("v2\n")
+        _git(self.nested, "commit", "-qam", "v2")
+        self.sha_v2 = _git(self.nested, "rev-parse", "HEAD").stdout.strip()
+
+        # Plain `git add` of a nested repo creates a gitlink with NO
+        # .gitmodules entry (the "embedded repository" case).
+        _git(self.repo, "add", "nested")
+        _git(self.repo, "commit", "-qm", "add nested repo")
+        # Pointer change: check out the older commit inside the nested repo.
+        _git(self.nested, "checkout", "-q", self.sha_v1)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _gitlink(self, ref="HEAD"):
+        out = _git(self.repo, "ls-tree", ref, "nested").stdout
+        return out.split()[2]
+
+    def test_git_submodule_status_fatals_but_list_still_works(self):
+        # Sanity: confirm the raw command really fails in this scenario.
+        with self.assertRaises(subprocess.CalledProcessError):
+            _git(self.repo, "submodule", "status")
+        subs = list_submodules(self.repo)
+        self.assertEqual(len(subs), 1)
+        sub = subs[0]
+        self.assertEqual(sub["path"], "nested")
+        self.assertTrue(sub["embedded"])
+        self.assertEqual(sub["status"], STATUS_POINTER)
+        self.assertEqual(sub["record_sha"], self.sha_v2)
+        self.assertEqual(sub["current_sha"], self.sha_v1)
+
+    def test_excluded_from_unstaged_flows(self):
+        files = get_unstaged_files(self.repo, ignore_submodules=True)
+        self.assertEqual(files, [])
+        ok, detail = bulk_commit_all(self.repo, "nothing", files)
+        self.assertFalse(ok)
+
+    def test_stage_and_commit_pointer(self):
+        ok, detail = stage_submodule_pointers(self.repo, ["nested"])
+        self.assertTrue(ok, detail)
+        ok, detail = commit_submodule_pointers(self.repo, ["nested"], "bump nested to v1")
+        self.assertTrue(ok, detail)
+        self.assertEqual(self._gitlink("HEAD"), self.sha_v1)
+        sub = list_submodules(self.repo)[0]
+        self.assertEqual(sub["status"], STATUS_CLEAN)
+        self.assertTrue(sub["embedded"])
+
+    def test_discard_falls_back_to_nested_checkout(self):
+        ok, detail = discard_submodule_changes(self.repo, ["nested"])
+        self.assertTrue(ok, detail)
+        sub = list_submodules(self.repo)[0]
+        self.assertEqual(sub["status"], STATUS_CLEAN)
+        self.assertEqual(sub["current_sha"], self.sha_v2)
+
+
 if __name__ == "__main__":
     unittest.main()
