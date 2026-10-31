@@ -81,7 +81,8 @@ Visual documentation for the Git Interactive Rebase GUI Tool. Each section descr
 56. [Fault Handling](#56-fault-handling)
     - [56.1 Exception Handling](#561-exception-handling)
     - [56.2 Crash Handling](#562-crash-handling)
-57. [Keyboard Shortcuts](#57-keyboard-shortcuts)
+57. [Submodule Manager](#57-submodule-manager)
+58. [Keyboard Shortcuts](#58-keyboard-shortcuts)
 
 ---
 
@@ -251,6 +252,7 @@ The **Repo** button in the main window's toolbar groups the repository-wide tool
 - **Browse Tags** → Open a read-only window listing all tags with their commit info (see [Browse Tags](#43-browse-tags))
 - **Open File at Commit…** → Browse and open a file at any commit, branch, or tag with the system default app. Enter a SHA/branch/tag, type or browse for a file, and open that version of the file (see [Open with System Default App](#102-file-wise-diff))
 - **Find Merge-base…** → Compute the merge-base between the current branch and another branch (see [Find Merge-base](#30-find-merge-base))
+- **Submodules…** → Open the manager for submodules and embedded gitlinks — stage, discard, or commit pointer changes (see [Submodule Manager](#57-submodule-manager))
 
 ---
 
@@ -787,6 +789,8 @@ Stage *parts* of a file — perfect when one file contains mixed edits (feature 
 - **Binary / no-hunk files** → a checked file with no parseable hunks is staged whole, so it is not silently lost
 
 Cancelling at any point stages nothing, and a failed staging/commit resets the index so nothing is half-committed. Complements [Refine Changes in File](#18-refine-changes-in-file): refine mixed changes out of past commits, and use `git add -p` to keep future commits clean from the start.
+
+> **Submodule note:** **Bulk Commit** and **Amend** now commit exactly the file list they show — a submodule pointer change is never silently swept in. Commit pointer changes deliberately via **Repo → Submodules…** (see [Submodule Manager](#57-submodule-manager)). Discard, stash, and the selective-commit flows were already pathspec-based and unaffected.
 
 ---
 
@@ -1350,7 +1354,7 @@ If the crashed run printed anything to the terminal (for example the `faulthandl
 
 ---
 
-## 57. Keyboard Shortcuts
+## 58. Keyboard Shortcuts
 Keyboard shortcuts for faster navigation and workflow.
 
 | Shortcut | Action |
@@ -1369,3 +1373,45 @@ Keyboard shortcuts for faster navigation and workflow.
 
 - `Esc` behaves contextually and may close dialogs, clear filters, exit search, or exit multi-select mode depending on the active state. **Progress dialogs** shown during history-rewriting operations (rebase, reset, push, etc.) are not dismissible — they close automatically when the operation completes.
 - `Ctrl+F` focuses the diff search bar, which is available in every diff view (see [Diff Search Bar](#9-diff-search-bar)).
+
+---
+
+## 57. Submodule Manager
+
+Track and act on submodule pointer changes without leaving the app.
+
+**Description:** Open **Repo → Submodules…** in the toolbar's Repo menu (see [Repo Menu](#4-repo-menu)). The dialog lists every git submodule **and embedded gitlink** in the repository — a nested git repository added with plain `git add`, which has a gitlink entry in the index but **no `.gitmodules` mapping**. Embedded repos are flagged in the **Type** column and handled with a per-path fallback, since `git submodule update` cannot act on them.
+
+| Column | Meaning |
+|--------|---------|
+| ✓ | Tick box — only rows with changes are tickable |
+| Path | Path of the submodule / embedded repository |
+| Type | `submodule` (mapped in `.gitmodules`) or `embedded` |
+| Status | Current state of the repo (see below) |
+| Current SHA | HEAD of the nested repository |
+| Recorded SHA | Gitlink recorded in the index / `HEAD` of the parent repo |
+
+All columns are user-resizable, with dividers in the header.
+
+**Status values:**
+
+- **no change** — recorded and current SHA match, nested working tree clean
+- **pointer changed** — the nested repository has commits the parent doesn't record yet (or vice versa)
+- **modified content** — pointer matches but there are uncommitted changes inside the nested repository
+- **not initialized** — the path exists in the index but the nested repository hasn't been cloned/checked out
+- **conflict** — the gitlink is in a conflicted (`U`) state
+
+**Rows and actions:**
+
+- Rows with changes are **ticked by default and enabled**; unchanged rows are unticked and disabled (whole row). **Check All / Uncheck All** toggle only the modifiable rows, so with several submodules you act on exactly the subset you want.
+- **Stage Pointer** — `git add -- <path>` for the ticked rows
+- **Discard Pointer Change** — reverts the pointer to the recorded gitlink (`git submodule update`, with a `git -C <path> checkout <recorded-sha>` fallback for embedded repos), after a confirmation. Safely refuses if that would lose work inside the nested repository.
+- **Commit Pointer…** — opens a message dialog and commits only the ticked pointer changes (`git commit --only -m <msg> -- <paths>`), so nothing else in the index is swept in. An undo snapshot is saved before the commit, and history refreshes afterwards.
+- In **Viewer Mode** the dialog is read-only and the action buttons are disabled.
+
+> **Note:** The unstaged-changes flows (Bulk Commit, Amend) now commit exactly the file list they display — a submodule pointer change is never silently included. Use this dialog to review and commit pointer changes deliberately. Stash, discard, and the selective-commit flows were already pathspec-based and unaffected.
+
+**Note on logs:** in a repository containing embedded gitlinks, `git submodule status` fails with `no submodule mapping found in .gitmodules for path '<path>'`. This is expected and harmless — enumeration uses `git ls-files -s` instead, so embedded repos still appear in the dialog.
+
+<!-- PLACEHOLDER SCREENSHOT: capture the Submodule Manager dialog (Repo → Submodules…) showing mixed submodule/embedded rows and add it to the git-interactive-rebase-gui-tool-screenshots repo as screenshots/submodule-manager.webp -->
+![Submodule Manager](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/submodule-manager.webp)

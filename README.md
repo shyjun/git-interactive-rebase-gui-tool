@@ -58,6 +58,14 @@ A Python-based Git Interactive Rebase GUI tool to visually manage commit history
 * **Stash Changes**: Stash all changes (staged and unstaged).
 * **Staged changes warning**: If staged changes exist at startup, the Repo button is highlighted and an info dialog suggests using **Handle Staged Changes**.
 
+### 🧩 Submodule Management
+
+* **Submodules dialog**: Repo menu → **Submodules…** opens a manager listing every git submodule **and embedded gitlink** (a nested git repository added with plain `git add`, with no `.gitmodules` mapping) — with columns for **Path**, **Type** (submodule / embedded), **Status**, **Current SHA**, and **Recorded SHA**. All columns are user-resizable.
+* **Status at a glance**: each row shows one of — *no change*, *pointer changed* (new commits in the submodule), *modified content* (uncommitted work inside the submodule), *not initialized*, or *conflict*.
+* **Tickable rows**: submodules with changes are ticked by default and can be partially selected; unchanged rows are unticked and disabled. **Check All / Uncheck All** toggle only the modifiable rows.
+* **Actions**: **Stage Pointer** (`git add -- <path>`), **Discard Pointer Change** (`git submodule update`, with per-path fallback for embedded repos), and **Commit Pointer…** (commits exactly the ticked pointer changes). History refreshes and undo state is saved automatically.
+* **Submodule-aware commits**: **Bulk Commit** and **Amend** in the unstaged-changes dialog now commit exactly the files listed — a submodule pointer change is never silently swept into the commit; manage pointers deliberately via the Submodules dialog. Discard, stash, and the selective-commit flows were already pathspec-based and remain unaffected.
+
 ### 🔍 Discovery & Navigation
 
 * **Live search & filter**: Instantly find commits while you type.
