@@ -162,6 +162,8 @@ Right-clicking any commit gives you quick access to:
 
 See the [Screenshots & Feature Guide](docs/screenshots.md) for visual documentation of all features.
 
+All screenshots are captured and hosted in the separate [screenshots repository](https://github.com/shyjun/git-interactive-rebase-gui-tool-screenshots) (`screenshots/` folder, `.webp` format) and embedded into the guide via raw URLs.
+
 ---
 
 ## 🎥 Demo Video
