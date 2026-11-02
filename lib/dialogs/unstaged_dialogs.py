@@ -129,9 +129,11 @@ class UnstagedChangesDialog(QDialog):
         self.bulk_commit_btn = QPushButton(bulk_commit_text)
         self.bulk_commit_btn.setToolTip("Commit all changes into a single 'bulk' commit, then start the app.")
 
-        amend_text = "Amend all changes into the HEAD commit (--amend --no-edit)"
+        amend_text = "Amend all changes into the HEAD commit (edit commit message)"
         self.amend_btn = QPushButton(amend_text)
-        self.amend_btn.setToolTip("Amend all changes into the HEAD commit (--amend --no-edit).")
+        self.amend_btn.setToolTip(
+            "Amend all changes into the HEAD commit. A commit-message dialog opens, "
+            "pre-filled from the current HEAD message, so you can edit it if needed.")
 
         self.discard_btn = QPushButton("Discard unstaged changes (git checkout .), staged changes if any is untouched")
         self.discard_btn.setToolTip("Discard only unstaged (worktree) changes in tracked files. Staged changes are left untouched. This cannot be undone.")

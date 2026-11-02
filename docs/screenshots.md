@@ -724,7 +724,7 @@ Available options include:
 - **Commit Selectively** → Choose which files (or diff hunks) to commit before starting the app (see [Commit Selectively](#commit-selectively))
 - **Commit each file changes separately and start app** → Automatically create one commit per modified file before launch
 - **Commit all unstaged changes to a single "bulk" commit** → Opens a commit message dialog (pre-filled with file list) and saves all current changes into one commit
-- **Amend all changes to the current `HEAD` commit** → Amend HEAD commit with the unstaged changes
+- **Amend all changes to the current `HEAD` commit** → Amend HEAD commit with the unstaged changes; a commit-message dialog opens pre-filled from the current HEAD message, so you can edit it or keep it unchanged (cancel aborts the amend)
 - **Discard changes** → Discard the unstaged changes
 - **Start in Viewer Mode** → Start the app in viewer mode. No history modifying operations will be allowed (see [Viewer Mode](#34-viewer-mode))
 - **Exit** → Cancel launch and resolve changes manually

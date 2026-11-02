@@ -27,6 +27,7 @@ from lib.git_helpers import (
     get_file_stats_between,
     get_files_between,
     get_full_head_sha,
+    get_full_commit_message,
     get_git_history,
     get_git_history_fast,
     get_head_sha,
@@ -190,8 +191,23 @@ class RescanMixin:
                 progress.exec()
                 return
             elif result == UnstagedChangesDialog.AmendResult:
-                self.save_undo_state()
+                # Mirror the bulk-commit message dialog: let the user edit
+                # HEAD's message while amending the unstaged changes into it.
                 old_head = self.get_head_sha()
+                default_msg = get_full_commit_message(self.repo_path, old_head) if old_head else ""
+                from lib.dialogs.commit_message_dialogs import NewCommitMessageDialog
+                msg_dlg = NewCommitMessageDialog(
+                    "Amend HEAD Commit",
+                    f"Amending all {len(unstaged_files)} unstaged change(s) into the HEAD commit.\n"
+                    "Edit the message below or keep it unchanged to preserve the original.",
+                    default_msg, self.current_font_size, self.current_font_family, self,
+                )
+                if msg_dlg.exec() != QDialog.Accepted:
+                    return
+                msg = msg_dlg.get_message()
+                if not msg:
+                    return
+                self.save_undo_state()
                 # Mirror the bulk-commit pattern: amend runs off-thread so
                 # the ProgressDialog's exec() event loop stays live and paints.
                 progress = ProgressDialog("Amending", "Staging and amending into HEAD...", self)
@@ -210,7 +226,7 @@ class RescanMixin:
                         QMessageBox.critical(self, "Error", f"Amend failed.\n\n{detail}")
 
                 self.amend_progress_dialog = progress
-                self.amend_worker = AmendWorker(self.repo_path, unstaged_files, self)
+                self.amend_worker = AmendWorker(self.repo_path, unstaged_files, msg, self)
                 self.amend_worker.git_finished.connect(_on_amend_finished)
                 self.amend_worker.start()
                 progress.exec()

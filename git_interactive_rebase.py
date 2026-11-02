@@ -43,6 +43,7 @@ from lib.git_helpers import (
     stash_pop,
     stash_pop_can_apply,
     get_full_head_sha,
+    get_full_commit_message,
     get_head_sha,
     discard_changes,
     get_stash_status,
@@ -477,6 +478,27 @@ def main():
         elif result == UnstagedChangesDialog.AmendResult:
             startup_undo_sha = get_head_sha(repo_path)
             old_head = get_head_sha(repo_path)
+            # Mirror the bulk-commit message dialog: let the user edit HEAD's
+            # message while amending the unstaged changes into it.
+            _font_size = int(tool_settings().value("font_size", 10))
+            from lib.dialogs.commit_message_dialogs import NewCommitMessageDialog
+            default_msg = get_full_commit_message(repo_path, old_head) if old_head else ""
+            msg_dlg = NewCommitMessageDialog(
+                "Amend HEAD Commit",
+                f"Amending all {len(unstaged_files)} unstaged change(s) into the HEAD commit.\n"
+                "Edit the message below or keep it unchanged to preserve the original.",
+                default_msg, _font_size, None,
+            )
+            if msg_dlg.exec() != 1:
+                _log("Amend cancelled by user.")
+                ack_messages = []
+                sys.exit(0)
+            msg = msg_dlg.get_message()
+            if not msg:
+                _log("Amend cancelled (empty message).")
+                ack_messages = []
+                sys.exit(0)
+
             # Mirror the bulk-commit pattern: amend runs off-thread so the
             # ProgressDialog's exec() event loop stays live and paints.
             progress = ProgressDialog("Amending", "Staging and amending into HEAD...", None)
@@ -486,7 +508,7 @@ def main():
                 _amend_result["ok"], _amend_result["detail"] = success, detail
                 progress.close()
 
-            amend_worker = AmendWorker(repo_path, unstaged_files)
+            amend_worker = AmendWorker(repo_path, unstaged_files, msg)
             amend_worker.git_finished.connect(_on_amend_finished)
             amend_worker.start()
             progress.exec()

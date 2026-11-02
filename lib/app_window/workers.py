@@ -27,19 +27,21 @@ class BulkCommitWorker(QThread):
 
 
 class AmendWorker(QThread):
-    """Runs amend_with_head (git commit --amend --only -- <files>) off the UI
-    thread so a ProgressDialog's exec() event loop stays live and paints.
-    Only the given (submodule-excluded) files are amended into HEAD."""
+    """Runs amend_with_head (git commit --amend --only [--no-edit|-m msg] -- <files>)
+    off the UI thread so a ProgressDialog's exec() event loop stays live and paints.
+    Only the given (submodule-excluded) files are amended into HEAD. When *message*
+    is given, HEAD's commit message is replaced with it."""
     git_finished = Signal(bool, str)
 
-    def __init__(self, repo_path, files, parent=None):
+    def __init__(self, repo_path, files, message=None, parent=None):
         super().__init__(parent)
         self.repo_path = repo_path
         self.files = files
+        self.message = message
 
     def run(self):
         try:
-            ok, detail = amend_with_head(self.repo_path, self.files)
+            ok, detail = amend_with_head(self.repo_path, self.files, self.message)
             self.git_finished.emit(ok, detail)
         except Exception as e:
             self.git_finished.emit(False, str(e))

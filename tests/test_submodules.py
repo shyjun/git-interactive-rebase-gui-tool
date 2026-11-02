@@ -127,6 +127,16 @@ class TestUnstagedFlowsExcludeSubmodules(SubmoduleRepoFixture):
         self.assertFalse(ok)
         self.assertIn("No files", detail)
 
+    def test_amend_with_message_replaces_head_message(self):
+        files = get_unstaged_files(self.repo, ignore_submodules=True)
+        ok, detail = amend_with_head(self.repo, files, message="amended with new message")
+        self.assertTrue(ok, detail)
+        # HEAD carries the new message, the file change, and still records v2.
+        self.assertEqual(_git(self.repo, "log", "-1", "--format=%B").stdout.strip(),
+                         "amended with new message")
+        self.assertIn("modified", self._file_content_at("HEAD"))
+        self.assertEqual(self._gitlink("HEAD"), self.sha_v2)
+
 
 class TestSubmoduleHelpers(SubmoduleRepoFixture):
 

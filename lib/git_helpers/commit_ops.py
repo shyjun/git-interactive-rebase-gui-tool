@@ -65,9 +65,12 @@ def bulk_commit_all(repo_path, message, files):
         return False, err
 
 
-def amend_with_head(repo_path, files):
+def amend_with_head(repo_path, files, message=None):
     """Amends exactly the given files (the detected unstaged-change list) into
     the current HEAD commit via `git commit --amend --only -- <files>`.
+
+    If *message* is given, the HEAD commit message is replaced with it;
+    otherwise `--no-edit` keeps the original message untouched.
 
     Submodule gitlink changes are never included (see bulk_commit_all). Any
     unrelated pre-staged changes are left staged and untouched.
@@ -78,8 +81,13 @@ def amend_with_head(repo_path, files):
         return False, "No files to amend."
     try:
         before = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo_path, capture_output=True, text=True, check=True).stdout.strip()
+        cmd = ["git", "commit", "--amend", "--only"]
+        if message:
+            cmd += ["-m", message]
+        else:
+            cmd += ["--no-edit"]
         subprocess.run(
-            ["git", "commit", "--amend", "--only", "--no-edit", "--"] + list(files),
+            cmd + ["--"] + list(files),
             cwd=repo_path, check=True, capture_output=True)
         after = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo_path, capture_output=True, text=True, check=True).stdout.strip()
         _log(f"Amended HEAD: {before[:8]} -> {after[:8]}")
