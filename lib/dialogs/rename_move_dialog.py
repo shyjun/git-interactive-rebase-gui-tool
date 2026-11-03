@@ -105,17 +105,7 @@ class RenameMoveDialog(QDialog):
         btn_row = QHBoxLayout()
         btn_row.setSpacing(10)
 
-        self.commit_btn = QPushButton("Commit")
-        self.commit_btn.setToolTip(
-            "Move the path and commit the rename as a new commit (git commit --only)."
-        )
-        self.commit_btn.setStyleSheet(
-            "QPushButton { color: #0055cc; border: 2px solid #0055cc; padding: 10px 18px; "
-            "border-radius: 6px; font-weight: bold; } "
-            "QPushButton:hover { background-color: #eef4ff; }"
-        )
-
-        self.amend_btn = QPushButton("Amend")
+        self.amend_btn = QPushButton("commit --amend the rename/move")
         self.amend_btn.setToolTip(
             "Move the path and amend the rename into the HEAD commit, message editable."
         )
@@ -125,8 +115,18 @@ class RenameMoveDialog(QDialog):
             "QPushButton:hover { background-color: #f6eefb; }"
         )
 
-        self.stage_btn = QPushButton("Stage")
-        self.stage_btn.setDefault(True)
+        self.commit_btn = QPushButton("Commit the Rename/Move")
+        self.commit_btn.setDefault(True)
+        self.commit_btn.setToolTip(
+            "Move the path and commit the rename as a new commit (git commit --only)."
+        )
+        self.commit_btn.setStyleSheet(
+            "QPushButton { color: #0055cc; border: 2px solid #0055cc; padding: 10px 18px; "
+            "border-radius: 6px; font-weight: bold; } "
+            "QPushButton:hover { background-color: #eef4ff; }"
+        )
+
+        self.stage_btn = QPushButton("Stage the Rename/Move")
         self.stage_btn.setToolTip(
             "Move the path and stage both sides (git add -A) for Repo → Handle Staged Changes."
         )
@@ -144,16 +144,50 @@ class RenameMoveDialog(QDialog):
             "QPushButton:hover { background-color: #f5f5f5; }"
         )
 
-        self.commit_btn.clicked.connect(self._on_commit)
         self.amend_btn.clicked.connect(self._on_amend)
+        self.commit_btn.clicked.connect(self._on_commit)
         self.stage_btn.clicked.connect(self._on_stage)
         cancel_btn.clicked.connect(self.reject)
 
+        # One column per button with a small colored note underneath, exactly
+        # like the Commit Selectively dialog.
+        amend_col = QVBoxLayout()
+        amend_col.setSpacing(2)
+        amend_col.addWidget(self.amend_btn)
+        amend_note = QLabel("(amend HEAD message)")
+        amend_note.setStyleSheet("color: #8e44ad; font-size: 11px;")
+        amend_note.setAlignment(Qt.AlignCenter)
+        amend_col.addWidget(amend_note)
+
+        commit_col = QVBoxLayout()
+        commit_col.setSpacing(2)
+        commit_col.addWidget(self.commit_btn)
+        commit_note = QLabel("(new commit, only these paths)")
+        commit_note.setStyleSheet("color: #0055cc; font-size: 11px;")
+        commit_note.setAlignment(Qt.AlignCenter)
+        commit_col.addWidget(commit_note)
+
+        stage_col = QVBoxLayout()
+        stage_col.setSpacing(2)
+        stage_col.addWidget(self.stage_btn)
+        stage_note = QLabel("(stage for Handle Staged Changes)")
+        stage_note.setStyleSheet("color: #22863a; font-size: 11px;")
+        stage_note.setAlignment(Qt.AlignCenter)
+        stage_col.addWidget(stage_note)
+
+        cancel_col = QVBoxLayout()
+        cancel_col.setSpacing(2)
+        cancel_col.addWidget(cancel_btn)
+        cancel_note = QLabel("Cancel")
+        cancel_note.setStyleSheet("color: #555; font-size: 11px;")
+        cancel_note.setAlignment(Qt.AlignCenter)
+        cancel_col.addWidget(cancel_note)
+
         btn_row.addStretch()
-        btn_row.addWidget(self.commit_btn)
-        btn_row.addWidget(self.amend_btn)
-        btn_row.addWidget(self.stage_btn)
-        btn_row.addWidget(cancel_btn)
+        btn_row.addLayout(amend_col)
+        btn_row.addLayout(commit_col)
+        btn_row.addLayout(stage_col)
+        btn_row.addLayout(cancel_col)
         layout.addLayout(btn_row)
 
         self.src_edit.setFocus()
