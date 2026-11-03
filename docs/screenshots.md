@@ -4,7 +4,7 @@ Visual documentation for the Git Interactive Rebase GUI Tool. Each section descr
 
 **Note:** [Vim official repository](https://github.com/vim/vim) is used for demonstration purposes.
 
-**Screenshots:** images are captured separately and stored in the [git-interactive-rebase-gui-tool-screenshots](https://github.com/shyjun/git-interactive-rebase-gui-tool-screenshots) repo under `screenshots/` (`.webp` format), referenced here as raw URLs. A `<!-- PLACEHOLDER SCREENSHOT -->` comment marks a section whose image name is reserved but not yet captured (currently: `submodule-manager.webp` for [§57 Submodule Manager](#57-submodule-manager)) — the link starts rendering once the image is uploaded to the screenshots repo.
+**Screenshots:** images are captured separately and stored in the [git-interactive-rebase-gui-tool-screenshots](https://github.com/shyjun/git-interactive-rebase-gui-tool-screenshots) repo under `screenshots/` (`.webp` format), referenced here as raw URLs. A `<!-- PLACEHOLDER SCREENSHOT -->` comment marks a section whose image name is reserved but not yet captured (currently: `submodule-manager.webp` for [§57 Submodule Manager](#57-submodule-manager) and `rename-move.webp` for [§58 Rename/Move a File/Folder](#58-renamemove-a-filefolder)) — each link starts rendering once its image is uploaded to the screenshots repo.
 
 ---
 
@@ -84,7 +84,8 @@ Visual documentation for the Git Interactive Rebase GUI Tool. Each section descr
     - [56.1 Exception Handling](#561-exception-handling)
     - [56.2 Crash Handling](#562-crash-handling)
 57. [Submodule Manager](#57-submodule-manager)
-58. [Keyboard Shortcuts](#58-keyboard-shortcuts)
+58. [Rename/Move a File/Folder](#58-renamemove-a-filefolder)
+59. [Keyboard Shortcuts](#59-keyboard-shortcuts)
 
 ---
 
@@ -254,7 +255,7 @@ The **Repo** button in the main window's toolbar groups the repository-wide tool
 - **Browse Tags** → Open a read-only window listing all tags with their commit info (see [Browse Tags](#43-browse-tags))
 - **Open File at Commit…** → Browse and open a file at any commit, branch, or tag with the system default app. Enter a SHA/branch/tag, type or browse for a file, and open that version of the file (see [Open with System Default App](#102-file-wise-diff))
 - **Find Merge-base…** → Compute the merge-base between the current branch and another branch (see [Find Merge-base](#30-find-merge-base))
-- **Rename/Move a File/Folder…** → Rename or move a file/folder in the working tree, then choose **Stage** (index only), **Commit** (new commit), or **Amend** (into HEAD, message editable); the commit/amend dialogs open before anything moves, so cancelling aborts cleanly
+- **Rename/Move a File/Folder…** → Rename or move a file/folder in the working tree, then choose **Stage** (index only), **Commit** (new commit), or **Amend** (into HEAD, message editable); the commit/amend dialogs open before anything moves, so cancelling aborts cleanly (see [Rename/Move a File/Folder](#58-renamemove-a-filefolder))
 - **Submodules…** → Open the manager for submodules and embedded gitlinks — stage, discard, or commit pointer changes (see [Submodule Manager](#57-submodule-manager))
 
 ---
@@ -1357,28 +1358,6 @@ If the crashed run printed anything to the terminal (for example the `faulthandl
 
 ---
 
-## 58. Keyboard Shortcuts
-Keyboard shortcuts for faster navigation and workflow.
-
-| Shortcut | Action |
-|----------|--------|
-| `/` | Focus the commit search bar |
-| `Esc` | Clear search, close dialogs (except progress dialogs), exit search mode, or exit multi-select mode |
-| `Ctrl+F` | Focus the diff search bar (available in every diff view) |
-| `Ctrl+Q` | Exit the application |
-| `Ctrl+Z` | Undo the last operation (disabled while editing text) |
-| `Ctrl+Y` | Redo the last undone operation |
-| `F5` | Refresh commit list |
-| `Shift+F5` | Rescan repository (refreshes history first, then checks for unstaged changes) |
-| `Ctrl+F9` | Restart with latest code (cloned repos only, when update detected) |
-
-**Notes:**
-
-- `Esc` behaves contextually and may close dialogs, clear filters, exit search, or exit multi-select mode depending on the active state. **Progress dialogs** shown during history-rewriting operations (rebase, reset, push, etc.) are not dismissible — they close automatically when the operation completes.
-- `Ctrl+F` focuses the diff search bar, which is available in every diff view (see [Diff Search Bar](#9-diff-search-bar)).
-
----
-
 ## 57. Submodule Manager
 
 Track and act on submodule pointer changes without leaving the app.
@@ -1418,3 +1397,59 @@ All columns are user-resizable, with dividers in the header.
 
 <!-- PLACEHOLDER SCREENSHOT: capture the Submodule Manager dialog (Repo → Submodules…) showing mixed submodule/embedded rows and add it to the git-interactive-rebase-gui-tool-screenshots repo as screenshots/submodule-manager.webp -->
 ![Submodule Manager](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/submodule-manager.webp)
+
+---
+
+## 58. Rename/Move a File/Folder
+
+Rename or move any file or folder in the working tree without leaving the tool.
+
+**Description:** Open **Repo → Rename/Move a File/Folder…** (see [Repo Menu](#4-repo-menu)). The dialog has two path rows:
+
+- **From** — the path to rename/move, with **File…** and **Folder…** browsers
+- **To** — the full new path; the **Folder…** browser fills `<picked folder>/<current name>`, so an in-place rename is just editing the name
+
+Both fields take repo-relative paths (backslashes and a leading `./` are normalized) and render in the app's monospace font.
+
+**Actions** — same button style as [Commit Selectively](#commit-selectively): colored border, bold label, and a small colored note underneath.
+
+| Button | Note | What happens |
+|--------|------|--------------|
+| **commit --amend the rename/move** (purple) | (amend HEAD message) | The message dialog opens first, pre-filled from HEAD — cancel aborts before anything moves. Then the path is moved and amended into HEAD with exactly these two paths (`git commit --amend --only`). |
+| **Commit the Rename/Move** (blue, default) | (new commit, only these paths) | The message dialog opens first (default `rename/move <from> -> <to>`); cancel aborts cleanly. Then the path is moved and committed as a new commit containing exactly these two paths (`git commit --only`). |
+| **Stage the Rename/Move** (green) | (stage for Handle Staged Changes) | Moves the path and stages both sides (`git add -A`); a confirmation points you to **Repo → Handle Staged Changes**. |
+| **Cancel** | Cancel | Closes the dialog; nothing moves. |
+
+**Guards:** the source must exist; both paths must be inside the repository; the destination must be free (a case-only rename such as `Foo.txt` → `foo.txt` is allowed); neither path may be the repository root or live under `.git/`; a folder can never be moved into itself. Missing destination folders are created automatically, and a cross-filesystem move falls back to `shutil.move`.
+
+**Notes:**
+
+- Commit and Amend require an unchanged HEAD (you are prompted to refresh if it drifted) and save an undo state before mutating history; Viewer Mode disables the action entirely.
+- Only the two paths are committed or amended — unrelated pre-staged changes stay staged and untouched.
+- The commit / amend message dialogs open **before** the move happens, so cancelling at that point leaves the repository unchanged.
+- The staged form shows up as `R  old -> new` in `git status`; git's rename detection pairs the deletion and the addition.
+
+<!-- PLACEHOLDER SCREENSHOT: capture the Rename/Move dialog (Repo → Rename/Move a File/Folder…) with both path fields filled in and add it to the git-interactive-rebase-gui-tool-screenshots repo as screenshots/rename-move.webp -->
+![Rename/Move a File/Folder](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/rename-move.webp)
+
+---
+
+## 59. Keyboard Shortcuts
+Keyboard shortcuts for faster navigation and workflow.
+
+| Shortcut | Action |
+|----------|--------|
+| `/` | Focus the commit search bar |
+| `Esc` | Clear search, close dialogs (except progress dialogs), exit search mode, or exit multi-select mode |
+| `Ctrl+F` | Focus the diff search bar (available in every diff view) |
+| `Ctrl+Q` | Exit the application |
+| `Ctrl+Z` | Undo the last operation (disabled while editing text) |
+| `Ctrl+Y` | Redo the last undone operation |
+| `F5` | Refresh commit list |
+| `Shift+F5` | Rescan repository (refreshes history first, then checks for unstaged changes) |
+| `Ctrl+F9` | Restart with latest code (cloned repos only, when update detected) |
+
+**Notes:**
+
+- `Esc` behaves contextually and may close dialogs, clear filters, exit search, or exit multi-select mode depending on the active state. **Progress dialogs** shown during history-rewriting operations (rebase, reset, push, etc.) are not dismissible — they close automatically when the operation completes.
+- `Ctrl+F` focuses the diff search bar, which is available in every diff view (see [Diff Search Bar](#9-diff-search-bar)).
