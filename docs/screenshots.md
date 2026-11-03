@@ -4,7 +4,7 @@ Visual documentation for the Git Interactive Rebase GUI Tool. Each section descr
 
 **Note:** [Vim official repository](https://github.com/vim/vim) is used for demonstration purposes.
 
-**Screenshots:** images are captured separately and stored in the [git-interactive-rebase-gui-tool-screenshots](https://github.com/shyjun/git-interactive-rebase-gui-tool-screenshots) repo under `screenshots/` (`.webp` format), referenced here as raw URLs. A `<!-- PLACEHOLDER SCREENSHOT -->` comment marks a section whose image name is reserved but not yet captured (currently: `submodule-manager.webp` for [§57 Submodule Manager](#57-submodule-manager) and `rename-move.webp` for [§58 Rename/Move a File/Folder](#58-renamemove-a-filefolder)) — each link starts rendering once its image is uploaded to the screenshots repo.
+**Screenshots:** images are captured separately and stored in the [git-interactive-rebase-gui-tool-screenshots](https://github.com/shyjun/git-interactive-rebase-gui-tool-screenshots) repo under `screenshots/` (`.webp` format), referenced here as raw URLs. When adding a section before its image is captured, reserve the filename with a `<!-- PLACEHOLDER SCREENSHOT -->` comment — the link starts rendering once the image is uploaded to the screenshots repo.
 
 ---
 
@@ -1395,7 +1395,6 @@ All columns are user-resizable, with dividers in the header.
 
 **Note on logs:** in a repository containing embedded gitlinks, `git submodule status` fails with `no submodule mapping found in .gitmodules for path '<path>'`. This is expected and harmless — enumeration uses `git ls-files -s` instead, so embedded repos still appear in the dialog.
 
-<!-- PLACEHOLDER SCREENSHOT: capture the Submodule Manager dialog (Repo → Submodules…) showing mixed submodule/embedded rows and add it to the git-interactive-rebase-gui-tool-screenshots repo as screenshots/submodule-manager.webp -->
 ![Submodule Manager](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/submodule-manager.webp)
 
 ---
@@ -1429,7 +1428,6 @@ Both fields take repo-relative paths (backslashes and a leading `./` are normali
 - The commit / amend message dialogs open **before** the move happens, so cancelling at that point leaves the repository unchanged.
 - The staged form shows up as `R  old -> new` in `git status`; git's rename detection pairs the deletion and the addition.
 
-<!-- PLACEHOLDER SCREENSHOT: capture the Rename/Move dialog (Repo → Rename/Move a File/Folder…) with both path fields filled in and add it to the git-interactive-rebase-gui-tool-screenshots repo as screenshots/rename-move.webp -->
 ![Rename/Move a File/Folder](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/rename-move.webp)
 
 ---
