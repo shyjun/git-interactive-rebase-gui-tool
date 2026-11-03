@@ -61,6 +61,10 @@ from .unstaged_dialogs import (
     StagedChangesDialog,
 )
 
+from .rename_move_dialog import (
+    RenameMoveDialog,
+)
+
 from .configure_dialogs import (
     ConfigureDiffToolDialog,
 )

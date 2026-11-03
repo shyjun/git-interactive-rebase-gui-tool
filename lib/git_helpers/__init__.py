@@ -116,6 +116,10 @@ from .commit_ops import (
     apply_patch_file,
 )
 
+from .file_ops import (
+    rename_move_path,
+)
+
 from .update import (
     GIT_REPO_URL,
     _run_capture,

@@ -254,6 +254,7 @@ The **Repo** button in the main window's toolbar groups the repository-wide tool
 - **Browse Tags** → Open a read-only window listing all tags with their commit info (see [Browse Tags](#43-browse-tags))
 - **Open File at Commit…** → Browse and open a file at any commit, branch, or tag with the system default app. Enter a SHA/branch/tag, type or browse for a file, and open that version of the file (see [Open with System Default App](#102-file-wise-diff))
 - **Find Merge-base…** → Compute the merge-base between the current branch and another branch (see [Find Merge-base](#30-find-merge-base))
+- **Rename/Move a File/Folder…** → Rename or move a file/folder in the working tree, then choose **Stage** (index only), **Commit** (new commit), or **Amend** (into HEAD, message editable); the commit/amend dialogs open before anything moves, so cancelling aborts cleanly
 - **Submodules…** → Open the manager for submodules and embedded gitlinks — stage, discard, or commit pointer changes (see [Submodule Manager](#57-submodule-manager))
 
 ---

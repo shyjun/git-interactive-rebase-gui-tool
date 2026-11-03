@@ -326,6 +326,13 @@ class MenusMixin:
         merge_base_action.setToolTip("Find the merge-base of the current branch and another branch.")
         merge_base_action.triggered.connect(lambda *_: self.handle_find_merge_base())
 
+        rename_move_action = QAction("Rename/Move a File/Folder…", self)
+        rename_move_action.setToolTip(
+            "Rename or move a file/folder in the working tree, then stage it, "
+            "commit it, or amend it into HEAD."
+        )
+        rename_move_action.triggered.connect(lambda *_: self.handle_rename_move())
+
         submodules_action = QAction("Submodules…", self)
         submodules_action.setToolTip(
             "View and manage submodules: stage / commit / discard pointer changes "
@@ -348,6 +355,7 @@ class MenusMixin:
         menu.addAction(browse_stash_action)
         menu.addAction(open_file_ref_action)
         menu.addAction(merge_base_action)
+        menu.addAction(rename_move_action)
         menu.addSeparator()
         menu.addAction(submodules_action)
         return menu
