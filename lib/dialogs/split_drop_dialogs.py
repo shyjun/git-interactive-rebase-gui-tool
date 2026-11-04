@@ -273,7 +273,9 @@ class SplitCommitDialog(QDialog):
                 display = path1
             item = QListWidgetItem(display)
             item.setToolTip(path1)
-            item.setData(Qt.UserRole, self.file_stats.get(path1))
+            # For renamed files, stats are stored under the display name "old => new"
+            stats_key = display if status == 'R' else path1
+            item.setData(Qt.UserRole, self.file_stats.get(stats_key))
             item.setData(FILE_ENTRY_ROLE, entry)
             item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
             item.setCheckState(Qt.Unchecked)
@@ -896,7 +898,9 @@ class DropFileFromCommitDialog(QDialog):
                 display = path1
             item = QListWidgetItem(display)
             item.setToolTip(path1)
-            item.setData(Qt.UserRole, self.file_stats.get(path1))
+            # For renamed files, stats are stored under the display name "old => new"
+            stats_key = display if status == 'R' else path1
+            item.setData(Qt.UserRole, self.file_stats.get(stats_key))
             item.setData(FILE_ENTRY_ROLE, entry)
             item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
             item.setCheckState(Qt.Unchecked)

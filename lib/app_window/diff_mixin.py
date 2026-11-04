@@ -210,8 +210,13 @@ class DiffMixin:
             item = self.filewise_file_list.item(i)
             entry = item.data(FILE_ENTRY_ROLE)
             if entry:
-                _, path1, _ = entry
-                item.setData(Qt.UserRole, combined_file_stats.get(path1))
+                status, path1, path2 = entry
+                if status == 'R':
+                    display = f"{path1} => {path2}"
+                    stats_key = display
+                else:
+                    stats_key = path1
+                item.setData(Qt.UserRole, combined_file_stats.get(stats_key))
         self.filewise_file_list.blockSignals(False)
         self.filewise_file_list.setUpdatesEnabled(True)
 
@@ -358,7 +363,9 @@ class DiffMixin:
             fitem = QListWidgetItem(display)
             fitem.setToolTip(path1)
 
-            stat_val = file_stats.get(path1)
+            # For renamed files, stats are stored under the display name "old => new"
+            stats_key = display if status == 'R' else path1
+            stat_val = file_stats.get(stats_key)
             mode_val = mode_map.get(path1) or mode_map.get(path)
             if stat_val and mode_val:
                 user_data = (stat_val[0], stat_val[1], stat_val[2], stat_val[3], mode_val[0], mode_val[1])
@@ -1010,8 +1017,10 @@ class DiffMixin:
             else:
                 entry = item_data.get("entry")
                 if entry:
-                    path1 = entry[1]
-                    stats = file_stats.get(path1)
+                    status, path1, path2 = entry
+                    # For renamed files, stats are stored under the display name "old => new"
+                    stats_key = f"{path1} => {path2}" if status == 'R' else path1
+                    stats = file_stats.get(stats_key)
                     if stats:
                         old_size = stats[2] if len(stats) > 2 else 0
                         new_size = stats[3] if len(stats) > 3 else 0
