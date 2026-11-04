@@ -442,27 +442,33 @@ class DiffMixin:
         head_sha = self.get_head_sha()
         is_head = bool(commit_sha) and (commit_sha == head_sha or head_sha.startswith(commit_sha))
         add_open_with_system_default_action(menu, target_path, self, sha=commit_sha, is_head=is_head)
+
+        checked_files = self._checked_filewise_files()
+        multi_select = len(checked_files) > 1
+
         blame_action = QAction("Blame file", self)
         blame_action.triggered.connect(lambda checked=False, text=target_path: open_blame_window(self, text, branch=commit_sha))
+        blame_action.setEnabled(not multi_select)
         menu.addAction(blame_action)
 
         if commit_sha:
             diff_ref_action = QAction("Diff against a different version of this file", self)
             diff_ref_action.triggered.connect(lambda checked=False, text=target_path, sha=commit_sha: self.handle_diff_file_at_ref(text, sha))
+            diff_ref_action.setEnabled(not multi_select)
             menu.addAction(diff_ref_action)
 
         copy_action = QAction("Copy filename to clipboard", self)
         copy_action.triggered.connect(lambda checked=False, text=target_path: self.copy_filename_to_clipboard(text))
+        copy_action.setEnabled(not multi_select)
         menu.addAction(copy_action)
 
         copy_fullpath_action = QAction("Copy fullpath to clipboard", self)
         copy_fullpath_action.triggered.connect(lambda checked=False, text=target_path: self.copy_fullpath_to_clipboard(text))
+        copy_fullpath_action.setEnabled(not multi_select)
         menu.addAction(copy_fullpath_action)
 
         if not self.browse_mode and not self.viewer_mode:
             is_only_file = self.filewise_file_list.count() <= 1
-
-            checked_files = self._checked_filewise_files()
             if len(checked_files) > 1:
                 move_label = "Move selected files changes out of this commit"
             elif len(checked_files) == 1:
@@ -1100,27 +1106,33 @@ class DiffMixin:
         head_sha = self.get_head_sha()
         is_head = bool(commit_sha) and (commit_sha == head_sha or head_sha.startswith(commit_sha))
         add_open_with_system_default_action(menu, target_path, self, sha=commit_sha, is_head=is_head)
+
+        checked_files = self._checked_treewise_files()
+        multi_select = len(checked_files) > 1
+
         blame_action = QAction("Blame file", self)
         blame_action.triggered.connect(lambda checked=False, text=target_path: open_blame_window(self, text, branch=commit_sha))
+        blame_action.setEnabled(not multi_select)
         menu.addAction(blame_action)
 
         if commit_sha:
             diff_ref_action = QAction("Diff against a different version of this file", self)
             diff_ref_action.triggered.connect(lambda checked=False, text=target_path, sha=commit_sha: self.handle_diff_file_at_ref(text, sha))
+            diff_ref_action.setEnabled(not multi_select)
             menu.addAction(diff_ref_action)
 
         copy_action = QAction("Copy filename to clipboard", self)
         copy_action.triggered.connect(lambda checked=False, text=target_path: self.copy_filename_to_clipboard(text))
+        copy_action.setEnabled(not multi_select)
         menu.addAction(copy_action)
 
         copy_fullpath_action = QAction("Copy fullpath to clipboard", self)
         copy_fullpath_action.triggered.connect(lambda checked=False, text=target_path: self.copy_fullpath_to_clipboard(text))
+        copy_fullpath_action.setEnabled(not multi_select)
         menu.addAction(copy_fullpath_action)
 
         if not self.browse_mode and not self.viewer_mode:
             is_only_file = self._count_treewise_files() <= 1
-
-            checked_files = self._checked_treewise_files()
             if len(checked_files) > 1:
                 move_label = "Move selected files changes out of this commit"
             elif len(checked_files) == 1:

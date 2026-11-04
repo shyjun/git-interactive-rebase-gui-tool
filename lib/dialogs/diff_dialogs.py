@@ -1676,22 +1676,27 @@ class SingleCommitViewDialog(QDialog):
         head = _get_head_sha(self.repo_path)
         add_open_with_system_default_action(menu, target_path, self, sha=self.sha,
             is_head=self.sha == head or head.startswith(self.sha))
+
+        checked_files = self._checked_treewise_files()
+        multi_select = len(checked_files) > 1
+
         blame_action = QAction("Blame file", self)
         blame_action.triggered.connect(lambda checked=False, text=target_path: open_blame_window(self, text, branch=self.sha))
+        blame_action.setEnabled(not multi_select)
         menu.addAction(blame_action)
 
         diff_ref_action = QAction("Diff against a different version of this file", self)
         diff_ref_action.triggered.connect(lambda checked=False, text=target_path: self.handle_diff_file_at_ref(text, self.sha))
+        diff_ref_action.setEnabled(not multi_select)
         menu.addAction(diff_ref_action)
 
         copy_action = QAction("Copy filename to clipboard", self)
         copy_action.triggered.connect(lambda checked=False, text=target_path: self.copy_filename_to_clipboard(target_path))
+        copy_action.setEnabled(not multi_select)
         menu.addAction(copy_action)
 
         if self.editable and is_editable_branch(self):
             is_only_file = self.filewise_file_list.count() <= 1
-
-            checked_files = self._checked_treewise_files()
             if len(checked_files) > 1:
                 move_label = "Move selected files changes out of this commit"
             elif len(checked_files) == 1:
@@ -1746,22 +1751,27 @@ class SingleCommitViewDialog(QDialog):
         head = _get_head_sha(self.repo_path)
         add_open_with_system_default_action(menu, target_path, self, sha=self.sha,
             is_head=self.sha == head or head.startswith(self.sha))
+
+        checked_files = self._checked_filewise_files()
+        multi_select = len(checked_files) > 1
+
         blame_action = QAction("Blame file", self)
         blame_action.triggered.connect(lambda checked=False, text=target_path: open_blame_window(self, text, branch=self.sha))
+        blame_action.setEnabled(not multi_select)
         menu.addAction(blame_action)
 
         diff_ref_action = QAction("Diff against a different version of this file", self)
         diff_ref_action.triggered.connect(lambda checked=False, text=target_path: self.handle_diff_file_at_ref(text, self.sha))
+        diff_ref_action.setEnabled(not multi_select)
         menu.addAction(diff_ref_action)
 
         copy_action = QAction("Copy filename to clipboard", self)
         copy_action.triggered.connect(lambda checked=False, text=target_path: self.copy_filename_to_clipboard(text))
+        copy_action.setEnabled(not multi_select)
         menu.addAction(copy_action)
 
         if self.editable and is_editable_branch(self):
             is_only_file = self.filewise_file_list.count() <= 1
-
-            checked_files = self._checked_filewise_files()
             if len(checked_files) > 1:
                 move_label = "Move selected files changes out of this commit"
             elif len(checked_files) == 1:
@@ -2160,12 +2170,18 @@ class FileWiseViewDialog(QDialog):
         head = _get_head_sha(self.repo_path)
         add_open_with_system_default_action(menu, target_path, self, sha=self.sha,
             is_head=self.sha == head or head.startswith(self.sha))
+
+        checked_files = self._checked_files()
+        multi_select = len(checked_files) > 1
+
         blame_action = QAction("Blame file", self)
         blame_action.triggered.connect(lambda checked=False, text=target_path: open_blame_window(self, text, branch=self.sha))
+        blame_action.setEnabled(not multi_select)
         menu.addAction(blame_action)
 
         copy_action = QAction("Copy filename to clipboard", self)
         copy_action.triggered.connect(lambda checked=False, text=target_path: self.copy_filename_to_clipboard(text))
+        copy_action.setEnabled(not multi_select)
         menu.addAction(copy_action)
 
         is_only_file = self.file_list.count() <= 1

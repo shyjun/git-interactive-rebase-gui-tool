@@ -1243,12 +1243,18 @@ class DropFileFromCommitDialog(QDialog):
         filepath = entry[1] if entry else item.text()
         add_open_with_system_default_action(menu, filepath, self, sha=self.sha,
             is_head=self.sha == head or head.startswith(self.sha))
+
+        checked_files = self._checked_filewise_files()
+        multi_select = len(checked_files) > 1
+
         blame_action = QAction("Blame file", self)
         blame_action.triggered.connect(lambda checked=False, text=filepath: open_blame_window(self, text, branch=self.sha))
+        blame_action.setEnabled(not multi_select)
         menu.addAction(blame_action)
 
         copy_action = QAction("Copy filename to clipboard", self)
         copy_action.triggered.connect(lambda checked=False, text=filepath: self._copy_filename(text))
+        copy_action.setEnabled(not multi_select)
         menu.addAction(copy_action)
 
         if is_editable_branch(self):
@@ -1277,12 +1283,18 @@ class DropFileFromCommitDialog(QDialog):
         head = _get_head_sha(self.repo_path)
         add_open_with_system_default_action(menu, filepath, self, sha=self.sha,
             is_head=self.sha == head or head.startswith(self.sha))
+
+        checked_files = self._checked_treewise_files()
+        multi_select = len(checked_files) > 1
+
         blame_action = QAction("Blame file", self)
         blame_action.triggered.connect(lambda checked=False, text=filepath: open_blame_window(self, text, branch=self.sha))
+        blame_action.setEnabled(not multi_select)
         menu.addAction(blame_action)
 
         copy_action = QAction("Copy filename to clipboard", self)
         copy_action.triggered.connect(lambda checked=False, text=filepath: self._copy_filename(text))
+        copy_action.setEnabled(not multi_select)
         menu.addAction(copy_action)
 
         if is_editable_branch(self):
