@@ -1,4 +1,5 @@
 import os
+import subprocess
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
@@ -13,6 +14,33 @@ from PySide6.QtWidgets import (
 )
 
 from lib.app_window.helpers import mono_font
+
+
+def _norm_path(path):
+    """Normalizes a user-entered repo-relative path: strips whitespace, turns
+    backslashes into '/', collapses duplicate slashes, drops a leading './'
+    and any trailing '/'."""
+    p = (path or "").strip().replace("\\", "/").strip("/")
+    while "//" in p:
+        p = p.replace("//", "/")
+    while p.startswith("./"):
+        p = p[2:]
+    return p
+
+
+def _pick_rel_or_warn(parent, repo_path, abs_path):
+    """Converts an absolute path to a repo-relative '/' path, warning and
+    returning None when it lies outside the repository."""
+    try:
+        rel = os.path.relpath(abs_path, repo_path)
+    except ValueError:
+        rel = ".."
+    if rel.startswith(".."):
+        QMessageBox.warning(
+            parent, "Outside repository",
+            "Please choose a path inside the repository.")
+        return None
+    return rel.replace(os.sep, "/").rstrip("/")
 
 
 class RenameMoveDialog(QDialog):
@@ -199,16 +227,7 @@ class RenameMoveDialog(QDialog):
     def _rel_or_warn(self, abs_path):
         """Converts an absolute path to a repo-relative '/' path, warning and
         returning None when it lies outside the repository."""
-        try:
-            rel = os.path.relpath(abs_path, self.repo_path)
-        except ValueError:
-            rel = ".."
-        if rel.startswith(".."):
-            QMessageBox.warning(
-                self, "Outside repository",
-                "Please choose a path inside the repository.")
-            return None
-        return rel.replace(os.sep, "/").rstrip("/")
+        return _pick_rel_or_warn(self, self.repo_path, abs_path)
 
     def _pick_source_file(self):
         path, _ = QFileDialog.getOpenFileName(
@@ -245,12 +264,7 @@ class RenameMoveDialog(QDialog):
 
     @staticmethod
     def _norm(path):
-        p = (path or "").strip().replace("\\", "/").strip("/")
-        while "//" in p:
-            p = p.replace("//", "/")
-        while p.startswith("./"):
-            p = p[2:]
-        return p
+        return _norm_path(path)
 
     def _validate(self):
         src = self._norm(self.src_edit.text())
@@ -306,6 +320,262 @@ class RenameMoveDialog(QDialog):
 
         self.src_path = src
         self.dst_path = dst
+        return True
+
+    def _on_stage(self):
+        if self._validate():
+            self.action = self.StageAction
+            self.accept()
+
+    def _on_commit(self):
+        if self._validate():
+            self.action = self.CommitAction
+            self.accept()
+
+    def _on_amend(self):
+        if self._validate():
+            self.action = self.AmendAction
+            self.accept()
+
+
+class RemoveFileDialog(QDialog):
+    """Pick a tracked path to remove from the repository, then choose how
+    the removal should land in git: staged only, committed as a new commit,
+    or amended into HEAD.
+
+    Returns the normalized repo-relative path via *path* and the chosen
+    action via *action* (StageAction / CommitAction / AmendAction).
+    Validation runs on every action click; the dialog stays open with a
+    warning on invalid input. Nothing is deleted here — the caller shows a
+    Yes/No confirmation (and, for commit/amend, the message dialog) before
+    any mutation."""
+
+    StageAction = "stage"
+    CommitAction = "commit"
+    AmendAction = "amend"
+
+    def __init__(self, repo_path, font_size=10, font_family=None, parent=None):
+        super().__init__(parent)
+        self.repo_path = repo_path
+        self.action = self.StageAction
+        self.path = ""
+        self.font_size = font_size
+        self.font_family = font_family
+
+        self.setWindowTitle("Remove a File from Repo")
+        self.setMinimumWidth(560)
+        self.setModal(True)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(12)
+
+        header = QLabel(
+            "Remove a tracked file or folder from the repository "
+            "(<code>git rm</code>): it is deleted from the working tree and "
+            "staged as a deletion. It stays in git history and can be "
+            "restored from any commit."
+        )
+        header.setTextFormat(Qt.RichText)
+        header.setWordWrap(True)
+        layout.addWidget(header)
+
+        layout.addWidget(QLabel("Path (repo-relative):"))
+        path_row = QHBoxLayout()
+        path_row.setSpacing(6)
+        self.path_edit = QLineEdit()
+        self.path_edit.setPlaceholderText("e.g. docs/old.md, src/utils.py")
+        self.path_edit.setToolTip(
+            "Path of the file or folder to remove, relative to the repository root."
+        )
+        self.path_edit.setFont(mono_font(font_size, family=font_family))
+        path_row.addWidget(self.path_edit, 1)
+        pick_file_btn = QPushButton("File…")
+        pick_file_btn.setToolTip("Pick a file inside the repository.")
+        pick_file_btn.clicked.connect(self._pick_file)
+        path_row.addWidget(pick_file_btn)
+        pick_dir_btn = QPushButton("Folder…")
+        pick_dir_btn.setToolTip(
+            "Pick a folder inside the repository (removed recursively)."
+        )
+        pick_dir_btn.clicked.connect(self._pick_dir)
+        path_row.addWidget(pick_dir_btn)
+        layout.addLayout(path_row)
+
+        note = QLabel(
+            "<b>Stage</b> only records the deletion in the index — handle it "
+            "later via <b>Repo → Handle Staged Changes</b>. <b>Commit</b> and "
+            "<b>Amend</b> open the commit-message dialog (Amend pre-fills "
+            "HEAD's message). A confirmation appears before anything is "
+            "deleted."
+        )
+        note.setTextFormat(Qt.RichText)
+        note.setWordWrap(True)
+        layout.addWidget(note)
+
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(10)
+
+        self.amend_btn = QPushButton("commit --amend the removal")
+        self.amend_btn.setToolTip(
+            "Remove the path and amend the deletion into the HEAD commit, message editable."
+        )
+        self.amend_btn.setStyleSheet(
+            "QPushButton { color: #8e44ad; border: 2px solid #8e44ad; padding: 10px 18px; "
+            "border-radius: 6px; font-weight: bold; } "
+            "QPushButton:hover { background-color: #f6eefb; }"
+        )
+
+        self.commit_btn = QPushButton("Commit the Removal")
+        self.commit_btn.setDefault(True)
+        self.commit_btn.setToolTip(
+            "Remove the path and commit the deletion as a new commit (git commit --only)."
+        )
+        self.commit_btn.setStyleSheet(
+            "QPushButton { color: #0055cc; border: 2px solid #0055cc; padding: 10px 18px; "
+            "border-radius: 6px; font-weight: bold; } "
+            "QPushButton:hover { background-color: #eef4ff; }"
+        )
+
+        self.stage_btn = QPushButton("Stage the Removal")
+        self.stage_btn.setToolTip(
+            "Remove the path; the deletion lands in the index (git rm) for "
+            "Repo → Handle Staged Changes."
+        )
+        self.stage_btn.setStyleSheet(
+            "QPushButton { color: #22863a; border: 2px solid #22863a; padding: 10px 18px; "
+            "border-radius: 6px; font-weight: bold; } "
+            "QPushButton:hover { background-color: #f0fff0; }"
+        )
+
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.setToolTip("Close without removing anything.")
+        cancel_btn.setStyleSheet(
+            "QPushButton { color: #555; border: 2px solid #555; padding: 10px 18px; "
+            "border-radius: 6px; font-weight: bold; } "
+            "QPushButton:hover { background-color: #f5f5f5; }"
+        )
+
+        self.amend_btn.clicked.connect(self._on_amend)
+        self.commit_btn.clicked.connect(self._on_commit)
+        self.stage_btn.clicked.connect(self._on_stage)
+        cancel_btn.clicked.connect(self.reject)
+
+        # One column per button with a small colored note underneath, exactly
+        # like the Commit Selectively dialog.
+        amend_col = QVBoxLayout()
+        amend_col.setSpacing(2)
+        amend_col.addWidget(self.amend_btn)
+        amend_note = QLabel("(amend HEAD message)")
+        amend_note.setStyleSheet("color: #8e44ad; font-size: 11px;")
+        amend_note.setAlignment(Qt.AlignCenter)
+        amend_col.addWidget(amend_note)
+
+        commit_col = QVBoxLayout()
+        commit_col.setSpacing(2)
+        commit_col.addWidget(self.commit_btn)
+        commit_note = QLabel("(new commit, only this path)")
+        commit_note.setStyleSheet("color: #0055cc; font-size: 11px;")
+        commit_note.setAlignment(Qt.AlignCenter)
+        commit_col.addWidget(commit_note)
+
+        stage_col = QVBoxLayout()
+        stage_col.setSpacing(2)
+        stage_col.addWidget(self.stage_btn)
+        stage_note = QLabel("(stage for Handle Staged Changes)")
+        stage_note.setStyleSheet("color: #22863a; font-size: 11px;")
+        stage_note.setAlignment(Qt.AlignCenter)
+        stage_col.addWidget(stage_note)
+
+        cancel_col = QVBoxLayout()
+        cancel_col.setSpacing(2)
+        cancel_col.addWidget(cancel_btn)
+        cancel_note = QLabel("Cancel")
+        cancel_note.setStyleSheet("color: #555; font-size: 11px;")
+        cancel_note.setAlignment(Qt.AlignCenter)
+        cancel_col.addWidget(cancel_note)
+
+        btn_row.addStretch()
+        btn_row.addLayout(amend_col)
+        btn_row.addLayout(commit_col)
+        btn_row.addLayout(stage_col)
+        btn_row.addLayout(cancel_col)
+        layout.addLayout(btn_row)
+
+        self.path_edit.setFocus()
+
+    # ------------------------------------------------------------------ #
+    # Path picking
+    # ------------------------------------------------------------------ #
+
+    def _pick_file(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Select file to remove", self.repo_path)
+        if path:
+            rel = _pick_rel_or_warn(self, self.repo_path, path)
+            if rel:
+                self.path_edit.setText(rel)
+
+    def _pick_dir(self):
+        path = QFileDialog.getExistingDirectory(
+            self, "Select folder to remove", self.repo_path)
+        if path:
+            rel = _pick_rel_or_warn(self, self.repo_path, path)
+            if rel:
+                self.path_edit.setText(rel)
+
+    # ------------------------------------------------------------------ #
+    # Validation and action selection
+    # ------------------------------------------------------------------ #
+
+    def _validate(self):
+        path = _norm_path(self.path_edit.text())
+        if not path:
+            QMessageBox.warning(
+                self, "Missing path", "Please enter a path to remove.")
+            return False
+
+        root = os.path.realpath(self.repo_path)
+        abs_path = os.path.realpath(os.path.join(self.repo_path, path))
+        if abs_path == root:
+            QMessageBox.warning(
+                self, "Repository root",
+                "Cannot remove the repository root itself.")
+            return False
+        if not abs_path.startswith(root + os.sep):
+            QMessageBox.warning(
+                self, "Outside repository",
+                "The path must be inside the repository.")
+            return False
+        if ".git" in path.split("/"):
+            QMessageBox.warning(
+                self, "Inside .git",
+                "Paths under .git/ cannot be removed.")
+            return False
+        if not os.path.exists(abs_path):
+            QMessageBox.warning(
+                self, "Missing path",
+                f"The path does not exist:\n{path}")
+            return False
+        # Read-only tracked check, so an untracked path is rejected here —
+        # before the caller's destructive confirmation dialog.
+        try:
+            listed = subprocess.run(
+                ["git", "ls-files", "--", path],
+                cwd=self.repo_path, capture_output=True, text=True,
+                encoding="utf-8", errors="replace", check=True)
+            tracked = bool(listed.stdout.strip())
+        except (OSError, subprocess.CalledProcessError):
+            tracked = True  # remove_file_path() reports the real failure
+        if not tracked:
+            QMessageBox.warning(
+                self, "Not tracked",
+                f"Not tracked by git:\n{path}\n\n"
+                "Only tracked files and folders can be removed — an "
+                "untracked path has no history to restore from.")
+            return False
+
+        self.path = path
         return True
 
     def _on_stage(self):

@@ -333,6 +333,14 @@ class MenusMixin:
         )
         rename_move_action.triggered.connect(lambda *_: self.handle_rename_move())
 
+        remove_file_action = QAction("Remove a File from Repo…", self)
+        remove_file_action.setToolTip(
+            "Remove a tracked file/folder from the repository (git rm): it is "
+            "deleted from the working tree, then staged, committed, or amended "
+            "into HEAD."
+        )
+        remove_file_action.triggered.connect(lambda *_: self.handle_remove_file())
+
         submodules_action = QAction("Submodules…", self)
         submodules_action.setToolTip(
             "View and manage submodules: stage / commit / discard pointer changes "
@@ -355,7 +363,9 @@ class MenusMixin:
         menu.addAction(browse_stash_action)
         menu.addAction(open_file_ref_action)
         menu.addAction(merge_base_action)
+        menu.addSeparator()
         menu.addAction(rename_move_action)
+        menu.addAction(remove_file_action)
         menu.addSeparator()
         menu.addAction(submodules_action)
         return menu

@@ -62,6 +62,7 @@ from .unstaged_dialogs import (
 )
 
 from .rename_move_dialog import (
+    RemoveFileDialog,
     RenameMoveDialog,
 )
 

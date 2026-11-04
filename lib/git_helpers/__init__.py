@@ -117,6 +117,8 @@ from .commit_ops import (
 )
 
 from .file_ops import (
+    path_is_dirty,
+    remove_file_path,
     rename_move_path,
 )
 
