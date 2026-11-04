@@ -1723,17 +1723,20 @@ class SingleCommitViewDialog(QDialog):
 
             remove_onwards_action = QAction("Remove file from this commit onwards", self)
             remove_onwards_action.triggered.connect(lambda checked=False, text=target_path: self.remove_file_onwards(text))
+            remove_onwards_action.setEnabled(not multi_select)
             menu.addAction(remove_onwards_action)
 
             menu.addSeparator()
             refine_action = QAction("Refine/Edit changes in selected file", self)
             refine_action.triggered.connect(lambda checked=False, text=target_path: self.refine_file(text))
+            refine_action.setEnabled(not multi_select)
             menu.addAction(refine_action)
 
         menu.addSeparator()
         browse_log_action = QAction("Browse file log", self)
         browse_log_action.setToolTip("Open a read-only viewer of this file's history.")
         browse_log_action.triggered.connect(lambda checked=False, text=target_path: self.browse_file_log(text))
+        browse_log_action.setEnabled(not multi_select)
         menu.addAction(browse_log_action)
         menu.exec(self.treewise_tree.mapToGlobal(pos))
 
@@ -1798,17 +1801,20 @@ class SingleCommitViewDialog(QDialog):
 
             remove_onwards_action = QAction("Remove file from this commit onwards", self)
             remove_onwards_action.triggered.connect(lambda checked=False, text=target_path: self.remove_file_onwards(text))
+            remove_onwards_action.setEnabled(not multi_select)
             menu.addAction(remove_onwards_action)
 
             menu.addSeparator()
             refine_action = QAction("Refine/Edit changes in selected file", self)
             refine_action.triggered.connect(lambda checked=False, text=target_path: self.refine_file(text))
+            refine_action.setEnabled(not multi_select)
             menu.addAction(refine_action)
 
         menu.addSeparator()
         browse_log_action = QAction("Browse file log", self)
         browse_log_action.setToolTip("Open a read-only viewer of this file's history.")
         browse_log_action.triggered.connect(lambda checked=False, text=target_path: self.browse_file_log(text))
+        browse_log_action.setEnabled(not multi_select)
         menu.addAction(browse_log_action)
         menu.exec(self.filewise_file_list.mapToGlobal(pos))
 
@@ -2198,17 +2204,20 @@ class FileWiseViewDialog(QDialog):
 
         remove_onwards_action = QAction("Remove file from this commit onwards", self)
         remove_onwards_action.triggered.connect(lambda checked=False, text=target_path: self.remove_file_onwards(text))
+        remove_onwards_action.setEnabled(not multi_select)
         menu.addAction(remove_onwards_action)
 
         menu.addSeparator()
         refine_action = QAction("Refine/Edit changes in selected file", self)
         refine_action.triggered.connect(lambda checked=False, text=target_path: self.refine_file(text))
+        refine_action.setEnabled(not multi_select)
         menu.addAction(refine_action)
 
         menu.addSeparator()
         browse_log_action = QAction("Browse file log", self)
         browse_log_action.setToolTip("Open a read-only viewer of this file's history.")
         browse_log_action.triggered.connect(lambda checked=False, text=target_path: self.browse_file_log(text))
+        browse_log_action.setEnabled(not multi_select)
         menu.addAction(browse_log_action)
 
         menu.exec(self.file_list.mapToGlobal(pos))

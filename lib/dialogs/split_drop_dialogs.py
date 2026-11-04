@@ -1264,6 +1264,7 @@ class DropFileFromCommitDialog(QDialog):
 
             remove_onwards_action = QAction("Remove file from this commit onwards", self)
             remove_onwards_action.triggered.connect(lambda checked=False, text=filepath: self.remove_file_onwards(text))
+            remove_onwards_action.setEnabled(not multi_select)
             menu.addAction(remove_onwards_action)
 
         menu.exec(self.filewise_file_list.mapToGlobal(pos))
@@ -1304,6 +1305,7 @@ class DropFileFromCommitDialog(QDialog):
 
             remove_onwards_action = QAction("Remove file from this commit onwards", self)
             remove_onwards_action.triggered.connect(lambda checked=False, text=filepath: self.remove_file_onwards(text))
+            remove_onwards_action.setEnabled(not multi_select)
             menu.addAction(remove_onwards_action)
 
         menu.exec(self.treewise_tree.mapToGlobal(pos))
