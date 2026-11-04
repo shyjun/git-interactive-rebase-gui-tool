@@ -16,6 +16,7 @@ from .commit_action_dialogs import (
     ConfirmDropFileDialog,
     ConfirmMoveFileDialog,
     ConfirmRemoveFileOnwardsDialog,
+    ConfirmRenameFileOnwardsDialog,
     DropDialog,
     DropFileFromCommitDialog,
     MultiSquashDialog,

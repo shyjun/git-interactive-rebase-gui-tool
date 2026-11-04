@@ -19,6 +19,7 @@ from lib.dialogs import (
     ConfirmDropFileDialog,
     ConfirmMoveFileDialog,
     ConfirmRemoveFileOnwardsDialog,
+    ConfirmRenameFileOnwardsDialog,
     DropFileFromCommitDialog,
     ProgressDialog,
     SplitCommitDialog,
