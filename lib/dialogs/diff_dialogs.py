@@ -1721,6 +1721,12 @@ class SingleCommitViewDialog(QDialog):
             drop_action.setEnabled(not is_only_file)
             menu.addAction(drop_action)
 
+            menu.addSeparator()
+            rename_onwards_action = QAction("Rename file from this commit onwards", self)
+            rename_onwards_action.triggered.connect(lambda checked=False, text=target_path: self.rename_file_onwards(text))
+            rename_onwards_action.setEnabled(not multi_select)
+            menu.addAction(rename_onwards_action)
+
             remove_onwards_action = QAction("Remove file from this commit onwards", self)
             remove_onwards_action.triggered.connect(lambda checked=False, text=target_path: self.remove_file_onwards(text))
             remove_onwards_action.setEnabled(not multi_select)
@@ -1798,6 +1804,12 @@ class SingleCommitViewDialog(QDialog):
             drop_action.triggered.connect(lambda checked=False, text=target_path, files=checked_files: self.drop_file(text, files))
             drop_action.setEnabled(not is_only_file)
             menu.addAction(drop_action)
+
+            menu.addSeparator()
+            rename_onwards_action = QAction("Rename file from this commit onwards", self)
+            rename_onwards_action.triggered.connect(lambda checked=False, text=target_path: self.rename_file_onwards(text))
+            rename_onwards_action.setEnabled(not multi_select)
+            menu.addAction(rename_onwards_action)
 
             remove_onwards_action = QAction("Remove file from this commit onwards", self)
             remove_onwards_action.triggered.connect(lambda checked=False, text=target_path: self.remove_file_onwards(text))
@@ -2202,6 +2214,12 @@ class FileWiseViewDialog(QDialog):
         drop_action.setEnabled(not is_only_file)
         menu.addAction(drop_action)
 
+        menu.addSeparator()
+        rename_onwards_action = QAction("Rename file from this commit onwards", self)
+        rename_onwards_action.triggered.connect(lambda checked=False, text=target_path: self.rename_file_onwards(text))
+        rename_onwards_action.setEnabled(not multi_select)
+        menu.addAction(rename_onwards_action)
+
         remove_onwards_action = QAction("Remove file from this commit onwards", self)
         remove_onwards_action.triggered.connect(lambda checked=False, text=target_path: self.remove_file_onwards(text))
         remove_onwards_action.setEnabled(not multi_select)
@@ -2247,13 +2265,13 @@ class FileWiseViewDialog(QDialog):
             self.accept()
             QTimer.singleShot(0, lambda: main_win.perform_remove_file_from_commit_onwards(self.sha, filepath))
 
-    def refine_file(self, filepath):
+    def rename_file_onwards(self, filepath):
         main_win = self.parent() if isinstance(self.parent(), QMainWindow) else None
-        if main_win and hasattr(main_win, 'perform_refine_changes'):
+        if main_win and hasattr(main_win, 'perform_rename_file_from_commit_onwards'):
             self.accept()
-            QTimer.singleShot(0, lambda: main_win.perform_refine_changes(self.sha, filepath))
+            QTimer.singleShot(0, lambda: main_win.perform_rename_file_from_commit_onwards(self.sha, filepath))
 
-    def copy_filename_to_clipboard(self, filename):
+    def refine_file(self, filepath):
         QApplication.clipboard().setText(filename)
         QMessageBox.information(self, "Copied", f"Copied '{filename}' to clipboard.")
 

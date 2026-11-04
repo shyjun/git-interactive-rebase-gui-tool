@@ -1262,6 +1262,12 @@ class DropFileFromCommitDialog(QDialog):
             drop_action.triggered.connect(lambda checked=False, text=filepath: self._single_drop(text))
             menu.addAction(drop_action)
 
+            menu.addSeparator()
+            rename_onwards_action = QAction("Rename file from this commit onwards", self)
+            rename_onwards_action.triggered.connect(lambda checked=False, text=filepath: self.rename_file_onwards(text))
+            rename_onwards_action.setEnabled(not multi_select)
+            menu.addAction(rename_onwards_action)
+
             remove_onwards_action = QAction("Remove file from this commit onwards", self)
             remove_onwards_action.triggered.connect(lambda checked=False, text=filepath: self.remove_file_onwards(text))
             remove_onwards_action.setEnabled(not multi_select)
@@ -1303,6 +1309,12 @@ class DropFileFromCommitDialog(QDialog):
             drop_action.triggered.connect(lambda checked=False, text=filepath: self._single_drop(text))
             menu.addAction(drop_action)
 
+            menu.addSeparator()
+            rename_onwards_action = QAction("Rename file from this commit onwards", self)
+            rename_onwards_action.triggered.connect(lambda checked=False, text=filepath: self.rename_file_onwards(text))
+            rename_onwards_action.setEnabled(not multi_select)
+            menu.addAction(rename_onwards_action)
+
             remove_onwards_action = QAction("Remove file from this commit onwards", self)
             remove_onwards_action.triggered.connect(lambda checked=False, text=filepath: self.remove_file_onwards(text))
             remove_onwards_action.setEnabled(not multi_select)
@@ -1321,6 +1333,12 @@ class DropFileFromCommitDialog(QDialog):
         if main_win and hasattr(main_win, 'perform_remove_file_from_commit_onwards'):
             self.accept()
             QTimer.singleShot(0, lambda: main_win.perform_remove_file_from_commit_onwards(self.sha, filepath))
+
+    def rename_file_onwards(self, filepath):
+        main_win = self.parent() if isinstance(self.parent(), QMainWindow) else None
+        if main_win and hasattr(main_win, 'perform_rename_file_from_commit_onwards'):
+            self.accept()
+            QTimer.singleShot(0, lambda: main_win.perform_rename_file_from_commit_onwards(self.sha, filepath))
 
     def _copy_filename(self, filename):
         QApplication.clipboard().setText(filename)
@@ -1561,6 +1579,109 @@ class AggressiveRemoveConfirmationDialog(QDialog):
         btn_layout.addStretch()
 
         layout.addLayout(btn_layout)
+
+
+class ConfirmRenameFileOnwardsDialog(DiffViewerDialog):
+    """Confirmation dialog for renaming a file from a commit and all subsequent commits."""
+    def __init__(self, sha, filepath, diff_text, later_modifications_detected=False, font_size=10, font_family=None, parent=None):
+        self.filepath = filepath
+        self.later_modifications_detected = later_modifications_detected
+        self.new_filepath = None
+        super().__init__("Rename File from This Commit Onwards?", sha, diff_text, font_size, font_family, parent)
+
+    def setup_header(self, sha):
+        msg = (
+            f"<b>Current file:</b><br>{self.filepath}<br><br>"
+            f"This will rename the file in:<br><br>"
+            f"✓ Selected commit ({sha})"
+        )
+        if self.later_modifications_detected:
+            msg += "<br>✓ All following commits that modify it"
+
+        label = QLabel(msg)
+        label.setWordWrap(True)
+        label.setTextFormat(Qt.RichText)
+        self.content_layout.addWidget(label)
+
+        # New filename input
+        input_label = QLabel("<b>New file path:</b>")
+        input_label.setTextFormat(Qt.RichText)
+        self.content_layout.addWidget(input_label)
+
+        self.new_path_edit = QLineEdit()
+        self.new_path_edit.setText(self.filepath)
+        self.new_path_edit.setPlaceholderText("Enter new file path")
+        self.new_path_edit.setFont(mono_font(self.font_size, family=self.font_family))
+        self.content_layout.addWidget(self.new_path_edit)
+
+        if self.later_modifications_detected:
+            # Use theme-aware warning color
+            main_win = self.parent() if isinstance(self.parent(), QMainWindow) else None
+            warning_color = "#f92672"
+            if main_win and hasattr(main_win, 'current_theme_colors'):
+                warning_color = main_win.current_theme_colors["removed"]
+            warning_label = QLabel(
+                "<b>Warning:</b><br>"
+                "This file is modified in later commits.<br><br>"
+                "The operation may fail or stop during rebase and require manual conflict resolution."
+            )
+            warning_label.setWordWrap(True)
+            warning_label.setTextFormat(Qt.RichText)
+            warning_label.setStyleSheet(f"color: {warning_color}; padding: 6px; border: 1px solid {warning_color}; border-radius: 4px;")
+            self.content_layout.addWidget(warning_label)
+
+    def setup_buttons(self):
+        if self.later_modifications_detected:
+            self.yes_btn = QPushButton("Yes, Rename in Future Commits Too")
+            self.no_btn = QPushButton("Cancel")
+
+            # Make the yes button red to indicate potentially destructive action
+            main_win = self.parent() if isinstance(self.parent(), QMainWindow) else None
+            warning_color = "#f92672"  # default red
+            if main_win and hasattr(main_win, 'current_theme_colors'):
+                warning_color = main_win.current_theme_colors.get("removed", "#f92672")
+
+            self.yes_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: transparent;
+                    color: {warning_color};
+                    border: 1px solid {warning_color};
+                    border-radius: 4px;
+                    padding: 8px 16px;
+                }}
+                QPushButton:hover {{
+                    background-color: rgba(249, 38, 114, 0.1);
+                }}
+            """)
+            self.no_btn.setProperty("class", "dialog-btn")
+        else:
+            self.yes_btn = QPushButton("Yes, Rename from this commit onwards")
+            self.no_btn = QPushButton("No, Cancel")
+            self.yes_btn.setProperty("class", "dialog-btn")
+            self.no_btn.setProperty("class", "dialog-btn")
+
+        self.yes_btn.setMinimumWidth(260)
+        self.no_btn.setMinimumWidth(120)
+
+        self.yes_btn.clicked.connect(self._on_accept)
+        self.no_btn.clicked.connect(self.reject)
+
+        self.btn_layout.addWidget(self.yes_btn)
+        self.btn_layout.addWidget(self.no_btn)
+
+    def _on_accept(self):
+        new_path = self.new_path_edit.text().strip()
+        if not new_path:
+            QMessageBox.warning(self, "Error", "Please enter a new file path.")
+            return
+        if new_path == self.filepath:
+            QMessageBox.warning(self, "Error", "New file path must be different from the current path.")
+            return
+        self.new_filepath = new_path
+        self.accept()
+
+    def get_new_filepath(self):
+        return self.new_filepath
 
 
 class RefineFileSelectDialog(SplitCommitDialog):

@@ -9,6 +9,7 @@ from .split_drop_dialogs import (
     ConfirmDropFileDialog,
     ConfirmMoveFileDialog,
     ConfirmRemoveFileOnwardsDialog,
+    ConfirmRenameFileOnwardsDialog,
     AggressiveRemoveConfirmationDialog,
     RefineFileSelectDialog,
 )
@@ -32,6 +33,7 @@ __all__ = [
     "ConfirmDropFileDialog",
     "ConfirmMoveFileDialog",
     "ConfirmRemoveFileOnwardsDialog",
+    "ConfirmRenameFileOnwardsDialog",
     "AggressiveRemoveConfirmationDialog",
     "RefineFileSelectDialog",
     "DropDialog",

@@ -493,6 +493,12 @@ class DiffMixin:
             drop_action.setEnabled(not is_only_file)
             menu.addAction(drop_action)
 
+            menu.addSeparator()
+            rename_onwards_action = QAction("Rename file from this commit onwards", self)
+            rename_onwards_action.triggered.connect(lambda checked=False, text=target_path: self.handle_context_rename_file_onwards(text))
+            rename_onwards_action.setEnabled(not multi_select)
+            menu.addAction(rename_onwards_action)
+
             remove_onwards_action = QAction("Remove file from this commit onwards", self)
             remove_onwards_action.triggered.connect(lambda checked=False, text=target_path: self.handle_context_remove_file_onwards(text))
             remove_onwards_action.setEnabled(not multi_select)
@@ -536,6 +542,13 @@ class DiffMixin:
             return
         sha = current_commit_item.text().split()[0]
         self.perform_remove_file_from_commit_onwards(sha, filepath)
+
+    def handle_context_rename_file_onwards(self, filepath):
+        current_commit_item = self.list_widget.currentItem()
+        if not current_commit_item:
+            return
+        sha = current_commit_item.text().split()[0]
+        self.perform_rename_file_from_commit_onwards(sha, filepath)
 
     def handle_context_refine_changes(self, filepath):
         current_commit_item = self.list_widget.currentItem()
@@ -1159,6 +1172,12 @@ class DiffMixin:
             drop_action.triggered.connect(lambda checked=False, text=target_path, files=checked_files: self.handle_context_drop_file(text, files))
             drop_action.setEnabled(not is_only_file)
             menu.addAction(drop_action)
+
+            menu.addSeparator()
+            rename_onwards_action = QAction("Rename file from this commit onwards", self)
+            rename_onwards_action.triggered.connect(lambda checked=False, text=target_path: self.handle_context_rename_file_onwards(text))
+            rename_onwards_action.setEnabled(not multi_select)
+            menu.addAction(rename_onwards_action)
 
             remove_onwards_action = QAction("Remove file from this commit onwards", self)
             remove_onwards_action.triggered.connect(lambda checked=False, text=target_path: self.handle_context_remove_file_onwards(text))
