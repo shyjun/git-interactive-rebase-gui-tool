@@ -85,7 +85,8 @@ Visual documentation for the Git Interactive Rebase GUI Tool. Each section descr
     - [56.2 Crash Handling](#562-crash-handling)
 57. [Submodule Manager](#57-submodule-manager)
 58. [Rename/Move a File/Folder](#58-renamemove-a-filefolder)
-59. [Keyboard Shortcuts](#59-keyboard-shortcuts)
+59. [Remove a File from Repo](#59-remove-a-file-from-repo)
+60. [Keyboard Shortcuts](#60-keyboard-shortcuts)
 
 ---
 
@@ -256,6 +257,7 @@ The **Repo** button in the main window's toolbar groups the repository-wide tool
 - **Open File at Commit…** → Browse and open a file at any commit, branch, or tag with the system default app. Enter a SHA/branch/tag, type or browse for a file, and open that version of the file (see [Open with System Default App](#102-file-wise-diff))
 - **Find Merge-base…** → Compute the merge-base between the current branch and another branch (see [Find Merge-base](#30-find-merge-base))
 - **Rename/Move a File/Folder…** → Rename or move a file/folder in the working tree, then choose **Stage** (index only), **Commit** (new commit), or **Amend** (into HEAD, message editable); the commit/amend dialogs open before anything moves, so cancelling aborts cleanly (see [Rename/Move a File/Folder](#58-renamemove-a-filefolder))
+- **Remove a File from Repo…** → Remove a tracked file/folder from the working tree (`git rm`, folders removed recursively), then choose **Stage** (index only), **Commit** (new commit), or **Amend** (into HEAD, message editable); a Yes/No confirmation appears before anything is deleted and warns when uncommitted changes would be discarded (`git rm -f`) — untracked paths are rejected, since they have no history to restore from (see [Remove a File from Repo](#59-remove-a-file-from-repo))
 - **Submodules…** → Open the manager for submodules and embedded gitlinks — stage, discard, or commit pointer changes (see [Submodule Manager](#57-submodule-manager))
 
 ---
@@ -1432,7 +1434,41 @@ Both fields take repo-relative paths (backslashes and a leading `./` are normali
 
 ---
 
-## 59. Keyboard Shortcuts
+## 59. Remove a File from Repo
+
+Delete a tracked file or folder from the working tree without leaving the tool.
+
+**Description:** Open **Repo → Remove a File from Repo…** (see [Repo Menu](#4-repo-menu)). The dialog has one path row:
+
+- **Path** — the repo-relative path to remove, with **File…** and **Folder…** browsers (a folder is removed recursively with `git rm -r`)
+
+The info line spells out the semantics: the path is deleted from the working tree and staged as a deletion; it stays in git history and can be restored from any commit.
+
+**Actions** — same button style as [Commit Selectively](#commit-selectively): colored border, bold label, and a small colored note underneath.
+
+| Button | Note | What happens |
+|--------|------|--------------|
+| **commit --amend the removal** (purple) | (amend HEAD message) | The confirmation appears first, then the message dialog opens pre-filled from HEAD — cancel aborts before anything is deleted. Then the path is removed (`git rm`) and the deletion is amended into HEAD with exactly this path (`git commit --amend --only`). |
+| **Commit the Removal** (blue, default) | (new commit, only this path) | The confirmation appears first, then the message dialog (default `remove <path>`); cancel aborts cleanly. Then the path is removed and the deletion is committed as a new commit containing exactly this path (`git commit --only`). |
+| **Stage the Removal** (green) | (stage for Handle Staged Changes) | After the confirmation, `git rm` deletes the path and stages the deletion itself — no extra `git add` — and a message points you to **Repo → Handle Staged Changes**. |
+| **Cancel** | Cancel | Closes the dialog; nothing is deleted. |
+
+**Guards:** the path must exist, be inside the repository, and be neither the repository root nor under `.git/`. Only **tracked** paths can be removed — an untracked path is rejected with a *not tracked* error, because deleting it would leave nothing to restore from.
+
+**Notes:**
+
+- A **Yes/No confirmation always appears before anything is deleted** — *No* leaves the repository untouched. The Commit / Amend message dialogs open after the confirmation and before the deletion, so cancelling at that point also aborts cleanly.
+- If the path has uncommitted changes, the confirmation warns that removing it discards them and the removal proceeds with `git rm -f`.
+- `git rm` stages the deletion itself, so **Stage** needs no separate `git add`.
+- Commit and Amend require an unchanged HEAD (you are prompted to refresh if it drifted) and save an undo state before mutating history; Viewer Mode disables the action entirely.
+- The staged deletion shows up as `D  path` in `git status`.
+
+<!-- PLACEHOLDER SCREENSHOT: capture the Remove a File from Repo dialog (Repo → Remove a File from Repo…) with a path filled in and add it to the git-interactive-rebase-gui-tool-screenshots repo as screenshots/remove-file.webp -->
+![Remove a File from Repo](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/remove-file.webp)
+
+---
+
+## 60. Keyboard Shortcuts
 Keyboard shortcuts for faster navigation and workflow.
 
 | Shortcut | Action |
