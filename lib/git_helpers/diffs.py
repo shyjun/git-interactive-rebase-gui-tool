@@ -117,11 +117,13 @@ def get_file_diff_between(repo_path, start_sha, end_sha, filepath):
 def get_file_stats_between(repo_path, start_sha, end_sha):
     """Returns a dict mapping filepath -> (added_lines, deleted_lines, old_size, new_size, old_mode, new_mode) between *start_sha* and *end_sha*."""
     try:
-        cmd = ["git", "diff", "--numstat", start_sha, end_sha]
-        result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
-        stats = {}
-        binary_files = []
-        for line in result.stdout.strip().split('\n'):
+        # First, get file statuses WITH rename detection to identify renames and get their stats
+        cmd_numstat = ["git", "diff", "--numstat", start_sha, end_sha]
+        result_numstat = subprocess.run(cmd_numstat, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
+
+        # Parse stats WITH rename detection (correct for renames)
+        stats_with_renames = {}
+        for line in result_numstat.stdout.strip().split('\n'):
             if not line.strip():
                 continue
             parts = line.split('\t', 2)
@@ -131,14 +133,84 @@ def get_file_stats_between(repo_path, start_sha, end_sha):
                 try:
                     added = int(added_str)
                     deleted = int(deleted_str)
-                    stats[filepath] = (added, deleted, 0, 0)
+                    stats_with_renames[filepath] = (added, deleted, 0, 0)
+                except ValueError:
+                    # Binary file - will handle below
+                    pass
+
+        # Get file statuses to identify renames
+        cmd_name_status = ["git", "diff", "--name-status", "-M", start_sha, end_sha]
+        result_name_status = subprocess.run(cmd_name_status, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
+        renamed_files = {}  # old_path -> new_path
+        for line in result_name_status.stdout.strip().split('\n'):
+            if not line.strip():
+                continue
+            parts = line.split('\t')
+            if len(parts) >= 3 and parts[0][0] == 'R':
+                renamed_files[parts[1]] = parts[2]
+
+        # Also get stats WITHOUT rename detection for non-renamed files
+        # This is needed because --numstat with rename detection might miss some files
+        cmd_no_rename = ["git", "diff", "--numstat", "--no-renames", start_sha, end_sha]
+        result_no_rename = subprocess.run(cmd_no_rename, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
+        stats_no_rename = {}
+        binary_files = []
+        for line in result_no_rename.stdout.strip().split('\n'):
+            if not line.strip():
+                continue
+            parts = line.split('\t', 2)
+            if len(parts) == 3:
+                added_str, deleted_str, filepath = parts
+                filepath = filepath.strip()
+                try:
+                    added = int(added_str)
+                    deleted = int(deleted_str)
+                    stats_no_rename[filepath] = (added, deleted, 0, 0)
                 except ValueError:
                     binary_files.append(filepath)
+
+        # Build final stats: use rename-detected stats for renamed files, no-rename stats for others
+        stats = {}
+
+        # Add renamed files with their correct stats from rename detection
+        for old_path, new_path in renamed_files.items():
+            # Key for the rename in stats_with_renames is "old_path => new_path"
+            rename_key = f"{old_path} => {new_path}"
+            if rename_key in stats_with_renames:
+                combined = stats_with_renames[rename_key]
+                stats[rename_key] = combined
+                stats[new_path] = combined  # also key by new path
+            else:
+                # Fallback: combine from no-rename stats
+                old_stats = stats_no_rename.get(old_path, (0, 0, 0, 0))
+                new_stats = stats_no_rename.get(new_path, (0, 0, 0, 0))
+                combined = (new_stats[0], old_stats[1], 0, 0)
+                stats[rename_key] = combined
+                stats[new_path] = combined
+
+        # Add non-renamed files from no-rename stats (more complete)
+        for filepath, stat in stats_no_rename.items():
+            # Skip if this file is part of a rename (already handled above)
+            is_renamed = False
+            for old_path, new_path in renamed_files.items():
+                if filepath == old_path or filepath == new_path:
+                    is_renamed = True
+                    break
+            if not is_renamed:
+                stats[filepath] = stat
+
         if binary_files:
             for filepath in binary_files:
-                old_size = _get_file_size(repo_path, start_sha, filepath)
-                new_size = _get_file_size(repo_path, end_sha, filepath)
-                stats[filepath] = (0, 0, old_size, new_size)
+                # Skip if already handled as rename
+                is_renamed = False
+                for old_path, new_path in renamed_files.items():
+                    if filepath == old_path or filepath == new_path:
+                        is_renamed = True
+                        break
+                if not is_renamed:
+                    old_size = _get_file_size(repo_path, start_sha, filepath)
+                    new_size = _get_file_size(repo_path, end_sha, filepath)
+                    stats[filepath] = (0, 0, old_size, new_size)
 
         from .commits import parse_git_raw_mode_changes
         mode_map = get_mode_changes_between(repo_path, start_sha, end_sha)

@@ -176,25 +176,34 @@ def get_commit_file_stats(repo_path, commit_sha):
 
     For text files: old_size and new_size are 0.
     For binary files: added and deleted are 0, old_size/new_size are byte counts (-1 if unavailable).
-    Uses git show --numstat. Binary files have '-' for added/deleted.
+    Uses git show --numstat with rename detection for renamed files (correct stats),
+    and git show --numstat --no-renames for other files.
     """
     try:
-        cmd = ["git", "show", "-m", "--numstat", "--format=", commit_sha]
-        proc = subprocess.Popen(cmd, cwd=repo_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                     encoding='utf-8', errors='replace')
+        # First, get file statuses WITH rename detection to identify renames
+        files_with_status = get_commit_files_with_status(repo_path, commit_sha)
+        renamed_files = {}  # old_path -> new_path
+        for status, path1, path2 in files_with_status:
+            if status == 'R':
+                renamed_files[path1] = path2
+
+        # Get stats WITH rename detection (correct for renames)
+        cmd_with_rename = ["git", "show", "-m", "--numstat", "--format=", commit_sha]
+        proc_with_rename = subprocess.Popen(cmd_with_rename, cwd=repo_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                              encoding='utf-8', errors='replace')
         try:
-            stdout, stderr = proc.communicate(timeout=30)
+            stdout_with_rename, stderr = proc_with_rename.communicate(timeout=30)
         except subprocess.TimeoutExpired:
-            proc.kill()
-            proc.wait()
+            proc_with_rename.kill()
+            proc_with_rename.wait()
             _log(f"[git_helpers] get_commit_file_stats: timed out for {commit_sha[:11]}")
             return {}
-        if proc.returncode != 0:
+        if proc_with_rename.returncode != 0:
             _log(f"[git_helpers] get_commit_file_stats: git show --numstat failed for {commit_sha}: {stderr.strip()}")
             return {}
-        stats = {}
-        binary_files = []
-        for line in stdout.strip().split('\n'):
+
+        stats_with_rename = {}
+        for line in stdout_with_rename.strip().split('\n'):
             if not line.strip():
                 continue
             parts = line.split('\t', 2)
@@ -204,10 +213,73 @@ def get_commit_file_stats(repo_path, commit_sha):
                 try:
                     added = int(added_str)
                     deleted = int(deleted_str)
-                    stats[filepath] = (added, deleted, 0, 0)
+                    stats_with_rename[filepath] = (added, deleted, 0, 0)
+                except ValueError:
+                    # Binary file (numstat shows '-')
+                    pass
+
+        # Get stats WITHOUT rename detection for non-renamed files
+        cmd_no_rename = ["git", "show", "-m", "--numstat", "--no-renames", "--format=", commit_sha]
+        proc_no_rename = subprocess.Popen(cmd_no_rename, cwd=repo_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                              encoding='utf-8', errors='replace')
+        try:
+            stdout_no_rename, stderr = proc_no_rename.communicate(timeout=30)
+        except subprocess.TimeoutExpired:
+            proc_no_rename.kill()
+            proc_no_rename.wait()
+            _log(f"[git_helpers] get_commit_file_stats: timed out for {commit_sha[:11]}")
+            return {}
+        if proc_no_rename.returncode != 0:
+            _log(f"[git_helpers] get_commit_file_stats: git show --numstat --no-renames failed for {commit_sha}: {stderr.strip()}")
+            return {}
+
+        stats_no_rename = {}
+        binary_files = []
+        for line in stdout_no_rename.strip().split('\n'):
+            if not line.strip():
+                continue
+            parts = line.split('\t', 2)
+            if len(parts) == 3:
+                added_str, deleted_str, filepath = parts
+                filepath = filepath.strip()
+                try:
+                    added = int(added_str)
+                    deleted = int(deleted_str)
+                    stats_no_rename[filepath] = (added, deleted, 0, 0)
                 except ValueError:
                     # Binary file (numstat shows '-')
                     binary_files.append(filepath)
+
+        # Build final stats: use rename-detected stats for renamed files, no-rename stats for others
+        stats = {}
+
+        # Add renamed files with their correct stats from rename detection
+        for old_path, new_path in renamed_files.items():
+            # Key for the rename in stats_with_rename is "old_path => new_path"
+            rename_key = f"{old_path} => {new_path}"
+            if rename_key in stats_with_rename:
+                combined = stats_with_rename[rename_key]
+                stats[rename_key] = combined
+                stats[new_path] = combined  # also key by new path
+            else:
+                # Fallback: combine from no-rename stats
+                old_stats = stats_no_rename.get(old_path, (0, 0, 0, 0))
+                new_stats = stats_no_rename.get(new_path, (0, 0, 0, 0))
+                combined = (new_stats[0], old_stats[1], 0, 0)
+                stats[rename_key] = combined
+                stats[new_path] = combined
+
+        # Add non-renamed files from no-rename stats (more complete)
+        for filepath, stat in stats_no_rename.items():
+            # Skip if this file is part of a rename (already handled above)
+            is_renamed = False
+            for old_path, new_path in renamed_files.items():
+                if filepath == old_path or filepath == new_path:
+                    is_renamed = True
+                    break
+            if not is_renamed:
+                stats[filepath] = stat
+
         # Get file sizes for binary files
         if binary_files:
             _fill_binary_sizes(repo_path, commit_sha, binary_files, stats, is_commit=True)
