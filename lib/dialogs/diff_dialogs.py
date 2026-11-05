@@ -2291,8 +2291,14 @@ class FileWiseViewDialog(QDialog):
             QTimer.singleShot(0, lambda: main_win.perform_rename_file_from_commit_onwards(self.sha, filepath))
 
     def refine_file(self, filepath):
-        QApplication.clipboard().setText(filepath)
-        QMessageBox.information(self, "Copied", f"Copied '{filepath}' to clipboard.")
+        main_win = self.parent() if isinstance(self.parent(), QMainWindow) else None
+        if main_win and hasattr(main_win, 'perform_refine_changes'):
+            self.accept()
+            QTimer.singleShot(0, lambda: main_win.perform_refine_changes(self.sha, filepath))
+
+    def copy_filename_to_clipboard(self, filename):
+        QApplication.clipboard().setText(filename)
+        QMessageBox.information(self, "Copied", f"Copied '{filename}' to clipboard.")
 
     def on_file_selected(self, filepath):
         if not filepath:
