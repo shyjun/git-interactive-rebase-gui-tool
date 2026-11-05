@@ -637,12 +637,18 @@ class SplitCommitDialog(QDialog):
         filepath = entry[1] if entry else item.text()
         add_open_with_system_default_action(menu, filepath, self, sha=self.sha,
             is_head=self.sha == head or head.startswith(self.sha))
+
+        checked_files = self._checked_filewise_files()
+        multi_select = len(checked_files) > 1
+
         blame_action = QAction("Blame file", self)
         blame_action.triggered.connect(lambda checked=False, text=filepath: open_blame_window(self, text, branch=self.sha))
+        blame_action.setEnabled(not multi_select)
         menu.addAction(blame_action)
 
         copy_action = QAction("Copy filename to clipboard", self)
         copy_action.triggered.connect(lambda checked=False, text=filepath: self._copy_filename(text))
+        copy_action.setEnabled(not multi_select)
         menu.addAction(copy_action)
 
         menu.exec(self.filewise_file_list.mapToGlobal(pos))
@@ -662,12 +668,18 @@ class SplitCommitDialog(QDialog):
         head = _get_head_sha(self.repo_path)
         add_open_with_system_default_action(menu, filepath, self, sha=self.sha,
             is_head=self.sha == head or head.startswith(self.sha))
+
+        checked_files = self._checked_treewise_files()
+        multi_select = len(checked_files) > 1
+
         blame_action = QAction("Blame file", self)
         blame_action.triggered.connect(lambda checked=False, text=filepath: open_blame_window(self, text, branch=self.sha))
+        blame_action.setEnabled(not multi_select)
         menu.addAction(blame_action)
 
         copy_action = QAction("Copy filename to clipboard", self)
         copy_action.triggered.connect(lambda checked=False, text=filepath: self._copy_filename(text))
+        copy_action.setEnabled(not multi_select)
         menu.addAction(copy_action)
 
         menu.exec(self.treewise_tree.mapToGlobal(pos))
@@ -1707,17 +1719,24 @@ class RefineFileSelectDialog(SplitCommitDialog):
         filepath = entry[1] if entry else item.text()
         add_open_with_system_default_action(menu, filepath, self, sha=self.sha,
             is_head=self.sha == head or head.startswith(self.sha))
+
+        checked_files = self._checked_filewise_files()
+        multi_select = len(checked_files) > 1
+
         blame_action = QAction("Blame file", self)
         blame_action.triggered.connect(lambda checked=False, text=filepath: open_blame_window(self, text, branch=self.sha))
+        blame_action.setEnabled(not multi_select)
         menu.addAction(blame_action)
 
         copy_action = QAction("Copy filename to clipboard", self)
         copy_action.triggered.connect(lambda checked=False, text=filepath: self._copy_filename(text))
+        copy_action.setEnabled(not multi_select)
         menu.addAction(copy_action)
 
         if is_editable_branch(self):
             refine_action = QAction("Refine changes in selected file", self)
             refine_action.triggered.connect(lambda checked=False, text=filepath: self._select_and_accept(text))
+            refine_action.setEnabled(not multi_select)
             menu.addAction(refine_action)
         menu.exec(self.filewise_file_list.mapToGlobal(pos))
 
@@ -1736,17 +1755,24 @@ class RefineFileSelectDialog(SplitCommitDialog):
         head = _get_head_sha(self.repo_path)
         add_open_with_system_default_action(menu, filepath, self, sha=self.sha,
             is_head=self.sha == head or head.startswith(self.sha))
+
+        checked_files = self._checked_treewise_files()
+        multi_select = len(checked_files) > 1
+
         blame_action = QAction("Blame file", self)
         blame_action.triggered.connect(lambda checked=False, text=filepath: open_blame_window(self, text, branch=self.sha))
+        blame_action.setEnabled(not multi_select)
         menu.addAction(blame_action)
 
         copy_action = QAction("Copy filename to clipboard", self)
         copy_action.triggered.connect(lambda checked=False, text=filepath: self._copy_filename(text))
+        copy_action.setEnabled(not multi_select)
         menu.addAction(copy_action)
 
         if is_editable_branch(self):
             refine_action = QAction("Refine changes in selected file", self)
             refine_action.triggered.connect(lambda checked=False, text=filepath: self._select_and_accept(text))
+            refine_action.setEnabled(not multi_select)
             menu.addAction(refine_action)
         menu.exec(self.treewise_tree.mapToGlobal(pos))
 

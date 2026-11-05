@@ -637,22 +637,30 @@ class BranchDiffDialog(QDialog):
         head = _get_head_sha(self.repo_path)
         add_open_with_system_default_action(menu, filepath, self, sha=self.end_sha,
             is_head=self.end_sha == head or head.startswith(self.end_sha))
+
+        checked_files = self._checked_treewise_files()
+        multi_select = len(checked_files) > 1
+
         blame_action = QAction("Blame file", self)
         blame_action.triggered.connect(lambda checked=False, text=filepath: open_blame_window(self, text, branch=self.end_sha))
+        blame_action.setEnabled(not multi_select)
         menu.addAction(blame_action)
 
         diff_ref_action = QAction("Diff against a different version of this file", self)
         diff_ref_action.triggered.connect(lambda checked=False, text=filepath: self.handle_diff_file_at_ref(text, self.end_sha))
+        diff_ref_action.setEnabled(not multi_select)
         menu.addAction(diff_ref_action)
 
         copy_action = QAction("Copy filename to clipboard", self)
         copy_action.triggered.connect(lambda checked=False, text=filepath: QApplication.clipboard().setText(text))
+        copy_action.setEnabled(not multi_select)
         menu.addAction(copy_action)
 
         menu.addSeparator()
         browse_action = QAction("Browse file log", self)
         browse_action.setToolTip("Open a read-only viewer of this file's history.")
         browse_action.triggered.connect(lambda checked=False, text=filepath: self.browse_file_log(text))
+        browse_action.setEnabled(not multi_select)
         menu.addAction(browse_action)
         menu.exec(self.treewise_tree.mapToGlobal(pos))
 
@@ -678,22 +686,30 @@ class BranchDiffDialog(QDialog):
         head = _get_head_sha(self.repo_path)
         add_open_with_system_default_action(menu, target_path, self, sha=self.end_sha,
             is_head=self.end_sha == head or head.startswith(self.end_sha))
+
+        checked_files = self._checked_filewise_files()
+        multi_select = len(checked_files) > 1
+
         blame_action = QAction("Blame file", self)
         blame_action.triggered.connect(lambda checked=False, text=target_path: open_blame_window(self, text, branch=self.end_sha))
+        blame_action.setEnabled(not multi_select)
         menu.addAction(blame_action)
 
         diff_ref_action = QAction("Diff against a different version of this file", self)
         diff_ref_action.triggered.connect(lambda checked=False, text=target_path: self.handle_diff_file_at_ref(text, self.end_sha))
+        diff_ref_action.setEnabled(not multi_select)
         menu.addAction(diff_ref_action)
 
         copy_action = QAction("Copy filename to clipboard", self)
         copy_action.triggered.connect(lambda checked=False, text=target_path: self.copy_filename_to_clipboard(text))
+        copy_action.setEnabled(not multi_select)
         menu.addAction(copy_action)
 
         menu.addSeparator()
         browse_action = QAction("Browse file log", self)
         browse_action.setToolTip("Open a read-only viewer of this file's history.")
         browse_action.triggered.connect(lambda checked=False, text=target_path: self.browse_file_log(text))
+        browse_action.setEnabled(not multi_select)
         menu.addAction(browse_action)
         menu.exec(self.filewise_file_list.mapToGlobal(pos))
 
