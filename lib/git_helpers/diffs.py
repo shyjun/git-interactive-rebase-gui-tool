@@ -10,6 +10,25 @@ from .core import (
 from lib.logger import _log
 
 
+def _git_numstat_rename_key(old_path: str, new_path: str) -> str:
+    """Construct the rename key in the format git uses in --numstat output.
+
+    Git's format for same-directory renames: dir/{old_name => new_name}
+    For cross-directory renames: old_path => new_path (full paths)
+    """
+    old_dir = os.path.dirname(old_path)
+    new_dir = os.path.dirname(new_path)
+    if old_dir == new_dir and old_dir:
+        # Same directory: use dir/{old_name => new_name} format
+        return f"{old_dir}/{{{os.path.basename(old_path)} => {os.path.basename(new_path)}}}"
+    elif old_dir == new_dir and not old_dir:
+        # Same directory (root): use {old_name => new_name} format
+        return f"{{{os.path.basename(old_path)} => {os.path.basename(new_path)}}}"
+    else:
+        # Different directories: use full paths
+        return f"{old_path} => {new_path}"
+
+
 def _popen_no_window(cmd, cwd):
     """Launch a process silently — no console flash on Windows."""
     kwargs = {"cwd": cwd}
@@ -174,8 +193,8 @@ def get_file_stats_between(repo_path, start_sha, end_sha):
 
         # Add renamed files with their correct stats from rename detection
         for old_path, new_path in renamed_files.items():
-            # Key for the rename in stats_with_renames is "old_path => new_path"
-            rename_key = f"{old_path} => {new_path}"
+            # Key for the rename in stats_with_renames uses git's numstat format
+            rename_key = _git_numstat_rename_key(old_path, new_path)
             if rename_key in stats_with_renames:
                 combined = stats_with_renames[rename_key]
                 stats[rename_key] = combined
