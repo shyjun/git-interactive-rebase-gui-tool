@@ -1,10 +1,12 @@
-import os
 import re
 import subprocess
 
 from .core import (
+    _apply_mode_changes,
     _git_capture,
     _pad_diff_separators,
+    _parse_numstat_z,
+    _stats_from_numstat,
 )
 from lib.logger import _log, _VERBOSE
 
@@ -172,149 +174,49 @@ def get_commit_files(repo_path, commit_sha):
     except subprocess.CalledProcessError as e:
         raise Exception(f"Failed to list commit files: {e.stderr}")
 
-def _git_numstat_rename_key(old_path: str, new_path: str) -> str:
-    """Construct the rename key in the format git uses in --numstat output.
-
-    Git's format for same-directory renames: dir/{old_name => new_name}
-    For cross-directory renames: old_path => new_path (full paths)
-    """
-    old_dir = os.path.dirname(old_path)
-    new_dir = os.path.dirname(new_path)
-    if old_dir == new_dir and old_dir:
-        # Same directory: use dir/{old_name => new_name} format
-        return f"{old_dir}/{{{os.path.basename(old_path)} => {os.path.basename(new_path)}}}"
-    elif old_dir == new_dir and not old_dir:
-        # Same directory (root): use {old_name => new_name} format
-        return f"{{{os.path.basename(old_path)} => {os.path.basename(new_path)}}}"
-    else:
-        # Different directories: use full paths
-        return f"{old_path} => {new_path}"
-
 
 def get_commit_file_stats(repo_path, commit_sha):
     """Returns a dict mapping filepath -> (added_lines, deleted_lines, old_size, new_size).
 
     For text files: old_size and new_size are 0.
     For binary files: added and deleted are 0, old_size/new_size are byte counts (-1 if unavailable).
-    Uses git show --numstat with rename detection for renamed files (correct stats),
-    and git show --numstat --no-renames for other files.
+
+    Uses a single `git show -m --numstat -z -M` run: NUL-separated output
+    gives unambiguous old/new path pairs for renames (no guessing at git's
+    abbreviated "dir/{old => new}" keys), so stats are keyed the way the UI
+    reads them — the "old => new" contract key and the new path.
     """
     try:
-        # First, get file statuses WITH rename detection to identify renames
-        files_with_status = get_commit_files_with_status(repo_path, commit_sha)
-        renamed_files = {}  # old_path -> new_path
-        for status, path1, path2 in files_with_status:
-            if status == 'R':
-                renamed_files[path1] = path2
-
-        # Get stats WITH rename detection (correct for renames)
-        cmd_with_rename = ["git", "show", "-m", "--numstat", "--format=", commit_sha]
-        proc_with_rename = subprocess.Popen(cmd_with_rename, cwd=repo_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        cmd = ["git", "show", "-m", "--numstat", "-z", "-M", "--format=", commit_sha]
+        proc = subprocess.Popen(cmd, cwd=repo_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                               encoding='utf-8', errors='replace')
         try:
-            stdout_with_rename, stderr = proc_with_rename.communicate(timeout=30)
+            stdout, stderr = proc.communicate(timeout=30)
         except subprocess.TimeoutExpired:
-            proc_with_rename.kill()
-            proc_with_rename.wait()
+            proc.kill()
+            proc.wait()
             _log(f"[git_helpers] get_commit_file_stats: timed out for {commit_sha[:11]}")
             return {}
-        if proc_with_rename.returncode != 0:
-            _log(f"[git_helpers] get_commit_file_stats: git show --numstat failed for {commit_sha}: {stderr.strip()}")
+        if proc.returncode != 0:
+            _log(f"[git_helpers] get_commit_file_stats: git show --numstat -z failed for {commit_sha}: {stderr.strip()}")
             return {}
 
-        stats_with_rename = {}
-        for line in stdout_with_rename.strip().split('\n'):
-            if not line.strip():
-                continue
-            parts = line.split('\t', 2)
-            if len(parts) == 3:
-                added_str, deleted_str, filepath = parts
-                filepath = filepath.strip()
-                try:
-                    added = int(added_str)
-                    deleted = int(deleted_str)
-                    stats_with_rename[filepath] = (added, deleted, 0, 0)
-                except ValueError:
-                    # Binary file (numstat shows '-')
-                    pass
+        records = _parse_numstat_z(stdout)
+        stats, binary_paths = _stats_from_numstat(
+            records,
+            old_size_fn=lambda p: _get_file_size(repo_path, f"{commit_sha}^", p),
+            new_size_fn=lambda p: _get_file_size(repo_path, commit_sha, p),
+        )
 
-        # Get stats WITHOUT rename detection for non-renamed files
-        cmd_no_rename = ["git", "show", "-m", "--numstat", "--no-renames", "--format=", commit_sha]
-        proc_no_rename = subprocess.Popen(cmd_no_rename, cwd=repo_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                              encoding='utf-8', errors='replace')
-        try:
-            stdout_no_rename, stderr = proc_no_rename.communicate(timeout=30)
-        except subprocess.TimeoutExpired:
-            proc_no_rename.kill()
-            proc_no_rename.wait()
-            _log(f"[git_helpers] get_commit_file_stats: timed out for {commit_sha[:11]}")
-            return {}
-        if proc_no_rename.returncode != 0:
-            _log(f"[git_helpers] get_commit_file_stats: git show --numstat --no-renames failed for {commit_sha}: {stderr.strip()}")
-            return {}
-
-        stats_no_rename = {}
-        binary_files = []
-        for line in stdout_no_rename.strip().split('\n'):
-            if not line.strip():
-                continue
-            parts = line.split('\t', 2)
-            if len(parts) == 3:
-                added_str, deleted_str, filepath = parts
-                filepath = filepath.strip()
-                try:
-                    added = int(added_str)
-                    deleted = int(deleted_str)
-                    stats_no_rename[filepath] = (added, deleted, 0, 0)
-                except ValueError:
-                    # Binary file (numstat shows '-')
-                    binary_files.append(filepath)
-
-        # Build final stats: use rename-detected stats for renamed files, no-rename stats for others
-        stats = {}
-
-        # Add renamed files with their correct stats from rename detection
-        for old_path, new_path in renamed_files.items():
-            # Key for the rename in stats_with_rename uses git's numstat format
-            rename_key = _git_numstat_rename_key(old_path, new_path)
-            if rename_key in stats_with_rename:
-                combined = stats_with_rename[rename_key]
-                stats[rename_key] = combined
-                stats[new_path] = combined  # also key by new path
-            else:
-                # Fallback: combine from no-rename stats
-                old_stats = stats_no_rename.get(old_path, (0, 0, 0, 0))
-                new_stats = stats_no_rename.get(new_path, (0, 0, 0, 0))
-                combined = (new_stats[0], old_stats[1], 0, 0)
-                stats[rename_key] = combined
-                stats[new_path] = combined
-
-        # Add non-renamed files from no-rename stats (more complete)
-        for filepath, stat in stats_no_rename.items():
-            # Skip if this file is part of a rename (already handled above)
-            is_renamed = False
-            for old_path, new_path in renamed_files.items():
-                if filepath == old_path or filepath == new_path:
-                    is_renamed = True
-                    break
-            if not is_renamed:
-                stats[filepath] = stat
-
-        # Get file sizes for binary files
-        if binary_files:
-            _fill_binary_sizes(repo_path, commit_sha, binary_files, stats, is_commit=True)
+        if binary_paths:
+            _fill_binary_sizes(repo_path, commit_sha, binary_paths, stats, is_commit=True)
 
         try:
             mode_map = get_commit_mode_changes(repo_path, commit_sha)
-            if mode_map:
-                for f, m in mode_map.items():
-                    s = stats.get(f)
-                    if s:
-                        stats[f] = (s[0], s[1], s[2], s[3], m[0], m[1])
-                    else:
-                        stats[f] = (0, 0, 0, 0, m[0], m[1])
         except Exception:
-            pass
+            mode_map = {}
+        if mode_map:
+            _apply_mode_changes(stats, mode_map, records)
 
         return stats
     except Exception as exc:
@@ -460,9 +362,13 @@ def parse_git_raw_mode_changes(raw_output):
 
 
 def get_commit_mode_changes(repo_path, commit_sha):
-    """Fetch file mode changes for a commit using lightweight git diff-tree --raw."""
+    """Fetch file mode changes for a commit using lightweight git diff-tree --raw.
+
+    Uses -M so rename rows pair up like the --numstat -M output does: a
+    rename+chmod then reports one row (old_mode -> new_mode) instead of a
+    D+A pair whose 000000 modes would be discarded."""
     try:
-        cmd = ["git", "diff-tree", "-r", "-m", "--no-commit-id", "--raw", commit_sha]
+        cmd = ["git", "diff-tree", "-r", "-m", "--no-commit-id", "-M", "--raw", commit_sha]
         result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
         return parse_git_raw_mode_changes(result.stdout)
     except Exception:
@@ -543,7 +449,13 @@ def build_file_tree(files, file_stats):
         # For renames, use the new path for tree placement
         display_path = path2 if status == 'R' and path2 else path1
         parts = display_path.split('/')
-        stats = file_stats.get(path1, (0, 0, 0, 0))
+        # Renames are keyed by the UI contract ("old => new") and the new
+        # path; look those up before falling back to the old path.
+        stats = None
+        if status == 'R' and path2:
+            stats = file_stats.get(f"{path1} => {path2}") or file_stats.get(path2)
+        if stats is None:
+            stats = file_stats.get(path1, (0, 0, 0, 0))
         added, deleted = stats[0], stats[1]
         old_size, new_size = stats[2] if len(stats) > 2 else 0, stats[3] if len(stats) > 3 else 0
         old_mode = stats[4] if len(stats) > 4 else None

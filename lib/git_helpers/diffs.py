@@ -4,29 +4,13 @@ import subprocess
 import platform
 
 from .core import (
+    _apply_mode_changes,
     _git_capture,
     _pad_diff_separators,
+    _parse_numstat_z,
+    _stats_from_numstat,
 )
 from lib.logger import _log
-
-
-def _git_numstat_rename_key(old_path: str, new_path: str) -> str:
-    """Construct the rename key in the format git uses in --numstat output.
-
-    Git's format for same-directory renames: dir/{old_name => new_name}
-    For cross-directory renames: old_path => new_path (full paths)
-    """
-    old_dir = os.path.dirname(old_path)
-    new_dir = os.path.dirname(new_path)
-    if old_dir == new_dir and old_dir:
-        # Same directory: use dir/{old_name => new_name} format
-        return f"{old_dir}/{{{os.path.basename(old_path)} => {os.path.basename(new_path)}}}"
-    elif old_dir == new_dir and not old_dir:
-        # Same directory (root): use {old_name => new_name} format
-        return f"{{{os.path.basename(old_path)} => {os.path.basename(new_path)}}}"
-    else:
-        # Different directories: use full paths
-        return f"{old_path} => {new_path}"
 
 
 def _popen_no_window(cmd, cwd):
@@ -134,112 +118,32 @@ def get_file_diff_between(repo_path, start_sha, end_sha, filepath):
 
 
 def get_file_stats_between(repo_path, start_sha, end_sha):
-    """Returns a dict mapping filepath -> (added_lines, deleted_lines, old_size, new_size, old_mode, new_mode) between *start_sha* and *end_sha*."""
+    """Returns a dict mapping filepath -> (added_lines, deleted_lines, old_size, new_size, old_mode, new_mode) between *start_sha* and *end_sha*.
+
+    Uses a single `git diff --numstat -z -M` run: NUL-separated output gives
+    unambiguous old/new path pairs for renames (no guessing at git's
+    abbreviated "dir/{old => new}" keys), so stats are keyed the way the UI
+    reads them — the "old => new" contract key and the new path.
+    """
     try:
-        # First, get file statuses WITH rename detection to identify renames and get their stats
-        cmd_numstat = ["git", "diff", "--numstat", start_sha, end_sha]
+        cmd_numstat = ["git", "diff", "--numstat", "-z", "-M", start_sha, end_sha]
         result_numstat = subprocess.run(cmd_numstat, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
 
-        # Parse stats WITH rename detection (correct for renames)
-        stats_with_renames = {}
-        for line in result_numstat.stdout.strip().split('\n'):
-            if not line.strip():
-                continue
-            parts = line.split('\t', 2)
-            if len(parts) == 3:
-                added_str, deleted_str, filepath = parts
-                filepath = filepath.strip()
-                try:
-                    added = int(added_str)
-                    deleted = int(deleted_str)
-                    stats_with_renames[filepath] = (added, deleted, 0, 0)
-                except ValueError:
-                    # Binary file - will handle below
-                    pass
+        records = _parse_numstat_z(result_numstat.stdout)
+        stats, binary_paths = _stats_from_numstat(
+            records,
+            old_size_fn=lambda p: _get_file_size(repo_path, start_sha, p),
+            new_size_fn=lambda p: _get_file_size(repo_path, end_sha, p),
+        )
 
-        # Get file statuses to identify renames
-        cmd_name_status = ["git", "diff", "--name-status", "-M", start_sha, end_sha]
-        result_name_status = subprocess.run(cmd_name_status, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
-        renamed_files = {}  # old_path -> new_path
-        for line in result_name_status.stdout.strip().split('\n'):
-            if not line.strip():
-                continue
-            parts = line.split('\t')
-            if len(parts) >= 3 and parts[0][0] == 'R':
-                renamed_files[parts[1]] = parts[2]
+        for filepath in binary_paths:
+            old_size = _get_file_size(repo_path, start_sha, filepath)
+            new_size = _get_file_size(repo_path, end_sha, filepath)
+            stats[filepath] = (0, 0, old_size, new_size)
 
-        # Also get stats WITHOUT rename detection for non-renamed files
-        # This is needed because --numstat with rename detection might miss some files
-        cmd_no_rename = ["git", "diff", "--numstat", "--no-renames", start_sha, end_sha]
-        result_no_rename = subprocess.run(cmd_no_rename, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
-        stats_no_rename = {}
-        binary_files = []
-        for line in result_no_rename.stdout.strip().split('\n'):
-            if not line.strip():
-                continue
-            parts = line.split('\t', 2)
-            if len(parts) == 3:
-                added_str, deleted_str, filepath = parts
-                filepath = filepath.strip()
-                try:
-                    added = int(added_str)
-                    deleted = int(deleted_str)
-                    stats_no_rename[filepath] = (added, deleted, 0, 0)
-                except ValueError:
-                    binary_files.append(filepath)
-
-        # Build final stats: use rename-detected stats for renamed files, no-rename stats for others
-        stats = {}
-
-        # Add renamed files with their correct stats from rename detection
-        for old_path, new_path in renamed_files.items():
-            # Key for the rename in stats_with_renames uses git's numstat format
-            rename_key = _git_numstat_rename_key(old_path, new_path)
-            if rename_key in stats_with_renames:
-                combined = stats_with_renames[rename_key]
-                stats[rename_key] = combined
-                stats[new_path] = combined  # also key by new path
-            else:
-                # Fallback: combine from no-rename stats
-                old_stats = stats_no_rename.get(old_path, (0, 0, 0, 0))
-                new_stats = stats_no_rename.get(new_path, (0, 0, 0, 0))
-                combined = (new_stats[0], old_stats[1], 0, 0)
-                stats[rename_key] = combined
-                stats[new_path] = combined
-
-        # Add non-renamed files from no-rename stats (more complete)
-        for filepath, stat in stats_no_rename.items():
-            # Skip if this file is part of a rename (already handled above)
-            is_renamed = False
-            for old_path, new_path in renamed_files.items():
-                if filepath == old_path or filepath == new_path:
-                    is_renamed = True
-                    break
-            if not is_renamed:
-                stats[filepath] = stat
-
-        if binary_files:
-            for filepath in binary_files:
-                # Skip if already handled as rename
-                is_renamed = False
-                for old_path, new_path in renamed_files.items():
-                    if filepath == old_path or filepath == new_path:
-                        is_renamed = True
-                        break
-                if not is_renamed:
-                    old_size = _get_file_size(repo_path, start_sha, filepath)
-                    new_size = _get_file_size(repo_path, end_sha, filepath)
-                    stats[filepath] = (0, 0, old_size, new_size)
-
-        from .commits import parse_git_raw_mode_changes
         mode_map = get_mode_changes_between(repo_path, start_sha, end_sha)
         if mode_map:
-            for f, m in mode_map.items():
-                s = stats.get(f)
-                if s:
-                    stats[f] = (s[0], s[1], s[2], s[3], m[0], m[1])
-                else:
-                    stats[f] = (0, 0, 0, 0, m[0], m[1])
+            _apply_mode_changes(stats, mode_map, records)
         return stats
     except subprocess.CalledProcessError as exc:
         err = exc.stderr.strip() if exc.stderr else str(exc)
@@ -248,9 +152,12 @@ def get_file_stats_between(repo_path, start_sha, end_sha):
 
 
 def get_mode_changes_between(repo_path, start_sha, end_sha):
-    """Fetch file mode changes between two commits using git diff --raw."""
+    """Fetch file mode changes between two commits using git diff --raw.
+
+    Uses -M so rename rows pair up like the --numstat -M output does (see
+    get_commit_mode_changes)."""
     try:
-        cmd = ["git", "diff", "--raw", start_sha, end_sha]
+        cmd = ["git", "diff", "--raw", "-M", start_sha, end_sha]
         result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
         from .commits import parse_git_raw_mode_changes
         return parse_git_raw_mode_changes(result.stdout)

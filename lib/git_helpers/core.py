@@ -251,3 +251,108 @@ def _git_capture(repo_path, cmd, error_msg, timeout=15):
 def _pad_diff_separators(diff_text):
     """Insert a blank line before each 'diff --git' block (except at the start)."""
     return re.sub(r'(\n)(diff --git )', r'\1\n\2', diff_text)
+
+
+def _parse_numstat_z(output):
+    """Parse ``git <show|diff> --numstat -z`` output into records.
+
+    Returns a list of ``(added, deleted, old_path, path)`` tuples where
+    ``added``/``deleted`` are ints (``None`` for binary files, reported as
+    ``-``), ``old_path`` is the source path for renames (``None`` otherwise)
+    and ``path`` is the destination path.
+
+    Record layouts (each NUL-terminated):
+
+    - regular: ``added<TAB>deleted<TAB>path<NUL>``
+    - rename:  ``added<TAB>deleted<TAB><NUL>old<NUL>new<NUL>``
+
+    The NUL directly after the second TAB is the rename marker.  Splitting on
+    NUL first (rather than on tabs) keeps paths containing tabs intact.
+    """
+
+    def count(value):
+        try:
+            return int(value)
+        except ValueError:
+            return None  # binary files report '-'
+
+    records = []
+    fields = output.split("\0")
+    i, n = 0, len(fields)
+    while i < n:
+        field = fields[i]
+        if not field:
+            i += 1
+            continue
+        parts = field.split("\t")
+        if len(parts) < 3:
+            i += 1
+            continue  # not a numstat header; ignore defensively
+        if len(parts) == 3 and parts[2] == "":
+            # rename marker; old and new paths follow as NUL-separated fields
+            if i + 2 < n and fields[i + 1]:
+                records.append((count(parts[0]), count(parts[1]),
+                                fields[i + 1], fields[i + 2]))
+                i += 3
+            else:
+                i += 1
+        else:
+            records.append((count(parts[0]), count(parts[1]), None,
+                            "\t".join(parts[2:])))
+            i += 1
+    return records
+
+
+def _stats_from_numstat(records, old_size_fn, new_size_fn):
+    """Turn numstat *records* into the stats dict the UI reads.
+
+    Returns ``(stats, binary_paths)``:
+
+    - text files are keyed by path: ``(added, deleted, 0, 0)``
+    - renames are keyed BOTH by the UI contract ``"old => new"`` (what every
+      file-list lookup builds) and by the new path, with identical values
+    - binary renames get ``(0, 0, old_size, new_size)`` resolved through the
+      size callbacks; plain binary paths are returned in *binary_paths* for
+      the caller to fill in
+    """
+    stats = {}
+    binary_paths = []
+    for added, deleted, old_path, path in records:
+        if old_path:
+            if added is None:  # binary rename
+                value = (0, 0, old_size_fn(old_path), new_size_fn(path))
+            else:
+                value = (added, deleted, 0, 0)
+            stats[f"{old_path} => {path}"] = value
+            stats[path] = value
+        elif added is None:
+            binary_paths.append(path)
+        else:
+            stats[path] = (added, deleted, 0, 0)
+    return stats, binary_paths
+
+
+def _apply_mode_changes(stats, mode_map, records):
+    """Merge ``(old_mode, new_mode)`` pairs into *stats* (in place).
+
+    Keys are paths, so renames need extra care: the mode map carries the old
+    and new path of a rename, but the stats dict keys renames by contract and
+    new path only.  The old path is skipped (its rename keys are stamped
+    instead), and mode changes on a new path are also applied to the
+    ``"old => new"`` contract key so both keys stay identical.
+    """
+    contract_by_new = {new: f"{old} => {new}"
+                       for _, _, old, new in records if old}
+    old_paths = {old for _, _, old, _ in records if old}
+    for filepath, (old_mode, new_mode) in mode_map.items():
+        if filepath not in stats and filepath in old_paths:
+            continue  # rename source; stamp the rename keys below
+        s = stats.get(filepath)
+        if s:
+            stats[filepath] = (s[0], s[1], s[2], s[3], old_mode, new_mode)
+        else:
+            stats[filepath] = (0, 0, 0, 0, old_mode, new_mode)
+        contract = contract_by_new.get(filepath)
+        if contract and contract in stats:
+            c = stats[contract]
+            stats[contract] = (c[0], c[1], c[2], c[3], old_mode, new_mode)
