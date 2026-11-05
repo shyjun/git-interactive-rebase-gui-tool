@@ -635,11 +635,11 @@ class SplitCommitDialog(QDialog):
         head = _get_head_sha(self.repo_path)
         entry = item.data(FILE_ENTRY_ROLE)
         filepath = entry[1] if entry else item.text()
-        add_open_with_system_default_action(menu, filepath, self, sha=self.sha,
-            is_head=self.sha == head or head.startswith(self.sha))
-
         checked_files = self._checked_filewise_files()
         multi_select = len(checked_files) > 1
+
+        add_open_with_system_default_action(menu, filepath, self, sha=self.sha,
+            is_head=self.sha == head or head.startswith(self.sha), enabled=not multi_select)
 
         blame_action = QAction("Blame file", self)
         blame_action.triggered.connect(lambda checked=False, text=filepath: open_blame_window(self, text, branch=self.sha))
@@ -666,11 +666,11 @@ class SplitCommitDialog(QDialog):
         filepath = entry[2] if entry[0] == 'R' else entry[1]
         menu = QMenu(self)
         head = _get_head_sha(self.repo_path)
-        add_open_with_system_default_action(menu, filepath, self, sha=self.sha,
-            is_head=self.sha == head or head.startswith(self.sha))
-
         checked_files = self._checked_treewise_files()
         multi_select = len(checked_files) > 1
+
+        add_open_with_system_default_action(menu, filepath, self, sha=self.sha,
+            is_head=self.sha == head or head.startswith(self.sha), enabled=not multi_select)
 
         blame_action = QAction("Blame file", self)
         blame_action.triggered.connect(lambda checked=False, text=filepath: open_blame_window(self, text, branch=self.sha))
@@ -1258,11 +1258,11 @@ class DropFileFromCommitDialog(QDialog):
         head = _get_head_sha(self.repo_path)
         entry = item.data(FILE_ENTRY_ROLE)
         filepath = entry[1] if entry else item.text()
-        add_open_with_system_default_action(menu, filepath, self, sha=self.sha,
-            is_head=self.sha == head or head.startswith(self.sha))
-
         checked_files = self._checked_filewise_files()
         multi_select = len(checked_files) > 1
+
+        add_open_with_system_default_action(menu, filepath, self, sha=self.sha,
+            is_head=self.sha == head or head.startswith(self.sha), enabled=not multi_select)
 
         blame_action = QAction("Blame file", self)
         blame_action.triggered.connect(lambda checked=False, text=filepath: open_blame_window(self, text, branch=self.sha))
@@ -1276,7 +1276,7 @@ class DropFileFromCommitDialog(QDialog):
 
         if is_editable_branch(self):
             drop_action = QAction("Drop file changes from this commit", self)
-            drop_action.triggered.connect(lambda checked=False, text=filepath: self._single_drop(text))
+            drop_action.triggered.connect(lambda checked=False, text=filepath: self._drop_from_context_menu(text))
             menu.addAction(drop_action)
 
             menu.addSeparator()
@@ -1305,11 +1305,11 @@ class DropFileFromCommitDialog(QDialog):
         filepath = entry[2] if entry[0] == 'R' else entry[1]
         menu = QMenu(self)
         head = _get_head_sha(self.repo_path)
-        add_open_with_system_default_action(menu, filepath, self, sha=self.sha,
-            is_head=self.sha == head or head.startswith(self.sha))
-
         checked_files = self._checked_treewise_files()
         multi_select = len(checked_files) > 1
+
+        add_open_with_system_default_action(menu, filepath, self, sha=self.sha,
+            is_head=self.sha == head or head.startswith(self.sha), enabled=not multi_select)
 
         blame_action = QAction("Blame file", self)
         blame_action.triggered.connect(lambda checked=False, text=filepath: open_blame_window(self, text, branch=self.sha))
@@ -1323,7 +1323,7 @@ class DropFileFromCommitDialog(QDialog):
 
         if is_editable_branch(self):
             drop_action = QAction("Drop file changes from this commit", self)
-            drop_action.triggered.connect(lambda checked=False, text=filepath: self._single_drop(text))
+            drop_action.triggered.connect(lambda checked=False, text=filepath: self._drop_from_context_menu(text))
             menu.addAction(drop_action)
 
             menu.addSeparator()
@@ -1339,11 +1339,18 @@ class DropFileFromCommitDialog(QDialog):
 
         menu.exec(self.treewise_tree.mapToGlobal(pos))
 
-    def _single_drop(self, filepath):
+    def _drop_from_context_menu(self, filepath):
+        """Drop from the context menu: drop every checked file.
+
+        Matches the main 'Drop selected file changes' button, which drops
+        get_selected_files(); falls back to the right-clicked file when no
+        checkboxes are set.
+        """
         main_win = self.parent() if isinstance(self.parent(), QMainWindow) else None
         if main_win and hasattr(main_win, 'perform_drop_file_from_commit'):
+            files = self._checked_filewise_files() or [filepath]
             self.accept()
-            QTimer.singleShot(0, lambda: main_win.perform_drop_file_from_commit(self.sha, [filepath]))
+            QTimer.singleShot(0, lambda: main_win.perform_drop_file_from_commit(self.sha, files))
 
     def remove_file_onwards(self, filepath):
         main_win = self.parent() if isinstance(self.parent(), QMainWindow) else None
@@ -1717,11 +1724,11 @@ class RefineFileSelectDialog(SplitCommitDialog):
         head = _get_head_sha(self.repo_path)
         entry = item.data(FILE_ENTRY_ROLE)
         filepath = entry[1] if entry else item.text()
-        add_open_with_system_default_action(menu, filepath, self, sha=self.sha,
-            is_head=self.sha == head or head.startswith(self.sha))
-
         checked_files = self._checked_filewise_files()
         multi_select = len(checked_files) > 1
+
+        add_open_with_system_default_action(menu, filepath, self, sha=self.sha,
+            is_head=self.sha == head or head.startswith(self.sha), enabled=not multi_select)
 
         blame_action = QAction("Blame file", self)
         blame_action.triggered.connect(lambda checked=False, text=filepath: open_blame_window(self, text, branch=self.sha))
@@ -1753,11 +1760,11 @@ class RefineFileSelectDialog(SplitCommitDialog):
         filepath = entry[2] if entry[0] == 'R' else entry[1]
         menu = QMenu(self)
         head = _get_head_sha(self.repo_path)
-        add_open_with_system_default_action(menu, filepath, self, sha=self.sha,
-            is_head=self.sha == head or head.startswith(self.sha))
-
         checked_files = self._checked_treewise_files()
         multi_select = len(checked_files) > 1
+
+        add_open_with_system_default_action(menu, filepath, self, sha=self.sha,
+            is_head=self.sha == head or head.startswith(self.sha), enabled=not multi_select)
 
         blame_action = QAction("Blame file", self)
         blame_action.triggered.connect(lambda checked=False, text=filepath: open_blame_window(self, text, branch=self.sha))

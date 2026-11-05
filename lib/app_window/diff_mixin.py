@@ -448,10 +448,10 @@ class DiffMixin:
             commit_sha = list_item.text().split()[0]
         head_sha = self.get_head_sha()
         is_head = bool(commit_sha) and (commit_sha == head_sha or head_sha.startswith(commit_sha))
-        add_open_with_system_default_action(menu, target_path, self, sha=commit_sha, is_head=is_head)
-
         checked_files = self._checked_filewise_files()
         multi_select = len(checked_files) > 1
+
+        add_open_with_system_default_action(menu, target_path, self, sha=commit_sha, is_head=is_head, enabled=not multi_select)
 
         blame_action = QAction("Blame file", self)
         blame_action.triggered.connect(lambda checked=False, text=target_path: open_blame_window(self, text, branch=commit_sha))
@@ -1130,10 +1130,10 @@ class DiffMixin:
         menu = QMenu(self)
         head_sha = self.get_head_sha()
         is_head = bool(commit_sha) and (commit_sha == head_sha or head_sha.startswith(commit_sha))
-        add_open_with_system_default_action(menu, target_path, self, sha=commit_sha, is_head=is_head)
-
         checked_files = self._checked_treewise_files()
         multi_select = len(checked_files) > 1
+
+        add_open_with_system_default_action(menu, target_path, self, sha=commit_sha, is_head=is_head, enabled=not multi_select)
 
         blame_action = QAction("Blame file", self)
         blame_action.triggered.connect(lambda checked=False, text=target_path: open_blame_window(self, text, branch=commit_sha))

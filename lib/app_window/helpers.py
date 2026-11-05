@@ -245,10 +245,12 @@ def highlight_button_temporarily(button, duration_ms=3000, blinks=0, color=None)
     button._highlight_timer = timer
 
 
-def add_open_with_system_default_action(menu, target_path, parent, sha=None, repo_path=None, is_head=False):
+def add_open_with_system_default_action(menu, target_path, parent, sha=None, repo_path=None, is_head=False, enabled=True):
     """Add 'Open > With System Default App' submenu before Blame in a context menu.
     If sha is provided and the file was modified in newer commits, extracts the file
-    content from that commit to /tmp. Otherwise opens from the working tree."""
+    content from that commit to /tmp. Otherwise opens from the working tree.
+    Pass enabled=False to grey out the submenu (used when multiple files are
+    checked and the action only applies to a single file)."""
     open_menu = menu.addMenu("Open")
     open_default_action = QAction("With System Default App", parent)
     if sha:
@@ -264,6 +266,7 @@ def add_open_with_system_default_action(menu, target_path, parent, sha=None, rep
             )
         )
     open_menu.addAction(open_default_action)
+    open_menu.setEnabled(enabled)
 
 
 def _open_file_smart(repo_path, sha, filepath, parent):

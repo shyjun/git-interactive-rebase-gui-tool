@@ -635,11 +635,11 @@ class BranchDiffDialog(QDialog):
             return
         menu = QMenu(self)
         head = _get_head_sha(self.repo_path)
-        add_open_with_system_default_action(menu, filepath, self, sha=self.end_sha,
-            is_head=self.end_sha == head or head.startswith(self.end_sha))
-
         checked_files = self._checked_treewise_files()
         multi_select = len(checked_files) > 1
+
+        add_open_with_system_default_action(menu, filepath, self, sha=self.end_sha,
+            is_head=self.end_sha == head or head.startswith(self.end_sha), enabled=not multi_select)
 
         blame_action = QAction("Blame file", self)
         blame_action.triggered.connect(lambda checked=False, text=filepath: open_blame_window(self, text, branch=self.end_sha))
@@ -684,11 +684,11 @@ class BranchDiffDialog(QDialog):
         target_path = item.text()
         menu = QMenu(self)
         head = _get_head_sha(self.repo_path)
-        add_open_with_system_default_action(menu, target_path, self, sha=self.end_sha,
-            is_head=self.end_sha == head or head.startswith(self.end_sha))
-
         checked_files = self._checked_filewise_files()
         multi_select = len(checked_files) > 1
+
+        add_open_with_system_default_action(menu, target_path, self, sha=self.end_sha,
+            is_head=self.end_sha == head or head.startswith(self.end_sha), enabled=not multi_select)
 
         blame_action = QAction("Blame file", self)
         blame_action.triggered.connect(lambda checked=False, text=target_path: open_blame_window(self, text, branch=self.end_sha))
@@ -1693,11 +1693,11 @@ class SingleCommitViewDialog(QDialog):
 
         menu = QMenu(self)
         head = _get_head_sha(self.repo_path)
-        add_open_with_system_default_action(menu, target_path, self, sha=self.sha,
-            is_head=self.sha == head or head.startswith(self.sha))
-
         checked_files = self._checked_treewise_files()
         multi_select = len(checked_files) > 1
+
+        add_open_with_system_default_action(menu, target_path, self, sha=self.sha,
+            is_head=self.sha == head or head.startswith(self.sha), enabled=not multi_select)
 
         blame_action = QAction("Blame file", self)
         blame_action.triggered.connect(lambda checked=False, text=target_path: open_blame_window(self, text, branch=self.sha))
@@ -1777,11 +1777,11 @@ class SingleCommitViewDialog(QDialog):
         target_path = entry[2] if entry and entry[0] == 'R' else (entry[1] if entry else item.text())
         menu = QMenu(self)
         head = _get_head_sha(self.repo_path)
-        add_open_with_system_default_action(menu, target_path, self, sha=self.sha,
-            is_head=self.sha == head or head.startswith(self.sha))
-
         checked_files = self._checked_filewise_files()
         multi_select = len(checked_files) > 1
+
+        add_open_with_system_default_action(menu, target_path, self, sha=self.sha,
+            is_head=self.sha == head or head.startswith(self.sha), enabled=not multi_select)
 
         blame_action = QAction("Blame file", self)
         blame_action.triggered.connect(lambda checked=False, text=target_path: open_blame_window(self, text, branch=self.sha))
@@ -2205,11 +2205,11 @@ class FileWiseViewDialog(QDialog):
         target_path = entry[2] if entry and entry[0] == 'R' else (entry[1] if entry else item.text())
         menu = QMenu(self)
         head = _get_head_sha(self.repo_path)
-        add_open_with_system_default_action(menu, target_path, self, sha=self.sha,
-            is_head=self.sha == head or head.startswith(self.sha))
-
         checked_files = self._checked_files()
         multi_select = len(checked_files) > 1
+
+        add_open_with_system_default_action(menu, target_path, self, sha=self.sha,
+            is_head=self.sha == head or head.startswith(self.sha), enabled=not multi_select)
 
         blame_action = QAction("Blame file", self)
         blame_action.triggered.connect(lambda checked=False, text=target_path: open_blame_window(self, text, branch=self.sha))
