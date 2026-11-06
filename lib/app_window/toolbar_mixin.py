@@ -93,6 +93,9 @@ class ToolbarMixin:
     def _set_git_status_icon(self, button):
         self._apply_toolbar_icon(button, self._draw_git_status)
 
+    def _set_git_diff_icon(self, button):
+        self._apply_toolbar_icon(button, self._draw_git_diff)
+
     def _refresh_toolbar_icons(self):
         self._set_theme_icon(self.theme_menu_btn)
         self._set_rescan_icon(self.rescan_btn)
@@ -103,6 +106,7 @@ class ToolbarMixin:
         self._set_exit_viewer_mode_icon(self.exit_viewer_mode_btn)
         self._set_pop_stash_icon(self.pop_stash_btn)
         self._set_repo_icon(self.repo_btn)
+        self._set_git_diff_icon(self.git_diff_btn)
         self._set_git_status_icon(self.git_status_btn)
         self._set_configure_icon(self.configure_btn)
 
@@ -251,4 +255,18 @@ class ToolbarMixin:
         pen2.setCapStyle(Qt.RoundCap)
         painter.setPen(pen2)
         painter.drawLine(12.5, 12.2, 15.0, 14.8)
+
+    def _draw_git_diff(self, painter, color):
+        pen = QPen(color, 1.8)
+        pen.setCapStyle(Qt.RoundCap)
+        pen.setJoinStyle(Qt.RoundJoin)
+        painter.setPen(pen)
+        painter.setBrush(Qt.NoBrush)
+
+        # Plus sign (left) — an added line
+        painter.drawLine(2.0, 8.0, 7.0, 8.0)
+        painter.drawLine(4.5, 5.5, 4.5, 10.5)
+
+        # Minus sign (right) — a removed line
+        painter.drawLine(9.0, 8.0, 14.0, 8.0)
 
