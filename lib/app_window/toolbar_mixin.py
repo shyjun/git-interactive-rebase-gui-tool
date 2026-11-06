@@ -264,9 +264,9 @@ class ToolbarMixin:
         painter.setBrush(Qt.NoBrush)
 
         # Plus sign (left) — an added line
-        painter.drawLine(2.0, 8.0, 7.0, 8.0)
-        painter.drawLine(4.5, 5.5, 4.5, 10.5)
+        painter.drawLine(1.5, 8.0, 6.0, 8.0)
+        painter.drawLine(3.75, 5.75, 3.75, 10.25)
 
-        # Minus sign (right) — a removed line
-        painter.drawLine(9.0, 8.0, 14.0, 8.0)
+        # Minus sign (right) — a removed line, kept clear of the plus
+        painter.drawLine(10.0, 8.0, 14.5, 8.0)
 
