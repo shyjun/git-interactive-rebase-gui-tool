@@ -184,7 +184,7 @@ The main window displays your commit history in an interactive list with action 
 
 ![Main Interface](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/main-interface.webp)
 
-**Description:** The main window shows the commit list with SHA, message, and branch indicators. The details panel displays commit metadata (SHA, author, date, changed files). A **diff pane** is docked on the right side (marked in the screenshot above) — click any commit to view its diff there (added lines in green, removed lines in red, with line numbers), in either **Plain Diff** or **File-wise Diff** mode (see [10](#10-diff-viewer) and [11](#11-diff-pane)). The top toolbar includes search (with **`<` / `>`** buttons to jump to the previous / next matching commit), the **Search Options** dropdown (Match Case / Whole Word / Display Only Matching), theme toggle, zoom controls, a **Git Status** button (main window only — runs `git status` and shows the output in a dialog with a Copy to Clipboard button), a **Repo** menu (View PR Diff, View a Commit, Cherry-pick 1 Commit, Browse Branch, Browse File Log, Browse Log of a Commit, Browse Reflog, Browse Stashes, Find Merge-base), and reset options.
+**Description:** The main window shows the commit list with SHA, message, and branch indicators. The details panel displays commit metadata (SHA, author, date, changed files). A **diff pane** is docked on the right side (marked in the screenshot above) — click any commit to view its diff there (added lines in green, removed lines in red, with line numbers), in either **Plain Diff** or **File-wise Diff** mode (see [10](#10-diff-viewer) and [11](#11-diff-pane)). The top toolbar includes search (with **`<` / `>`** buttons to jump to the previous / next matching commit), the **Search Options** dropdown (Match Case / Whole Word / Display Only Matching), theme toggle, zoom controls, a **Git Diff** button (main window only — opens the unstaged-changes diff viewer with Plain / File-wise / Tree-wise tabs; shows *"No unstaged changes"* when there is nothing to view), a **Git Status** button (main window only — runs `git status` and shows the output in a dialog with a Copy to Clipboard button), a **Repo** menu (View PR Diff, View a Commit, Cherry-pick 1 Commit, Browse Branch, Browse File Log, Browse Log of a Commit, Browse Reflog, Browse Stashes, Find Merge-base), and reset options.
 
 The status bar holds a **Configure** button whose **Show/Hide** menu lets you toggle which markers/columns and controls are visible — each choice is remembered across sessions:
 
@@ -314,6 +314,8 @@ Right-click a file in the **File-wise Diff** tab for per-file actions.
 ![File-Operations menu](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/commit-viewer-and-file-operations-menu.webp)
 
 **Description:** Right-click any file in the file-wise file list to open the context menu. The available actions depend on how the viewer was opened.
+
+**Multi-select:** when more than one file is checked, single-file actions are greyed out — **Open with System Default App**, **Blame file**, **Diff against a different version of this file**, **Copy filename**, **Copy full path**, **Rename onwards**, **Remove onwards**, **Refine**, and **Browse file log**. Right-clicking still works, and the bulk **Move / Drop** actions remain enabled and apply to **every** checked file.
 
 **Always available (all modes):**
 
@@ -1243,6 +1245,8 @@ Select files and click **Add/Stage Selected Files** to run `git add` on them, **
 
 The **Repo** button is also highlighted with an orange blink to draw attention. This warning appears both at startup and when **Rescan Repository** finds staged or unstaged changes.
 
+The warning's **Show unstaged changes** button and the toolbar's **Git Diff** button open the same read-only unstaged-changes viewer (see [Main Interface](#2-main-interface)).
+
 ---
 
 ## 49. Destructive Operations Blocked When Staged Changes Exist
@@ -1298,6 +1302,8 @@ The splitter handle is locked when collapsed to prevent accidental resizing. Dra
 - **▶ File-wise Diff** — file list is collapsed, diff pane gets more space
 
 Clicking a different tab switches normally without toggling. This works in the main window, Branch Diff dialog, and Single Commit View dialog. Both lists also have the hover-revealed filter button (see [Diff Viewer](#10-diff-viewer)).
+
+**Exception — Unstaged Diff dialog:** the **Git Diff** button and the warning dialog's **Show unstaged changes** button open an unstaged-changes viewer whose file list and tree **never collapse**. Clicking the active tab title does nothing (no ▼/▶ toggle), the splitters refuse to collapse either side, the list/tree keep a 60px minimum, and each of the three diff views keeps a 200px minimum.
 
 ---
 
