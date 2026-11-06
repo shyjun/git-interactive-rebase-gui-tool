@@ -81,6 +81,52 @@ class TestUnstagedDialogImport(unittest.TestCase):
                 f"{name} must keep at least 200px, got {pane.minimumHeight()}",
             )
 
+    def test_unstaged_list_and_tree_panes_never_collapse(self):
+        """The filewise list and treewise tree must stay on screen.
+
+        Clicking the already-active tab label used to hide the pane outright
+        (BranchDiffDialog._on_tab_bar_clicked -> setVisible(False) +
+        setSizes([0, 1000])), and both splitters allowed a handle drag to do
+        the same.  In this dialog the pane keeps a 150px floor, the
+        splitters refuse to collapse either side, and tab-label clicks never
+        reach the toggles.
+        """
+        if not HAS_PYSIDE:
+            self.skipTest("PySide6 not available")
+
+        from lib.dialogs.diff_dialogs import UnstagedDiffDialog
+
+        dlg = UnstagedDiffDialog(
+            repo_path=os.getcwd(),
+            files=["src/version.c"],
+            diff_text="diff --git a/src/version.c b/src/version.c\n--- a/src/version.c\n+++ b/src/version.c\n",
+            file_stats={"src/version.c": (1, 0, 100, 101)},
+            branch="master",
+            head_sha="760e813eefef620f1412fe7ec7439bb06ff2a92a",
+            font_size=10,
+            font_family=None,
+            parent=None
+        )
+
+        # Tab-label clicks must not reach the base-class collapse toggles.
+        toggled = []
+        dlg._toggle_filewise_file_list = lambda: toggled.append("filewise")
+        dlg._toggle_treewise_file_list = lambda: toggled.append("treewise")
+        dlg._on_tab_bar_clicked(1)
+        dlg._on_tab_bar_clicked(2)
+        self.assertEqual(toggled, [])
+
+        # Neither pane is ever explicitly hidden.
+        self.assertFalse(dlg.filewise_file_list.isHidden())
+        self.assertFalse(dlg.treewise_tree.isHidden())
+
+        # Floors and non-collapsible splitters.
+        self.assertGreaterEqual(dlg.filewise_file_list.minimumHeight(), 150)
+        self.assertGreaterEqual(dlg.treewise_tree.minimumHeight(), 150)
+        for splitter in (dlg.filewise_splitter, dlg.treewise_splitter):
+            self.assertFalse(splitter.isCollapsible(0))
+            self.assertFalse(splitter.isCollapsible(1))
+
     def _assert_tree_stats_delegate_owned_by_tree(self, tree):
         """The column-1 TreeStatsDelegate must be owned by the tree itself.
 

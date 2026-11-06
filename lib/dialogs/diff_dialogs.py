@@ -1936,6 +1936,28 @@ class UnstagedDiffDialog(BranchDiffDialog):
         self.filewise_diff_view.setMinimumHeight(200)
         self.treewise_diff_view.setMinimumHeight(200)
 
+        # The file list / tree pane must never collapse.  Clicking the active
+        # tab label used to hide it outright (setVisible(False) +
+        # setSizes([0, 1000])), and the splitters allowed the same via their
+        # handles.  Keep the list/tree at its default 150px minimum and make
+        # both splitters refuse to collapse either side; the tab label click
+        # is neutralised in _on_tab_bar_clicked below.
+        self.filewise_file_list.setMinimumHeight(150)
+        self.treewise_tree.setMinimumHeight(150)
+        self.filewise_splitter.setCollapsible(0, False)
+        self.filewise_splitter.setCollapsible(1, False)
+        self.treewise_splitter.setCollapsible(0, False)
+        self.treewise_splitter.setCollapsible(1, False)
+
+    def _on_tab_bar_clicked(self, idx):
+        """Clicking a tab label must not collapse the file list / tree pane.
+
+        BranchDiffDialog toggles the pane off when the already-active tab
+        label is clicked; here the panes stay put.  Tab switching itself is
+        handled by QTabWidget, so ignoring this notification is enough.
+        """
+        return
+
     def _get_file_diff(self, filepath):
         return get_unstaged_file_diff(self.repo_path, filepath)
 
