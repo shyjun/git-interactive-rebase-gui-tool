@@ -1939,11 +1939,11 @@ class UnstagedDiffDialog(BranchDiffDialog):
         # The file list / tree pane must never collapse.  Clicking the active
         # tab label used to hide it outright (setVisible(False) +
         # setSizes([0, 1000])), and the splitters allowed the same via their
-        # handles.  Keep the list/tree at its default 150px minimum and make
-        # both splitters refuse to collapse either side; the tab label click
-        # is neutralised in _on_tab_bar_clicked below.
-        self.filewise_file_list.setMinimumHeight(150)
-        self.treewise_tree.setMinimumHeight(150)
+        # handles.  Keep the list/tree at a 60px minimum and make both
+        # splitters refuse to collapse either side; the tab label click is
+        # neutralised in _on_tab_bar_clicked below.
+        self.filewise_file_list.setMinimumHeight(60)
+        self.treewise_tree.setMinimumHeight(60)
         self.filewise_splitter.setCollapsible(0, False)
         self.filewise_splitter.setCollapsible(1, False)
         self.treewise_splitter.setCollapsible(0, False)

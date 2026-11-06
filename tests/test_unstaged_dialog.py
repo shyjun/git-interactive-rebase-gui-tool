@@ -87,9 +87,9 @@ class TestUnstagedDialogImport(unittest.TestCase):
         Clicking the already-active tab label used to hide the pane outright
         (BranchDiffDialog._on_tab_bar_clicked -> setVisible(False) +
         setSizes([0, 1000])), and both splitters allowed a handle drag to do
-        the same.  In this dialog the pane keeps a 150px floor, the
-        splitters refuse to collapse either side, and tab-label clicks never
-        reach the toggles.
+        the same.  In this dialog the pane keeps a 60px floor, the splitters
+        refuse to collapse either side, and tab-label clicks never reach the
+        toggles.
         """
         if not HAS_PYSIDE:
             self.skipTest("PySide6 not available")
@@ -121,8 +121,8 @@ class TestUnstagedDialogImport(unittest.TestCase):
         self.assertFalse(dlg.treewise_tree.isHidden())
 
         # Floors and non-collapsible splitters.
-        self.assertGreaterEqual(dlg.filewise_file_list.minimumHeight(), 150)
-        self.assertGreaterEqual(dlg.treewise_tree.minimumHeight(), 150)
+        self.assertGreaterEqual(dlg.filewise_file_list.minimumHeight(), 60)
+        self.assertGreaterEqual(dlg.treewise_tree.minimumHeight(), 60)
         for splitter in (dlg.filewise_splitter, dlg.treewise_splitter):
             self.assertFalse(splitter.isCollapsible(0))
             self.assertFalse(splitter.isCollapsible(1))
