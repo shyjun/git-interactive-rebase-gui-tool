@@ -1929,6 +1929,13 @@ class UnstagedDiffDialog(BranchDiffDialog):
             f"Unstaged Changes: <b>{branch}</b> - {len(files)} file{'s' if len(files) != 1 else ''}"
         )
 
+        # Floor each of the three panes so none can be dragged down to
+        # nothing: the plain diff view inherited no minimum at all and the
+        # filewise/treewise diff views bottomed out at 100px.
+        self.side_diff_view.setMinimumHeight(200)
+        self.filewise_diff_view.setMinimumHeight(200)
+        self.treewise_diff_view.setMinimumHeight(200)
+
     def _get_file_diff(self, filepath):
         return get_unstaged_file_diff(self.repo_path, filepath)
 

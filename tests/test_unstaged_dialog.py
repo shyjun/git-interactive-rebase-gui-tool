@@ -50,6 +50,37 @@ class TestUnstagedDialogImport(unittest.TestCase):
         )
         self.assertEqual(dlg.windowTitle(), "Unstaged Changes")
 
+    def test_unstaged_diff_panes_have_minimum_heights(self):
+        """Plain Diff, Filewise and Tree-wise panes must each keep a floor.
+
+        The plain diff view inherited no minimum from BranchDiffDialog and
+        the two splitter panes bottomed out at 100px of diff text, so a
+        small window or a dragged splitter handle could leave no room to
+        read the diff.
+        """
+        if not HAS_PYSIDE:
+            self.skipTest("PySide6 not available")
+
+        from lib.dialogs.diff_dialogs import UnstagedDiffDialog
+
+        dlg = UnstagedDiffDialog(
+            repo_path=os.getcwd(),
+            files=["src/version.c"],
+            diff_text="diff --git a/src/version.c b/src/version.c\n--- a/src/version.c\n+++ b/src/version.c\n",
+            file_stats={"src/version.c": (1, 0, 100, 101)},
+            branch="master",
+            head_sha="760e813eefef620f1412fe7ec7439bb06ff2a92a",
+            font_size=10,
+            font_family=None,
+            parent=None
+        )
+        for name in ("side_diff_view", "filewise_diff_view", "treewise_diff_view"):
+            pane = getattr(dlg, name)
+            self.assertGreaterEqual(
+                pane.minimumHeight(), 200,
+                f"{name} must keep at least 200px, got {pane.minimumHeight()}",
+            )
+
     def _assert_tree_stats_delegate_owned_by_tree(self, tree):
         """The column-1 TreeStatsDelegate must be owned by the tree itself.
 
