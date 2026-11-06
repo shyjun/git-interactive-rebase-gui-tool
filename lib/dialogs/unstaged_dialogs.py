@@ -4,8 +4,6 @@ if __name__ == "__main__":
     print("Please run the main app: git_interactive_rebase.py (git-interactive-rebase-gui-tool)")
     sys.exit(1)
 
-import traceback
-
 # pyrefly: ignore [missing-import]
 from PySide6.QtWidgets import (
     QApplication,
@@ -43,9 +41,7 @@ from lib.git_helpers import (
     build_file_tree,
     classify_tracked_changes,
     get_current_branch,
-    get_full_head_sha,
     get_staged_file_diff,
-    get_unstaged_diff,
     get_unstaged_file_diff,
     get_unstaged_file_stats,
     get_unstaged_files,
@@ -183,23 +179,15 @@ class UnstagedChangesDialog(QDialog):
         layout.addLayout(btn_layout)
 
     def show_unstaged_changes(self):
-        """Open a read-only viewer (same layout as View PR Diff) with only the unstaged changes."""
+        """Open the unstaged-diff viewer via the main window's handler."""
         if not self.repo_path:
             return
-        try:
-            diff_text = get_unstaged_diff(self.repo_path, ignore_submodules=True)
-            file_stats = get_unstaged_file_stats(self.repo_path, ignore_submodules=True)
-            branch = get_current_branch(self.repo_path) or "HEAD"
-            head_sha = get_full_head_sha(self.repo_path)
-            from .diff_dialogs import UnstagedDiffDialog
-            dlg = UnstagedDiffDialog(
-                self.repo_path, self.unstaged_files, diff_text, file_stats,
-                branch, head_sha, self.font_size, self.font_family, self
-            )
-            dlg.exec()
-        except Exception as e:
-            traceback.print_exc()
-            QMessageBox.warning(self, "Unstaged Changes", f"Could not load unstaged changes: {e}")
+        main_win = self.parent()
+        handler = getattr(main_win, "handle_view_unstaged_diff", None)
+        if handler is None:
+            QMessageBox.warning(self, "Unstaged Changes", "The main window is not available.")
+            return
+        handler(parent=self)
 
     def _on_stash(self):
         """Handle 'Stash and proceed'. Only one managed stash is allowed per session."""

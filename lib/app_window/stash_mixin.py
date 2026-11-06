@@ -627,6 +627,41 @@ class StashMixin:
         )
         dlg.exec()
 
+    def handle_view_unstaged_diff(self, unstaged=None, parent=None):
+        """View diff of all unstaged changes (working tree vs index).
+
+        *parent* defaults to the main window; pass another widget when this
+        is opened from a modal dialog so the viewer stays above it.
+        """
+        if unstaged is None:
+            unstaged = get_unstaged_files(self.repo_path, ignore_submodules=True)
+        if not unstaged:
+            QMessageBox.information(self, "No Unstaged Changes", "There are no unstaged changes to view.")
+            return
+        from lib.git_helpers import (
+            get_current_branch,
+            get_full_head_sha,
+            get_unstaged_diff,
+        )
+        try:
+            diff = get_unstaged_diff(self.repo_path, ignore_submodules=True)
+        except Exception as e:
+            QMessageBox.warning(self, "Unstaged Changes", f"Could not load unstaged changes: {e}")
+            return
+        if not diff.strip():
+            QMessageBox.information(self, "No Diff", "No unstaged changes to display.")
+            return
+        file_stats = get_unstaged_file_stats(self.repo_path, ignore_submodules=True)
+        branch = get_current_branch(self.repo_path) or "HEAD"
+        head_sha = get_full_head_sha(self.repo_path)
+        from lib.dialogs.diff_dialogs import UnstagedDiffDialog
+        dlg = UnstagedDiffDialog(
+            self.repo_path, unstaged, diff, file_stats,
+            branch, head_sha, self.current_font_size, font_family=self.current_font_family,
+            parent=parent or self,
+        )
+        dlg.exec()
+
     def handle_discard_staged(self, staged=None):
         """Discard all staged changes (destructive!)."""
         from lib.git_helpers.status import get_staged_files
