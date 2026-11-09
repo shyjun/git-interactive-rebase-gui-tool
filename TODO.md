@@ -47,3 +47,40 @@ long session gets sluggish on its own (timer pile-up).
    so CPU frees immediately on shrink.
 3. *optional:* incremental stats per "Load 100 more" (currently quadratic:
    100+200+…+5000 ≈ 1.25M commit-stats work).
+
+### Permission hurdles on a repo created by a different user
+
+**Status:** reported 2026-11-09 · not yet diagnosed (no reproduction captured)
+
+**Symptom:** opening the tool on a repository owned by another user sometimes
+runs into permission problems — history fails to load or operations error out,
+and the failures surface as generic git errors rather than telling you what is
+actually wrong.
+
+**Likely culprits (to confirm when diagnosing):**
+
+- git's *"detected dubious ownership in repository"* refusal — the classic when
+  the repo's owner differs from the invoking user (`safe.directory` not set)
+- `EACCES` on `.git/` internals (objects, refs, index) when the repo or parts
+  of it are not readable/writable by the current user
+- the tool's own writes failing: settings (`QSettings`), logs, update cache —
+  `lib/unclean_exit.py:97` is the only `PermissionError` handled anywhere; git
+  helper failures are logged generically and surfaced as plain error dialogs
+
+**Workaround:** `git config --global --add safe.directory <repo-path>` for the
+ownership case; otherwise fix ownership/permissions on the repo
+(`chown`/`chmod`) or run the tool as the repo's owner.
+
+**Revisit when:** it happens again — capture the exact git stderr / dialog text
+and the repo's `ls -ln .git` at that moment, then promote this entry from
+"reported" to diagnosed.
+
+**Proposed fix (once diagnosed):**
+
+1. detect git's `dubious ownership` stderr specifically and offer to add the
+   path to `safe.directory` (with explicit confirmation — it is a security
+   setting), instead of a generic failure
+2. detect `PermissionError`/`EACCES` from git and from the tool's own file
+   writes, and report the offending path + required permission
+3. fail fast at startup with one clear message when the repo is unusable,
+   rather than a sequence of empty lists and error dialogs
