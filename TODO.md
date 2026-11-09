@@ -84,3 +84,37 @@ and the repo's `ls -ln .git` at that moment, then promote this entry from
    writes, and report the offending path + required permission
 3. fail fast at startup with one clear message when the repo is unusable,
    rather than a sequence of empty lists and error dialogs
+
+### Startup in a non-git directory: offer a repo picker instead of exiting
+
+**Status:** reported 2026-11-09 · enhancement, not yet implemented
+
+**Today:** the entry point runs `git rev-parse --is-inside-work-tree` /
+`--show-toplevel` on the launch path and, on failure, shows a critical dialog
+*"…is not a valid git repository. Please run this tool inside a git
+repository."* and calls `sys.exit(1)` (`git_interactive_rebase.py:242-259`).
+You must fix the path and start the tool again.
+
+**Requested:** instead of exiting, show a dialog that lets you pick the repo
+root and continue into the app:
+
+- editable **input box** pre-filled with the attempted path (editable so a
+  typed path, `~`, or a subdirectory can be corrected in place)
+- **Browse…** button opening a directory chooser (`QFileDialog.getExistingDirectory`)
+- **Open** re-validates with `git rev-parse --show-toplevel` (so a
+  subdirectory resolves to its repo root, exactly like the current success
+  path does at line 247) and proceeds with the resolved path
+- **Cancel** keeps today's behaviour (exit), and validation failures show the
+  git error inline in the dialog rather than a modal that loses your typing
+
+**Edge cases to settle when implementing:**
+
+- remember the last valid repo (settings) as the pre-fill when the launch
+  path is invalid, instead of the invalid path itself
+- `git` missing entirely stays a hard error (line 248-253) — no point offering
+  a picker
+- explicit CLI arguments (`--browse-branch` etc. against a bad path) should
+  keep failing loudly rather than silently switching repos
+
+**Revisit when:** picked up for implementation — the flow above is the spec;
+no diagnosis needed.
