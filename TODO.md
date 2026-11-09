@@ -3,9 +3,15 @@
 Dev-facing notes (not user docs — README stays the user doc).
 Entry format: symptom → evidence → workaround → revisit-when → proposed fix.
 
-## Open
+| # | Entry | Status |
+|---|---|---|
+| 1 | [Stats jobs pile up after "Show only till here"](#1-stats-jobs-pile-up-and-keep-running-after-show-only-till-here) | diagnosed · deferred |
+| 2 | [Permission hurdles on a repo owned by another user](#2-permission-hurdles-on-a-repo-created-by-a-different-user) | reported |
+| 3 | [Non-git startup → repo picker instead of exiting](#3-startup-in-a-non-git-directory-offer-a-repo-picker-instead-of-exiting) | reported · enhancement |
 
-### Stats jobs pile up and keep running after "Show only till here"
+---
+
+## 1. Stats jobs pile up and keep running after "Show only till here"
 
 **Status:** diagnosed 2026-11-09 · deliberately deferred (low urgency, self-healing)
 
@@ -48,7 +54,9 @@ long session gets sluggish on its own (timer pile-up).
 3. *optional:* incremental stats per "Load 100 more" (currently quadratic:
    100+200+…+5000 ≈ 1.25M commit-stats work).
 
-### Permission hurdles on a repo created by a different user
+---
+
+## 2. Permission hurdles on a repo created by a different user
 
 **Status:** reported 2026-11-09 · not yet diagnosed (no reproduction captured)
 
@@ -85,7 +93,9 @@ and the repo's `ls -ln .git` at that moment, then promote this entry from
 3. fail fast at startup with one clear message when the repo is unusable,
    rather than a sequence of empty lists and error dialogs
 
-### Startup in a non-git directory: offer a repo picker instead of exiting
+---
+
+## 3. Startup in a non-git directory: offer a repo picker instead of exiting
 
 **Status:** reported 2026-11-09 · enhancement, not yet implemented
 
