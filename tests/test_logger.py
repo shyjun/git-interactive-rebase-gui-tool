@@ -80,6 +80,22 @@ class TestLoggerResilience(unittest.TestCase):
         _log("[perf] now visible")
         self.assertIn("now visible", captured.getvalue())
 
+    def test_progress_debug_is_verbose_only(self):
+        """The [progress] DEBUG tracing (fetch/push progress plumbing) must
+        stay out of normal runs and only appear with -v."""
+        line = "[progress] DEBUG emit -> git_progress('Counting objects', 0)"
+        logger._VERBOSE = False
+        captured = io.StringIO()
+        sys.stdout = captured
+        _log(line)
+        self.assertNotIn("DEBUG emit", captured.getvalue())
+
+        logger._VERBOSE = True
+        captured = io.StringIO()
+        sys.stdout = captured
+        _log(line)
+        self.assertIn("DEBUG emit", captured.getvalue())
+
 
 class TestLoggerE2EPty(unittest.TestCase):
     """End-to-end on a real pty: closing the master simulates the user's

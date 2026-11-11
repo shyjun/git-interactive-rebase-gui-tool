@@ -3,7 +3,7 @@ import sys
 import time
 
 _VERBOSE = False
-_VERBOSE_TAGS = {'perf', 'ctx', 'diff', 'stats', 'thread', 'rescan'}
+_VERBOSE_TAGS = {'perf', 'ctx', 'diff', 'stats', 'thread', 'rescan', 'progress'}
 _BROKEN = False
 
 

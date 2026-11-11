@@ -88,7 +88,7 @@ def main():
     parser.add_argument("--update", action="store_true", help="Update the tool to the latest version and exit.")
     parser.add_argument("--version", action="store_true", help="Print the tool's version (short git id) and exit.")
     parser.add_argument("--no-fork", action="store_true", help=argparse.SUPPRESS)  # internal flag: already backgrounded
-    parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose logging (perf, ctx, diff, stats, thread)")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose logging (perf, ctx, diff, stats, thread, progress)")
     parser.add_argument("positional", nargs="*", help="Branch, file, tag, or commit ref (auto-detected)")
     args = parser.parse_args()
 
