@@ -42,9 +42,10 @@ class _FakeGitWorker:
 
     made = []
 
-    def __init__(self, cmd, repo_path):
+    def __init__(self, cmd, repo_path, timeout=30):
         self.cmd = list(cmd)
         self.repo_path = repo_path
+        self.timeout = timeout
         self.git_finished = _FakeSignal()
         _FakeGitWorker.made.append(self)
 
@@ -404,6 +405,30 @@ class TestPullFlow(unittest.TestCase):
         self.assertEqual(self._worker_cmds(), [])
         self.assertEqual(_FakeMessageBox.events, [])
         self.assertNotIn("save_undo_state", win.calls)
+
+    def test_network_workers_use_extended_timeout(self):
+        """fetch and pull touch the network: they must not be killed by
+        GitWorker's local 30s default (slow remote, big repo)."""
+        from lib.app_window.workers import _NET_TIMEOUT
+        self.assertGreater(_NET_TIMEOUT, 30,
+                           "_NET_TIMEOUT must exceed the local default")
+        repo = self._build_repo("clean")
+        win = _FakePullWindow(repo)
+        win.handle_git_pull()
+        self.assertEqual(self._worker_cmds(),
+                         [["git", "fetch"], ["git", "pull", "--no-rebase"]])
+        for w in _FakeGitWorker.made:
+            self.assertEqual(w.timeout, _NET_TIMEOUT,
+                             f"{w.cmd} must run with _NET_TIMEOUT")
+
+    def test_fetch_menu_worker_uses_extended_timeout(self):
+        """The standalone Fetch action gets the same extended timeout."""
+        from lib.app_window.workers import _NET_TIMEOUT
+        repo = self._build_repo("clean")
+        win = _FakePullWindow(repo)
+        win.handle_git_fetch()
+        self.assertEqual(self._worker_cmds(), [["git", "fetch"]])
+        self.assertEqual(_FakeGitWorker.made[0].timeout, _NET_TIMEOUT)
 
 
 if __name__ == "__main__":

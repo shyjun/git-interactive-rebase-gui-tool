@@ -47,6 +47,12 @@ class AmendWorker(QThread):
             self.git_finished.emit(False, str(e))
 
 
+# Timeout (seconds) for network-facing commands (fetch/pull/push/ls-remote):
+# a slow remote or a big repo easily exceeds the local default of 30s, which
+# killed the operation mid-flight and surfaced as "Command timed out after 30s".
+_NET_TIMEOUT = 120
+
+
 class GitWorker(QThread):
     git_finished = Signal(bool, str, str)
 

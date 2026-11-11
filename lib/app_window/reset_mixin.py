@@ -13,7 +13,7 @@ from lib.git_helpers import (
     rebase_in_progress,
 )
 from lib.dialogs import ProgressDialog, PullDialog, PushDialog, RefTargetDialog
-from lib.app_window.workers import GitWorker
+from lib.app_window.workers import GitWorker, _NET_TIMEOUT
 from lib.app_window.helpers import _log
 
 
@@ -26,7 +26,7 @@ class ResetMixin:
         if not hasattr(self, '_active_workers'):
             self._active_workers = set()
 
-        worker = GitWorker(["git", "fetch"], self.repo_path)
+        worker = GitWorker(["git", "fetch"], self.repo_path, timeout=_NET_TIMEOUT)
         self._active_workers.add(worker)
         worker.git_finished.connect(lambda *a: self._active_workers.discard(worker))
         worker.git_finished.connect(self.on_fetch_finished)
@@ -92,7 +92,7 @@ class ResetMixin:
         if not hasattr(self, '_active_workers'):
             self._active_workers = set()
 
-        worker = GitWorker(["git", "fetch"], self.repo_path)
+        worker = GitWorker(["git", "fetch"], self.repo_path, timeout=_NET_TIMEOUT)
         self._active_workers.add(worker)
         worker.git_finished.connect(lambda *a: self._active_workers.discard(worker))
         worker.git_finished.connect(self._on_pull_fetch_finished)
@@ -141,7 +141,7 @@ class ResetMixin:
         # git >= 2.27 refuses plain `git pull` on divergent branches without an
         # explicit strategy; --no-rebase (= merge) matches the default behavior.
         cmd = ["git", "pull", "--rebase"] if rebase else ["git", "pull", "--no-rebase"]
-        worker = GitWorker(cmd, self.repo_path)
+        worker = GitWorker(cmd, self.repo_path, timeout=_NET_TIMEOUT)
         self._active_workers.add(worker)
         worker.git_finished.connect(lambda *a: self._active_workers.discard(worker))
         worker.git_finished.connect(self._on_pull_finished)
@@ -236,7 +236,7 @@ class ResetMixin:
         if not hasattr(self, '_active_workers'):
             self._active_workers = set()
 
-        worker = GitWorker(cmd, self.repo_path)
+        worker = GitWorker(cmd, self.repo_path, timeout=_NET_TIMEOUT)
         self._active_workers.add(worker)
         worker.git_finished.connect(lambda *a: self._active_workers.discard(worker))
         worker.git_finished.connect(lambda success, stdout, stderr, lbl=cmd_label: self.on_push_finished(success, stdout, stderr, lbl))

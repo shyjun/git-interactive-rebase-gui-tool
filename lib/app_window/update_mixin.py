@@ -16,6 +16,7 @@ from lib.dialogs import ProgressDialog
 from lib.app_window.workers import (
     GitWorker,
     SelfUpdateWorker,
+    _NET_TIMEOUT,
 )
 from lib.app_window.helpers import _log
 
@@ -86,7 +87,8 @@ class UpdateMixin:
 
         # BUG-9 fix: use tool_dir (a valid directory) as cwd, not self.repo_path
         # (the user's repository), which is semantically wrong and fragile.
-        self.worker = GitWorker(["git", "ls-remote", REPO_URL, "HEAD"], tool_dir)
+        self.worker = GitWorker(["git", "ls-remote", REPO_URL, "HEAD"], tool_dir,
+                                timeout=_NET_TIMEOUT)
 
         def on_check_finished(success, stdout, stderr):
             self._update_in_flight = False
