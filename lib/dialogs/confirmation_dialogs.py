@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import (
     Qt,
 )
-from lib.app_window.helpers import mono_font
+from lib.app_window.helpers import mono_font, _log
 
 from .diff_viewer_dialog import DiffViewerDialog
 
@@ -421,6 +421,32 @@ class ProgressDialog(QDialog):
 
         # Add some spacing at the bottom
         layout.addSpacing(10)
+
+    def set_progress(self, phase, percent):
+        """Show git's real percentage instead of the indeterminate bar.
+
+        *phase*/*percent* arrive in GitWorker.git_progress' order (the same
+        order git writes them: "Receiving objects: 42%").
+
+        git reports progress per phase (Counting, Compressing, Receiving,
+        Resolving deltas), each restarting at 0, so the bar follows the
+        current phase and the label names it: "Receiving objects: 42%".
+        Operations that never report anything (local commands, ls-remote,
+        "Already up to date") simply keep the indeterminate bar.
+        """
+        if not isinstance(percent, int) or not 0 <= percent <= 100:
+            _log(f"[progress] DEBUG dialog ignored bad percent "
+                 f"{percent!r} phase={phase!r}")
+            return
+        if self.progress_bar.maximum() != 100:
+            _log(f"[progress] DEBUG dialog switching to determinate "
+                 f"bar at {percent}% phase={phase!r}")
+            self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(percent)
+        if phase:
+            self.label.setText(f"{phase}: {percent}%")
+        _log(f"[progress] DEBUG dialog bar={self.progress_bar.value()}/"
+             f"{self.progress_bar.maximum()} label={self.label.text()!r}")
 
     def keyPressEvent(self, event):
         # Progress dialogs are not user-dismissible: Qt's default would

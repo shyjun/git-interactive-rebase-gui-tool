@@ -42,11 +42,13 @@ class _FakeGitWorker:
 
     made = []
 
-    def __init__(self, cmd, repo_path, timeout=30):
+    def __init__(self, cmd, repo_path, timeout=30, progress=False):
         self.cmd = list(cmd)
         self.repo_path = repo_path
         self.timeout = timeout
+        self.progress = progress
         self.git_finished = _FakeSignal()
+        self.git_progress = _FakeSignal()
         _FakeGitWorker.made.append(self)
 
     def start(self):
@@ -58,6 +60,10 @@ class _FakeGitWorker:
 class _FakeProgressDialog:
     def __init__(self, title, message, parent=None):
         self.title = title
+        self.progress = None
+
+    def set_progress(self, phase, percent):
+        self.progress = (phase, percent)
 
     def exec(self):
         pass
@@ -234,7 +240,7 @@ class TestPullFlow(unittest.TestCase):
         head_before = self._head(repo)
         win = _FakePullWindow(repo)
         win.handle_git_pull()
-        self.assertEqual(self._worker_cmds(), [["git", "fetch"]])
+        self.assertEqual(self._worker_cmds(), [["git", "fetch", "--progress"]])
         warnings = [e for e in _FakeMessageBox.events if e[0] == "warning"]
         self.assertEqual(len(warnings), 1)
         self.assertEqual(warnings[0][1], "Pull May Conflict")
@@ -254,7 +260,7 @@ class TestPullFlow(unittest.TestCase):
         win = _FakePullWindow(repo)
         _FakePullDialog.option = "rebase"
         win.handle_git_pull()
-        self.assertEqual(self._worker_cmds(), [["git", "fetch"]])
+        self.assertEqual(self._worker_cmds(), [["git", "fetch", "--progress"]])
         warnings = [e for e in _FakeMessageBox.events if e[0] == "warning"]
         self.assertEqual(len(warnings), 1)
         self.assertIn("Pull May Conflict", warnings[0][1])
@@ -271,7 +277,7 @@ class TestPullFlow(unittest.TestCase):
         win = _FakePullWindow(repo)
         win.handle_git_pull()
         self.assertEqual(self._worker_cmds(),
-                         [["git", "fetch"], ["git", "pull", "--no-rebase"]])
+                         [["git", "fetch", "--progress"], ["git", "pull", "--no-rebase", "--progress"]])
         infos = [e for e in _FakeMessageBox.events if e[0] == "information"]
         self.assertEqual(len(infos), 1)
         self.assertIn("Success", infos[0][1])
@@ -293,7 +299,7 @@ class TestPullFlow(unittest.TestCase):
         _FakePullDialog.option = "rebase"
         win.handle_git_pull()
         self.assertEqual(self._worker_cmds(),
-                         [["git", "fetch"], ["git", "pull", "--rebase"]])
+                         [["git", "fetch", "--progress"], ["git", "pull", "--rebase", "--progress"]])
         infos = [e for e in _FakeMessageBox.events if e[0] == "information"]
         self.assertEqual(len(infos), 1)
         parents = _git(repo, "rev-list", "--parents", "-n", "1",
@@ -316,7 +322,7 @@ class TestPullFlow(unittest.TestCase):
         win = _FakePullWindow(repo)
         win.handle_git_pull()
         self.assertEqual(self._worker_cmds(),
-                         [["git", "fetch"], ["git", "pull", "--no-rebase"]])
+                         [["git", "fetch", "--progress"], ["git", "pull", "--no-rebase", "--progress"]])
         self.assertEqual(self._head(repo), origin_sha)
         self.assertIn("load_history", win.calls)
         self.assertEqual(win.last_head, head_before,
@@ -347,7 +353,7 @@ class TestPullFlow(unittest.TestCase):
              os.path.join(self.root, "gone.git"))
         win = _FakePullWindow(repo)
         win.handle_git_pull()
-        self.assertEqual(self._worker_cmds(), [["git", "fetch"]])
+        self.assertEqual(self._worker_cmds(), [["git", "fetch", "--progress"]])
         crits = [e for e in _FakeMessageBox.events if e[0] == "critical"]
         self.assertEqual(len(crits), 1)
         self.assertIn("Pull Failed", crits[0][1])
@@ -362,7 +368,7 @@ class TestPullFlow(unittest.TestCase):
         win = _FakePullWindow(repo)
         _FakePullDialog.option = "fetch"
         win.handle_git_pull()
-        self.assertEqual(self._worker_cmds(), [["git", "fetch"]])
+        self.assertEqual(self._worker_cmds(), [["git", "fetch", "--progress"]])
         infos = [e for e in _FakeMessageBox.events if e[0] == "information"]
         self.assertEqual(len(infos), 1)
         self.assertIn("git fetch", infos[0][2])
@@ -390,7 +396,7 @@ class TestPullFlow(unittest.TestCase):
         win = _FakePullWindow(repo)
         _FakePullDialog.option = "fetch"
         win.handle_git_pull()
-        self.assertEqual(self._worker_cmds(), [["git", "fetch"]])
+        self.assertEqual(self._worker_cmds(), [["git", "fetch", "--progress"]])
         warnings = [e for e in _FakeMessageBox.events if e[0] == "warning"]
         self.assertEqual(warnings, [], "fetch must not demand an upstream")
         infos = [e for e in _FakeMessageBox.events if e[0] == "information"]
@@ -416,7 +422,7 @@ class TestPullFlow(unittest.TestCase):
         win = _FakePullWindow(repo)
         win.handle_git_pull()
         self.assertEqual(self._worker_cmds(),
-                         [["git", "fetch"], ["git", "pull", "--no-rebase"]])
+                         [["git", "fetch", "--progress"], ["git", "pull", "--no-rebase", "--progress"]])
         for w in _FakeGitWorker.made:
             self.assertEqual(w.timeout, _NET_TIMEOUT,
                              f"{w.cmd} must run with _NET_TIMEOUT")
@@ -427,7 +433,7 @@ class TestPullFlow(unittest.TestCase):
         repo = self._build_repo("clean")
         win = _FakePullWindow(repo)
         win.handle_git_fetch()
-        self.assertEqual(self._worker_cmds(), [["git", "fetch"]])
+        self.assertEqual(self._worker_cmds(), [["git", "fetch", "--progress"]])
         self.assertEqual(_FakeGitWorker.made[0].timeout, _NET_TIMEOUT)
 
 

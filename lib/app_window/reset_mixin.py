@@ -26,10 +26,12 @@ class ResetMixin:
         if not hasattr(self, '_active_workers'):
             self._active_workers = set()
 
-        worker = GitWorker(["git", "fetch"], self.repo_path, timeout=_NET_TIMEOUT)
+        worker = GitWorker(["git", "fetch", "--progress"], self.repo_path,
+                           timeout=_NET_TIMEOUT, progress=True)
         self._active_workers.add(worker)
         worker.git_finished.connect(lambda *a: self._active_workers.discard(worker))
         worker.git_finished.connect(self.on_fetch_finished)
+        worker.git_progress.connect(self.progress_dialog.set_progress)
         self.worker = worker
         _log("[thread] GitWorker.start()")
         worker.start()
@@ -92,10 +94,12 @@ class ResetMixin:
         if not hasattr(self, '_active_workers'):
             self._active_workers = set()
 
-        worker = GitWorker(["git", "fetch"], self.repo_path, timeout=_NET_TIMEOUT)
+        worker = GitWorker(["git", "fetch", "--progress"], self.repo_path,
+                           timeout=_NET_TIMEOUT, progress=True)
         self._active_workers.add(worker)
         worker.git_finished.connect(lambda *a: self._active_workers.discard(worker))
         worker.git_finished.connect(self._on_pull_fetch_finished)
+        worker.git_progress.connect(self.progress_dialog.set_progress)
         self.worker = worker
         _log("[thread] GitWorker.start()")
         worker.start()
@@ -140,11 +144,13 @@ class ResetMixin:
 
         # git >= 2.27 refuses plain `git pull` on divergent branches without an
         # explicit strategy; --no-rebase (= merge) matches the default behavior.
-        cmd = ["git", "pull", "--rebase"] if rebase else ["git", "pull", "--no-rebase"]
-        worker = GitWorker(cmd, self.repo_path, timeout=_NET_TIMEOUT)
+        strategy = "--rebase" if rebase else "--no-rebase"
+        cmd = ["git", "pull", strategy, "--progress"]
+        worker = GitWorker(cmd, self.repo_path, timeout=_NET_TIMEOUT, progress=True)
         self._active_workers.add(worker)
         worker.git_finished.connect(lambda *a: self._active_workers.discard(worker))
         worker.git_finished.connect(self._on_pull_finished)
+        worker.git_progress.connect(self.progress_dialog.set_progress)
         self.worker = worker
         _log("[thread] GitWorker.start()")
         worker.start()
@@ -230,16 +236,20 @@ class ResetMixin:
             return
 
         cmd, cmd_label = dlg.get_git_command()
+        # --progress is not one of the dialog's options; it only makes git
+        # report percentages (the label stays as the dialog worded it).
+        cmd = [*cmd, "--progress"]
         _log(f"Performing {cmd_label}...")
         self.progress_dialog = ProgressDialog("Git Pushing", f"{cmd_label} in progress...", self)
 
         if not hasattr(self, '_active_workers'):
             self._active_workers = set()
 
-        worker = GitWorker(cmd, self.repo_path, timeout=_NET_TIMEOUT)
+        worker = GitWorker(cmd, self.repo_path, timeout=_NET_TIMEOUT, progress=True)
         self._active_workers.add(worker)
         worker.git_finished.connect(lambda *a: self._active_workers.discard(worker))
         worker.git_finished.connect(lambda success, stdout, stderr, lbl=cmd_label: self.on_push_finished(success, stdout, stderr, lbl))
+        worker.git_progress.connect(self.progress_dialog.set_progress)
         self.worker = worker
         _log("[thread] GitWorker.start()")
         worker.start()
