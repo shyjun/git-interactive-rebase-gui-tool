@@ -375,6 +375,7 @@ def main():
     created_stash_sha = None
     ack_messages = []  # (kind, title, text) shown after the main window appears
     deferred_selective_commit = False
+    deferred_view_unstaged = False
     startup_undo_sha = None  # HEAD before a startup amend/bulk/commit-each so undo can restore it
     _t = time.monotonic()
     unstaged_files = get_unstaged_files(repo_path, ignore_submodules=True)
@@ -387,6 +388,10 @@ def main():
             # Defer until the main window exists so the dialog gets the app's
             # font/theme; runs through the shared handler.
             deferred_selective_commit = True
+        elif result == UnstagedChangesDialog.ViewUnstagedResult:
+            # 'Show unstaged changes' clicked before the main window exists -
+            # open the viewer once the window is up (same deferral as above).
+            deferred_view_unstaged = True
         elif result == UnstagedChangesDialog.Accepted:
             created_stash_sha, stash_err = stash_changes(repo_path)
             if created_stash_sha is not None and created_stash_sha is not STASH_NOTHING_STASHED:
@@ -579,6 +584,11 @@ def main():
     # Deferred 'Commit Selectively' chosen at startup - run once the window is up.
     if deferred_selective_commit:
         QTimer.singleShot(0, window._commit_selectively_from_dialog)
+
+    # Deferred 'Show unstaged changes' clicked at startup - open the viewer
+    # once the window is up, parented to it so it stacks correctly.
+    if deferred_view_unstaged:
+        QTimer.singleShot(0, lambda: window.handle_view_unstaged_diff(parent=window))
 
     # Show any acknowledgment/error boxes only after the main window is up.
     if ack_messages:

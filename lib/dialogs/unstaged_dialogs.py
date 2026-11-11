@@ -71,6 +71,7 @@ class UnstagedChangesDialog(QDialog):
     DiscardResult = 6
     MergeResult = 7
     SelectiveCommitResult = 8
+    ViewUnstagedResult = 9
 
     def __init__(self, num_files, parent=None, from_rescan=False, repo_path=None, unstaged_files=None, font_size=None, font_family=None, managed_stash_exists=False, managed_stash_sha=None, viewer_mode=False):
         super().__init__(parent)
@@ -179,13 +180,19 @@ class UnstagedChangesDialog(QDialog):
         layout.addLayout(btn_layout)
 
     def show_unstaged_changes(self):
-        """Open the unstaged-diff viewer via the main window's handler."""
+        """Open the unstaged-diff viewer via the main window's handler.
+
+        At startup this dialog runs before the main window exists (the entry
+        point builds it in git_interactive_rebase.py), so there is nothing to
+        delegate to yet: close with ViewUnstagedResult instead and let the
+        entry point open the viewer once the window is up - the same deferred
+        pattern already used for 'Commit Selectively'.
+        """
         if not self.repo_path:
             return
-        main_win = self.parent()
-        handler = getattr(main_win, "handle_view_unstaged_diff", None)
+        handler = getattr(self.parent(), "handle_view_unstaged_diff", None)
         if handler is None:
-            QMessageBox.warning(self, "Unstaged Changes", "The main window is not available.")
+            self.done(UnstagedChangesDialog.ViewUnstagedResult)
             return
         handler(parent=self)
 

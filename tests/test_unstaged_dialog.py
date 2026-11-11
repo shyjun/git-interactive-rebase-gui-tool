@@ -1,3 +1,4 @@
+import ast
 import unittest
 import sys
 import os
@@ -217,6 +218,153 @@ class TestExitButtonLabel(unittest.TestCase):
             self.skipTest("PySide6 not available")
         dlg = self._dialog()
         self.assertEqual(dlg.exit_btn.text(), "Exit")
+
+
+class TestShowUnstagedChangesWithoutMainWindow(unittest.TestCase):
+    """At startup the warning dialog has no parent main window yet.
+
+    The entry point builds it (git_interactive_rebase.py) before
+    GitInteractiveRebaseApp exists, so 'Show unstaged changes' must close the
+    dialog with ViewUnstagedResult - letting startup defer the viewer to when
+    the window is up - instead of popping 'The main window is not available.'
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        if HAS_PYSIDE and not QApplication.instance():
+            cls.app = QApplication([])
+
+    def _dialog(self, **kwargs):
+        from lib.dialogs.unstaged_dialogs import UnstagedChangesDialog
+        return UnstagedChangesDialog(2, font_size=10, **kwargs)
+
+    def test_parentless_dialog_returns_view_result(self):
+        if not HAS_PYSIDE:
+            self.skipTest("PySide6 not available")
+
+        from PySide6.QtWidgets import QMessageBox
+        from lib.dialogs.unstaged_dialogs import UnstagedChangesDialog
+
+        dlg = self._dialog(repo_path=os.getcwd())
+        self.assertIsNone(dlg.parent(), "startup dialog must have no parent")
+
+        warnings = []
+        original = QMessageBox.warning
+        QMessageBox.warning = lambda *a, **k: warnings.append(a)
+        try:
+            dlg.show_unstaged_changes()
+        finally:
+            QMessageBox.warning = original
+
+        self.assertEqual(
+            dlg.result(), UnstagedChangesDialog.ViewUnstagedResult,
+            "startup click must report the deferred-view result to the entry point",
+        )
+        self.assertEqual(warnings, [], "no 'main window is not available' popup")
+
+    def test_result_code_does_not_collide(self):
+        if not HAS_PYSIDE:
+            self.skipTest("PySide6 not available")
+
+        from lib.dialogs.unstaged_dialogs import UnstagedChangesDialog
+
+        codes = [
+            UnstagedChangesDialog.CommitEachResult,
+            UnstagedChangesDialog.BulkCommitResult,
+            UnstagedChangesDialog.AmendResult,
+            UnstagedChangesDialog.ViewerModeResult,
+            UnstagedChangesDialog.DiscardResult,
+            UnstagedChangesDialog.MergeResult,
+            UnstagedChangesDialog.SelectiveCommitResult,
+            UnstagedChangesDialog.ViewUnstagedResult,
+        ]
+        self.assertEqual(len(codes), len(set(codes)), "result codes must be unique")
+
+    def test_parent_with_handler_still_delegates(self):
+        """The rescan path (parent = main window) must keep delegating."""
+        if not HAS_PYSIDE:
+            self.skipTest("PySide6 not available")
+
+        from PySide6.QtWidgets import QWidget
+        from lib.dialogs.unstaged_dialogs import UnstagedChangesDialog
+
+        class _StubMain(QWidget):
+            def __init__(self):
+                super().__init__()
+                self.calls = []
+
+            def handle_view_unstaged_diff(self, parent=None):
+                self.calls.append(parent)
+
+        stub = _StubMain()
+        try:
+            dlg = self._dialog(repo_path=os.getcwd(), parent=stub)
+            dlg.show_unstaged_changes()
+            self.assertEqual(stub.calls, [dlg],
+                             "handler must be called with the dialog as parent")
+            self.assertNotEqual(dlg.result(),
+                                UnstagedChangesDialog.ViewUnstagedResult)
+        finally:
+            stub.close()
+            stub.deleteLater()
+
+
+class TestStartupDeferralWiring(unittest.TestCase):
+    """git_interactive_rebase.py must defer the viewer until the window exists.
+
+    The startup warning dialog runs before GitInteractiveRebaseApp is built, so
+    its ViewUnstagedResult has to be carried across to a deferred
+    handle_view_unstaged_diff call after window.show().
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        path = os.path.join(os.path.dirname(__file__), "..", "git_interactive_rebase.py")
+        with open(path, encoding="utf-8") as fh:
+            cls.tree = ast.parse(fh.read())
+
+    def test_flag_initialized_before_use(self):
+        flags = [
+            n for n in ast.walk(self.tree)
+            if isinstance(n, ast.Assign)
+            and any(isinstance(t, ast.Name) and t.id == "deferred_view_unstaged"
+                    for t in n.targets)
+            and isinstance(n.value, ast.Constant) and n.value.value is False
+        ]
+        self.assertTrue(flags, "deferred_view_unstaged must be initialised to False")
+
+    def test_view_result_sets_flag(self):
+        found = False
+        for node in ast.walk(self.tree):
+            if not isinstance(node, ast.If) or not isinstance(node.test, ast.Compare):
+                continue
+            if not any(isinstance(c, ast.Attribute) and c.attr == "ViewUnstagedResult"
+                       for c in ast.walk(node.test)):
+                continue
+            for stmt in node.body:
+                for sub in ast.walk(stmt):
+                    if (isinstance(sub, ast.Assign)
+                            and any(isinstance(t, ast.Name) and t.id == "deferred_view_unstaged"
+                                    for t in sub.targets)
+                            and isinstance(sub.value, ast.Constant)
+                            and sub.value.value is True):
+                        found = True
+        self.assertTrue(found,
+                        "the ViewUnstagedResult branch must set deferred_view_unstaged")
+
+    def test_flag_defers_viewer_call(self):
+        found = False
+        for node in ast.walk(self.tree):
+            if (isinstance(node, ast.If)
+                    and isinstance(node.test, ast.Name)
+                    and node.test.id == "deferred_view_unstaged"):
+                dump = ast.dump(node)
+                if "singleShot" in dump and "handle_view_unstaged_diff" in dump:
+                    found = True
+        self.assertTrue(
+            found,
+            "deferred_view_unstaged must gate a singleShot that opens the viewer",
+        )
 
 
 if __name__ == "__main__":
