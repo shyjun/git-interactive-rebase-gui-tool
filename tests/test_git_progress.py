@@ -90,6 +90,71 @@ class TestParseGitProgress(unittest.TestCase):
         )
 
 
+# --- failure-message extraction ------------------------------------------
+
+# Real output of a tag-heavy `git fetch` that failed afterwards in the
+# submodule phase: ~280 sideband report lines followed by the one line
+# that matters. The failure box used to show all ~13 KB of it.
+_USER_FETCH_FAILURE = (
+    "From git.innophaseiot.com:skywalker/software/apu_uc\n"
+    " * [new branch]        1030_ps_dev    -> origin/1030_ps_dev\n"
+    "   bcfd16a6..e93309f0  Helium_B0_bringup  -> origin/Helium_B0_bringup\n"
+    " + 9f012991...af83bfbc VK/USDK-97_iperf3  -> "
+    "origin/VK/USDK-97_iperf3  (forced update)\n"
+    " * [new tag]           dev_v2.1       -> dev_v2.1\n"
+    "Fetching submodule components/soc/helium-b0/npu\n"
+    "fatal: remote error: upload-pack: not our ref "
+    "9739bef4cdc4a268bd6f53c57199c2a497c8f7a9\n"
+    "Errors during submodule fetch:\n"
+    "\tcomponents/soc/helium-b0/npu\n"
+)
+
+
+class TestExtractError(unittest.TestCase):
+    def _extract(self, text):
+        from lib.app_window.workers import _extract_error
+        return _extract_error(text)
+
+    def test_report_lines_dropped_fatal_kept(self):
+        out = self._extract(_USER_FETCH_FAILURE)
+        self.assertNotIn("[new branch]", out)
+        self.assertNotIn("[new tag]", out)
+        self.assertNotIn("(forced update)", out)
+        self.assertNotIn("bcfd16a6..e93309f0", out)
+        self.assertIn("From git.innophaseiot.com:skywalker/software/apu_uc", out)
+        self.assertIn("Fetching submodule components/soc/helium-b0/npu", out)
+        self.assertIn(
+            "fatal: remote error: upload-pack: not our ref "
+            "9739bef4cdc4a268bd6f53c57199c2a497c8f7a9", out)
+        self.assertIn("\tcomponents/soc/helium-b0/npu", out)
+        self.assertLess(len(out), 400,
+                        "the box must shrink from ~13 KB to the real error")
+
+    def test_output_without_report_lines_is_untouched(self):
+        for text in (
+            "fatal: could not read Username for 'https://github.com'",
+            "CONFLICT (content): Merge conflict in a.txt",
+            "error: pathspec 'x' did not match",
+        ):
+            self.assertEqual(self._extract(text), text, text)
+
+    def test_report_only_output_still_yields_something(self):
+        """A failure box must never come up empty."""
+        out = self._extract(
+            " * [new tag]  dev_v2.1  -> dev_v2.1\n"
+            " * [new branch]  x  -> origin/x\n")
+        self.assertTrue(out.strip())
+        self.assertIn("[new tag]", out, "fallback keeps the raw tail")
+
+    def test_empty_input_stays_empty(self):
+        self.assertEqual(self._extract(""), "")
+
+    def test_very_long_report_only_output_is_capped_to_the_tail(self):
+        out = self._extract(
+            "".join(f" * [new tag]  t{i} -> t{i}\n" for i in range(500)))
+        self.assertLessEqual(len(out.splitlines()), 15)
+
+
 # --- dialog ---------------------------------------------------------------
 
 class TestProgressDialogSetProgress(unittest.TestCase):
@@ -269,6 +334,34 @@ class TestGitWorkerProgress(unittest.TestCase):
         self.assertNotIn("Receiving objects", err,
                          "progress must not pollute the error message")
         self.assertTrue(events["progress"], "progress is emitted either way")
+
+    def test_failure_message_drops_sideband_report_lines(self):
+        """A failed fetch/push reports the actual fatal error, not
+        hundreds of ' * [new tag]' lines that bury it (the box used to
+        carry ~13 KB of report chatter for a one-line submodule error)."""
+        script = (
+            "import sys\n"
+            "sys.stderr.write(' * [new branch]        1030_ps_dev    "
+            "-> origin/1030_ps_dev\\n')\n"
+            "sys.stderr.write(' * [new tag]           dev_v2.1       "
+            "-> dev_v2.1\\n')\n"
+            "sys.stderr.write('Fetching submodule "
+            "components/soc/helium-b0/npu\\n')\n"
+            "sys.stderr.write('fatal: remote error: upload-pack: not our "
+            "ref abc123def\\n')\n"
+            "sys.stderr.write('Errors during submodule fetch:\\n')\n"
+            "sys.stderr.write('\\tcomponents/soc/helium-b0/npu\\n')\n"
+            "sys.exit(1)\n"
+        )
+        events = self._run(script)
+        ok, out, err = events["finished"][0]
+        self.assertFalse(ok)
+        self.assertNotIn("[new branch]", err)
+        self.assertNotIn("[new tag]", err)
+        self.assertIn("Fetching submodule components/soc/helium-b0/npu", err)
+        self.assertIn(
+            "fatal: remote error: upload-pack: not our ref abc123def", err)
+        self.assertIn("\tcomponents/soc/helium-b0/npu", err)
 
     def test_progress_flag_appends_the_git_option(self):
         from lib.app_window.workers import GitWorker

@@ -102,6 +102,38 @@ def _strip_progress(text):
     ).strip()
 
 
+# git's sideband report lines: " * [new branch] x -> y",
+# " + a...b x -> y  (forced update)", "   abc..def  x -> y". Pure status
+# chatter - a tag-heavy fetch prints hundreds of them, burying the actual
+# one-line "fatal:" at the end of a 13 KB failure message.
+_REPORT_RE = re.compile(
+    r"^\s*(?:"
+    r"\*\s\[[^\]]+\]"                      #  * [new branch] / [new tag] / [deleted]
+    r"|\+\s.*\(forced update\)\s*$"        #  + a...b x -> y  (forced update)
+    r"|[0-9a-f]+\.\.[0-9a-f]+\s+\S+\s+->"  #    abc..def  x -> origin/x
+    r")"
+)
+
+
+def _extract_error(text):
+    """Reduce a failed command's output to the actual error.
+
+    _strip_progress() already removed percentages; this drops the sideband
+    report lines too, so the failure box reads "fatal: ..." instead of a
+    wall of " * [new tag]" lines. Anything that survives the filter is kept
+    (context lines like "From <url>" or "Fetching submodule ..." are useful
+    and cheap); only when EVERY line was chatter does it fall back to the
+    raw tail - a failure box must never come up empty.
+    """
+    lines = text.splitlines()
+    kept = "\n".join(
+        line for line in lines if not _REPORT_RE.match(line)
+    ).strip()
+    if kept:
+        return kept
+    return "\n".join(lines[-15:]).strip()
+
+
 def _drain_stream(stream, sink, on_activity=None):
     """Read *stream* to EOF into *sink*.
 
@@ -338,7 +370,12 @@ class GitWorker(QThread):
         elif watchdog.fired.is_set():
             self.git_finished.emit(False, "", stall_msg)
         else:
-            self.git_finished.emit(False, "", stderr)
+            shown = _extract_error(stderr)
+            # verbose-only: keep the real failure text after the box is
+            # dismissed (the progress logs alone never show it).
+            _log(f"[progress] DEBUG failure message ({len(shown)}B): "
+                 f"{shown[-800:]!r}")
+            self.git_finished.emit(False, "", shown)
 
     def _feed_progress(self, data, final=False):
         """Split raw stderr on CR/LF and emit every progress update found.
