@@ -104,7 +104,7 @@ A Python-based Git Interactive Rebase GUI tool to visually manage commit history
 
 ### 🌍 Origin Operations
 
-The **Origin** group in the toolbar keeps your branch in sync with `origin`. All operations run in the background with a progress dialog, are disabled in viewer mode, and refresh the commit list when done.
+The **Origin** group in the toolbar keeps your branch in sync with `origin`. All operations run in the background with a progress dialog, are disabled in viewer mode, and refresh the commit list when done. The dialog shows git's **real progress** — the current phase (Counting → Compressing → Receiving → Resolving deltas) with a live percentage — and fetch/pull/push add an **Abort** button: clicking it stops the transfer instantly, reports it as *aborted* (an info message, not an error), and refreshes nothing, since nothing changed. There is no overall time limit anymore, so a slow-but-healthy transfer is never cut off; instead, an operation whose remote goes completely silent for 2 minutes stops itself with a "no response" message. The `git pull --rebase` stage intentionally has no Abort — killing it mid-flight would leave the repository mid-rebase — but the fetch that runs right before it is abortable.
 
 * **git fetch/pull** (the button opens the **Pull** dialog):
   * **Fetch only** (`git fetch`) — updates remote-tracking refs only; never touches your branch or working tree, and needs no upstream.

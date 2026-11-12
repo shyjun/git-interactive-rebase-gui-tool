@@ -851,6 +851,12 @@ Keep your branch in sync with the remote: fetch, pull, push, and reset.
 
 **Description:** The **Origin** group in the toolbar provides remote operations. All of them run in the background with a progress dialog, are disabled in viewer mode, and refresh the commit list (and any open browse windows) when done.
 
+The progress dialog shows git's **real progress**: the current phase (Counting → Compressing → Receiving → Resolving deltas) with a live percentage, each phase restarting from 0. Operations that report nothing (local commands, `git ls-remote`) keep the indeterminate bar.
+
+- **Abort button** (fetch, the pull flow's fetch stage, and push): stops the transfer immediately, switches the label to *Aborting…*, and finishes as **"Aborted by user"** — an information box, not an error, and no history refresh (nothing changed). The button is one-shot, and Esc/window-close stay blocked as before.
+- **No overall timeout**: a slow-but-healthy transfer runs as long as it needs; only a remote that goes **completely silent for 2 minutes** is stopped automatically ("No response from remote after 120s").
+- The **`git pull --rebase` / `git pull` stage has no Abort button** — killing it mid-flight would leave the repository stuck mid-rebase. The fetch stage right before it is abortable, and closing the tool aborts any running operation so no `git` process is left behind.
+
 - **git fetch/pull** (the button opens the **Pull** dialog — yellow icon, three radio options, Cancel/action buttons where the action reads **Fetch** for the fetch option and **Pull** otherwise):
   - **Fetch only** (`git fetch`) — updates remote-tracking refs only; never touches your branch or working tree, and needs no upstream.
   - **Fetch and merge** (default, `git pull --no-rebase`) — runs `git fetch`, then previews the merge with the read-only `git merge-tree`. If any conflict is likely, the pull is **not run** and a warning lists the conflicting files so you can resolve them yourself; otherwise the merge runs.
@@ -1491,5 +1497,5 @@ Keyboard shortcuts for faster navigation and workflow.
 
 **Notes:**
 
-- `Esc` behaves contextually and may close dialogs, clear filters, exit search, or exit multi-select mode depending on the active state. **Progress dialogs** shown during history-rewriting operations (rebase, reset, push, etc.) are not dismissible — they close automatically when the operation completes.
+- `Esc` behaves contextually and may close dialogs, clear filters, exit search, or exit multi-select mode depending on the active state. **Progress dialogs** shown during operations (rebase, reset, fetch/pull/push, etc.) are not dismissible with Esc or the window close button — they close automatically when the operation completes. Fetch and push dialogs additionally offer an **Abort** button, which stops a running network operation immediately (reported as *aborted*, not failed).
 - `Ctrl+F` focuses the diff search bar, which is available in every diff view (see [Diff Search Bar](#9-diff-search-bar)).
