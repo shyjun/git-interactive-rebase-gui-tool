@@ -157,6 +157,33 @@ class TestProgressDialogSetProgress(unittest.TestCase):
         worker.deleteLater()
         dlg.deleteLater()
 
+    def test_no_abort_button_by_default(self):
+        """Local ops, update checks, the pull stage: no dead button."""
+        if not HAS_PYSIDE:
+            self.skipTest("PySide6 not available")
+        dlg = self._dialog()
+        self.assertIsNone(dlg.abort_btn)
+        dlg.deleteLater()
+
+    def test_abort_button_emits_once_then_disables(self):
+        if not HAS_PYSIDE:
+            self.skipTest("PySide6 not available")
+        from lib.dialogs.confirmation_dialogs import ProgressDialog
+        dlg = ProgressDialog("Git Fetching", "git fetch in progress...",
+                             abortable=True)
+        clicks = []
+        dlg.abort_requested.connect(lambda: clicks.append(1))
+        self.assertIsNotNone(dlg.abort_btn)
+        self.assertTrue(dlg.abort_btn.isEnabled())
+        dlg.abort_btn.click()
+        self.assertEqual(clicks, [1])
+        self.assertFalse(dlg.abort_btn.isEnabled(),
+                         "Abort must be one-shot")
+        self.assertEqual(dlg.label.text(), "Aborting...")
+        dlg.abort_btn.click()
+        self.assertEqual(clicks, [1], "a second click must do nothing")
+        dlg.deleteLater()
+
 
 # --- worker ---------------------------------------------------------------
 
@@ -260,11 +287,77 @@ class TestGitWorkerProgress(unittest.TestCase):
         self.assertEqual(seen[0][1].strip(), "--progress",
                          "the worker must ask git for progress itself")
 
-    def test_timeout_is_enforced_on_the_progress_path(self):
+    def test_silent_child_is_stalled_out(self):
+        """Option B: no total deadline, but total silence for `timeout`
+        seconds means the remote is dead, not slow - kill it and say so."""
         events = self._run(_SLEEP_SCRIPT, timeout=1)
         ok, out, err = events["finished"][0]
         self.assertFalse(ok)
-        self.assertIn("Command timed out after 1s", err)
+        self.assertIn("No response from remote after 1s", err)
+
+    def test_child_talking_runs_past_the_old_deadline(self):
+        """The whole point of dropping the 120s timeout: a command that keeps
+        emitting output is never killed, no matter how long it runs - the
+        timeout is only the silence window now."""
+        import time as _time
+        talkative = (
+            "import sys, time\n"
+            "for i in range(8):\n"
+            "    sys.stderr.write('\\rReceiving objects: %3d%% (%d/8)'"
+            " % (i * 13, i))\n"
+            "    sys.stderr.flush()\n"
+            "    time.sleep(0.4)\n"
+            "sys.stdout.write('done\\n')\n"
+            "sys.exit(0)\n"
+        )
+        t0 = _time.monotonic()
+        events = self._run(talkative, timeout=1)
+        elapsed = _time.monotonic() - t0
+        ok, out, err = events["finished"][0]
+        self.assertTrue(ok, (out, err))
+        self.assertGreater(elapsed, 2.0,
+                           "the script must outlive the 1s silence window")
+        self.assertTrue(events["progress"],
+                        "progress must flow the whole time")
+
+    def test_abort_kills_the_child_quickly(self):
+        """Abort ends a running command in a moment - not after some
+        timeout - and reports the ABORTED sentinel, not an error."""
+        import time as _time
+        from lib.app_window.workers import GitWorker, ABORTED
+        events = {"finished": []}
+        worker = GitWorker([sys.executable, "-c", _SLEEP_SCRIPT], self.tmp,
+                           timeout=30, progress=True)
+        worker.git_finished.connect(
+            lambda ok, out, err: events["finished"].append((ok, out, err)))
+        worker.start()
+        _time.sleep(0.3)             # let the child get going
+        t0 = _time.monotonic()
+        worker.abort()
+        self.assertTrue(worker.wait(3000), "abort must end the worker fast")
+        for _ in range(3):
+            if QApplication.instance():
+                QApplication.processEvents()
+        elapsed = _time.monotonic() - t0
+        self.assertEqual(events["finished"], [(False, "", ABORTED)])
+        self.assertLess(elapsed, 3.0, f"abort took {elapsed:.1f}s")
+
+    def test_abort_before_the_child_starts_is_honoured(self):
+        """abort() racing ahead of Popen must still prevent the work."""
+        import time as _time
+        from lib.app_window.workers import GitWorker, ABORTED
+        events = {"finished": []}
+        worker = GitWorker([sys.executable, "-c", _SLEEP_SCRIPT], self.tmp,
+                           timeout=30, progress=True)
+        worker.git_finished.connect(
+            lambda ok, out, err: events["finished"].append((ok, out, err)))
+        worker.abort()               # before start()
+        worker.start()
+        self.assertTrue(worker.wait(5000))
+        for _ in range(3):
+            if QApplication.instance():
+                QApplication.processEvents()
+        self.assertEqual(events["finished"], [(False, "", ABORTED)])
 
 
 # --- wiring ---------------------------------------------------------------
@@ -355,6 +448,90 @@ class TestProgressWiring(unittest.TestCase):
             self.assertTrue(flags,
                             f"{func.name}: the git command must include "
                             "--progress")
+
+    # --- abort wiring (option B) ------------------------------------------
+
+    def _func(self, name):
+        for func in self.funcs:
+            if func.name == name:
+                return func
+        raise AssertionError(f"{name} must exist in reset_mixin")
+
+    @staticmethod
+    def _progress_dialog_calls(func):
+        return [
+            n for n in ast.walk(func)
+            if isinstance(n, ast.Call)
+            and isinstance(n.func, ast.Name) and n.func.id == "ProgressDialog"
+        ]
+
+    @staticmethod
+    def _abort_connects(func):
+        return [
+            n for n in ast.walk(func)
+            if isinstance(n, ast.Call)
+            and isinstance(n.func, ast.Attribute)
+            and n.func.attr == "connect"
+            and isinstance(n.func.value, ast.Attribute)
+            and n.func.value.attr == "abort_requested"
+        ]
+
+    def test_abort_button_at_the_three_user_abortable_sites(self):
+        """fetch, the pull flow's fetch stage and push are abortable; the
+        `git pull --rebase` stage must NOT be - killing it mid-flight
+        would strand the repo mid-rebase."""
+        for name in ("handle_git_fetch", "handle_git_pull",
+                     "handle_git_push_force"):
+            calls = self._progress_dialog_calls(self._func(name))
+            self.assertEqual(len(calls), 1,
+                             f"{name}: exactly one ProgressDialog expected")
+            vals = [kw.value for kw in calls[0].keywords
+                    if kw.arg == "abortable"]
+            self.assertEqual(len(vals), 1, f"{name}: pass abortable=")
+            self.assertIsInstance(vals[0], ast.Constant,
+                                  f"{name}: abortable must be a literal")
+            self.assertIs(vals[0].value, True,
+                          f"{name}: abortable=True required")
+
+        calls = self._progress_dialog_calls(self._func("_on_pull_fetch_finished"))
+        self.assertEqual(len(calls), 1)
+        for kw in calls[0].keywords:
+            if kw.arg == "abortable":
+                self.assertIsNot(getattr(kw.value, "value", None), True,
+                                 "_on_pull_fetch_finished: the pull stage "
+                                 "must not offer Abort")
+
+    def test_abort_signal_reaches_worker_abort(self):
+        for name in ("handle_git_fetch", "handle_git_pull",
+                     "handle_git_push_force"):
+            connects = self._abort_connects(self._func(name))
+            self.assertEqual(len(connects), 1,
+                             f"{name}: abort_requested must be connected "
+                             "exactly once")
+            dotted = ast.unparse(connects[0].args[0]) if connects[0].args else ""
+            self.assertIn("worker.abort", dotted,
+                          f"{name}: abort_requested must reach "
+                          f"GitWorker.abort, got {dotted}")
+
+        self.assertEqual(
+            self._abort_connects(self._func("_on_pull_fetch_finished")), [],
+            "the pull stage must not connect an Abort it does not offer")
+
+    def test_handlers_recognise_the_aborted_sentinel(self):
+        """Each finish handler must branch on ABORTED before failing or
+        refreshing: an abort is informational and changes nothing."""
+        for name in ("on_fetch_finished", "_on_pull_fetch_finished",
+                     "_on_pull_finished", "on_push_finished"):
+            func = self._func(name)
+            compares = [
+                n for n in ast.walk(func)
+                if isinstance(n, ast.Compare)
+                and isinstance(n.left, ast.Name) and n.left.id == "stderr"
+                and any(isinstance(c, ast.Name) and c.id == "ABORTED"
+                        for c in n.comparators)
+            ]
+            self.assertTrue(compares,
+                            f"{name}: must compare stderr == ABORTED")
 
 
 if __name__ == "__main__":

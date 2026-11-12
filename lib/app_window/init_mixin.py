@@ -268,6 +268,13 @@ class InitMixin:
         for w in list(getattr(self, '_active_numstat_workers', set())):
             _wait_worker(w, 'numstat')
         for w in list(getattr(self, '_active_workers', set())):
+            # Kill any running git child first: on the progress path there
+            # is no total deadline anymore, so without this a hung fetch
+            # would outlive the window as an orphan process. A no-op for
+            # workers whose commands are already bounded.
+            abort = getattr(w, 'abort', None)
+            if callable(abort):
+                abort()
             _wait_worker(w, 'git')
         super().closeEvent(event)
 

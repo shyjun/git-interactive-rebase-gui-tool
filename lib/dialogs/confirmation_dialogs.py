@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
 # pyrefly: ignore [missing-import]
 from PySide6.QtCore import (
     Qt,
+    Signal,
 )
 from lib.app_window.helpers import mono_font, _log
 
@@ -395,11 +396,19 @@ class MultiSquashDialog(QDialog):
 
 
 class ProgressDialog(QDialog):
-    """Indeterminate progress dialog for background operations."""
-    def __init__(self, title, message, parent=None):
+    """Indeterminate progress dialog for background operations.
+
+    With abortable=True an Abort button is added and abort_requested is
+    emitted when it is clicked - the wiring to GitWorker.abort() lives at
+    the call site. Non-abortable dialogs (local commands, the pull stage)
+    stay buttonless so there is never a dead control.
+    """
+    abort_requested = Signal()
+
+    def __init__(self, title, message, parent=None, abortable=False):
         super().__init__(parent)
         self.setWindowTitle(title)
-        self.setFixedSize(450, 150)
+        self.setFixedSize(450, 185 if abortable else 150)
         self.setModal(True)
 
         # Disable close button and other hints to make it more "locked"
@@ -421,6 +430,26 @@ class ProgressDialog(QDialog):
 
         # Add some spacing at the bottom
         layout.addSpacing(10)
+
+        self.abort_btn = None
+        if abortable:
+            row = QHBoxLayout()
+            row.addStretch()
+            self.abort_btn = QPushButton("Abort")
+            self.abort_btn.setFixedWidth(90)
+            self.abort_btn.clicked.connect(self._on_abort_clicked)
+            row.addWidget(self.abort_btn)
+            layout.addLayout(row)
+
+    def _on_abort_clicked(self):
+        """One-shot: emit the request, then disable so a second click (or a
+        click racing the dialog's close) does nothing."""
+        if self.abort_btn is None or not self.abort_btn.isEnabled():
+            return
+        self.abort_btn.setEnabled(False)
+        self.label.setText("Aborting...")
+        _log("[progress] DEBUG dialog Abort clicked")
+        self.abort_requested.emit()
 
     def set_progress(self, phase, percent):
         """Show git's real percentage instead of the indeterminate bar.

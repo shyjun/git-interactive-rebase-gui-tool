@@ -13,7 +13,7 @@ from lib.git_helpers import (
     rebase_in_progress,
 )
 from lib.dialogs import ProgressDialog, PullDialog, PushDialog, RefTargetDialog
-from lib.app_window.workers import GitWorker, _NET_TIMEOUT
+from lib.app_window.workers import GitWorker, _NET_TIMEOUT, ABORTED
 from lib.app_window.helpers import _log
 
 
@@ -21,7 +21,8 @@ class ResetMixin:
     def handle_git_fetch(self):
         """Runs git fetch."""
         _log("Running git fetch...")
-        self.progress_dialog = ProgressDialog("Git Fetching", "git fetch in progress...", self)
+        self.progress_dialog = ProgressDialog(
+            "Git Fetching", "git fetch in progress...", self, abortable=True)
 
         if not hasattr(self, '_active_workers'):
             self._active_workers = set()
@@ -32,6 +33,7 @@ class ResetMixin:
         worker.git_finished.connect(lambda *a: self._active_workers.discard(worker))
         worker.git_finished.connect(self.on_fetch_finished)
         worker.git_progress.connect(self.progress_dialog.set_progress)
+        self.progress_dialog.abort_requested.connect(worker.abort)
         self.worker = worker
         _log("[thread] GitWorker.start()")
         worker.start()
@@ -42,6 +44,11 @@ class ResetMixin:
         if hasattr(self, 'progress_dialog'):
             self.progress_dialog.close()
 
+        if stderr == ABORTED:
+            # user pressed Abort: nothing was changed, nothing to refresh
+            QMessageBox.information(
+                self, "Fetch Aborted", "The fetch was aborted. Nothing was updated.")
+            return
         if success:
             QMessageBox.information(self, "Success", "Successfully ran 'git fetch'.")
             self.load_history()
@@ -89,7 +96,7 @@ class ResetMixin:
         label = "git pull --rebase" if self._pull_rebase else "git pull"
         _log(f"Running {label} (fetch first)...")
         self.progress_dialog = ProgressDialog(
-            "Git Pull", f"{label}: fetching remote...", self)
+            "Git Pull", f"{label}: fetching remote...", self, abortable=True)
 
         if not hasattr(self, '_active_workers'):
             self._active_workers = set()
@@ -100,6 +107,7 @@ class ResetMixin:
         worker.git_finished.connect(lambda *a: self._active_workers.discard(worker))
         worker.git_finished.connect(self._on_pull_fetch_finished)
         worker.git_progress.connect(self.progress_dialog.set_progress)
+        self.progress_dialog.abort_requested.connect(worker.abort)
         self.worker = worker
         _log("[thread] GitWorker.start()")
         worker.start()
@@ -109,6 +117,13 @@ class ResetMixin:
     def _on_pull_fetch_finished(self, success, stdout, stderr):
         if hasattr(self, 'progress_dialog'):
             self.progress_dialog.close()
+
+        if stderr == ABORTED:
+            # aborted before anything ran: no pull chain, no refresh
+            QMessageBox.information(
+                self, "Pull Aborted",
+                "The pull was aborted during the fetch. Nothing was updated.")
+            return
 
         if not success:
             QMessageBox.critical(
@@ -139,6 +154,9 @@ class ResetMixin:
         # Snapshot HEAD pre-pull so Undo reverts the pull itself, not
         # whatever operation ran before it (same pattern as reset/rebase).
         self.save_undo_state()
+        # No Abort button here: killing `git pull --rebase` mid-flight would
+        # leave the repository stuck mid-rebase. The fetch stage above IS
+        # abortable; this stage is bounded by the stall watchdog instead.
         self.progress_dialog = ProgressDialog(
             "Git Pull", f"{label} in progress...", self)
 
@@ -160,6 +178,12 @@ class ResetMixin:
     def _on_pull_finished(self, success, stdout, stderr):
         if hasattr(self, 'progress_dialog'):
             self.progress_dialog.close()
+
+        if stderr == ABORTED:
+            # only reachable via closeEvent (no Abort button on this stage):
+            # nothing to refresh, and the shutdown is about to happen anyway
+            QMessageBox.information(self, "Pull Aborted", "The pull was aborted.")
+            return
 
         rebase = getattr(self, '_pull_rebase', False)
         label = "git pull --rebase" if rebase else "git pull"
@@ -240,7 +264,8 @@ class ResetMixin:
         # report percentages (the label stays as the dialog worded it).
         cmd = [*cmd, "--progress"]
         _log(f"Performing {cmd_label}...")
-        self.progress_dialog = ProgressDialog("Git Pushing", f"{cmd_label} in progress...", self)
+        self.progress_dialog = ProgressDialog(
+            "Git Pushing", f"{cmd_label} in progress...", self, abortable=True)
 
         if not hasattr(self, '_active_workers'):
             self._active_workers = set()
@@ -250,6 +275,7 @@ class ResetMixin:
         worker.git_finished.connect(lambda *a: self._active_workers.discard(worker))
         worker.git_finished.connect(lambda success, stdout, stderr, lbl=cmd_label: self.on_push_finished(success, stdout, stderr, lbl))
         worker.git_progress.connect(self.progress_dialog.set_progress)
+        self.progress_dialog.abort_requested.connect(worker.abort)
         self.worker = worker
         _log("[thread] GitWorker.start()")
         worker.start()
@@ -260,6 +286,10 @@ class ResetMixin:
         if hasattr(self, 'progress_dialog'):
             self.progress_dialog.close()
 
+        if stderr == ABORTED:
+            QMessageBox.information(
+                self, "Push Aborted", f"{cmd_label} was aborted. Nothing was pushed.")
+            return
         if success:
             QMessageBox.information(self, "Success", f"Successfully ran '{cmd_label}'.")
             self.load_history()

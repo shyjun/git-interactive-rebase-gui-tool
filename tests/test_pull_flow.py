@@ -47,6 +47,7 @@ class _FakeGitWorker:
         self.repo_path = repo_path
         self.timeout = timeout
         self.progress = progress
+        self.aborted = False
         self.git_finished = _FakeSignal()
         self.git_progress = _FakeSignal()
         _FakeGitWorker.made.append(self)
@@ -56,11 +57,21 @@ class _FakeGitWorker:
                            capture_output=True, text=True)
         self.git_finished.emit(r.returncode == 0, r.stdout, r.stderr)
 
+    def abort(self):
+        """Stands in for GitWorker.abort() so the dialog's wiring can be
+        exercised; the fake's synchronous run is already over by then."""
+        self.aborted = True
+
 
 class _FakeProgressDialog:
-    def __init__(self, title, message, parent=None):
+    made = []
+
+    def __init__(self, title, message, parent=None, abortable=False):
         self.title = title
         self.progress = None
+        self.abortable = abortable
+        self.abort_requested = _FakeSignal()
+        _FakeProgressDialog.made.append(self)
 
     def set_progress(self, phase, percent):
         self.progress = (phase, percent)
@@ -160,6 +171,7 @@ class TestPullFlow(unittest.TestCase):
         if not HAS_PYSIDE:
             self.skipTest("PySide6 not available")
         _FakeGitWorker.made = []
+        _FakeProgressDialog.made = []
         _FakeMessageBox.events = []
         _FakePullDialog.option = "merge"
         _FakePullDialog.result = 1
@@ -435,6 +447,91 @@ class TestPullFlow(unittest.TestCase):
         win.handle_git_fetch()
         self.assertEqual(self._worker_cmds(), [["git", "fetch", "--progress"]])
         self.assertEqual(_FakeGitWorker.made[0].timeout, _NET_TIMEOUT)
+
+    # --- abort (option B) --------------------------------------------------
+
+    def test_abort_dialog_wiring_across_the_pull_flow(self):
+        """The fetch stage offers Abort and wires it to its worker; the
+        pull stage does neither (a mid-rebase kill would strand the repo)."""
+        repo = self._build_repo("clean")
+        win = _FakePullWindow(repo)
+        win.handle_git_pull()
+        dialogs = _FakeProgressDialog.made
+        self.assertEqual([d.abortable for d in dialogs], [True, False],
+                         "fetch stage abortable, pull stage not")
+        self.assertEqual(len(dialogs[0].abort_requested._slots), 1,
+                         "fetch stage must connect its Abort")
+        self.assertEqual(dialogs[0].abort_requested._slots[0],
+                         _FakeGitWorker.made[0].abort,
+                         "Abort must reach its own worker's abort()")
+        self.assertEqual(dialogs[1].abort_requested._slots, [],
+                         "the pull stage must not wire a button it lacks")
+
+        # the standalone Fetch menu action is abortable too
+        _FakeProgressDialog.made = []
+        _FakeGitWorker.made = []
+        win.handle_git_fetch()
+        self.assertTrue(_FakeProgressDialog.made[0].abortable)
+        self.assertEqual(
+            len(_FakeProgressDialog.made[0].abort_requested._slots), 1)
+
+    def test_aborted_fetch_is_informational_not_a_failure(self):
+        from lib.app_window.workers import ABORTED
+        repo = self._build_repo("clean")
+        win = _FakePullWindow(repo)
+        win.on_fetch_finished(False, "", ABORTED)
+        infos = [e for e in _FakeMessageBox.events if e[0] == "information"]
+        self.assertEqual(len(infos), 1)
+        self.assertEqual(infos[0][1], "Fetch Aborted")
+        self.assertEqual(
+            [e for e in _FakeMessageBox.events if e[0] == "critical"], [],
+            "an abort is not a failure")
+        self.assertNotIn("load_history", win.calls,
+                         "an aborted fetch changed nothing to refresh")
+
+    def test_aborted_pull_fetch_never_starts_the_pull(self):
+        from lib.app_window.workers import ABORTED
+        repo = self._build_repo("clean")
+        head_before = self._head(repo)
+        win = _FakePullWindow(repo)
+        win._on_pull_fetch_finished(False, "", ABORTED)
+        infos = [e for e in _FakeMessageBox.events if e[0] == "information"]
+        self.assertEqual(len(infos), 1)
+        self.assertEqual(infos[0][1], "Pull Aborted")
+        self.assertEqual(
+            [e for e in _FakeMessageBox.events if e[0] in ("critical", "warning")],
+            [], "an abort must not surface a failure or conflict box")
+        self.assertEqual(self._worker_cmds(), [],
+                         "no pull worker may be created after an abort")
+        self.assertNotIn("save_undo_state", win.calls,
+                         "an aborted pull must not arm undo")
+        self.assertNotIn("load_history", win.calls)
+        self.assertEqual(self._head(repo), head_before)
+        self.assertFalse(self._merge_head(repo))
+
+    def test_aborted_push_is_informational_not_a_failure(self):
+        from lib.app_window.workers import ABORTED
+        win = _FakePullWindow("")
+        win.on_push_finished(False, "", ABORTED, "git push --force")
+        infos = [e for e in _FakeMessageBox.events if e[0] == "information"]
+        self.assertEqual(len(infos), 1)
+        self.assertEqual(infos[0][1], "Push Aborted")
+        self.assertIn("git push --force", infos[0][2])
+        self.assertEqual(
+            [e for e in _FakeMessageBox.events if e[0] == "critical"], [])
+        self.assertNotIn("load_history", win.calls)
+
+    def test_aborted_pull_finish_refreshes_nothing(self):
+        from lib.app_window.workers import ABORTED
+        win = _FakePullWindow("")
+        win._on_pull_finished(False, "", ABORTED)
+        infos = [e for e in _FakeMessageBox.events if e[0] == "information"]
+        self.assertEqual(len(infos), 1)
+        self.assertEqual(infos[0][1], "Pull Aborted")
+        self.assertEqual(
+            [e for e in _FakeMessageBox.events if e[0] == "critical"], [])
+        self.assertNotIn("load_history", win.calls)
+        self.assertNotIn("notify_browse_windows", win.calls)
 
 
 if __name__ == "__main__":

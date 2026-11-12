@@ -1,6 +1,7 @@
 import re
 import subprocess
 import threading
+import time
 from PySide6.QtCore import (
     QThread,
     Signal,
@@ -50,10 +51,17 @@ class AmendWorker(QThread):
             self.git_finished.emit(False, str(e))
 
 
-# Timeout (seconds) for network-facing commands (fetch/pull/push/ls-remote):
-# a slow remote or a big repo easily exceeds the local default of 30s, which
-# killed the operation mid-flight and surfaced as "Command timed out after 30s".
+# Timeout (seconds) for network-facing commands (fetch/pull/push/ls-remote).
+# On the plain path it is a total deadline; on the progress path there is no
+# total deadline at all (a healthy big transfer may run for hours) - the
+# value is the inactivity window instead: no output for this long means the
+# remote is dead, not slow, and the child is killed with "No response...".
 _NET_TIMEOUT = 120
+
+# stderr emitted by GitWorker.run() when the user pressed Abort in the
+# progress dialog. Handlers compare against it to tell "user cancelled"
+# apart from a real git failure (and skip refreshes: nothing changed).
+ABORTED = "Aborted by user"
 
 # One git progress update: "Receiving objects:  42% (17/40), 1.23 MiB | ..."
 # The remote side arrives prefixed with "remote: " and is stripped first.
@@ -94,15 +102,18 @@ def _strip_progress(text):
     ).strip()
 
 
-def _drain_stream(stream, sink):
+def _drain_stream(stream, sink, on_activity=None):
     """Read *stream* to EOF into *sink*.
 
     stdout must keep being drained while stderr is parsed, otherwise the
-    child fills its pipe buffer and blocks forever.
+    child fills its pipe buffer and blocks forever. *on_activity* (if given)
+    is called per chunk so the stall watchdog sees stdout as life too.
     """
     try:
         for chunk in iter(lambda: stream.read1(65536), b""):
             sink.append(chunk)
+            if on_activity is not None:
+                on_activity()
     except Exception:
         pass
     finally:
@@ -110,6 +121,56 @@ def _drain_stream(stream, sink):
             stream.close()
         except Exception:
             pass
+
+
+class _InactivityWatchdog:
+    """Kill *proc* after *timeout* seconds with no output on either stream.
+
+    The progress path deliberately has no total deadline - a slow-but-healthy
+    fetch may run for as long as it needs - but a remote that goes completely
+    silent (dead connection, frozen proxy) must still stop by itself, so the
+    dialog never waits forever on a process that will never speak again.
+    Any output resets the clock via poke(); git emits a percentage every
+    few seconds during any real transfer, so this never fires on a healthy
+    run. Fires at most once; stop() disarms it.
+    """
+
+    def __init__(self, proc, timeout, on_stall, tick=None):
+        self._proc = proc
+        self._timeout = timeout
+        self._on_stall = on_stall
+        # check often enough for a small test timeout, at most 1x/sec
+        self._tick = tick if tick is not None else max(
+            0.05, min(timeout / 4.0, 1.0))
+        self._last = time.monotonic()
+        self._stopped = False
+        self.fired = threading.Event()
+        self._thread = threading.Thread(target=self._loop, daemon=True)
+        self._thread.start()
+
+    def poke(self):
+        """Record that output was seen - the child is alive."""
+        self._last = time.monotonic()
+
+    def _loop(self):
+        while not self._stopped:
+            time.sleep(self._tick)
+            if self._stopped:
+                return
+            if time.monotonic() - self._last < self._timeout:
+                continue
+            if self.fired.is_set():
+                return
+            self.fired.set()
+            try:
+                self._proc.kill()
+            except Exception:
+                pass
+            self._on_stall()
+            return
+
+    def stop(self):
+        self._stopped = True
 
 
 class GitWorker(QThread):
@@ -125,6 +186,25 @@ class GitWorker(QThread):
         self.timeout = timeout
         self.progress = progress
         self._progress_tail = b""
+        self._proc = None
+        self._abort_requested = threading.Event()
+
+    def abort(self):
+        """Kill the running child immediately (GUI-thread safe).
+
+        Called by the progress dialog's Abort button and by closeEvent.
+        Safe before start(), after finish(), and when called repeatedly;
+        a no-op on the plain path, whose commands are bounded by their
+        own timeout anyway.
+        """
+        self._abort_requested.set()
+        proc = self._proc
+        if proc is not None:
+            _log(f"[progress] DEBUG abort: killing pid={proc.pid}")
+            try:
+                proc.kill()
+            except Exception:
+                pass
 
     def run(self):
         if self.progress:
@@ -156,9 +236,14 @@ class GitWorker(QThread):
         subprocess.run() only returns at exit and hides progress (git writes
         it to stderr, and only when asked with --progress), so this uses
         Popen instead: a helper thread drains stdout while this thread reads
-        stderr and emits git_progress(). The timeout is kept by a watchdog
-        that kills the child at the deadline - subprocess.run() used to do
-        that for us.
+        stderr and emits git_progress().
+
+        Deliberately NO total deadline: a slow-but-healthy transfer may run
+        for as long as it needs. What stops the child is (a) the Abort
+        button via abort(), (b) the inactivity watchdog, which kills it
+        only after self.timeout seconds of complete silence on both
+        streams - progress means alive, silence means dead - and (c) the
+        safety cap on the final wait below.
         """
         command = list(self.command)
         if "--progress" not in command:
@@ -171,27 +256,31 @@ class GitWorker(QThread):
         except Exception as e:
             self.git_finished.emit(False, "", str(e))
             return
-
-        timed_out = threading.Event()
-
-        def _kill_on_timeout():
-            timed_out.set()
-            _log(f"[progress] DEBUG watchdog fired: killing after "
-                 f"{self.timeout}s")
+        self._proc = proc
+        if self._abort_requested.is_set():
+            # abort() raced ahead of Popen: don't let it start work the
+            # user already declined.
             try:
                 proc.kill()
             except Exception:
                 pass
 
-        watchdog = threading.Timer(self.timeout, _kill_on_timeout)
-        watchdog.daemon = True
-        watchdog.start()
+        stall_msg = (f"No response from remote after {self.timeout}s: "
+                     f"{' '.join(command)}")
+        # the watchdog kills the child itself when the silence window
+        # elapses; on_stall only reports it (the kill is logged -v).
+        watchdog = _InactivityWatchdog(
+            proc, self.timeout,
+            lambda: _log(f"[progress] DEBUG stall watchdog: no output for "
+                         f"{self.timeout}s, pid={proc.pid} killed"),
+        )
         _log(f"[progress] DEBUG start: {' '.join(command)} "
-             f"cwd={self.cwd} timeout={self.timeout}s")
+             f"cwd={self.cwd} inactivity={self.timeout}s")
 
         stdout_chunks = []
         drain = threading.Thread(
-            target=_drain_stream, args=(proc.stdout, stdout_chunks),
+            target=_drain_stream,
+            args=(proc.stdout, stdout_chunks, watchdog.poke),
             daemon=True,
         )
         drain.start()
@@ -203,6 +292,7 @@ class GitWorker(QThread):
                 chunk = proc.stderr.read1(65536)
                 if not chunk:
                     break
+                watchdog.poke()
                 if b"%" in chunk:
                     _log(f"[progress] DEBUG raw stderr ({len(chunk)}B): "
                          f"{chunk[:300]!r}")
@@ -212,9 +302,12 @@ class GitWorker(QThread):
             pass
         finally:
             try:
-                # The watchdog guarantees the child dies at the deadline, so
-                # this wait cannot outlive it by more than a moment.
-                proc.wait(timeout=self.timeout + 5)
+                # stderr EOF means git (and its children) are exiting, so
+                # this returns almost immediately. The old total-deadline
+                # wait is gone; this flat cap is only a safety net for a
+                # child that closed stderr but somehow lives on - abort()
+                # and the stall watchdog cover every realistic case.
+                proc.wait(timeout=30)
             except subprocess.TimeoutExpired:
                 try:
                     proc.kill()
@@ -223,22 +316,27 @@ class GitWorker(QThread):
                     pass
             except Exception:
                 pass
-            watchdog.cancel()
+            watchdog.stop()
             drain.join(timeout=2)
             self._feed_progress(b"", final=True)
+        self._proc = None
 
         stdout = b"".join(stdout_chunks).decode("utf-8", "replace")
         stderr = _strip_progress(
             b"".join(stderr_chunks).decode("utf-8", "replace"))
         _log(f"[progress] DEBUG end: rc={proc.returncode} "
-             f"timed_out={timed_out.is_set()} emitted={self._emitted} "
+             f"aborted={self._abort_requested.is_set()} "
+             f"stalled={watchdog.fired.is_set()} emitted={self._emitted} "
              f"stdout={len(stdout)}B stripped_stderr={len(stderr)}B")
-        if timed_out.is_set():
-            self.git_finished.emit(
-                False, "",
-                f"Command timed out after {self.timeout}s: {' '.join(command)}")
-        elif proc.returncode == 0:
+        if proc.returncode == 0:
+            # a successful git always wins, even if abort landed on the
+            # finish line - reporting "aborted" for real fetched data
+            # would be a lie.
             self.git_finished.emit(True, stdout, "")
+        elif self._abort_requested.is_set():
+            self.git_finished.emit(False, "", ABORTED)
+        elif watchdog.fired.is_set():
+            self.git_finished.emit(False, "", stall_msg)
         else:
             self.git_finished.emit(False, "", stderr)
 
