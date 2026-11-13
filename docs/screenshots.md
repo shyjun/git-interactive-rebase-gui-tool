@@ -849,6 +849,10 @@ Keep your branch in sync with the remote: fetch, pull, push, and reset.
 
 ![Push Dialog](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/push-dialog.webp)
 
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/fetch-progress.webp` (fetch/pull progress dialog)
+
+![Fetch Progress](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/fetch-progress.webp)
+
 **Description:** The **Origin** group in the toolbar provides remote operations. All of them run in the background with a progress dialog, are disabled in viewer mode, and refresh the commit list (and any open browse windows) when done.
 
 The progress dialog shows git's **real progress**: the current phase (Counting → Compressing → Receiving → Resolving deltas) with a live percentage, each phase restarting from 0. Operations that report nothing (local commands, `git ls-remote`) keep the indeterminate bar.
