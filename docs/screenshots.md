@@ -4,7 +4,7 @@ Visual documentation for the Git Interactive Rebase GUI Tool. Each section descr
 
 **Note:** [Vim official repository](https://github.com/vim/vim) is used for demonstration purposes.
 
-**Screenshots:** images are captured separately and stored in the [git-interactive-rebase-gui-tool-screenshots](https://github.com/shyjun/git-interactive-rebase-gui-tool-screenshots) repo under `screenshots/` (`.webp` format), referenced here as raw URLs. When adding a section before its image is captured, reserve the filename with a `<!-- PLACEHOLDER SCREENSHOT -->` comment — the link starts rendering once the image is uploaded to the screenshots repo.
+**Screenshots:** images are captured separately and stored in the [git-interactive-rebase-gui-tool-screenshots](https://github.com/shyjun/git-interactive-rebase-gui-tool-screenshots) repo under `screenshots/` (`.webp` format), referenced here as raw URLs.
 
 ---
 
