@@ -3,9 +3,12 @@ if __name__ == "__main__":
     print("Please run the main app: git_interactive_rebase.py (git-interactive-rebase-gui-tool)")
     sys.exit(1)
 
+import os
+
 # pyrefly: ignore [missing-import]
 from PySide6.QtWidgets import (
     QApplication,
+    QButtonGroup,
     QDialog,
     QHeaderView,
     QHBoxLayout,
@@ -16,6 +19,7 @@ from PySide6.QtWidgets import (
     QMenu,
     QMessageBox,
     QPushButton,
+    QRadioButton,
     QSplitter,
     QTabWidget,
     QTextEdit,
@@ -153,6 +157,7 @@ class CommitDiffDialogBase(QDialog):
         self.font_family = None
         self._full_diff_text = ""
         self._splitter_filter = None
+        self._diff_layout_mode = "horiz"
 
     @staticmethod
     def setup_colors(parent=None, colors=None, use_settings_fallback=False):
@@ -202,7 +207,148 @@ class CommitDiffDialogBase(QDialog):
         ctrl_q.setContext(Qt.WindowShortcut)
         ctrl_q.activated.connect(self.close)
 
-    def build_header(self, sha, meta, msg, collapsible=False, on_toggled=None):
+    def _build_layout_toggle_widget(self):
+        """Build the radio button group for switching diff layout (horizontal vs vertical/right pane)."""
+        toggle_widget = QWidget()
+        toggle_layout = QHBoxLayout(toggle_widget)
+        toggle_layout.setContentsMargins(6, 2, 6, 2)
+        toggle_layout.setSpacing(10)
+
+        self.radio_diff_horiz = QRadioButton("diff at horiz")
+        self.radio_diff_vert = QRadioButton("diff at vertical")
+        self.radio_diff_horiz.setCursor(Qt.PointingHandCursor)
+        self.radio_diff_vert.setCursor(Qt.PointingHandCursor)
+
+        self.layout_button_group = QButtonGroup(self)
+        self.layout_button_group.addButton(self.radio_diff_horiz)
+        self.layout_button_group.addButton(self.radio_diff_vert)
+
+        toggle_layout.addWidget(self.radio_diff_horiz)
+        toggle_layout.addWidget(self.radio_diff_vert)
+        toggle_widget.setStyleSheet(
+            "QWidget { border: 1px solid #666; border-radius: 4px; padding: 1px 4px; } "
+            "QRadioButton { border: none; font-size: 11px; }"
+        )
+
+        saved = "horiz" if os.environ.get("PYTEST_CURRENT_TEST") else tool_settings().value("diff_dialog_layout", "horiz", type=str)
+        if saved == "vertical":
+            self.radio_diff_vert.setChecked(True)
+        else:
+            self.radio_diff_horiz.setChecked(True)
+
+        self.radio_diff_horiz.toggled.connect(
+            lambda checked: self.set_diff_layout_mode("horiz" if checked else "vertical")
+        )
+        return toggle_widget
+
+    def set_diff_layout_mode(self, mode):
+        """Toggle between 'horiz' (bottom diff pane) and 'vertical' (right diff pane)."""
+        self._diff_layout_mode = mode
+        tool_settings().setValue("diff_dialog_layout", mode)
+        is_vert = (mode == "vertical")
+
+        if not hasattr(self, 'v_diff_container') or not hasattr(self, 'outer_splitter'):
+            return
+
+        self.v_diff_container.setVisible(is_vert)
+
+        if hasattr(self, 'filewise_diff_container') and hasattr(self, 'filewise_splitter'):
+            self.filewise_diff_container.setVisible(not is_vert)
+            if is_vert:
+                self.filewise_splitter.setCollapsible(0, False)
+                if self.filewise_splitter.count() > 1:
+                    self.filewise_splitter.handle(1).setEnabled(False)
+            else:
+                self.filewise_splitter.setSizes([150, 350])
+                if self.filewise_splitter.count() > 1:
+                    self.filewise_splitter.handle(1).setEnabled(True)
+
+        if hasattr(self, 'treewise_diff_container') and hasattr(self, 'treewise_splitter'):
+            self.treewise_diff_container.setVisible(not is_vert)
+            if is_vert:
+                self.treewise_splitter.setCollapsible(0, False)
+                if self.treewise_splitter.count() > 1:
+                    self.treewise_splitter.handle(1).setEnabled(False)
+            else:
+                self.treewise_splitter.setSizes([150, 350])
+                if self.treewise_splitter.count() > 1:
+                    self.treewise_splitter.handle(1).setEnabled(True)
+
+        if hasattr(self, 'plain_tab_placeholder'):
+            self.plain_tab_placeholder.setVisible(is_vert)
+            self.side_diff_view.setVisible(not is_vert)
+            self.plain_diff_search.setVisible(not is_vert)
+            if not is_vert:
+                lines = (self._full_diff_text or "").split('\n')
+                self._truncation_banner.setVisible(len(lines) > PLAIN_DIFF_LINE_CAP)
+            else:
+                self._truncation_banner.setVisible(False)
+
+        if is_vert:
+            if self.width() < 1150:
+                self.resize(max(self.width(), 1150), max(self.height(), 650))
+            self.outer_splitter.setSizes([450, 700])
+            self._sync_v_diff()
+        else:
+            idx = self.tab_widget.currentIndex() if hasattr(self, 'tab_widget') else 0
+            if idx == 1:
+                self._refresh_filewise_diff()
+            elif idx == 2:
+                self._refresh_treewise_diff()
+
+    def _sync_v_diff(self):
+        """Update right-pane diff view based on the current active tab."""
+        if not hasattr(self, 'v_diff_view') or not hasattr(self, 'tab_widget'):
+            return
+        idx = self.tab_widget.currentIndex()
+        if idx == 0:
+            lines = (self._full_diff_text or "").split('\n')
+            total = len(lines)
+            if total > PLAIN_DIFF_LINE_CAP:
+                self.v_diff_view.setPlainText('\n'.join(lines[:PLAIN_DIFF_LINE_CAP]))
+                self._v_truncation_label.setText(
+                    f"Diff truncated \u2014 {total:,} lines. Showing first {PLAIN_DIFF_LINE_CAP:,}."
+                )
+                self._v_truncation_banner.setVisible(True)
+            else:
+                self.v_diff_view.setPlainText(self._full_diff_text or "")
+                self._v_truncation_banner.setVisible(False)
+            self.v_diff_view.set_separator_color(self.colors.get("separator", "#444444"))
+            if hasattr(self, 'v_diff_search') and self.v_diff_search.isVisible():
+                self.v_diff_search._perform_search()
+        elif idx == 1:
+            checked = self._checked_filewise_files()
+            if checked:
+                self._refresh_diff_view(checked, self.v_diff_view, self.v_diff_search)
+            elif (item := self.filewise_file_list.currentItem()) and item.text():
+                entry = item.data(FILE_ENTRY_ROLE)
+                filepath = (entry[2] if entry[0] == 'R' else entry[1]) if entry else item.text()
+                diff = self._get_file_diff(filepath)
+                self.v_diff_view.setPlainText(diff)
+                self.v_diff_view.set_separator_color(self.colors.get("separator", "#444444"))
+                self.v_diff_search._perform_search()
+            else:
+                self.v_diff_view.clear()
+        elif idx == 2:
+            checked = self._checked_treewise_files()
+            if checked:
+                self._refresh_diff_view(checked, self.v_diff_view, self.v_diff_search)
+            elif (item := self.treewise_tree.currentItem()) and (item_data := item.data(0, Qt.UserRole + 10)):
+                if item_data["type"] == "file":
+                    entry = item_data.get("entry")
+                    filepath = item_data.get("filepath") or (entry[2] if entry and entry[0] == 'R' else (entry[1] if entry else ""))
+                    diff = self._get_file_diff(filepath)
+                else:
+                    diffs = []
+                    self._collect_folder_diffs(item_data["node"], diffs)
+                    diff = "\n".join(diffs)
+                self.v_diff_view.setPlainText(diff)
+                self.v_diff_view.set_separator_color(self.colors.get("separator", "#444444"))
+                self.v_diff_search._perform_search()
+            else:
+                self.v_diff_view.clear()
+
+    def build_header(self, sha, meta, msg, collapsible=False, on_toggled=None, include_layout_toggle=False):
         """Build standard commit header with metadata label and read-only message view."""
         top_widget = QWidget()
         top_layout = QVBoxLayout(top_widget)
@@ -224,7 +370,16 @@ class CommitDiffDialogBase(QDialog):
             self.commit_header = QLabel(header_text)
             self.commit_header.setTextFormat(Qt.RichText)
 
-        top_layout.addWidget(self.commit_header)
+        if include_layout_toggle:
+            header_row = QWidget()
+            header_row_layout = QHBoxLayout(header_row)
+            header_row_layout.setContentsMargins(0, 0, 0, 0)
+            header_row_layout.addWidget(self.commit_header, 1)
+            header_row_layout.addWidget(self._build_layout_toggle_widget(), 0)
+            top_layout.addWidget(header_row)
+        else:
+            top_layout.addWidget(self.commit_header)
+
         top_layout.addWidget(self.msg_view)
         return top_widget
 
@@ -276,10 +431,6 @@ class CommitDiffDialogBase(QDialog):
         search_bar = DiffSearchBar(target_view=view, parent=container)
         layout.addWidget(search_bar)
         layout.addWidget(view)
-        # Ensure the container itself has a minimum height so the splitter
-        # cannot collapse the diff pane completely.
-        if min_height:
-            container.setMinimumHeight(min_height)
         return container, view, highlighter, search_bar
 
     def _create_truncation_banner(self):
@@ -308,7 +459,6 @@ class CommitDiffDialogBase(QDialog):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         splitter = QSplitter(Qt.Vertical)
-        splitter.setChildrenCollapsible(False)
         splitter.addWidget(top_widget)
         splitter.addWidget(bottom_container)
         if expanded:
@@ -346,7 +496,17 @@ class CommitDiffDialogBase(QDialog):
         self.side_diff_view.set_separator_color(self.colors.get("separator", "#444444"))
         self.plain_diff_search = DiffSearchBar(target_view=self.side_diff_view, parent=plain_widget)
         self._truncation_banner, self._truncation_label, self._btn_show_full = self._create_truncation_banner()
-        for w in (self.plain_diff_search, self._truncation_banner, self.side_diff_view):
+        self.plain_tab_placeholder = QLabel(
+            "<div style='text-align: center; color: #888; padding: 40px; font-size: 13px;'>"
+            "<b>Plain Diff</b> is displayed in the right pane.<br><br>"
+            "Switch to <b>Filewise Diff</b> or <b>Tree-wise Diff</b> to browse changes by file."
+            "</div>"
+        )
+        self.plain_tab_placeholder.setTextFormat(Qt.RichText)
+        self.plain_tab_placeholder.setAlignment(Qt.AlignCenter)
+        self.plain_tab_placeholder.setVisible(False)
+
+        for w in (self.plain_diff_search, self._truncation_banner, self.side_diff_view, self.plain_tab_placeholder):
             plain_layout.addWidget(w)
         self._apply_plain_diff_text(diff_text)
         self.tab_widget.addTab(plain_widget, "Plain Diff")
@@ -361,15 +521,18 @@ class CommitDiffDialogBase(QDialog):
             parent=self.filewise_file_list,
         ))
         self.filewise_file_list.itemChanged.connect(self._on_filewise_item_changed)
+        self.filewise_file_list.itemClicked.connect(lambda item: self.on_filewise_file_selected(
+            (entry[2] if entry[0] == 'R' else entry[1]) if (entry := item.data(FILE_ENTRY_ROLE)) else item.text()
+        ))
         self.filewise_file_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.filewise_file_list.customContextMenuRequested.connect(self.show_filewise_context_menu)
         self.filewise_file_list_filter = FileListFilter(self.filewise_file_list, on_set_all=self._set_all)
 
-        file_right, self.filewise_diff_view, self.filewise_highlighter, self.filewise_diff_search = (
+        self.filewise_diff_container, self.filewise_diff_view, self.filewise_highlighter, self.filewise_diff_search = (
             self._create_diff_pane(placeholder="Select a file above to view its diff...", min_height=100)
         )
         self.filewise_splitter, self._filewise_tab_idx = self._create_split_tab(
-            self.filewise_file_list, file_right, "Filewise Diff", filewise_expanded
+            self.filewise_file_list, self.filewise_diff_container, "Filewise Diff", filewise_expanded
         )
 
         # Tab 2: Tree-wise Diff
@@ -385,16 +548,25 @@ class CommitDiffDialogBase(QDialog):
         self.treewise_tree.setAnimated(True)
         self.treewise_tree.setItemDelegateForColumn(1, TreeStatsDelegate(parent=self.treewise_tree))
         self.treewise_tree.itemChanged.connect(self._on_treewise_item_changed)
+        self.treewise_tree.itemClicked.connect(self.on_treewise_item_clicked)
         self.treewise_tree.setContextMenuPolicy(Qt.CustomContextMenu)
         self.treewise_tree.customContextMenuRequested.connect(self.show_treewise_context_menu)
         self.treewise_tree_filter = FileListFilter(self.treewise_tree, on_set_all=self._set_all)
 
-        tree_right, self.treewise_diff_view, self.treewise_highlighter, self.treewise_diff_search = (
+        self.treewise_diff_container, self.treewise_diff_view, self.treewise_highlighter, self.treewise_diff_search = (
             self._create_diff_pane(placeholder="Select a file or folder above to view its diff...", min_height=100)
         )
         self.treewise_splitter, self._treewise_tab_idx = self._create_split_tab(
-            self.treewise_tree, tree_right, "Tree-wise Diff", treewise_expanded
+            self.treewise_tree, self.treewise_diff_container, "Tree-wise Diff", treewise_expanded
         )
+
+        # Right pane diff view for vertical mode
+        self.v_diff_container, self.v_diff_view, self.v_highlighter, self.v_diff_search = (
+            self._create_diff_pane(placeholder="Select a file or folder above to view its diff...", min_height=200)
+        )
+        self._v_truncation_banner, self._v_truncation_label, self._v_btn_show_full = self._create_truncation_banner()
+        self.v_diff_container.layout().insertWidget(1, self._v_truncation_banner)
+        self.v_diff_container.setVisible(False)
 
         self.ctrl_f_shortcut = QShortcut(QKeySequence("Ctrl+F"), self)
         self.ctrl_f_shortcut.activated.connect(self._focus_active_search)
@@ -408,28 +580,41 @@ class CommitDiffDialogBase(QDialog):
         self._full_diff_text = clean_binary_diff_lines(raw_diff) if raw_diff else ""
         lines = self._full_diff_text.split('\n')
         total_lines = len(lines)
-        if total_lines > PLAIN_DIFF_LINE_CAP:
-            self.side_diff_view.setPlainText('\n'.join(lines[:PLAIN_DIFF_LINE_CAP]))
-            self._truncation_label.setText(
-                f"Diff truncated \u2014 {total_lines:,} lines. Showing first {PLAIN_DIFF_LINE_CAP:,}."
-            )
-            self._truncation_banner.setVisible(True)
-        else:
-            self.side_diff_view.setPlainText(self._full_diff_text)
-            self._truncation_banner.setVisible(False)
+        is_trunc = total_lines > PLAIN_DIFF_LINE_CAP
+        trunc_text = '\n'.join(lines[:PLAIN_DIFF_LINE_CAP]) if is_trunc else self._full_diff_text
+        msg = f"Diff truncated \u2014 {total_lines:,} lines. Showing first {PLAIN_DIFF_LINE_CAP:,}."
+
+        self.side_diff_view.setPlainText(trunc_text)
+        self._truncation_label.setText(msg)
+        self._truncation_banner.setVisible(is_trunc)
+
+        if hasattr(self, 'v_diff_view'):
+            if getattr(self, '_diff_layout_mode', 'horiz') == 'vertical' and getattr(self, 'tab_widget', None) and self.tab_widget.currentIndex() == 0:
+                self.v_diff_view.setPlainText(trunc_text)
+                self._v_truncation_label.setText(msg)
+                self._v_truncation_banner.setVisible(is_trunc)
 
     def _show_full_diff(self):
         """Expand full diff text when user clicks Show Full Diff on truncation banner."""
         self.side_diff_view.setPlainText(self._full_diff_text)
         self._truncation_banner.setVisible(False)
         self.side_diff_view.set_separator_color(self.colors.get("separator", "#444444"))
+        if hasattr(self, 'v_diff_view'):
+            self.v_diff_view.setPlainText(self._full_diff_text)
+            self._v_truncation_banner.setVisible(False)
+            self.v_diff_view.set_separator_color(self.colors.get("separator", "#444444"))
         if hasattr(self, 'plain_diff_search') and self.plain_diff_search.isVisible():
             self.plain_diff_search._perform_search()
+        elif hasattr(self, 'v_diff_search') and self.v_diff_search.isVisible():
+            self.v_diff_search._perform_search()
         elif hasattr(self, 'search_bar') and self.search_bar.isVisible():
             self.search_bar._perform_search()
 
     def _focus_active_search(self):
         """Focus the search bar corresponding to the active view/tab."""
+        if getattr(self, '_diff_layout_mode', 'horiz') == 'vertical' and hasattr(self, 'v_diff_search'):
+            self.v_diff_search.show_and_focus()
+            return
         if not hasattr(self, 'tab_widget'):
             if hasattr(self, 'search_bar'):
                 self.search_bar.show_and_focus()
@@ -441,12 +626,16 @@ class CommitDiffDialogBase(QDialog):
 
     def _on_tab_changed(self, idx):
         """Refresh diff pane when switching tabs."""
-        if idx == 1:
+        if getattr(self, '_diff_layout_mode', 'horiz') == 'vertical':
+            self._sync_v_diff()
+        elif idx == 1:
             self._refresh_filewise_diff()
         elif idx == 2:
             self._refresh_treewise_diff()
 
     def _on_tab_bar_clicked(self, idx):
+        if getattr(self, '_diff_layout_mode', 'horiz') == 'vertical':
+            return
         if idx == self.tab_widget.currentIndex():
             if idx == getattr(self, '_filewise_tab_idx', -1):
                 self._toggle_filewise_file_list()
@@ -481,16 +670,25 @@ class CommitDiffDialogBase(QDialog):
         if not filepath:
             if hasattr(self, 'filewise_diff_view'):
                 self.filewise_diff_view.clear()
+            if hasattr(self, 'v_diff_view') and getattr(self, '_diff_layout_mode', 'horiz') == 'vertical':
+                self.v_diff_view.clear()
             return
         try:
             diff = self._get_file_diff(filepath)
             self.filewise_diff_view.setPlainText(diff)
             self.filewise_diff_view.set_separator_color(self.colors.get("separator", "#444444"))
             self.filewise_diff_search._perform_search()
+            if hasattr(self, 'v_diff_view') and getattr(self, '_diff_layout_mode', 'horiz') == 'vertical':
+                self.v_diff_view.setPlainText(diff)
+                self.v_diff_view.set_separator_color(self.colors.get("separator", "#444444"))
+                self.v_diff_search._perform_search()
         except Exception as e:
-            self.filewise_diff_view.setPlainText(f"Error loading diff: {e}")
+            err = f"Error loading diff: {e}"
+            self.filewise_diff_view.setPlainText(err)
+            if hasattr(self, 'v_diff_view'):
+                self.v_diff_view.setPlainText(err)
 
-    def on_treewise_item_clicked(self, item, column):
+    def on_treewise_item_clicked(self, item, column=0):
         if not (item_data := item.data(0, Qt.UserRole + 10)):
             return
         try:
@@ -498,15 +696,22 @@ class CommitDiffDialogBase(QDialog):
                 entry = item_data.get("entry")
                 filepath = item_data.get("filepath") or (entry[2] if entry and entry[0] == 'R' else (entry[1] if entry else ""))
                 diff = self._get_file_diff(filepath)
-                self.treewise_diff_view.setPlainText(diff)
             else:
                 diffs = []
                 self._collect_folder_diffs(item_data["node"], diffs)
-                self.treewise_diff_view.setPlainText("\n".join(diffs))
+                diff = "\n".join(diffs)
+            self.treewise_diff_view.setPlainText(diff)
             self.treewise_diff_view.set_separator_color(self.colors.get("separator", "#444444"))
             self.treewise_diff_search._perform_search()
+            if hasattr(self, 'v_diff_view') and getattr(self, '_diff_layout_mode', 'horiz') == 'vertical':
+                self.v_diff_view.setPlainText(diff)
+                self.v_diff_view.set_separator_color(self.colors.get("separator", "#444444"))
+                self.v_diff_search._perform_search()
         except Exception as e:
-            self.treewise_diff_view.setPlainText(f"Error loading diff: {e}")
+            err = f"Error loading diff: {e}"
+            self.treewise_diff_view.setPlainText(err)
+            if hasattr(self, 'v_diff_view'):
+                self.v_diff_view.setPlainText(err)
 
     def _on_filewise_item_changed(self, item):
         """Handle checkbox change in filewise list: sync to tree and refresh diff."""
@@ -637,11 +842,17 @@ class CommitDiffDialogBase(QDialog):
 
     def _refresh_filewise_diff(self):
         """Show combined diff of all checked files in the filewise diff pane."""
-        self._refresh_diff_view(self._checked_filewise_files(), self.filewise_diff_view, self.filewise_diff_search)
+        files = self._checked_filewise_files()
+        self._refresh_diff_view(files, self.filewise_diff_view, self.filewise_diff_search)
+        if getattr(self, '_diff_layout_mode', 'horiz') == 'vertical':
+            self._refresh_diff_view(files, self.v_diff_view, self.v_diff_search)
 
     def _refresh_treewise_diff(self):
         """Show combined diff of all checked tree items."""
-        self._refresh_diff_view(self._checked_treewise_files(), self.treewise_diff_view, self.treewise_diff_search)
+        files = self._checked_treewise_files()
+        self._refresh_diff_view(files, self.treewise_diff_view, self.treewise_diff_search)
+        if getattr(self, '_diff_layout_mode', 'horiz') == 'vertical':
+            self._refresh_diff_view(files, self.v_diff_view, self.v_diff_search)
 
     def _checked_treewise_files(self):
         """Return list of checked file paths from the tree widget."""
@@ -802,7 +1013,7 @@ class CommitDiffDialogBase(QDialog):
         """Re-apply the current font to all widgets in this dialog."""
         f = mono_font(self.font_size, family=self.font_family)
         for attr in ('msg_view', 'side_diff_view', 'filewise_file_list', 'filewise_diff_view',
-                     'treewise_tree', 'treewise_diff_view', 'diff_view', 'file_list'):
+                     'treewise_tree', 'treewise_diff_view', 'diff_view', 'file_list', 'v_diff_view'):
             if (w := getattr(self, attr, None)) is not None:
                 w.setFont(f)
 
@@ -885,20 +1096,44 @@ class BranchDiffDialog(CommitDiffDialogBase):
         self.colors = self.setup_colors(parent, colors)
         file_stats = self.merge_mode_changes(file_stats, diff_text)
 
-        layout = QVBoxLayout(self)
         header_text = f"<b>{title}</b><br><b>{display_start[:8]}</b> → <b>{end_sha[:8]}</b> - {num_commits} commits"
         if description:
             header_text += f"<br><span style='color:#888888'>{description}</span>"
         self.header_label = QLabel(header_text)
         self.header_label.setTextFormat(Qt.RichText)
-        layout.addWidget(self.header_label)
+
+        header_row = QWidget()
+        header_row_layout = QHBoxLayout(header_row)
+        header_row_layout.setContentsMargins(0, 0, 0, 0)
+        header_row_layout.addWidget(self.header_label, 1)
+        header_row_layout.addWidget(self._build_layout_toggle_widget(), 0)
 
         self.build_diff_tabs(diff_text, file_stats, filewise_expanded=True, treewise_expanded=True)
-        layout.addWidget(self.tab_widget)
 
         self.populate_filewise_list(files, file_stats)
         self._populate_treewise_tree(files, file_stats)
-        layout.addLayout(self._build_close_button_layout())
+
+        self.left_pane = QWidget()
+        left_layout = QVBoxLayout(self.left_pane)
+        left_layout.setContentsMargins(0, 0, 0, 0)
+        left_layout.addWidget(header_row)
+        left_layout.addWidget(self.tab_widget)
+        left_layout.addLayout(self._build_close_button_layout())
+
+        self.outer_splitter = QSplitter(Qt.Horizontal)
+        self.outer_splitter.setChildrenCollapsible(False)
+        self.outer_splitter.addWidget(self.left_pane)
+        self.outer_splitter.addWidget(self.v_diff_container)
+
+        dialog_layout = QVBoxLayout(self)
+        dialog_layout.addWidget(self.outer_splitter)
+
+        saved_mode = "horiz" if os.environ.get("PYTEST_CURRENT_TEST") else tool_settings().value("diff_dialog_layout", "horiz", type=str)
+        if saved_mode == "vertical":
+            self.radio_diff_vert.setChecked(True)
+        else:
+            self.radio_diff_horiz.setChecked(True)
+        self.set_diff_layout_mode(saved_mode)
 
     def _get_file_diff(self, filepath):
         return get_file_diff_between(self.repo_path, self.start_sha, self.end_sha, filepath)
@@ -989,11 +1224,11 @@ class SingleCommitViewDialog(CommitDiffDialogBase):
         commit_meta, commit_msg, file_stats, diff_text = self.load_commit_metadata(repo_path, sha)
         self._file_stats = file_stats
 
-        layout = QVBoxLayout(self)
-        top_widget = self.build_header(sha, commit_meta, commit_msg, collapsible=True, on_toggled=self._on_commit_header_toggled)
+        top_widget = self.build_header(sha, commit_meta, commit_msg, collapsible=True,
+                                       on_toggled=self._on_commit_header_toggled,
+                                       include_layout_toggle=True)
         self.build_diff_tabs(diff_text, file_stats, filewise_expanded=False, treewise_expanded=False)
         self.main_splitter = self.build_splitter(top_widget, self.tab_widget, sizes=[150, 450])
-        layout.addWidget(self.main_splitter)
 
         try:
             self._files = get_commit_files_with_status(repo_path, sha)
@@ -1002,7 +1237,27 @@ class SingleCommitViewDialog(CommitDiffDialogBase):
 
         self.populate_filewise_list(self._files, self._file_stats)
         self._populate_treewise_tree(self._files, self._file_stats)
-        layout.addLayout(self._build_close_button_layout())
+
+        self.left_pane = QWidget()
+        left_layout = QVBoxLayout(self.left_pane)
+        left_layout.setContentsMargins(0, 0, 0, 0)
+        left_layout.addWidget(self.main_splitter)
+        left_layout.addLayout(self._build_close_button_layout())
+
+        self.outer_splitter = QSplitter(Qt.Horizontal)
+        self.outer_splitter.setChildrenCollapsible(False)
+        self.outer_splitter.addWidget(self.left_pane)
+        self.outer_splitter.addWidget(self.v_diff_container)
+
+        dialog_layout = QVBoxLayout(self)
+        dialog_layout.addWidget(self.outer_splitter)
+
+        saved_mode = "horiz" if os.environ.get("PYTEST_CURRENT_TEST") else tool_settings().value("diff_dialog_layout", "horiz", type=str)
+        if saved_mode == "vertical":
+            self.radio_diff_vert.setChecked(True)
+        else:
+            self.radio_diff_horiz.setChecked(True)
+        self.set_diff_layout_mode(saved_mode)
 
     def _on_commit_header_toggled(self, expanded):
         splitter = self.main_splitter
@@ -1256,7 +1511,6 @@ class FileWiseViewDialog(CommitDiffDialogBase):
         self.file_list.customContextMenuRequested.connect(self.show_file_context_menu)
         self.file_list_filter = FileListFilter(self.file_list, on_set_all=self._set_all)
         file_layout.addWidget(self.file_list)
-        file_widget.setMinimumHeight(80)  # label + 60px file list
         self.main_splitter.addWidget(file_widget)
 
         diff_widget = QWidget()
@@ -1272,7 +1526,6 @@ class FileWiseViewDialog(CommitDiffDialogBase):
         self.ctrl_f_shortcut = QShortcut(QKeySequence("Ctrl+F"), self)
         self.ctrl_f_shortcut.activated.connect(self.search_bar.show_and_focus)
 
-        diff_widget.setMinimumHeight(120)  # label + 100px diff pane
         self.main_splitter.addWidget(diff_widget)
         self.main_splitter.setSizes([100, 150, 350])
         layout.addWidget(self.main_splitter)
