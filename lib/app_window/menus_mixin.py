@@ -586,6 +586,7 @@ class MenusMixin:
             if merge_view_action:
                 merge_view_action.setEnabled(False)
             create_patch_action.setEnabled(False)
+            tag_action.setEnabled(False)
             reset_action.setEnabled(False)
             reset_here_action.setEnabled(False)
             set_best_action.setEnabled(False)
