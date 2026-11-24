@@ -276,6 +276,10 @@ class CommitDiffDialogBase(QDialog):
         search_bar = DiffSearchBar(target_view=view, parent=container)
         layout.addWidget(search_bar)
         layout.addWidget(view)
+        # Ensure the container itself has a minimum height so the splitter
+        # cannot collapse the diff pane completely.
+        if min_height:
+            container.setMinimumHeight(min_height)
         return container, view, highlighter, search_bar
 
     def _create_truncation_banner(self):
@@ -304,6 +308,7 @@ class CommitDiffDialogBase(QDialog):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         splitter = QSplitter(Qt.Vertical)
+        splitter.setChildrenCollapsible(False)
         splitter.addWidget(top_widget)
         splitter.addWidget(bottom_container)
         if expanded:
@@ -1251,6 +1256,7 @@ class FileWiseViewDialog(CommitDiffDialogBase):
         self.file_list.customContextMenuRequested.connect(self.show_file_context_menu)
         self.file_list_filter = FileListFilter(self.file_list, on_set_all=self._set_all)
         file_layout.addWidget(self.file_list)
+        file_widget.setMinimumHeight(80)  # label + 60px file list
         self.main_splitter.addWidget(file_widget)
 
         diff_widget = QWidget()
@@ -1266,6 +1272,7 @@ class FileWiseViewDialog(CommitDiffDialogBase):
         self.ctrl_f_shortcut = QShortcut(QKeySequence("Ctrl+F"), self)
         self.ctrl_f_shortcut.activated.connect(self.search_bar.show_and_focus)
 
+        diff_widget.setMinimumHeight(120)  # label + 100px diff pane
         self.main_splitter.addWidget(diff_widget)
         self.main_splitter.setSizes([100, 150, 350])
         layout.addWidget(self.main_splitter)
