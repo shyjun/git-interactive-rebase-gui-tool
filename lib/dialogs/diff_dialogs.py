@@ -256,36 +256,53 @@ class CommitDiffDialogBase(QDialog):
         if hasattr(self, 'filewise_diff_container') and hasattr(self, 'filewise_splitter'):
             self.filewise_diff_container.setVisible(not is_vert)
             if is_vert:
-                # Vertical mode: file list fills the full tab height; disable handle so
-                # the user cannot drag a meaningless boundary.
+                # Vertical mode: file list fills the full tab height (there is no bottom
+                # diff pane), so it must always be expanded and the splitter locked.
+                self.filewise_file_list.setVisible(True)
+                self.filewise_file_list.setMinimumHeight(60)
                 self.filewise_splitter.setCollapsible(0, False)
+                self.filewise_splitter.setSizes([1000, 0])
                 if self.filewise_splitter.count() > 1:
                     self.filewise_splitter.handle(1).setEnabled(False)
+                if hasattr(self, '_filewise_tab_idx'):
+                    self.tab_widget.setTabText(self._filewise_tab_idx, "\u25BC Filewise Diff")
             elif was_vert:
-                # Returning from vertical → restore a sensible split only if the file
-                # list is currently visible (it may still be in its user-collapsed state).
-                if self.filewise_file_list.isVisible():
-                    self.filewise_splitter.setSizes([150, 350])
+                # Returning from vertical → restore the horiz expand/collapse state.
+                exp = getattr(self, '_filewise_horiz_expanded', True)
+                self.filewise_file_list.setVisible(exp)
+                self.filewise_file_list.setMinimumHeight(60 if exp else 0)
+                self.filewise_splitter.setCollapsible(0, not exp)
+                self.filewise_splitter.setSizes([150, 350] if exp else [0, 1000])
                 if self.filewise_splitter.count() > 1:
-                    self.filewise_splitter.handle(1).setEnabled(
-                        self.filewise_file_list.isVisible()
-                    )
+                    self.filewise_splitter.handle(1).setEnabled(exp)
+                if hasattr(self, '_filewise_tab_idx'):
+                    arrow = "\u25BC" if exp else "\u25B6"
+                    self.tab_widget.setTabText(self._filewise_tab_idx, f"{arrow} Filewise Diff")
             # If we were already in horiz mode, leave the splitter state untouched so
             # the user-collapsed / user-expanded state is preserved across dialog opens.
 
         if hasattr(self, 'treewise_diff_container') and hasattr(self, 'treewise_splitter'):
             self.treewise_diff_container.setVisible(not is_vert)
             if is_vert:
+                self.treewise_tree.setVisible(True)
+                self.treewise_tree.setMinimumHeight(60)
                 self.treewise_splitter.setCollapsible(0, False)
+                self.treewise_splitter.setSizes([1000, 0])
                 if self.treewise_splitter.count() > 1:
                     self.treewise_splitter.handle(1).setEnabled(False)
+                if hasattr(self, '_treewise_tab_idx'):
+                    self.tab_widget.setTabText(self._treewise_tab_idx, "\u25BC Tree-wise Diff")
             elif was_vert:
-                if self.treewise_tree.isVisible():
-                    self.treewise_splitter.setSizes([150, 350])
+                exp = getattr(self, '_treewise_horiz_expanded', True)
+                self.treewise_tree.setVisible(exp)
+                self.treewise_tree.setMinimumHeight(60 if exp else 0)
+                self.treewise_splitter.setCollapsible(0, not exp)
+                self.treewise_splitter.setSizes([150, 350] if exp else [0, 1000])
                 if self.treewise_splitter.count() > 1:
-                    self.treewise_splitter.handle(1).setEnabled(
-                        self.treewise_tree.isVisible()
-                    )
+                    self.treewise_splitter.handle(1).setEnabled(exp)
+                if hasattr(self, '_treewise_tab_idx'):
+                    arrow = "\u25BC" if exp else "\u25B6"
+                    self.tab_widget.setTabText(self._treewise_tab_idx, f"{arrow} Tree-wise Diff")
 
         if hasattr(self, 'plain_tab_placeholder'):
             self.plain_tab_placeholder.setVisible(is_vert)
@@ -490,6 +507,8 @@ class CommitDiffDialogBase(QDialog):
     def build_diff_tabs(self, diff_text, file_stats=None, filewise_expanded=True, treewise_expanded=True):
         """Build 3-tab diff widget (Plain Diff, Filewise Diff, Tree-wise Diff)."""
         self.tab_widget = QTabWidget()
+        self._filewise_horiz_expanded = filewise_expanded
+        self._treewise_horiz_expanded = treewise_expanded
 
         # Tab 0: Plain Diff
         plain_widget = QWidget()
@@ -655,25 +674,31 @@ class CommitDiffDialogBase(QDialog):
             elif idx == getattr(self, '_treewise_tab_idx', -1):
                 self._toggle_treewise_file_list()
         else:
-            if idx == getattr(self, '_filewise_tab_idx', -1) and not self.filewise_file_list.isVisible():
+            if idx == getattr(self, '_filewise_tab_idx', -1) and self.filewise_file_list.isHidden():
                 self._toggle_filewise_file_list()
-            elif idx == getattr(self, '_treewise_tab_idx', -1) and not self.treewise_tree.isVisible():
+            elif idx == getattr(self, '_treewise_tab_idx', -1) and self.treewise_tree.isHidden():
                 self._toggle_treewise_file_list()
 
     def _toggle_pane_list(self, list_widget, splitter, tab_idx, tab_name):
-        visible = list_widget.isVisible()
-        list_widget.setVisible(not visible)
-        self.tab_widget.setTabText(tab_idx, f"{('▶' if visible else '▼')} {tab_name}")
-        list_widget.setMinimumHeight(0 if visible else 60)
-        splitter.setCollapsible(0, visible)
-        splitter.setSizes([0, 1000] if visible else [150, 350])
-        splitter.handle(1).setEnabled(not visible)
+        visible = not list_widget.isHidden()
+        new_expanded = not visible
+        list_widget.setVisible(new_expanded)
+        self.tab_widget.setTabText(tab_idx, f"{('▼' if new_expanded else '▶')} {tab_name}")
+        list_widget.setMinimumHeight(60 if new_expanded else 0)
+        splitter.setCollapsible(0, not new_expanded)
+        splitter.setSizes([150, 350] if new_expanded else [0, 1000])
+        splitter.handle(1).setEnabled(new_expanded)
+        return new_expanded
 
     def _toggle_filewise_file_list(self):
-        self._toggle_pane_list(self.filewise_file_list, self.filewise_splitter, self._filewise_tab_idx, "Filewise Diff")
+        self._filewise_horiz_expanded = self._toggle_pane_list(
+            self.filewise_file_list, self.filewise_splitter, self._filewise_tab_idx, "Filewise Diff"
+        )
 
     def _toggle_treewise_file_list(self):
-        self._toggle_pane_list(self.treewise_tree, self.treewise_splitter, self._treewise_tab_idx, "Tree-wise Diff")
+        self._treewise_horiz_expanded = self._toggle_pane_list(
+            self.treewise_tree, self.treewise_splitter, self._treewise_tab_idx, "Tree-wise Diff"
+        )
 
     def _get_file_diff(self, filepath):
         """Get diff for a single file. Subclasses override for their diff strategy."""

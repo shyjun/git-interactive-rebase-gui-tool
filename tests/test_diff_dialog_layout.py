@@ -127,9 +127,35 @@ class TestDiffDialogLayoutOptions(unittest.TestCase):
         self.assertTrue(dlg.filewise_splitter.handle(1).isEnabled(),
                         "filewise splitter handle must be enabled after expanding")
 
-        # Collapsing again: in a headless (no-show) dialog, isVisible() reflects
-        # native window visibility which is always False, so a second toggle always
-        # re-expands.  Skip that check; the critical regression is the initial state.
+        # Clicking again collapses it
+        dlg._toggle_filewise_file_list()
+        self.assertTrue(dlg.filewise_file_list.isHidden(),
+                        "filewise file list must be hidden after second toggle")
+        self.assertFalse(dlg.filewise_splitter.handle(1).isEnabled(),
+                         "filewise splitter handle must be disabled after collapsing")
+
+    def test_vertical_mode_expands_file_and_tree_lists(self):
+        """In vertical mode there is no bottom diff pane, so file/tree lists must be expanded."""
+        from lib.dialogs.diff_dialogs import SingleCommitViewDialog
+
+        dlg = SingleCommitViewDialog(
+            repo_path=os.getcwd(),
+            sha="18dd7c0f6",
+            font_size=10,
+            font_family=None,
+            parent=None,
+        )
+        self.assertTrue(dlg.filewise_file_list.isHidden())
+        self.assertTrue(dlg.treewise_tree.isHidden())
+
+        # Switch to vertical mode: both filewise and treewise lists must become visible
+        dlg.radio_diff_vert.setChecked(True)
+        self.assertFalse(dlg.filewise_file_list.isHidden(),
+                         "filewise file list must be visible in vertical mode")
+        self.assertFalse(dlg.treewise_tree.isHidden(),
+                         "treewise tree must be visible in vertical mode")
+        self.assertIn("\u25BC", dlg.tab_widget.tabText(dlg._filewise_tab_idx))
+        self.assertIn("\u25BC", dlg.tab_widget.tabText(dlg._treewise_tab_idx))
 
     def test_vertical_to_horiz_restores_collapse_state(self):
         """Switching back from vertical to horiz must respect the tab-expand state."""
@@ -149,6 +175,8 @@ class TestDiffDialogLayoutOptions(unittest.TestCase):
         # File list should still be collapsed (user never manually expanded it)
         self.assertTrue(dlg.filewise_file_list.isHidden(),
                         "filewise file list should remain collapsed after vert→horiz cycle")
+        self.assertTrue(dlg.treewise_tree.isHidden(),
+                        "treewise tree should remain collapsed after vert→horiz cycle")
         # But toggling should still work
         dlg._toggle_filewise_file_list()
         self.assertFalse(dlg.filewise_file_list.isHidden(),
