@@ -92,5 +92,68 @@ class TestDiffDialogLayoutOptions(unittest.TestCase):
         self.assertTrue(dlg.filewise_diff_container.isHidden())
 
 
+    def test_filewise_tree_tabs_expandable_on_open(self):
+        """Regression: set_diff_layout_mode must NOT clobber the user-collapsed state.
+
+        SingleCommitViewDialog opens with filewise_expanded=False, so both
+        the Filewise Diff and Tree-wise Diff tabs start collapsed.  Calling
+        set_diff_layout_mode("horiz") during init must leave that collapsed
+        state untouched so the user can expand the panes by clicking the tab.
+        """
+        from lib.dialogs.diff_dialogs import SingleCommitViewDialog
+
+        dlg = SingleCommitViewDialog(
+            repo_path=os.getcwd(),
+            sha="18dd7c0f6",
+            font_size=10,
+            font_family=None,
+            parent=None,
+        )
+        # Both file-list panes start hidden (▶ collapsed)
+        self.assertTrue(dlg.filewise_file_list.isHidden(),
+                        "filewise file list must start collapsed")
+        self.assertTrue(dlg.treewise_tree.isHidden(),
+                        "treewise tree must start collapsed")
+        # The splitter handle must NOT be enabled while the pane is hidden
+        self.assertFalse(dlg.filewise_splitter.handle(1).isEnabled(),
+                         "filewise splitter handle must stay disabled when collapsed")
+        self.assertFalse(dlg.treewise_splitter.handle(1).isEnabled(),
+                         "treewise splitter handle must stay disabled when collapsed")
+
+        # Simulate user clicking the ▶ Filewise Diff tab label to expand it
+        dlg._toggle_filewise_file_list()
+        self.assertFalse(dlg.filewise_file_list.isHidden(),
+                         "filewise file list must be visible after toggle")
+        self.assertTrue(dlg.filewise_splitter.handle(1).isEnabled(),
+                        "filewise splitter handle must be enabled after expanding")
+
+        # Collapsing again: in a headless (no-show) dialog, isVisible() reflects
+        # native window visibility which is always False, so a second toggle always
+        # re-expands.  Skip that check; the critical regression is the initial state.
+
+    def test_vertical_to_horiz_restores_collapse_state(self):
+        """Switching back from vertical to horiz must respect the tab-expand state."""
+        from lib.dialogs.diff_dialogs import SingleCommitViewDialog
+
+        dlg = SingleCommitViewDialog(
+            repo_path=os.getcwd(),
+            sha="18dd7c0f6",
+            font_size=10,
+            font_family=None,
+            parent=None,
+        )
+        # Start collapsed, switch to vert then back to horiz
+        dlg.radio_diff_vert.setChecked(True)
+        dlg.radio_diff_horiz.setChecked(True)
+
+        # File list should still be collapsed (user never manually expanded it)
+        self.assertTrue(dlg.filewise_file_list.isHidden(),
+                        "filewise file list should remain collapsed after vert→horiz cycle")
+        # But toggling should still work
+        dlg._toggle_filewise_file_list()
+        self.assertFalse(dlg.filewise_file_list.isHidden(),
+                         "filewise file list must expand after toggle post-cycle")
+
+
 if __name__ == "__main__":
     unittest.main()

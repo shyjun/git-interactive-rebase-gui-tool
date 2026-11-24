@@ -243,6 +243,7 @@ class CommitDiffDialogBase(QDialog):
 
     def set_diff_layout_mode(self, mode):
         """Toggle between 'horiz' (bottom diff pane) and 'vertical' (right diff pane)."""
+        was_vert = (self._diff_layout_mode == "vertical")
         self._diff_layout_mode = mode
         tool_settings().setValue("diff_dialog_layout", mode)
         is_vert = (mode == "vertical")
@@ -255,13 +256,22 @@ class CommitDiffDialogBase(QDialog):
         if hasattr(self, 'filewise_diff_container') and hasattr(self, 'filewise_splitter'):
             self.filewise_diff_container.setVisible(not is_vert)
             if is_vert:
+                # Vertical mode: file list fills the full tab height; disable handle so
+                # the user cannot drag a meaningless boundary.
                 self.filewise_splitter.setCollapsible(0, False)
                 if self.filewise_splitter.count() > 1:
                     self.filewise_splitter.handle(1).setEnabled(False)
-            else:
-                self.filewise_splitter.setSizes([150, 350])
+            elif was_vert:
+                # Returning from vertical → restore a sensible split only if the file
+                # list is currently visible (it may still be in its user-collapsed state).
+                if self.filewise_file_list.isVisible():
+                    self.filewise_splitter.setSizes([150, 350])
                 if self.filewise_splitter.count() > 1:
-                    self.filewise_splitter.handle(1).setEnabled(True)
+                    self.filewise_splitter.handle(1).setEnabled(
+                        self.filewise_file_list.isVisible()
+                    )
+            # If we were already in horiz mode, leave the splitter state untouched so
+            # the user-collapsed / user-expanded state is preserved across dialog opens.
 
         if hasattr(self, 'treewise_diff_container') and hasattr(self, 'treewise_splitter'):
             self.treewise_diff_container.setVisible(not is_vert)
@@ -269,10 +279,13 @@ class CommitDiffDialogBase(QDialog):
                 self.treewise_splitter.setCollapsible(0, False)
                 if self.treewise_splitter.count() > 1:
                     self.treewise_splitter.handle(1).setEnabled(False)
-            else:
-                self.treewise_splitter.setSizes([150, 350])
+            elif was_vert:
+                if self.treewise_tree.isVisible():
+                    self.treewise_splitter.setSizes([150, 350])
                 if self.treewise_splitter.count() > 1:
-                    self.treewise_splitter.handle(1).setEnabled(True)
+                    self.treewise_splitter.handle(1).setEnabled(
+                        self.treewise_tree.isVisible()
+                    )
 
         if hasattr(self, 'plain_tab_placeholder'):
             self.plain_tab_placeholder.setVisible(is_vert)
