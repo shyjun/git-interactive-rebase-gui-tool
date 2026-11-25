@@ -182,6 +182,60 @@ class TestDiffDialogLayoutOptions(unittest.TestCase):
         self.assertFalse(dlg.filewise_file_list.isHidden(),
                          "filewise file list must expand after toggle post-cycle")
 
+    def test_tick_sync_across_filewise_and_treewise_and_only_ticked_shown(self):
+        """Ticks sync between filewise & treewise (including root files), and clicked-only files are not shown."""
+        from PySide6.QtCore import Qt
+        from lib.dialogs.diff_dialogs import BranchDiffDialog
+
+        dlg = BranchDiffDialog(
+            repo_path=os.getcwd(),
+            start_sha="11111111",
+            end_sha="22222222",
+            num_commits=2,
+            diff_text="diff --git a/README.md b/README.md\n+root\n",
+            files=["README.md", "src/app.py"],
+            file_stats={"README.md": (1, 0, 0, 0), "src/app.py": (2, 1, 0, 0)},
+            parent=None,
+        )
+        dlg._get_file_diff = lambda f: f"diff for {f}\n"
+
+        # Initially nothing is ticked -> diff panes are empty
+        self.assertEqual(dlg.filewise_diff_view.toPlainText(), "")
+        self.assertEqual(dlg.treewise_diff_view.toPlainText(), "")
+
+        # Clicking a row without ticking must NOT populate the diff pane
+        dlg.filewise_file_list.setCurrentRow(0)
+        dlg.filewise_file_list.itemClicked.emit(dlg.filewise_file_list.item(0))
+        self.assertEqual(dlg.filewise_diff_view.toPlainText(), "")
+
+        # Switching to vertical mode with nothing ticked must still show empty v_diff_view on Filewise tab
+        dlg.radio_diff_vert.setChecked(True)
+        dlg.tab_widget.setCurrentIndex(dlg._filewise_tab_idx)
+        self.assertEqual(dlg.v_diff_view.toPlainText(), "")
+
+        # Tick root-level README.md in Filewise Diff -> must sync to Tree-wise Diff and show in v_diff_view
+        readme_item = dlg.filewise_file_list.item(0)
+        readme_item.setCheckState(Qt.Checked)
+        self.assertEqual(dlg._checked_filewise_files(), ["README.md"])
+        self.assertEqual(dlg._checked_treewise_files(), ["README.md"])
+        self.assertIn("diff for README.md", dlg.v_diff_view.toPlainText())
+        self.assertNotIn("diff for src/app.py", dlg.v_diff_view.toPlainText())
+
+        # Switch to Tree-wise tab: tick must be retained and v_diff_view must show README.md
+        dlg.tab_widget.setCurrentIndex(dlg._treewise_tab_idx)
+        self.assertIn("diff for README.md", dlg.v_diff_view.toPlainText())
+
+        # Untick README.md via treewise -> must untick in filewise and clear v_diff_view
+        for i in range(dlg.treewise_tree.topLevelItemCount()):
+            ti = dlg.treewise_tree.topLevelItem(i)
+            data = ti.data(0, Qt.UserRole + 10)
+            if data and data.get("filepath") == "README.md":
+                ti.setCheckState(0, Qt.Unchecked)
+                break
+        self.assertEqual(dlg._checked_filewise_files(), [])
+        self.assertEqual(dlg._checked_treewise_files(), [])
+        self.assertEqual(dlg.v_diff_view.toPlainText(), "")
+
 
 if __name__ == "__main__":
     unittest.main()

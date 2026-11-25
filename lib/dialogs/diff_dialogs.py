@@ -347,36 +347,15 @@ class CommitDiffDialogBase(QDialog):
             if hasattr(self, 'v_diff_search') and self.v_diff_search.isVisible():
                 self.v_diff_search._perform_search()
         elif idx == 1:
+            if hasattr(self, '_v_truncation_banner'):
+                self._v_truncation_banner.setVisible(False)
             checked = self._checked_filewise_files()
-            if checked:
-                self._refresh_diff_view(checked, self.v_diff_view, self.v_diff_search)
-            elif (item := self.filewise_file_list.currentItem()) and item.text():
-                entry = item.data(FILE_ENTRY_ROLE)
-                filepath = (entry[2] if entry[0] == 'R' else entry[1]) if entry else item.text()
-                diff = self._get_file_diff(filepath)
-                self.v_diff_view.setPlainText(diff)
-                self.v_diff_view.set_separator_color(self.colors.get("separator", "#444444"))
-                self.v_diff_search._perform_search()
-            else:
-                self.v_diff_view.clear()
+            self._refresh_diff_view(checked, self.v_diff_view, self.v_diff_search)
         elif idx == 2:
+            if hasattr(self, '_v_truncation_banner'):
+                self._v_truncation_banner.setVisible(False)
             checked = self._checked_treewise_files()
-            if checked:
-                self._refresh_diff_view(checked, self.v_diff_view, self.v_diff_search)
-            elif (item := self.treewise_tree.currentItem()) and (item_data := item.data(0, Qt.UserRole + 10)):
-                if item_data["type"] == "file":
-                    entry = item_data.get("entry")
-                    filepath = item_data.get("filepath") or (entry[2] if entry and entry[0] == 'R' else (entry[1] if entry else ""))
-                    diff = self._get_file_diff(filepath)
-                else:
-                    diffs = []
-                    self._collect_folder_diffs(item_data["node"], diffs)
-                    diff = "\n".join(diffs)
-                self.v_diff_view.setPlainText(diff)
-                self.v_diff_view.set_separator_color(self.colors.get("separator", "#444444"))
-                self.v_diff_search._perform_search()
-            else:
-                self.v_diff_view.clear()
+            self._refresh_diff_view(checked, self.v_diff_view, self.v_diff_search)
 
     def build_header(self, sha, meta, msg, collapsible=False, on_toggled=None, include_layout_toggle=False):
         """Build standard commit header with metadata label and read-only message view."""
@@ -553,9 +532,6 @@ class CommitDiffDialogBase(QDialog):
             parent=self.filewise_file_list,
         ))
         self.filewise_file_list.itemChanged.connect(self._on_filewise_item_changed)
-        self.filewise_file_list.itemClicked.connect(lambda item: self.on_filewise_file_selected(
-            (entry[2] if entry[0] == 'R' else entry[1]) if (entry := item.data(FILE_ENTRY_ROLE)) else item.text()
-        ))
         self.filewise_file_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.filewise_file_list.customContextMenuRequested.connect(self.show_filewise_context_menu)
         self.filewise_file_list_filter = FileListFilter(self.filewise_file_list, on_set_all=self._set_all)
@@ -580,7 +556,6 @@ class CommitDiffDialogBase(QDialog):
         self.treewise_tree.setAnimated(True)
         self.treewise_tree.setItemDelegateForColumn(1, TreeStatsDelegate(parent=self.treewise_tree))
         self.treewise_tree.itemChanged.connect(self._on_treewise_item_changed)
-        self.treewise_tree.itemClicked.connect(self.on_treewise_item_clicked)
         self.treewise_tree.setContextMenuPolicy(Qt.CustomContextMenu)
         self.treewise_tree.customContextMenuRequested.connect(self.show_treewise_context_menu)
         self.treewise_tree_filter = FileListFilter(self.treewise_tree, on_set_all=self._set_all)
@@ -756,8 +731,7 @@ class CommitDiffDialogBase(QDialog):
         checked = item.checkState() == Qt.Checked
         entry = item.data(FILE_ENTRY_ROLE)
         filepath = (entry[2] if entry[0] == 'R' else entry[1]) if entry else item.text()
-        for i in range(self.treewise_tree.topLevelItemCount()):
-            self._sync_file_to_tree(self.treewise_tree.topLevelItem(i), filepath, checked)
+        self._sync_file_to_tree(self.treewise_tree.invisibleRootItem(), filepath, checked)
         self._refresh_filewise_diff()
         self._refresh_treewise_diff()
 
@@ -882,14 +856,22 @@ class CommitDiffDialogBase(QDialog):
         """Show combined diff of all checked files in the filewise diff pane."""
         files = self._checked_filewise_files()
         self._refresh_diff_view(files, self.filewise_diff_view, self.filewise_diff_search)
-        if getattr(self, '_diff_layout_mode', 'horiz') == 'vertical':
+        if (
+            getattr(self, '_diff_layout_mode', 'horiz') == 'vertical'
+            and getattr(self, 'tab_widget', None)
+            and self.tab_widget.currentIndex() == getattr(self, '_filewise_tab_idx', 1)
+        ):
             self._refresh_diff_view(files, self.v_diff_view, self.v_diff_search)
 
     def _refresh_treewise_diff(self):
         """Show combined diff of all checked tree items."""
         files = self._checked_treewise_files()
         self._refresh_diff_view(files, self.treewise_diff_view, self.treewise_diff_search)
-        if getattr(self, '_diff_layout_mode', 'horiz') == 'vertical':
+        if (
+            getattr(self, '_diff_layout_mode', 'horiz') == 'vertical'
+            and getattr(self, 'tab_widget', None)
+            and self.tab_widget.currentIndex() == getattr(self, '_treewise_tab_idx', 2)
+        ):
             self._refresh_diff_view(files, self.v_diff_view, self.v_diff_search)
 
     def _checked_treewise_files(self):
