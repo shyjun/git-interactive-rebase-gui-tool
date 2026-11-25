@@ -23,6 +23,7 @@ Visual documentation for the Git Interactive Rebase GUI Tool. Each section descr
     - [10.1 Plain Diff](#101-plain-diff)
     - [10.2 File-wise Diff](#102-file-wise-diff)
     - [10.3 Tree-wise Diff](#103-tree-wise-diff)
+    - [10.4 Diff at Bottom or Right Pane](#104-diff-at-bottom-or-right-pane)
 11. [Diff Pane](#11-diff-pane)
 12. [Rephrase Commit](#12-rephrase-commit)
 13. [Drop Commit](#13-drop-commit)
@@ -448,6 +449,23 @@ Browse a commit's changes as a folder/file tree with per-file stats.
 The tree supports zoom and theme colors — font size and colors follow the Plain Diff view settings. Hovering the tree reveals the filter button (see the file list filter note in [Diff Viewer](#10-diff-viewer)): type a file or folder name to narrow the tree, with matches highlighted as you type.
 
 This tab is available in the main window, the Single Commit View dialog, and the Branch Diff dialog.
+
+---
+
+### 10.4 Diff at Bottom or Right Pane
+
+**Screenshot:** `https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/diff-at-right-pane.webp`
+
+![Diff at Right Pane](https://raw.githubusercontent.com/shyjun/git-interactive-rebase-gui-tool-screenshots/main/screenshots/diff-at-right-pane.webp)
+
+**Description:** The Single Commit View and Branch Diff dialogs (Consolidated Diff, PR Diff, Unstaged/Staged viewers) offer two diff layouts, switched with radio buttons in the header:
+
+- **Diff: Bottom** (default) → each tab shows the file list on top and its diff pane below it.
+- **Diff: Right** → the diff moves to a dedicated pane on the right side spanning the **full dialog height**. The file lists then fill the full tab height, and the right pane shows the diff of whichever tab is active — the Plain Diff, or the checked files in File-wise / Tree-wise.
+
+The full-height right pane makes long diffs easier to review and lets you keep the file list and diff visible side by side: click or check files on the left and read their diff on the right without any vertical cramping.
+
+The choice is remembered across sessions. Switching to **Diff: Right** widens the dialog as needed, and the splitter between the panes can be dragged to rebalance the space.
 
 ---
 
