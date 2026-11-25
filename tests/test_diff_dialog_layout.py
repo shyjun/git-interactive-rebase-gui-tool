@@ -32,8 +32,10 @@ class TestDiffDialogLayoutOptions(unittest.TestCase):
         )
         self.assertTrue(hasattr(dlg, "radio_diff_horiz"))
         self.assertTrue(hasattr(dlg, "radio_diff_vert"))
-        self.assertEqual(dlg.radio_diff_horiz.text(), "diff at horiz")
-        self.assertEqual(dlg.radio_diff_vert.text(), "diff at vertical")
+        self.assertEqual(dlg.radio_diff_horiz.text(), "Diff: Bottom")
+        self.assertEqual(dlg.radio_diff_vert.text(), "Diff: Right")
+        self.assertTrue(bool(dlg.radio_diff_horiz.toolTip()))
+        self.assertTrue(bool(dlg.radio_diff_vert.toolTip()))
 
     def test_toggle_to_vertical_shows_right_pane_and_hides_tab_diffs(self):
         from lib.dialogs.diff_dialogs import SingleCommitViewDialog

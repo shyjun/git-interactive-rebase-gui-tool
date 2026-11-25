@@ -214,8 +214,10 @@ class CommitDiffDialogBase(QDialog):
         toggle_layout.setContentsMargins(6, 2, 6, 2)
         toggle_layout.setSpacing(10)
 
-        self.radio_diff_horiz = QRadioButton("diff at horiz")
-        self.radio_diff_vert = QRadioButton("diff at vertical")
+        self.radio_diff_horiz = QRadioButton("Diff: Bottom")
+        self.radio_diff_vert = QRadioButton("Diff: Right")
+        self.radio_diff_horiz.setToolTip("Show the diff pane below the file list")
+        self.radio_diff_vert.setToolTip("Show the diff pane on the right side for more vertical space")
         self.radio_diff_horiz.setCursor(Qt.PointingHandCursor)
         self.radio_diff_vert.setCursor(Qt.PointingHandCursor)
 
